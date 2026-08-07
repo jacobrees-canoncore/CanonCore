@@ -44,7 +44,9 @@ is fine; editing both is a conflict waiting to happen. Prefer the Linear copy, s
 where labels and triage state live. Labels sync by name, but GitHub holds its own label
 objects — same names, different colours, two independent sets.
 
-> **Status: not yet wired.** This repo has no GitHub remote at the time of writing.
+> **Status: remote exists, sync not yet wired.** The remote is
+> `jacobrees-canoncore/CanonCore` (private), created in the right org. The Linear↔GitHub
+> issue sync itself has **not** been set up yet — do that next, following *Wiring it up* below.
 
 ### The remote must live in the `jacobrees-canoncore` org
 
@@ -88,8 +90,8 @@ gh api repos/<owner>/CanonCore --jq .permissions
 gh auth switch --user <the one with push>
 ```
 
-For Waveger that account is `jacobdrees`. **Which account owns `jacobrees-canoncore` has not
-been verified here** — check it rather than assuming it matches.
+The account with push here is **`jacobdrees`**, verified 2026-08-07. Note that `git` uses SSH
+and `gh` uses its own token, so the two can disagree — see `workflow.md`.
 
 **PRs as a request surface: no.** _(Set to `yes` if this repo should treat external GitHub
 PRs as feature requests in the triage queue; `/triage` reads this flag.)_

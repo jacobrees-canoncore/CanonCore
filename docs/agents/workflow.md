@@ -59,16 +59,23 @@ access. `jacobreesdev` is usually the active one.
 `git push` works whatever is active, because it goes over SSH and the key decides. `gh` does
 not: it fails with a 403 that reads like a problem with the repo rather than with the account.
 
-**Which account can write to `jacobrees-canoncore` is PENDING** — verified for Waveger
-(`jacobdrees`), not for this org. Check before the first `gh` write rather than assuming:
+**`jacobdrees` is the account with write access here** — `admin`, `maintain` and `push` on
+`jacobrees-canoncore/CanonCore`, verified 2026-08-07. `jacobreesdev` and `vepple-jr` are also
+authenticated on this machine and are not it.
+
+Which one is *active* moves on its own: it was `jacobreesdev` at the start of the session that
+set this repo up and `jacobdrees` by the end of it, with nothing deliberately switched. So
+check rather than assume, before the first `gh` write:
 
 ```bash
 gh auth status
-gh api repos/jacobrees-canoncore/<repo> --jq .permissions
-gh auth switch --user <the one with push>
+gh auth switch --user jacobdrees
 ```
 
-Record the answer here once it is known.
+**The two protocols do not share credentials.** `git` here talks SSH, `gh` uses its token.
+The remote is `git@github.com:jacobrees-canoncore/CanonCore.git` on purpose — the HTTPS URL
+fails with `Repository not found`, which reads like the repo is missing rather than like the
+git credential lacking access to a private repo.
 
 ## The loop
 
