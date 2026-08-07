@@ -120,6 +120,23 @@ nothing to run and must say so rather than passing silently.
 it is a real environment rather than a smoke screen; a preview sharing production's data is
 worth less.
 
+**Everything the branch changes actually reaches production. PENDING** on the hosting
+decision, and it is a question to answer *before* the first change of a kind that needs it,
+not after. A build applies some artefacts automatically and leaves others exactly as they
+were — a schema, a queue topology, a scheduled job, a permission — and merging one of those
+deploys the code that depends on it while the thing itself stays behind. Which artefacts a
+merge carries, and which need a hand-run step, has to be written down here once the host is
+known. Waveger learned this the expensive way: nothing in its build ran its migration
+command, that was true for months, and it was written down nowhere until a migration landed
+whose safety turned out to depend on the day of the week.
+
+The second half of that lesson generalises even before the host is chosen. **A change that
+only works in one deploy order is a change to rewrite**, not a window to reason about: widen
+first so old and new code both work, move the data, then narrow in a *later* change once only
+new code is live. File the narrowing as its own ticket before the widening lands — the
+widening is not the risk, forgetting to remove it is. Purely additive changes are unaffected
+and still land in one go.
+
 **Anything the tests structurally cannot see.** Waveger's examples were a migration paired
 with its schema edit, and a committed API contract matching what the routes generate. The
 CanonCore equivalents are unknown. Add them here as they appear, and prefer making each one an

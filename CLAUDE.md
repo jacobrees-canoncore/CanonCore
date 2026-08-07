@@ -16,7 +16,11 @@ Nothing in this repository is derived from them.
 ## Engineering principles
 
 - Do not preserve backward compatibility. Remove obsolete paths instead of
-  adding compatibility layers, fallbacks, or migrations.
+  adding compatibility layers, fallbacks, or migrations. This is about what the
+  codebase carries *permanently*. It does not forbid a widening that exists for
+  one deploy interval and is narrowed in the next change — that is how a
+  narrowing change is made safe while old and new code are briefly live
+  together, and it is the opposite of a layer nobody removes.
 - Choose the simplest implementation that fully meets the current
   requirements. Avoid speculative abstractions, configuration, and
   indirection.
