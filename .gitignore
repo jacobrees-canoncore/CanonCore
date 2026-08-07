@@ -1,0 +1,15 @@
+# Local, per-machine Claude Code settings. Project settings (.claude/settings.json)
+# and project skills (.claude/skills/) are tracked; this one is not.
+.claude/settings.local.json
+
+# Scratch output from browser/automation MCP servers
+.playwright-mcp/
+
+# Secrets — never commit. A `.env.example`, if one is ever added, is deliberately
+# NOT ignored: it documents the required variables and belongs in the repo.
+.env
+.env.local
+.env.*.local
+
+# macOS
+.DS_Store

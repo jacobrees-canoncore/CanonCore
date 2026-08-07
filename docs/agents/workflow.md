@@ -1,0 +1,134 @@
+# Workflow
+
+Trunk-based, solo. One `main`, short-lived branches, squash-merge to land.
+
+This file is the policy. `/draft-pr` and `/review-pr` are the procedure and defer to it — a
+rule belongs here, a step belongs in the skill.
+
+> **Read this first.** CanonCore has no stack, no remote and no CI yet. The policy below is
+> settled; several of the *mechanics* it refers to do not exist. Every such place is marked
+> **PENDING** with what has to be decided. Do not invent a value for one — leave it pending
+> and say so.
+
+## Why a PR at all, for one developer
+
+There is nobody to review it, so the PR is not doing what a PR usually does. It earns its
+place twice over anyway:
+
+- **A branch is a gate before production.** Whether pushing `main` deploys straight to
+  production is **PENDING** on the hosting decision. If it does, the branch is the only gate
+  there is, and that makes the PR non-optional rather than a nicety.
+- **`/code-review` compares against a commit.** Its first step resolves the fixed point and
+  refuses an empty diff, so run against work that is not committed yet it stops before
+  reviewing anything. `/implement` commits last, which puts the review in exactly that gap. A
+  branch and a PR give it a real range. (Staging first and pointing it at `git diff --cached`
+  works, and is a workaround for the missing branch rather than a way of life.)
+
+So the states mean: **draft** is "not yet reviewed", **ready** is "reviewed, and it works".
+Nobody is being signalled — the states are for you.
+
+## Branches
+
+The branch name must carry the Linear identifier in **upper case**, because that is the form
+`orca linear` matches: names are accepted only when they match exactly (`issue-tracker.md`).
+Nothing else about the name is prescribed.
+
+```
+main                        production-ready
+CAN-11-welcome-email-queue  anything else
+```
+
+No `feature/` or `fix/` prefix — nothing in this project reads one.
+
+**Under Orca**, create the worktree with both the name and the link:
+
+```bash
+orca worktree create --name CAN-11-welcome-email-queue --linear-issue CAN-11
+```
+
+`--linear-issue` is the part that matters. Orca keeps the issue as worktree metadata rather
+than reading it off the branch, and that is what makes `orca linear issue --current` work —
+`--current` being the only form that needs no `--workspace`. The identifier in the branch name
+is the fallback for a worktree that was never linked.
+
+## The `gh` account trap
+
+Several GitHub accounts are authenticated on this machine and they do not have the same
+access. `jacobreesdev` is usually the active one.
+
+`git push` works whatever is active, because it goes over SSH and the key decides. `gh` does
+not: it fails with a 403 that reads like a problem with the repo rather than with the account.
+
+**Which account can write to `jacobrees-canoncore` is PENDING** — verified for Waveger
+(`jacobdrees`), not for this org. Check before the first `gh` write rather than assuming:
+
+```bash
+gh auth status
+gh api repos/jacobrees-canoncore/<repo> --jq .permissions
+gh auth switch --user <the one with push>
+```
+
+Record the answer here once it is known.
+
+## The loop
+
+```bash
+git checkout main && git pull --ff-only
+git checkout -b CAN-11-welcome-email-queue    # or an Orca worktree, above
+# ...work, via /implement...
+/draft-pr                                     # push, open the draft, link Linear
+/mattpocock-skills:code-review main           # two-axis review against the branch point
+/review-pr                                    # gates, ready, squash-merge, close out Linear
+```
+
+Two different things answer to the name *code review* and it is worth keeping them apart:
+`mattpocock-skills:code-review` is the two-axis Standards/Spec review that takes a fixed
+point; the built-in `/code-review` takes an effort level, or `ultra <PR#>` for a cloud review
+of a GitHub PR. Either works on a branch; neither works before there is one.
+
+- **Squash-merge only.** One ticket, one branch, one commit on `main`. Configure the repo to
+  permit nothing else if you can; until then it is a rule, not an enforcement.
+- **Rebase to stay current**, never merge `main` in:
+  `git rebase main && git push --force-with-lease`.
+- **Commit subjects are prose, not Conventional Commits.** `Send the welcome email from the queue
+  instead of the request`, not `feat(email): send from queue`. Nothing enforces it — it is a chosen
+  style: the subject says what changed about the product, the body says why. A single-commit
+  PR squashes under its commit title, so the PR title should match it.
+- **Urgent fixes take the same path.** There is no hotfix lane. The gate is worth more when
+  you are in a hurry, not less.
+
+## The gates
+
+What has to be true before a branch lands. `/review-pr` checks these.
+
+**The repo's own checks. PENDING — there are none yet.** Waveger's shape is
+`test && typecheck && lint` run locally because it has no CI. Whether CanonCore has CI, and
+what the commands are called, is settled when the stack is. Until then `/review-pr` has
+nothing to run and must say so rather than passing silently.
+
+**A deployed preview works. PENDING** on the hosting decision. The value of a preview is that
+it is a real environment rather than a smoke screen; a preview sharing production's data is
+worth less.
+
+**Anything the tests structurally cannot see.** Waveger's examples were a migration paired
+with its schema edit, and a committed API contract matching what the routes generate. The
+CanonCore equivalents are unknown. Add them here as they appear, and prefer making each one an
+executable check over leaving it as prose — a rule that lives only in prose is one nobody
+re-reads at the moment it is broken.
+
+## After the merge
+
+**Verify what the ticket promised, in the deployed environment.** Not optional, and not
+something a test suite can do: anything living in project settings or platform state — cron
+registration, environment variables, function configuration — cannot be asserted by a file in
+the repo. A green suite says the code is right. It says nothing about whether the platform is
+doing what the ticket said it would.
+
+**Close out Linear.** Status to `Done`, and a comment saying what shipped and what to expect
+next — not a summary of the diff, because the PR is the diff. See `issue-tracker.md`.
+
+A landed issue ends up carrying **no** triage state role, which is correct rather than an
+oversight — `triage-labels.md` has the reasoning.
+
+**Anything found on the way** becomes its own Linear issue, not a late commit on a branch that
+is about to merge.
