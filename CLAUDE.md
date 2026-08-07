@@ -84,7 +84,7 @@ appear in the model's skill list:
    ↓
 /to-tickets               spec sliced into vertical tracer-bullet tickets
    ↓
-/implement                one ticket, TDD at the agreed seams, then /code-review
+/implement                one ticket, TDD at the agreed seams; stops at the commit
 ```
 
 `/implement` stops at the commit; the skill says so and nothing in the pack goes further.
@@ -92,6 +92,8 @@ Everything after it is this repo's own, and it is two more user-invoked skills:
 
 ```
 /draft-pr                 push the branch, open the draft PR, link the ticket
+   ↓
+/code-review              two-axis review — needs the pushed branch, so it runs here
    ↓
 /review-pr                gates, ready, squash-merge, close out Linear
 ```

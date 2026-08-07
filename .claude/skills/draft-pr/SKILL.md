@@ -14,23 +14,17 @@ policy and the reasoning; this is the procedure. `/review-pr` lands it afterward
 1. **Refuse to run on `main`.** `git branch --show-current`. If it is `main`, stop and say to
    branch first — there would be nothing left to open a PR against.
 
-2. **Check there is a remote.** `git remote -v`. If there is none, stop and say so: the remote
-   belongs in the `jacobrees-canoncore` org for the Linear sync to be possible at all
-   (`docs/agents/issue-tracker.md`). Do not create one here.
-
-3. **Get the right `gh` account.** Several are authenticated and they do not have the same
-   access; `git push` works regardless because it goes over SSH, `gh` does not and fails with
-   a 403 that reads like a repo problem. Which account can write here is not yet recorded:
+2. **Switch to the `gh` account that can write.** That is `jacobdrees`. Three accounts are
+   authenticated and the active one is often not it; `git push` works regardless because it
+   goes over SSH, `gh` does not and fails with a 403 that reads like a repo problem
+   (`docs/agents/workflow.md`).
 
    ```bash
-   gh auth status
-   gh api repos/<owner>/<repo> --jq .permissions
+   gh auth status                        # check before assuming — the active one moves
+   gh auth switch --user jacobdrees
    ```
 
-   Switch with `gh auth switch --user <name>` if the active one lacks push, and add the answer
-   to `docs/agents/workflow.md` once known.
-
-4. **Find the Linear issue.** Orca holds the link as worktree metadata, so the branch name is
+3. **Find the Linear issue.** Orca holds the link as worktree metadata, so the branch name is
    the fallback and not the source:
 
    - `orca linear issue --current --full --json` — works when the worktree was created with
@@ -49,7 +43,7 @@ policy and the reasoning; this is the procedure. `/review-pr` lands it afterward
      hence the upper-casing.
    - If neither works, carry on without an issue and say so. Do not guess one.
 
-5. **Resolve the base branch.** Default to `main` and say nothing — a lone branch is the
+4. **Resolve the base branch.** Default to `main` and say nothing — a lone branch is the
    common case and a prompt every time is noise.
 
    Ask only when the issue has a `parent` (`/to-tickets` slices are sub-issues of a `/to-spec`
@@ -67,7 +61,7 @@ policy and the reasoning; this is the procedure. `/review-pr` lands it afterward
 
    Say which base you chose, in one sentence.
 
-6. **Read the range**, now that the base is known — doing this earlier describes commits the
+5. **Read the range**, now that the base is known — doing this earlier describes commits the
    PR will not contain:
 
    ```bash
@@ -77,9 +71,9 @@ policy and the reasoning; this is the procedure. `/review-pr` lands it afterward
 
    Also `git status`, to catch anything uncommitted that belongs in the PR.
 
-7. **Push.** `git push -u origin HEAD`.
+6. **Push.** `git push -u origin HEAD`.
 
-8. **Write the body** to a file. There is no PR template in this repo:
+7. **Write the body** to a file. There is no PR template in this repo:
 
    ```markdown
    ## Summary
@@ -100,7 +94,7 @@ policy and the reasoning; this is the procedure. `/review-pr` lands it afterward
    while the repo has no checks and nothing deployed (`docs/agents/workflow.md` marks both
    PENDING). A checklist of things that cannot be done is worse than no checklist.
 
-9. **Create it.**
+8. **Create it.**
 
    ```bash
    gh pr create --draft --base <base> --title "<subject>" --body-file <path>
@@ -111,20 +105,20 @@ policy and the reasoning; this is the procedure. `/review-pr` lands it afterward
    title, so the two should agree. Use `--body-file`; markdown as an inline argument is
    fragile.
 
-10. **Attach the PR to the issue**, if one was found:
+9. **Attach the PR to the issue**, if one was found:
 
-    ```bash
-    orca linear attach --current --url <pr-url> --title "PR link" --json
-    ```
+   ```bash
+   orca linear attach --current --url <pr-url> --title "PR link" --json
+   ```
 
-    Use `orca linear attach <id> --url … --workspace "$WS"` when the worktree is not linked.
-    This is deliberate belt and braces: `Fixes CAN-<n>` in the body relies on Linear's scanner
-    noticing, and an attachment does not.
+   Use `orca linear attach <id> --url … --workspace "$WS"` when the worktree is not linked.
+   This is deliberate belt and braces: `Fixes CAN-<n>` in the body relies on Linear's scanner
+   noticing, and an attachment does not.
 
-    On `linear_write_unconfirmed`, retry **once** with the pinned `--write-id` from the error's
-    own `nextSteps` (`docs/agents/issue-tracker.md`).
+   On `linear_write_unconfirmed`, retry **once** with the pinned `--write-id` from the error's
+   own `nextSteps` (`docs/agents/issue-tracker.md`).
 
-11. **Report the PR URL** and say that a code review comes next.
+10. **Report the PR URL** and say that a code review comes next.
 
 ## Notes
 

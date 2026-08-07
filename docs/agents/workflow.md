@@ -5,10 +5,10 @@ Trunk-based, solo. One `main`, short-lived branches, squash-merge to land.
 This file is the policy. `/draft-pr` and `/review-pr` are the procedure and defer to it — a
 rule belongs here, a step belongs in the skill.
 
-> **Read this first.** CanonCore has no stack, no remote and no CI yet. The policy below is
-> settled; several of the *mechanics* it refers to do not exist. Every such place is marked
-> **PENDING** with what has to be decided. Do not invent a value for one — leave it pending
-> and say so.
+> **Read this first.** CanonCore has a remote (`jacobrees-canoncore/CanonCore`, private) and
+> nothing else: no stack, no CI, nothing deployed. The policy below is settled; several of the
+> *mechanics* it refers to do not exist yet. Every such place is marked **PENDING** with what
+> has to be decided. Do not invent a value for one — leave it pending and say so.
 
 ## Why a PR at all, for one developer
 
@@ -53,15 +53,14 @@ is the fallback for a worktree that was never linked.
 
 ## The `gh` account trap
 
-Several GitHub accounts are authenticated on this machine and they do not have the same
-access. `jacobreesdev` is usually the active one.
+Three GitHub accounts are authenticated on this machine — `jacobdrees`, `jacobreesdev` and
+`vepple-jr` — and they do not have the same access.
 
 `git push` works whatever is active, because it goes over SSH and the key decides. `gh` does
 not: it fails with a 403 that reads like a problem with the repo rather than with the account.
 
 **`jacobdrees` is the account with write access here** — `admin`, `maintain` and `push` on
-`jacobrees-canoncore/CanonCore`, verified 2026-08-07. `jacobreesdev` and `vepple-jr` are also
-authenticated on this machine and are not it.
+`jacobrees-canoncore/CanonCore`, verified 2026-08-07. The other two are not.
 
 Which one is *active* moves on its own: it was `jacobreesdev` at the start of the session that
 set this repo up and `jacobdrees` by the end of it, with nothing deliberately switched. So
@@ -87,6 +86,10 @@ git checkout -b CAN-11-welcome-email-queue    # or an Orca worktree, above
 /mattpocock-skills:code-review main           # two-axis review against the branch point
 /review-pr                                    # gates, ready, squash-merge, close out Linear
 ```
+
+The review sits **after** `/draft-pr`, not inside `/implement`. `/implement` stops at the
+commit and a review needs a range to compare against, so the branch has to exist and be pushed
+first. `CLAUDE.md`'s pipeline shows the same order.
 
 Two different things answer to the name *code review* and it is worth keeping them apart:
 `mattpocock-skills:code-review` is the two-axis Standards/Spec review that takes a fixed

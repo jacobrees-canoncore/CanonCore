@@ -1,7 +1,11 @@
 # Issue tracker: Linear (via `orca linear`)
 
 Issues and specs for this repo live in **Linear**, in the `CanonCore` workspace. All
-operations go through the `orca linear` CLI — never the Linear web UI, never `gh issue`.
+issue operations go through the `orca linear` CLI — never `gh issue`.
+
+Three things the CLI genuinely cannot do are marked **human-only** where they appear below:
+creating a label *definition*, wiring the GitHub sync, and deleting or archiving an issue.
+Those are clicks in the Linear web UI. Everything else is the CLI.
 
 | Setting      | Value                                  |
 | ------------ | -------------------------------------- |
@@ -57,15 +61,16 @@ failed with "Make sure you haven't connected another Linear account with this Gi
 installation". They were split into `jacobrees-waveger` and `jacobrees-sift`, one org per
 workspace.
 
-`jacobrees-canoncore` **already exists and holds zero repos**, so the slot is clear. Create
-the remote there. Do not put it under `jacobdrees` or `jacobreesdev` personally, and do not
-add it to Waveger's or Sift's org — either would break the sync for both sides. A second
-GitHub *account* is not required, contrary to the common advice; one account administering
-several orgs is enough.
+**This is already satisfied**: the remote is `jacobrees-canoncore/CanonCore`, created there on
+2026-08-07. The constraint is recorded because moving the repo would break the sync — do not
+move it under `jacobdrees` or `jacobreesdev` personally, and do not move it into Waveger's or
+Sift's org. A second GitHub *account* is not required, contrary to the common advice; one
+account administering several orgs is enough.
 
-### Wiring it up
+### Wiring it up — human-only, and still outstanding
 
-In Linear → GitHub integration → GitHub Issues → `+`, pick the repo and team `CAN`.
+An agent cannot do this. In Linear → GitHub integration → GitHub Issues → `+`, pick the repo
+and team `CAN`.
 
 - **Two-way is not the default.** A new repo↔team link defaults to *one-way, GitHub → Linear*;
   two-way must be chosen explicitly. The setting governs issue *creation* only — updates to
@@ -77,21 +82,10 @@ In Linear → GitHub integration → GitHub Issues → `+`, pick the repo and te
 
 ### The `gh` account trap
 
-Three GitHub accounts are authenticated on this machine and they do not have the same access.
-`jacobreesdev` is usually the active one. `git push` works whatever is active, because it goes
-over SSH and the key decides; `gh` does not, and fails with a 403 that reads like a problem
-with the repo rather than with the account.
-
-Check which account can write to this repo before the first `gh` write, and switch if needed:
-
-```bash
-gh auth status
-gh api repos/<owner>/CanonCore --jq .permissions
-gh auth switch --user <the one with push>
-```
-
-The account with push here is **`jacobdrees`**, verified 2026-08-07. Note that `git` uses SSH
-and `gh` uses its own token, so the two can disagree — see `workflow.md`.
+`jacobdrees` is the account with push here; the active one is often not it, and `gh` fails with
+a 403 that reads like a repo problem. `git` uses SSH and `gh` uses its own token, so the two
+disagree. Full detail, including why the remote is an SSH URL, is in
+[workflow.md](./workflow.md) — it is written once, there.
 
 **PRs as a request surface: no.** _(Set to `yes` if this repo should treat external GitHub
 PRs as feature requests in the triage queue; `/triage` reads this flag.)_

@@ -27,14 +27,15 @@ below for the one case where none applies.
 | `ready-for-human`          | `ready-for-human`    | Requires human implementation            |
 | `wontfix`                  | `wontfix`            | Will not be actioned                     |
 
-## Prerequisite: create the five state roles in Linear first
+## Prerequisite: create the five state roles in Linear first — human-only
 
 **None of the five exist on team `CAN` yet.** The team currently has `Feature`, `Bug` and
 `Improvement` and nothing else.
 
 `orca linear` can add and remove labels on an issue but cannot *create* a label definition,
-so applying one that doesn't exist fails. Create all five in the Linear UI before running
-`/triage`, using the exact lowercase strings above — Linear label matching is exact.
+so applying one that doesn't exist fails. **An agent cannot do this step.** Create all five in
+the Linear web UI before running `/triage`, using the exact lowercase strings above — Linear
+label matching is exact.
 
 Create them as **workspace-level** labels rather than team-level, as Waveger does, so any
 future team in the CanonCore workspace inherits them.

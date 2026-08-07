@@ -1,5 +1,5 @@
-# Local, per-machine Claude Code settings. Project settings (.claude/settings.json)
-# and project skills (.claude/skills/) are tracked; this one is not.
+# Local, per-machine Claude Code settings. Project skills (.claude/skills/) are tracked,
+# and a project .claude/settings.json would be too if one is ever added; this one is not.
 .claude/settings.local.json
 
 # Scratch output from browser/automation MCP servers
