@@ -29,9 +29,9 @@ Nobody is being signalled — the states are for you.
 
 ## Branches
 
-The branch name must carry the Linear identifier in **upper case**, because that is the form
-`orca linear` matches: names are accepted only when they match exactly (`issue-tracker.md`).
-Nothing else about the name is prescribed.
+The branch name must carry the Linear identifier, so `orca linear` can find the issue when the
+worktree was never linked. **Case does not matter** — `orca linear issue can-11` resolves
+CAN-11. Nothing else about the name is prescribed.
 
 ```
 main                        production-ready

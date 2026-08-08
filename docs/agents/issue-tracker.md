@@ -130,8 +130,9 @@ PRs as feature requests in the triage queue; `/triage` reads this flag.)_
   Don't burn attempts looking for a command.
 - Issues are `CAN-123`, not `#123`. A bare `#42` from a skill means `CAN-42`.
 - Prefer IDs over names in automation. Names match only when they match **exactly** and
-  uniquely within the team or workspace — which is also why branch names must carry the
-  identifier in upper case.
+  uniquely within the team or workspace. This is about *names* — `--team CAN` works where
+  `--team CanonCore` fails. It does **not** apply to issue identifiers, which are IDs and
+  resolve case-insensitively: `orca linear issue can-11` finds CAN-11.
 - Every comment or issue posted during triage must open with the AI disclaimer line the
   `triage` skill requires.
 

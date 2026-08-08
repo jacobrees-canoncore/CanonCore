@@ -66,7 +66,7 @@ on the way rather than the destination. This skill is the landing.
    `--force-with-lease`. Never merge `main` into the branch.
 
 7. **Close out Linear.** Resolve the issue the way `/draft-pr` does — `orca linear issue
-   --current` first, the branch name upper-cased as the fallback:
+   --current` first, the identifier from the branch name as the fallback:
 
    ```bash
    orca linear status set CAN-<n> --to Done --workspace "$WS" --json
