@@ -29,18 +29,19 @@ policy and the reasoning; this is the procedure. `/review-pr` lands it afterward
 
    - `orca linear issue --current --full --json` — works when the worktree was created with
      `--linear-issue`.
-   - Otherwise take the identifier from the branch and **upper-case it**, then read it
-     explicitly:
+   - Otherwise take the identifier from the branch and read it explicitly:
 
      ```bash
-     ID=$(git branch --show-current | grep -oiE 'can-[0-9]+' | head -1 | tr 'a-z' 'A-Z')
+     ID=$(git branch --show-current | grep -oiE 'can-[0-9]+' | head -1)
      orca linear issue "$ID" --full --workspace "$WS" --json
      ```
 
+     Case does not matter: `orca linear issue can-11` resolves CAN-11. The exact-match rule in
+     `issue-tracker.md` is about *names* (`--team CAN` vs `--team CanonCore`), not identifiers.
+
      `--workspace` is mandatory on every non-`--current` call: Orca is connected to three
      workspaces, does not infer one from the directory, and picks between them unpredictably
-     — silently (`docs/agents/issue-tracker.md`). Names match only when they match exactly,
-     hence the upper-casing.
+     — silently (`docs/agents/issue-tracker.md`).
    - If neither works, carry on without an issue and say so. Do not guess one.
 
 4. **Resolve the base branch.** Default to `main` and say nothing — a lone branch is the
