@@ -62,19 +62,49 @@ policy and the reasoning; this is the procedure. `/review-pr` lands it afterward
 
    Say which base you chose, in one sentence.
 
-5. **Read the range**, now that the base is known — doing this earlier describes commits the
-   PR will not contain:
+5. **Check the base is level with its remote.** GitHub computes the PR against
+   `origin/<base>`, not against the local ref. A local base carrying unpushed commits puts
+   every one of them in the PR, and the range in step 6 will not show them, because it reads
+   the local ref too. That is how a four-file change opens as ten.
 
    ```bash
-   git log <base>..HEAD --oneline
-   git diff <base>...HEAD
+   git fetch origin <base>
+   git rev-list --left-right --count origin/<base>...<base>   # behind <TAB> ahead
+   ```
+
+   `0	0` — carry on.
+
+   **Ahead.** The local base holds commits the remote does not, and this branch sits on top of
+   them. Stop. Either push the base first, if those commits belong on it, or lift this branch
+   off them:
+
+   ```bash
+   git rebase --onto origin/<base> <base>
+   ```
+
+   **Behind.** The PR itself will be right, but the range you are about to read describes a
+   base that has moved. Rebase onto `origin/<base>` so what you read is what GitHub will show.
+
+   **Both.** The base has diverged. Stop and say so. Sorting that out is a deliberate act on
+   the repository, not something to do inside a PR command.
+
+   This is a precondition, not a gate — `docs/agents/workflow.md` marks the gates PENDING and
+   there is still nothing to run.
+
+6. **Read the range**, against the remote base and now that the base is known — doing this
+   earlier describes commits the PR will not contain, and doing it against the local ref
+   describes a PR that is not the one you are opening:
+
+   ```bash
+   git log origin/<base>..HEAD --oneline
+   git diff origin/<base>...HEAD
    ```
 
    Also `git status`, to catch anything uncommitted that belongs in the PR.
 
-6. **Push.** `git push -u origin HEAD`.
+7. **Push.** `git push -u origin HEAD`.
 
-7. **Write the body** to a file. There is no PR template in this repo:
+8. **Write the body** to a file. There is no PR template in this repo:
 
    ```markdown
    ## Summary
@@ -95,7 +125,7 @@ policy and the reasoning; this is the procedure. `/review-pr` lands it afterward
    while the repo has no checks and nothing deployed (`docs/agents/workflow.md` marks both
    PENDING). A checklist of things that cannot be done is worse than no checklist.
 
-8. **Create it.**
+9. **Create it.**
 
    ```bash
    gh pr create --draft --base <base> --title "<subject>" --body-file <path>
@@ -106,7 +136,7 @@ policy and the reasoning; this is the procedure. `/review-pr` lands it afterward
    title, so the two should agree. Use `--body-file`; markdown as an inline argument is
    fragile.
 
-9. **Attach the PR to the issue**, if one was found:
+10. **Attach the PR to the issue**, if one was found:
 
    ```bash
    orca linear attach --current --url <pr-url> --title "PR link" --json
@@ -119,7 +149,7 @@ policy and the reasoning; this is the procedure. `/review-pr` lands it afterward
    On `linear_write_unconfirmed`, retry **once** with the pinned `--write-id` from the error's
    own `nextSteps` (`docs/agents/issue-tracker.md`).
 
-10. **Report the PR URL** and say that a code review comes next.
+11. **Report the PR URL** and say that a code review comes next.
 
 ## Notes
 
