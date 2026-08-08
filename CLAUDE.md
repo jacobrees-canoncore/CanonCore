@@ -39,13 +39,34 @@ Nothing in this repository is derived from them.
 
 ## Stack
 
-**Undecided, deliberately.** There is no code, no package manager, no framework and no host
-chosen. It will be a monorepo; nothing beyond that is settled.
+Settled by the grilling session of 8 August 2026. Rationale and rejected alternatives are in
+[ADR-0005](docs/adr/0005-stack.md); do not relitigate them here.
 
-Do not scaffold one speculatively, and do not infer a stack from another project on this
-machine. The stack is an outcome of the domain work, not an input to it — see **Working
-practice**. When it is settled, this table is where it goes, and `docs/agents/workflow.md`
-has the places that are waiting on it.
+| Concern | Choice |
+| --- | --- |
+| Language | TypeScript |
+| Web framework | Next.js, App Router |
+| Database | Postgres, with row-level security on every user-scoped table |
+| Data access | Drizzle |
+| Auth | better-auth, users in our own Postgres |
+| Hosting | Vercel |
+| Database host | Neon |
+| Package manager | pnpm workspaces |
+| Task runner | Turborepo |
+| Mobile *(later)* | Expo, on `react-native-tvos` from its first commit |
+| TV *(later)* | Expo, Apple TV, separate app |
+
+**Layout.** One monorepo. `apps/` holds framework-specific applications, `packages/` holds shared
+TypeScript. Day one is `apps/web` and `packages/config` only — the workspace is real from the
+first commit, but no boundary is drawn before a second consumer exists.
+
+**Providers live in separate repositories**, never in `apps/`. See
+[ADR-0007](docs/adr/0007-provider-contract.md) for why that separation has to be structural.
+
+**Three rules that are not negotiable**, all from ADR-0005: the application database role must not
+have `BYPASSRLS`; every RLS-protected table needs a test asserting a cross-tenant read returns zero
+rows, because a broken policy looks exactly like "no data"; and session context is set with
+`SET LOCAL` inside an explicit transaction.
 
 ## Agent skills
 
@@ -72,8 +93,10 @@ See `docs/agents/domain.md`.
 ### Branches and landing
 
 Trunk-based and solo: one `main`, a branch per ticket carrying its `CAN-n` in upper case,
-squash-merge to land. The gates and the deployment story are pending the stack decision and
-are marked as such rather than guessed. See `docs/agents/workflow.md`.
+squash-merge to land. The gates and the deployment story are settled now that the stack is —
+`docs/agents/workflow.md` names the commands, the preview environment and exactly which
+artefacts a merge carries. They are *named but unbuilt* until the walking skeleton exists, and
+that file says so; do not report a gate as passing because nothing ran.
 
 ## Working practice
 

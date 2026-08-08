@@ -27,18 +27,16 @@ below for the one case where none applies.
 | `ready-for-human`          | `ready-for-human`    | Requires human implementation            |
 | `wontfix`                  | `wontfix`            | Will not be actioned                     |
 
-## Prerequisite: create the five state roles in Linear first — human-only
+## The five state roles exist — created 8 August 2026
 
-**None of the five exist on team `CAN` yet.** The team currently has `Feature`, `Bug` and
-`Improvement` and nothing else.
+All five were created as **workspace-level** labels, so any future team in the CanonCore
+workspace inherits them. Team `CAN` therefore carries all eight: `Feature`, `Bug`,
+`Improvement`, plus the five above.
 
-`orca linear` can add and remove labels on an issue but cannot *create* a label definition,
-so applying one that doesn't exist fails. **An agent cannot do this step.** Create all five in
-the Linear web UI before running `/triage`, using the exact lowercase strings above — Linear
-label matching is exact.
-
-Create them as **workspace-level** labels rather than team-level, as Waveger does, so any
-future team in the CanonCore workspace inherits them.
+Kept as a standing constraint, because it governs what an agent may attempt: **`orca linear`
+can add and remove labels on an issue but cannot *create* a label definition**, so applying one
+that does not exist fails. If a further label is ever needed, a human creates it in the Linear
+web UI first, using exact lowercase strings — Linear label matching is exact.
 
 ```bash
 orca linear team labels --team CAN --workspace ad2669ec-93a5-4ce1-97fa-c7d9247a1452 --json

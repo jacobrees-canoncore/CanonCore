@@ -30,18 +30,22 @@ on the way rather than the destination. This skill is the landing.
 
 2. **Run the gates.**
 
-   `docs/agents/workflow.md` marks these **PENDING** — CanonCore has no stack and no CI, so
-   there is nothing to run yet. **Say that plainly and do not treat it as a pass.** The
-   absence of a failing check is not a green check, and a landing that reports "gates passed"
-   when nothing ran is the specific thing this step exists to prevent.
+   `docs/agents/workflow.md` names them: `pnpm turbo test typecheck lint`, in GitHub Actions and
+   re-runnable locally. **Until the walking skeleton exists there is nothing to run — say that
+   plainly and do not treat it as a pass.** The absence of a failing check is not a green check,
+   and a landing that reports "gates passed" when nothing ran is the specific thing this step
+   exists to prevent.
 
-   Once the repo has checks, put the command here and treat anything red as a full stop.
+   Once they exist, treat anything red as a full stop. Pay particular attention to the
+   cross-tenant row-level-security tests: a broken policy returns an empty result rather than an
+   error, so that failure is invisible anywhere except in those tests.
 
    `gh pr view --json statusCheckRollup` is not a substitute. A rollup can be green because a
    deployment succeeded while carrying no tests at all.
 
-3. **Confirm it works.** **PENDING** on the hosting decision — there is no preview environment
-   yet. When there is, read its URL from the PR's checks or comments.
+3. **Confirm it works.** Vercel builds a preview deployment per pull request — read its URL from
+   the PR's checks or comments. Until the first deploy exists there is no preview, and that is a
+   "nothing to check" rather than a pass.
 
    Either way, **ask the user to confirm they have looked at the change working**, unless they
    have already said so. This is what a solo repo has instead of a reviewer, and an agent

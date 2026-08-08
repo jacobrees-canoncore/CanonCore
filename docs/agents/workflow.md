@@ -5,19 +5,20 @@ Trunk-based, solo. One `main`, short-lived branches, squash-merge to land.
 This file is the policy. `/draft-pr` and `/review-pr` are the procedure and defer to it — a
 rule belongs here, a step belongs in the skill.
 
-> **Read this first.** CanonCore has a remote (`jacobrees-canoncore/CanonCore`, private) and
-> nothing else: no stack, no CI, nothing deployed. The policy below is settled; several of the
-> *mechanics* it refers to do not exist yet. Every such place is marked **PENDING** with what
-> has to be decided. Do not invent a value for one — leave it pending and say so.
+> **Read this first.** The stack is settled (see **Stack** in `CLAUDE.md` and
+> [ADR-0005](../adr/0005-stack.md)), but nothing is built yet: no code, no CI, nothing deployed.
+> The policy below is settled and the mechanics are now *named*, but they do not exist until the
+> walking skeleton is built. Where a mechanic is named but unbuilt this file says so; do not
+> assume a command runs just because it is written down here.
 
 ## Why a PR at all, for one developer
 
 There is nobody to review it, so the PR is not doing what a PR usually does. It earns its
 place twice over anyway:
 
-- **A branch is a gate before production.** Whether pushing `main` deploys straight to
-  production is **PENDING** on the hosting decision. If it does, the branch is the only gate
-  there is, and that makes the PR non-optional rather than a nicety.
+- **A branch is a gate before production.** On Vercel, pushing `main` deploys straight to
+  production. So the branch *is* the only gate there is, which makes the PR non-optional rather
+  than a nicety.
 - **`/code-review` compares against a commit.** Its first step resolves the fixed point and
   refuses an empty diff, so run against work that is not committed yet it stops before
   reviewing anything. `/implement` commits last, which puts the review in exactly that gap. A
@@ -111,18 +112,30 @@ of a GitHub PR. Either works on a branch; neither works before there is one.
 
 What has to be true before a branch lands. `/review-pr` checks these.
 
-**The repo's own checks. PENDING — there are none yet.** Waveger's shape is
-`test && typecheck && lint` run locally because it has no CI. Whether CanonCore has CI, and
-what the commands are called, is settled when the stack is. Until then `/review-pr` has
-nothing to run and must say so rather than passing silently.
+**The repo's own checks.** `pnpm turbo test typecheck lint`, run in GitHub Actions on every
+push and re-runnable locally. Turborepo scopes them to the packages a branch actually touched.
 
-**A deployed preview works. PENDING** on the hosting decision. The value of a preview is that
-it is a real environment rather than a smoke screen; a preview sharing production's data is
-worth less.
+One check is not optional and is called out here because its failure mode is silence: **every
+row-level-security-protected table has a test asserting that a cross-tenant read returns zero
+rows.** A misconfigured RLS policy returns an empty result rather than an error, so it is
+indistinguishable from "no data" in the UI and cannot be caught by looking.
 
-**Everything the branch changes actually reaches production. PENDING** on the hosting
-decision, and it is a question to answer *before* the first change of a kind that needs it,
-not after. A build applies some artefacts automatically and leaves others exactly as they
+**Until the walking skeleton exists there is nothing to run**, and `/review-pr` must say so
+rather than passing silently.
+
+**A deployed preview works.** Vercel builds a preview deployment per pull request. The value of
+a preview is that it is a real environment rather than a smoke screen, so a preview must point at
+its own Neon branch rather than at production's data.
+
+**Everything the branch changes actually reaches production.** Now answerable, and the answer is
+that **a merge does not carry everything**. Vercel's build deploys the application code and nothing
+else. Drizzle migrations do **not** run as part of it: they run as an explicit step in the Actions
+pipeline before the production deploy is promoted, so a schema change that fails stops the release
+rather than shipping code against a database that never moved. Any other out-of-band artefact — a
+scheduled job, a queue, a permission, an environment variable — is hand-run and must be named in
+the PR body.
+
+This is a question to answer *before* the first change of a kind that needs it, not after. A build applies some artefacts automatically and leaves others exactly as they
 were — a schema, a queue topology, a scheduled job, a permission — and merging one of those
 deploys the code that depends on it while the thing itself stays behind. Which artefacts a
 merge carries, and which need a hand-run step, has to be written down here once the host is
