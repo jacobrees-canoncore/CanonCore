@@ -138,6 +138,9 @@ Each names the settled answer first, then what will offer you something else.
 - **Anchors carrying no metadata** ([ADR-0003](docs/adr/0003-no-shared-catalogue.md)) — a canonical
   records table, a "master" catalogue or an edit-approval queue all reintroduce the shared
   catalogue this avoids.
+- **TheTVDB as the general source**
+  ([ADR-0009](docs/adr/0009-external-source-thetvdb.md)) — TMDB is the better-known API and habit
+  will offer it. Its terms forbid keeping what a Snapshot exists to keep.
 
 ## Working practice
 
