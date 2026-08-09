@@ -98,9 +98,6 @@ plainly that there was nothing to run.
 
 ## Which tool owns what
 
-Each row exists because two tools could plausibly do the job and one of them is right. Picking
-the wrong one wastes time.
-
 | Job | Tool |
 |---|---|
 | Docs for a library, framework, SDK or CLI | **`context7` MCP**, per the global rule — except the next row |
@@ -108,40 +105,39 @@ the wrong one wastes time.
 | Anything else on the web — licences, terms, prior art, current practice | **`WebSearch`** |
 | Issues, tickets, projects, triage | **`orca linear … --workspace <id>`** |
 | Pull requests, merges, repo administration | **`gh`**, on the `jacobdrees` account |
-| Any browser work at all, including sites needing a login | **`playwright` MCP** |
-| Web performance, Core Web Vitals, traces, heap | **`chrome-devtools` MCP**, not Playwright |
+| Navigating, clicking, filling, reading a page — including behind a login | **`playwright` MCP** |
+| Profiling a page — Core Web Vitals, traces, heap | **`chrome-devtools` MCP** |
 | Deployments, environment variables, build and runtime logs | **`vercel` MCP** |
 
-**Playwright owns every browser task.** `claude-in-chrome` is denied in
-`.claude/settings.json`, because its browser is Jacob's own and carries all of his sessions. A deny
-rule cannot be overridden by an allow rule or by confirming a prompt, so that is settled rather
+**Playwright drives the browser; chrome-devtools measures it.** `claude-in-chrome` is denied in
+`.claude/settings.json` — both its tools and its skill — because its browser is Jacob's own and
+carries all of his sessions. Deny is evaluated before allow and cannot be overridden by confirming
+a prompt ([settings docs](https://code.claude.com/docs/en/settings)), so that is settled rather
 than advisory. Playwright runs a separate profile, so when something needs a login, ask Jacob to
-sign in to *that* browser — the session then persists for the rest of the work.
+sign in to *that* browser; the session then persists.
 
-Waiting on a trigger, none installed yet: `neon` at a real database, `next-devtools-mcp` once Next
-is scaffolded, `sentry` at the first shipped build.
+Installed on a trigger, not before: `neon` at a real database, `next-devtools-mcp` once Next is
+scaffolded, `sentry` at the first shipped build.
 
 ## Closed decisions, and what will try to reopen them
 
 Installed skills, and general habit, default to options the ADRs deliberately rejected. Treat such
 a suggestion as a proposal to reopen a closed decision, not as advice.
 
-- **`vercel:auth`** covers Clerk, Descope and Auth0. [ADR-0005](docs/adr/0005-stack.md) chose
-  better-auth precisely so user records stay in our own Postgres and a GDPR erasure stays one
-  transaction. Clerk holds the user table.
-- **`vercel:next-forge`** installs its own opinionated `@repo/*` **Turborepo** layout. ADR-0005
-  specifies a different shape, extracts packages only when a second consumer exists, and declines
-  a build orchestrator outright — `pnpm -r` and `pnpm --filter` cover what one app needs, and
-  adopting Turborepo before the benefit arrives is the speculative abstraction the principles above
-  rule out. `vercel:turbopack` is unrelated and fine; Turbopack is Next's bundler, not Turborepo.
-- **Prisma** for data access. ADR-0005 chose Drizzle because its SQL-first design makes
-  row-level security natural, and the overlay model is joins rather than documents.
-- **Storage, uploads, transcoding, a media player.**
-  [ADR-0006](docs/adr/0006-no-playback-hand-off-to-media-servers.md) says CanonCore never holds or
-  serves bytes. Playback is delegated to a media server the owner already runs.
-- **A canonical records table**, a "master" catalogue, or an edit-approval queue over shared rows.
-  [ADR-0003](docs/adr/0003-no-shared-catalogue.md) has no shared catalogue: an Anchor carries no
-  metadata, which is what removes the need to moderate anything.
+Each names the settled answer first, then what will offer you something else.
+
+- **better-auth** ([ADR-0005](docs/adr/0005-stack.md)) — `vercel:auth` will offer Clerk, Descope
+  or Auth0.
+- **Drizzle** (ADR-0005) — habit will offer Prisma.
+- **Plain pnpm workspaces, no orchestrator** (ADR-0005) — `vercel:next-forge` installs a
+  `@repo/*` Turborepo layout. `vercel:turbopack` is unrelated and fine: Turbopack is Next's
+  bundler, not Turborepo.
+- **Hand off playback to a media server**
+  ([ADR-0006](docs/adr/0006-no-playback-hand-off-to-media-servers.md)) — anything offering storage,
+  uploads, transcoding or a player is proposing that we hold bytes.
+- **Anchors carrying no metadata** ([ADR-0003](docs/adr/0003-no-shared-catalogue.md)) — a canonical
+  records table, a "master" catalogue or an edit-approval queue all reintroduce the shared
+  catalogue this avoids.
 
 ## Working practice
 

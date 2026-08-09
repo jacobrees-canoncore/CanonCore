@@ -160,9 +160,10 @@ pnpm -r lint
 ```
 
 Three commands rather than one. `pnpm -r test typecheck lint` looks equivalent and is not — pnpm
-passes words after the script name to that script as arguments, so it would run `test` alone. The
-one-command form is the regex selector `pnpm -r run "/^(test|typecheck|lint)$/"`, which needs pnpm
-11.11+ and buys nothing here. Use `pnpm --filter` to scope to one workspace while iterating.
+passes words after the script name to that script as arguments, so it would run `test` alone and
+silently skip the rest. The one-command form is the regex selector
+`pnpm -r run "/^(test|typecheck|lint)$/"`, which arrived in pnpm 11.11 and buys nothing here
+([pnpm run](https://pnpm.io/cli/run)). Use `pnpm --filter` to scope to one workspace while iterating.
 
 One check is not optional and is called out here because its failure mode is silence: **every
 row-level-security-protected table has a test asserting that a cross-tenant read returns zero

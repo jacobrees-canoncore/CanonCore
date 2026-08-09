@@ -54,9 +54,11 @@ rather than a migration, which makes deferring it nearly free and adopting it ea
 abstraction of the sort this repo's principles rule out. Revisit when a second app arrives, or when
 CI is slow enough to notice.
 
-**Packages ship source, with no build step.** Each package's `exports` points at `src/index.ts` and
-the consumer compiles it. That costs one `transpilePackages` entry in `next.config.ts` and avoids a
-class of bug that is expensive to recognise: editing a package and testing a stale `dist/`.
+**Packages ship source, with no build step.** Each package's `exports` points at `src/index.ts`
+and the consumer compiles it. Each consumer therefore has to be told to transpile the package, and
+in exchange a class of bug that is expensive to recognise disappears: editing a package and testing
+a stale `dist/`. This is a separate decision from declining the orchestrator, recorded here because
+both concern how the workspace is built.
 
 ## Repo shape
 
