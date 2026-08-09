@@ -51,8 +51,7 @@ Settled by the grilling session of 8 August 2026. Rationale and rejected alterna
 | Auth | better-auth, users in our own Postgres |
 | Hosting | Vercel |
 | Database host | Neon |
-| Package manager | pnpm workspaces |
-| Task runner | Turborepo |
+| Package manager | pnpm workspaces, no build orchestrator |
 | Mobile *(later)* | Expo, on `react-native-tvos` from its first commit |
 | TV *(later)* | Expo, Apple TV, separate app |
 
@@ -96,6 +95,49 @@ Trunk-based and solo: one `main`, a branch per ticket carrying its `CAN-n`, squa
 land. `docs/agents/workflow.md` names the gates, the preview environment and which artefacts a
 merge carries. They are *named but unbuilt* until the walking skeleton exists — until then, report
 plainly that there was nothing to run.
+
+## Which tool owns what
+
+| Job | Tool |
+|---|---|
+| Docs for a library, framework, SDK or CLI | **`context7` MCP**, per the global rule — except the next row |
+| Next.js and React patterns, App Router, caching | **`vercel` plugin skills** (`vercel:*`), which are closer to the source than Context7 |
+| Anything else on the web — licences, terms, prior art, current practice | **`WebSearch`** |
+| Issues, tickets, projects, triage | **`orca linear … --workspace <id>`** |
+| Pull requests, merges, repo administration | **`gh`**, on the `jacobdrees` account |
+| Navigating, clicking, filling, reading a page — including behind a login | **`playwright` MCP** |
+| Profiling a page — Core Web Vitals, traces, heap | **`chrome-devtools` MCP** |
+| Deployments, environment variables, build and runtime logs | **`vercel` MCP** |
+
+**Playwright drives the browser; chrome-devtools measures it.** `claude-in-chrome` is denied in
+`.claude/settings.json` — both its tools and its skill — because its browser is Jacob's own and
+carries all of his sessions. Deny is evaluated before allow and cannot be overridden by confirming
+a prompt ([settings docs](https://code.claude.com/docs/en/settings)), so that is settled rather
+than advisory. Playwright runs a separate profile, so when something needs a login, ask Jacob to
+sign in to *that* browser; the session then persists.
+
+Installed on a trigger, not before: `neon` at a real database, `next-devtools-mcp` once Next is
+scaffolded, `sentry` at the first shipped build.
+
+## Closed decisions, and what will try to reopen them
+
+Installed skills, and general habit, default to options the ADRs deliberately rejected. Treat such
+a suggestion as a proposal to reopen a closed decision, not as advice.
+
+Each names the settled answer first, then what will offer you something else.
+
+- **better-auth** ([ADR-0005](docs/adr/0005-stack.md)) — `vercel:auth` will offer Clerk, Descope
+  or Auth0.
+- **Drizzle** (ADR-0005) — habit will offer Prisma.
+- **Plain pnpm workspaces, no orchestrator** (ADR-0005) — `vercel:next-forge` installs a
+  `@repo/*` Turborepo layout. `vercel:turbopack` is unrelated and fine: Turbopack is Next's
+  bundler, not Turborepo.
+- **Hand off playback to a media server**
+  ([ADR-0006](docs/adr/0006-no-playback-hand-off-to-media-servers.md)) — anything offering storage,
+  uploads, transcoding or a player is proposing that we hold bytes.
+- **Anchors carrying no metadata** ([ADR-0003](docs/adr/0003-no-shared-catalogue.md)) — a canonical
+  records table, a "master" catalogue or an edit-approval queue all reintroduce the shared
+  catalogue this avoids.
 
 ## Working practice
 
