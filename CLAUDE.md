@@ -112,10 +112,11 @@ the wrong one wastes time.
 | Web performance, Core Web Vitals, traces, heap | **`chrome-devtools` MCP**, not Playwright |
 | Deployments, environment variables, build and runtime logs | **`vercel` MCP** |
 
-**Playwright owns every browser task.** `claude-in-chrome` is installed and is not used here: its
-browser is Jacob's own, carrying all of his sessions. Playwright runs a separate profile, so when
-something needs a login, ask Jacob to sign in to *that* browser — the session then persists for the
-rest of the work.
+**Playwright owns every browser task.** `claude-in-chrome` is denied in
+`.claude/settings.json`, because its browser is Jacob's own and carries all of his sessions. A deny
+rule cannot be overridden by an allow rule or by confirming a prompt, so that is settled rather
+than advisory. Playwright runs a separate profile, so when something needs a login, ask Jacob to
+sign in to *that* browser — the session then persists for the rest of the work.
 
 Waiting on a trigger, none installed yet: `neon` at a real database, `next-devtools-mcp` once Next
 is scaffolded, `sentry` at the first shipped build.
