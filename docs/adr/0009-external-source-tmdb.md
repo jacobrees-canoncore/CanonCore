@@ -31,21 +31,27 @@ exists so that inversion is a lookup rather than a fresh investigation.
 
 ## Why TMDB, once retention is not disqualifying
 
+Two reasons, and cost is not one of them — see below.
+
 **The ordering model is the best available.** TMDB allows unlimited episode groups, each carrying a
 type — `5` is literally "Story arc" — and each sub-group within a group carries its own `id`,
 `name`, `order` and `episodes[]`. Doctor Who already has five groups, three of them story-arc, with
-named sub-groups like "First Doctor". The research calls Episode Groups "the closest existing model
-to named phases". TheTVDB offers seven fixed slots per series whose display names are per-series
-overrides, which cannot express a new named ordering without consuming one.
+named sub-groups like "First Doctor".
+[`versions-and-orderings-prior-art.md`](../research/versions-and-orderings-prior-art.md) calls
+Episode Groups "the closest existing model to named phases". TheTVDB offers seven fixed slots per
+series whose display names are per-series overrides, which cannot express a new named ordering
+without consuming one.
 
 **Images are covered by the same attribution regime as the metadata.** TheTVDB's terms state in
 capitals that its API licence does not authorise using or displaying images, trailers or
 programming, and leaves securing those rights to the consumer. Choosing TheTVDB would have made
 artwork (CAN-13) a rights problem we own outright; choosing TMDB does not.
 
-**It is free for the use we are making of it.** "Our API is free to use for non-commercial purposes
-as long as you attribute TMDB as the source of the data and/or images." TheTVDB requires either a
-$11.99/year subscription or a revenue-tiered commercial licence.
+**Cost is a wash, and an earlier draft of this ADR got that wrong.** Both are free at this scale:
+TMDB's API is "free to use for non-commercial purposes as long as you attribute TMDB", and
+TheTVDB's first licensing tier is free for parent-company revenue under $50k/year. The only
+difference is friction — a TMDB key is a signup, where TheTVDB wants either a revenue declaration
+or a subscription PIN, and scopes the key to one declared project.
 
 ## What we accept by choosing it
 
@@ -54,9 +60,6 @@ $11.99/year subscription or a revenue-tiered commercial licence.
   application, product] uses TMDB and the TMDB APIs but is not endorsed, certified, or otherwise
   approved by TMDB." The FAQ places attribution in an About or Credits section and requires an
   approved logo.
-- **There is no default *among* episode groups**, and it does not matter yet. `/3/tv/{series_id}`
-  carries no episode-group field, so if we ever import an alternative ordering the choice among
-  Doctor Who's five is ours to make and record. Broadcast order is unaffected — see below.
 - **The free licence is non-commercial**, where commercial means "the primary purpose is to create
   revenue for the benefit of the owner". If CanonCore ever monetises, the licence changes and this
   ADR is reopened.
@@ -80,15 +83,15 @@ $11.99/year subscription or a revenue-tiered commercial licence.
   their original channel", and "Please do not ask us to change the episodes to a non-original
   order. There is an 'Episode Group' feature that can be used for all and any alternative orders."
   Doctor Who's five groups are DVD, Digital and three Story Arc; none is an air-date group. So the
-  import reads seasons and episode numbers directly and no adjudication is required. This is the
+  import reads seasons and episode numbers directly and no adjudication is required. Note this is
+  editorial policy rather than a schema guarantee — nothing in the API enforces it. `/3/tv/{id}`
+  carries no episode-group field either, so if an *alternative* ordering is ever imported the
+  choice among the five is ours to make and record. This is the
   point on which TheTVDB's `defaultSeasonType` looked like an advantage; it is not one.
 - **The imported broadcast Ordering carries no Phases.** Its groupings are the broadcast seasons,
   already modelled as Stories with `part of` edges. `CONTEXT.md` defines a Phase as the Ordering's
   own grouping, not corresponding to seasons or to any broadcast structure, so mirroring seasons as
   Phases would contradict the glossary.
-- **`groups[].episodes[].order` is 0-based** in TMDB's own example. It is unused in v1, which takes
-  positions from the canonical episode set, but it is a trap for whoever first imports an
-  alternative ordering.
 - **One Source exists, and the schema is built for more.** The overlay in ADR-0004 already keys
   Snapshots per source and composes them in a configured order, so adding a second source is rows
   rather than a rewrite.
@@ -114,7 +117,4 @@ declared when issued.
 
 What switching would cost: images and trailers are explicitly outside its licence; orderings are
 seven fixed slots rather than unlimited named groups; and its attribution must link directly to
-TheTVDB.com. One trap for whoever implements it — `seasonNumber`, `number` and `absoluteNumber` on
-a bare episode record are that episode's numbers within the series' *default* order, not within
-whichever order was queried, so reading them as the queried order's positions produces a silently
-wrong Ordering.
+TheTVDB.com.

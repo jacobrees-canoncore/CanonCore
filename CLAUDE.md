@@ -139,9 +139,10 @@ Each names the settled answer first, then what will offer you something else.
   records table, a "master" catalogue or an edit-approval queue all reintroduce the shared
   catalogue this avoids.
 - **TMDB as the general source** ([ADR-0009](docs/adr/0009-external-source-tmdb.md)) — its
-  published terms forbid keeping data beyond six months and we hold a project-specific exception,
-  so a reader who checks the public terms will think this is wrong. TheTVDB is the recorded
-  fallback if the exception lapses, not a live alternative.
+  published terms forbid keeping data beyond six months, so a reader who checks them will think
+  this is wrong. It rests on a retention exception recorded on the owner's statement, with written
+  confirmation still pending on CAN-33. TheTVDB is the recorded fallback if that does not hold, not
+  a live alternative.
 
 ## Working practice
 
