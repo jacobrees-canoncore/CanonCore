@@ -46,13 +46,14 @@ not only against prose taste:
 - **`SKILL-MECHANICS.md`**, same pack — frontmatter for anything under `.claude/skills/`. A
   user-invoked skill carries `disable-model-invocation: true` and a one-line human-facing
   description with no trigger list.
-- **A claim must cite what it checked.** Which tools an agent used leaves no trace in a diff and so
-  cannot be reviewed — but an assertion citing nothing, or citing a document that does not say it,
-  can be and should be.
+- **A checkable factual claim must cite its source.** This covers assertions about things outside
+  the repo that could be looked up and got wrong: an API's behaviour, a licence term, a version, a
+  command's semantics. It does not cover reasoning or judgement, which are argued rather than
+  cited. Tool use leaves no trace in a diff and cannot be reviewed; a claim citing nothing, or
+  citing a document that does not say it, can be.
 
 ## Enforced by tooling
 
-`pnpm -r test typecheck lint`, once there is anything to run — see
-[`docs/agents/workflow.md`](docs/agents/workflow.md), which notes the gates are named but unbuilt
-until the walking skeleton exists. Skip anything tooling catches; a review's attention is better
-spent on what it cannot see.
+The checks live in [`docs/agents/workflow.md`](docs/agents/workflow.md), which also notes they are
+named but unbuilt until the walking skeleton exists. Skip anything tooling catches; a review's
+attention is better spent on what it cannot see.

@@ -30,8 +30,8 @@ on the way rather than the destination. This skill is the landing.
 
 2. **Run the gates.**
 
-   `docs/agents/workflow.md` names them: `pnpm -r test typecheck lint`, in GitHub Actions and
-   re-runnable locally. **Until the walking skeleton exists there is nothing to run — say that
+   `docs/agents/workflow.md` names them, and is the only place they are written down — read the
+   commands from there rather than from memory. **Until the walking skeleton exists there is nothing to run — say that
    plainly and do not treat it as a pass.** The absence of a failing check is not a green check,
    and a landing that reports "gates passed" when nothing ran is the specific thing this step
    exists to prevent.

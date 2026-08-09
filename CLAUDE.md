@@ -98,39 +98,41 @@ plainly that there was nothing to run.
 
 ## Which tool owns what
 
-Several tools overlap here. Picking the wrong one wastes time, and a long tool list makes the
-agent slower to choose and likelier to reach for the wrong one.
+Each row exists because two tools could plausibly do the job and one of them is right. Picking
+the wrong one wastes time.
 
 | Job | Tool |
 |---|---|
-| Docs for a library, framework, SDK or CLI — Next.js, Drizzle, better-auth, Expo, React | **`context7` MCP**. The standing rule, and it beats web search even when you think you know |
-| Anything else on the web — licences, terms of use, prior art, current practice | **`WebSearch`** |
-| Issues, tickets, projects, triage | **`orca linear … --workspace <id>`** — see Issue tracker above |
-| Pull requests, merges, repo administration | **`gh`**, on the `jacobdrees` account — see Branches and landing |
-| Driving a browser, for anything | **`playwright` MCP**. Not `claude-in-chrome` — an agent should not be operating in your own signed-in browser |
-| Driving a site that needs a **login** — the Linear UI, the Vercel dashboard | **`playwright` MCP** still. It has its own profile with no cookies, so ask Jacob to sign in to that browser once and then carry on |
-| Web performance, Core Web Vitals, traces, heap | **`chrome-devtools` MCP** |
+| Docs for a library, framework, SDK or CLI | **`context7` MCP**, per the global rule — except the next row |
+| Next.js and React patterns, App Router, caching | **`vercel` plugin skills** (`vercel:*`), which are closer to the source than Context7 |
+| Anything else on the web — licences, terms, prior art, current practice | **`WebSearch`** |
+| Issues, tickets, projects, triage | **`orca linear … --workspace <id>`** |
+| Pull requests, merges, repo administration | **`gh`**, on the `jacobdrees` account |
+| Any browser work at all, including sites needing a login | **`playwright` MCP** |
+| Web performance, Core Web Vitals, traces, heap | **`chrome-devtools` MCP**, not Playwright |
 | Deployments, environment variables, build and runtime logs | **`vercel` MCP** |
-| Next.js and React patterns, App Router, caching | **`vercel` plugin skills** (`vercel:*`) |
-| Working through a tangled decision with several dependent parts | **`sequential-thinking` MCP** |
 
-Playwright starts signed out of everything, which is a feature rather than a limitation: the
-session it holds is one Jacob opened deliberately, not the whole of his browsing. Landing on a
-login page is the expected first result, not a failure to route around.
+**Playwright owns every browser task.** `claude-in-chrome` is installed and is not used here: its
+browser is Jacob's own, carrying all of his sessions. Playwright runs a separate profile, so when
+something needs a login, ask Jacob to sign in to *that* browser — the session then persists for the
+rest of the work.
 
-Not yet installed, each waiting on a trigger: `neon` (a real database), `next-devtools-mcp` (Next
-scaffolded) for dev-server errors and route compiles, and `sentry` at the first shipped build.
+Waiting on a trigger, none installed yet: `neon` at a real database, `next-devtools-mcp` once Next
+is scaffolded, `sentry` at the first shipped build.
 
-## Settled decisions some skills will try to relitigate
+## Closed decisions, and what will try to reopen them
 
-Several installed skills default to options the ADRs deliberately rejected. Treat a suggestion to
-use one as a proposal to reopen a closed decision, not as advice.
+Installed skills, and general habit, default to options the ADRs deliberately rejected. Treat such
+a suggestion as a proposal to reopen a closed decision, not as advice.
 
 - **`vercel:auth`** covers Clerk, Descope and Auth0. [ADR-0005](docs/adr/0005-stack.md) chose
   better-auth precisely so user records stay in our own Postgres and a GDPR erasure stays one
   transaction. Clerk holds the user table.
-- **`vercel:next-forge`** installs its own opinionated `@repo/*` layout. ADR-0005 specifies a
-  different shape, and packages are extracted only when a second consumer exists.
+- **`vercel:next-forge`** installs its own opinionated `@repo/*` **Turborepo** layout. ADR-0005
+  specifies a different shape, extracts packages only when a second consumer exists, and declines
+  a build orchestrator outright — `pnpm -r` and `pnpm --filter` cover what one app needs, and
+  adopting Turborepo before the benefit arrives is the speculative abstraction the principles above
+  rule out. `vercel:turbopack` is unrelated and fine; Turbopack is Next's bundler, not Turborepo.
 - **Prisma** for data access. ADR-0005 chose Drizzle because its SQL-first design makes
   row-level security natural, and the overlay model is joins rather than documents.
 - **Storage, uploads, transcoding, a media player.**
@@ -139,9 +141,6 @@ use one as a proposal to reopen a closed decision, not as advice.
 - **A canonical records table**, a "master" catalogue, or an edit-approval queue over shared rows.
   [ADR-0003](docs/adr/0003-no-shared-catalogue.md) has no shared catalogue: an Anchor carries no
   metadata, which is what removes the need to moderate anything.
-- **Deleting structures that nothing yet uses** — Anchors, Operations, the snapshot/override
-  split. They are early on purpose; `CODING_STANDARDS.md` names each with the ADR that authorises
-  it.
 
 ## Working practice
 

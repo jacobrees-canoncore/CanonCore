@@ -3,10 +3,11 @@
 Settled after the domain work rather than before it, as `CLAUDE.md` requires.
 
 **TypeScript. Next.js App Router. Postgres with row-level security. Drizzle. better-auth.
-Vercel plus Neon. Plain pnpm workspaces, in one monorepo.**
+Vercel plus Neon. Plain pnpm workspaces with no build orchestrator, packages shipping source, in
+one monorepo.**
 
-*Revised 9 August 2026: this originally specified Turborepo. Nothing had been built, so the change
-is a correction rather than a migration — see "No build orchestrator" below.*
+*Revised 9 August 2026: originally specified Turborepo. Nothing had been built, so this is a
+correction rather than a migration.*
 
 ## Why each
 
@@ -46,7 +47,9 @@ delete stays one transaction.
 
 Turborepo's value is task orchestration and remote caching across many packages. Day one is one app
 and one config package, so it would be configuration whose benefit has not arrived: `pnpm -r`
-covers the fan-out and `pnpm --filter` covers the targeting. Adding it later is a config file
+covers the fan-out and `pnpm --filter` covers the targeting. Note that `pnpm -r` runs one script
+per invocation — running several means several commands, which `docs/agents/workflow.md` spells
+out. Adding it later is a config file
 rather than a migration, which makes deferring it nearly free and adopting it early a speculative
 abstraction of the sort this repo's principles rule out. Revisit when a second app arrives, or when
 CI is slow enough to notice.
