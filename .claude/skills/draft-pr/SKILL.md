@@ -11,8 +11,14 @@ policy and the reasoning; this is the procedure. `/review-pr` lands it afterward
 
 ## Steps
 
-1. **Refuse to run on `main`.** `git branch --show-current`. If it is `main`, stop and say to
-   branch first — there would be nothing left to open a PR against.
+1. **Refuse to run on `main`.** `git branch --show-current`. If it is `main`, stop — there
+   would be nothing left to open a PR against.
+
+   Do not just refuse. The likely cause is that `/implement` ran without a branch being created
+   first, so there are now commits on `main` that were meant for one. Report what
+   `git log origin/main..main` shows, then walk the user through the recovery in
+   `docs/agents/workflow.md` → Branches → *Who creates it, and when*, which is where those
+   commands live.
 
 2. **Switch to the `gh` account that can write.** That is `jacobdrees`. Three accounts are
    authenticated and the active one is often not it; `git push` works regardless because it
@@ -88,8 +94,8 @@ policy and the reasoning; this is the procedure. `/review-pr` lands it afterward
    **Both.** The base has diverged. Stop and say so. Sorting that out is a deliberate act on
    the repository, not something to do inside a PR command.
 
-   This is a precondition, not a gate — `docs/agents/workflow.md` marks the gates PENDING and
-   there is still nothing to run.
+   This is a precondition, not a gate. `docs/agents/workflow.md` now names the gates, but they
+   are unbuilt until the walking skeleton exists, so there may still be nothing to run.
 
 6. **Read the range**, against the remote base and now that the base is known — doing this
    earlier describes commits the PR will not contain, and doing it against the local ref
@@ -121,9 +127,9 @@ policy and the reasoning; this is the procedure. `/review-pr` lands it afterward
    ```
 
    Leave the boxes unticked — `/review-pr` ticks them once they are true. **Drop any line this
-   diff cannot apply to** rather than leaving it as noise, and drop the first two outright
-   while the repo has no checks and nothing deployed (`docs/agents/workflow.md` marks both
-   PENDING). A checklist of things that cannot be done is worse than no checklist.
+   diff cannot apply to** rather than leaving it as noise, and drop the first two outright until
+   the walking skeleton exists, since until then there are no checks to run and nothing deployed
+   to look at. A checklist of things that cannot be done is worse than no checklist.
 
 9. **Create it.**
 

@@ -39,41 +39,63 @@ Nothing in this repository is derived from them.
 
 ## Stack
 
-**Undecided, deliberately.** There is no code, no package manager, no framework and no host
-chosen. It will be a monorepo; nothing beyond that is settled.
+Settled by the grilling session of 8 August 2026. Rationale and rejected alternatives are in
+[ADR-0005](docs/adr/0005-stack.md); do not relitigate them here.
 
-Do not scaffold one speculatively, and do not infer a stack from another project on this
-machine. The stack is an outcome of the domain work, not an input to it — see **Working
-practice**. When it is settled, this table is where it goes, and `docs/agents/workflow.md`
-has the places that are waiting on it.
+| Concern | Choice |
+| --- | --- |
+| Language | TypeScript |
+| Web framework | Next.js, App Router |
+| Database | Postgres, with row-level security on every user-scoped table |
+| Data access | Drizzle |
+| Auth | better-auth, users in our own Postgres |
+| Hosting | Vercel |
+| Database host | Neon |
+| Package manager | pnpm workspaces |
+| Task runner | Turborepo |
+| Mobile *(later)* | Expo, on `react-native-tvos` from its first commit |
+| TV *(later)* | Expo, Apple TV, separate app |
+
+**Layout.** One monorepo. `apps/` holds framework-specific applications, `packages/` holds shared
+TypeScript. Day one is `apps/web` and `packages/config` only — the workspace is real from the
+first commit, but no boundary is drawn before a second consumer exists.
+
+**Providers live in separate repositories**, never in `apps/`. See
+[ADR-0007](docs/adr/0007-provider-contract.md) for why that separation has to be structural.
+
+**Three rules that are not negotiable** — the application database role without `BYPASSRLS`, a
+cross-tenant read test on every RLS-protected table, and session context via `SET LOCAL` inside an
+explicit transaction. [ADR-0005](docs/adr/0005-stack.md) states them and says why each one's
+failure is silent.
+
+Coding standards and what overrides a reviewer's default heuristics: `CODING_STANDARDS.md`.
 
 ## Agent skills
 
 ### Issue tracker
 
-Issues live in Linear (workspace `CanonCore`, team `CAN`), driven through the `orca linear`
-CLI. `--workspace ad2669ec-93a5-4ce1-97fa-c7d9247a1452` is **mandatory on every call** — Orca
-is connected to three workspaces, does not infer one from the directory, and the wrong-
-workspace failure is silent. The remote must live in the `jacobrees-canoncore` GitHub org
-(one GitHub owner binds to one Linear workspace); GitHub Issues is then a two-way mirror, not
-a second place to write. See `docs/agents/issue-tracker.md`.
+Issues live in Linear (team `CAN`), driven through the `orca linear` CLI, mirrored two-way to
+GitHub Issues. Pass `--workspace ad2669ec-93a5-4ce1-97fa-c7d9247a1452` on **every** call: Orca is
+connected to three workspaces and picks the wrong one silently. See
+`docs/agents/issue-tracker.md`.
 
 ### Triage labels
 
-The five canonical state roles verbatim, plus `bug`/`enhancement` mapping to Linear's
-existing `Bug`/`Feature`. The five must be created in the Linear UI before use. Change them
-with `label add`/`label remove`, never `label set`. See `docs/agents/triage-labels.md`.
+The five canonical state roles verbatim, plus `bug`/`enhancement` mapping to Linear's existing
+`Bug`/`Feature`. All eight exist. Change them with `label add` and `label remove`. See
+`docs/agents/triage-labels.md`.
 
 ### Domain docs
 
-Single-context: one `CONTEXT.md` and one `docs/adr/` at the repo root, both created lazily.
-See `docs/agents/domain.md`.
+Single-context: one `CONTEXT.md` and one `docs/adr/` at the repo root, both populated. See
+`docs/agents/domain.md`.
 
 ### Branches and landing
 
-Trunk-based and solo: one `main`, a branch per ticket carrying its `CAN-n` in upper case,
-squash-merge to land. The gates and the deployment story are pending the stack decision and
-are marked as such rather than guessed. See `docs/agents/workflow.md`.
+Trunk-based and solo: one `main`, a branch per ticket carrying its `CAN-n`, squash-merge to
+land. `docs/agents/workflow.md` names the gates, the preview environment and which artefacts a
+merge carries. They are *named but unbuilt* until the walking skeleton exists — until then, report
+plainly that there was nothing to run.
 
 ## Working practice
 
@@ -90,6 +112,10 @@ appear in the model's skill list:
    ↓
 /implement                one ticket, TDD at the agreed seams; stops at the commit
 ```
+
+**Branch off `main` before `/implement`** — nothing does it for you. `/implement` commits to
+whatever branch is current, so on `main` it commits to `main`, and pushing `main` deploys to
+production. `docs/agents/workflow.md` has the command and the recovery.
 
 `/implement` stops at the commit; the skill says so and nothing in the pack goes further.
 Everything after it is this repo's own, and it is two more user-invoked skills:

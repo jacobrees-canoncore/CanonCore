@@ -48,9 +48,10 @@ is fine; editing both is a conflict waiting to happen. Prefer the Linear copy, s
 where labels and triage state live. Labels sync by name, but GitHub holds its own label
 objects — same names, different colours, two independent sets.
 
-> **Status: remote exists, sync not yet wired.** The remote is
-> `jacobrees-canoncore/CanonCore` (private), created in the right org. The Linear↔GitHub
-> issue sync itself has **not** been set up yet — do that next, following *Wiring it up* below.
+> **Status: wired.** The remote is `jacobrees-canoncore/CanonCore` (private), created in the
+> right org, and the Linear↔GitHub issue sync is set up with two-way enabled (confirmed
+> 8 August 2026). *Wiring it up* below is kept as the record of how, and of what to redo if the
+> connection is ever removed.
 
 ### The remote must live in the `jacobrees-canoncore` org
 
@@ -67,10 +68,11 @@ move it under `jacobdrees` or `jacobreesdev` personally, and do not move it into
 Sift's org. A second GitHub *account* is not required, contrary to the common advice; one
 account administering several orgs is enough.
 
-### Wiring it up — human-only, and still outstanding
+### Wiring it up — human-only, and done
 
-An agent cannot do this. In Linear → GitHub integration → GitHub Issues → `+`, pick the repo
-and team `CAN`.
+An agent cannot do this. It was done on 8 August 2026, with two-way enabled. Recorded here
+because it has to be redone if the connection is ever removed: in Linear → GitHub integration →
+GitHub Issues → `+`, pick the repo and team `CAN`.
 
 - **Two-way is not the default.** A new repo↔team link defaults to *one-way, GitHub → Linear*;
   two-way must be chosen explicitly. The setting governs issue *creation* only — updates to

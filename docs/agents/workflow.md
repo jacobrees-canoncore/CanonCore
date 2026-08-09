@@ -5,19 +5,20 @@ Trunk-based, solo. One `main`, short-lived branches, squash-merge to land.
 This file is the policy. `/draft-pr` and `/review-pr` are the procedure and defer to it — a
 rule belongs here, a step belongs in the skill.
 
-> **Read this first.** CanonCore has a remote (`jacobrees-canoncore/CanonCore`, private) and
-> nothing else: no stack, no CI, nothing deployed. The policy below is settled; several of the
-> *mechanics* it refers to do not exist yet. Every such place is marked **PENDING** with what
-> has to be decided. Do not invent a value for one — leave it pending and say so.
+> **Read this first.** The stack is settled (see **Stack** in `CLAUDE.md` and
+> [ADR-0005](../adr/0005-stack.md)), but nothing is built yet: no code, no CI, nothing deployed.
+> The policy below is settled and the mechanics are now *named*, but they do not exist until the
+> walking skeleton is built. Where a mechanic is named but unbuilt this file says so; do not
+> assume a command runs just because it is written down here.
 
 ## Why a PR at all, for one developer
 
 There is nobody to review it, so the PR is not doing what a PR usually does. It earns its
 place twice over anyway:
 
-- **A branch is a gate before production.** Whether pushing `main` deploys straight to
-  production is **PENDING** on the hosting decision. If it does, the branch is the only gate
-  there is, and that makes the PR non-optional rather than a nicety.
+- **A branch is a gate before production.** On Vercel, pushing `main` deploys straight to
+  production. So the branch *is* the only gate there is, which makes the PR non-optional rather
+  than a nicety.
 - **`/code-review` compares against a commit.** Its first step resolves the fixed point and
   refuses an empty diff, so run against work that is not committed yet it stops before
   reviewing anything. `/implement` commits last, which puts the review in exactly that gap. A
@@ -50,6 +51,45 @@ orca worktree create --name CAN-11-welcome-email-queue --linear-issue CAN-11
 than reading it off the branch, and that is what makes `orca linear issue --current` work —
 `--current` being the only form that needs no `--workspace`. The identifier in the branch name
 is the fallback for a worktree that was never linked.
+
+### Who creates it, and when
+
+**Before `/implement`, and off `main`.** No skill does this for you and it is the easiest step
+in the whole flow to skip, because nothing prompts for it.
+
+`/implement` says only *"Commit your work to the current branch."* It does not create a branch,
+so running it on `main` commits to `main`. `/draft-pr` refuses to run there, but by then the
+commits already exist and you are recovering rather than opening a PR. And since pushing `main`
+deploys to production, those commits are one `git push` from a deploy with no gate in front of
+them.
+
+So, first thing in a fresh session, before anything else:
+
+```bash
+git switch main && git pull                       # start from what production has
+orca worktree create --name CAN-11-welcome-email-queue --linear-issue CAN-11
+```
+
+Without Orca, or when the changes are already in this working tree:
+
+```bash
+git switch -c CAN-11-welcome-email-queue
+```
+
+The plain form is fine — the identifier in the name is the documented fallback. It only costs
+you `orca linear issue --current`; use `orca linear issue CAN-11` instead.
+
+**If you find yourself on `main` with commits that should have been on a branch**, nothing is
+lost as long as you have not pushed. This is the recovery, and it is written once here rather
+than in each skill that might need it:
+
+```bash
+git switch -c CAN-11-welcome-email-queue          # the commits come with you
+git branch -f main origin/main                    # put main back where it was
+```
+
+If `main` has already been pushed, stop — that is a different problem, and not one to fix from
+inside a PR command.
 
 ## The `gh` account trap
 
@@ -111,26 +151,37 @@ of a GitHub PR. Either works on a branch; neither works before there is one.
 
 What has to be true before a branch lands. `/review-pr` checks these.
 
-**The repo's own checks. PENDING — there are none yet.** Waveger's shape is
-`test && typecheck && lint` run locally because it has no CI. Whether CanonCore has CI, and
-what the commands are called, is settled when the stack is. Until then `/review-pr` has
-nothing to run and must say so rather than passing silently.
+**The repo's own checks.** `pnpm turbo test typecheck lint`, run in GitHub Actions on every
+push and re-runnable locally. Turborepo scopes them to the packages a branch actually touched.
 
-**A deployed preview works. PENDING** on the hosting decision. The value of a preview is that
-it is a real environment rather than a smoke screen; a preview sharing production's data is
-worth less.
+One check is not optional and is called out here because its failure mode is silence: **every
+row-level-security-protected table has a test asserting that a cross-tenant read returns zero
+rows.** A misconfigured RLS policy returns an empty result rather than an error, so it is
+indistinguishable from "no data" in the UI and cannot be caught by looking.
 
-**Everything the branch changes actually reaches production. PENDING** on the hosting
-decision, and it is a question to answer *before* the first change of a kind that needs it,
-not after. A build applies some artefacts automatically and leaves others exactly as they
-were — a schema, a queue topology, a scheduled job, a permission — and merging one of those
-deploys the code that depends on it while the thing itself stays behind. Which artefacts a
-merge carries, and which need a hand-run step, has to be written down here once the host is
-known. Waveger learned this the expensive way: nothing in its build ran its migration
-command, that was true for months, and it was written down nowhere until a migration landed
-whose safety turned out to depend on the day of the week.
+**Until the walking skeleton exists there is nothing to run**, and `/review-pr` must say so
+rather than passing silently.
 
-The second half of that lesson generalises even before the host is chosen. **A change that
+**A deployed preview works.** Vercel builds a preview deployment per pull request. The value of
+a preview is that it is a real environment rather than a smoke screen, so a preview must point at
+its own Neon branch rather than at production's data.
+
+**Everything the branch changes actually reaches production.** Now answerable, and the answer is
+that **a merge does not carry everything**. Vercel's build deploys the application code and nothing
+else. Drizzle migrations do **not** run as part of it: they run as an explicit step in the Actions
+pipeline before the production deploy is promoted, so a schema change that fails stops the release
+rather than shipping code against a database that never moved. Any other out-of-band artefact — a
+scheduled job, a queue, a permission, an environment variable — is hand-run and must be named in
+the PR body.
+
+The lesson behind that rule: a build applies some artefacts automatically and leaves others
+exactly as they were, and merging one of those deploys the code that depends on it while the
+thing itself stays behind. Waveger learned it the expensive way — nothing in its build ran its
+migration command, that was true for months, and it was written down nowhere until a migration
+landed whose safety turned out to depend on the day of the week. Answer this for each new *kind*
+of artefact before the first change that needs it, not after, and add it above.
+
+The second half of that lesson generalises. **A change that
 only works in one deploy order is a change to rewrite**, not a window to reason about: widen
 first so old and new code both work, move the data, then narrow in a *later* change once only
 new code is live. File the narrowing as its own ticket before the widening lands — the
