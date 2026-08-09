@@ -54,10 +54,9 @@ $11.99/year subscription or a revenue-tiered commercial licence.
   application, product] uses TMDB and the TMDB APIs but is not endorsed, certified, or otherwise
   approved by TMDB." The FAQ places attribution in an About or Credits section and requires an
   approved logo.
-- **No default episode group exists.** `/3/tv/{series_id}` carries no episode-group field, so
-  choosing which of Doctor Who's five is the broadcast order is our decision, and the import must
-  record which it chose and why. This is the one thing TheTVDB would have given us for free via
-  `defaultSeasonType`.
+- **There is no default *among* episode groups**, and it does not matter yet. `/3/tv/{series_id}`
+  carries no episode-group field, so if we ever import an alternative ordering the choice among
+  Doctor Who's five is ours to make and record. Broadcast order is unaffected — see below.
 - **The free licence is non-commercial**, where commercial means "the primary purpose is to create
   revenue for the benefit of the owner". If CanonCore ever monetises, the licence changes and this
   ADR is reopened.
@@ -76,12 +75,20 @@ $11.99/year subscription or a revenue-tiered commercial licence.
 
 ## Consequences
 
-- **Which episode group is the broadcast order is our claim, not the source's.** The import records
-  the group id it used, so the choice is inspectable rather than implicit.
-- **The imported broadcast Ordering carries no Phases.** A group's sub-groups for an air-date order
-  are the broadcast seasons, which are already modelled as Stories with `part of` edges.
-  `CONTEXT.md` defines a Phase as the Ordering's own grouping, not corresponding to seasons or to
-  any broadcast structure, so mirroring sub-groups as Phases would contradict the glossary.
+- **Broadcast order is the canonical episode set, not an episode group.** TMDB stores one episode
+  set in original air order as editorial policy — "episodes should be added as they first aired on
+  their original channel", and "Please do not ask us to change the episodes to a non-original
+  order. There is an 'Episode Group' feature that can be used for all and any alternative orders."
+  Doctor Who's five groups are DVD, Digital and three Story Arc; none is an air-date group. So the
+  import reads seasons and episode numbers directly and no adjudication is required. This is the
+  point on which TheTVDB's `defaultSeasonType` looked like an advantage; it is not one.
+- **The imported broadcast Ordering carries no Phases.** Its groupings are the broadcast seasons,
+  already modelled as Stories with `part of` edges. `CONTEXT.md` defines a Phase as the Ordering's
+  own grouping, not corresponding to seasons or to any broadcast structure, so mirroring seasons as
+  Phases would contradict the glossary.
+- **`groups[].episodes[].order` is 0-based** in TMDB's own example. It is unused in v1, which takes
+  positions from the canonical episode set, but it is a trap for whoever first imports an
+  alternative ordering.
 - **One Source exists, and the schema is built for more.** The overlay in ADR-0004 already keys
   Snapshots per source and composes them in a configured order, so adding a second source is rows
   rather than a rewrite.
