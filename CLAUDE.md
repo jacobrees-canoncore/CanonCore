@@ -114,6 +114,10 @@ appear in the model's skill list:
 /implement                one ticket, TDD at the agreed seams; stops at the commit
 ```
 
+**Branch off `main` before `/implement`** — nothing does it for you. `/implement` commits to
+whatever branch is current, so on `main` it commits to `main`, and pushing `main` deploys to
+production. `docs/agents/workflow.md` has the command and the recovery.
+
 `/implement` stops at the commit; the skill says so and nothing in the pack goes further.
 Everything after it is this repo's own, and it is two more user-invoked skills:
 

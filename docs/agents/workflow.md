@@ -52,6 +52,41 @@ than reading it off the branch, and that is what makes `orca linear issue --curr
 `--current` being the only form that needs no `--workspace`. The identifier in the branch name
 is the fallback for a worktree that was never linked.
 
+### Who creates it, and when
+
+**Before `/implement`, and off `main`.** No skill does this for you and it is the easiest step
+in the whole flow to skip, because nothing prompts for it.
+
+`/implement` says only *"Commit your work to the current branch."* It does not create a branch,
+so running it on `main` commits to `main`. `/draft-pr` refuses to run there, but by then the
+commits already exist and you are recovering rather than opening a PR. And since pushing `main`
+deploys to production, those commits are one `git push` from a deploy with no gate in front of
+them.
+
+So, first thing in a fresh session, before anything else:
+
+```bash
+git switch main && git pull                       # start from what production has
+orca worktree create --name CAN-11-welcome-email-queue --linear-issue CAN-11
+```
+
+Without Orca, or when the changes are already in this working tree:
+
+```bash
+git switch -c CAN-11-welcome-email-queue
+```
+
+The plain form is fine — the identifier in the name is the documented fallback. It only costs
+you `orca linear issue --current`; use `orca linear issue CAN-11` instead.
+
+**If you find yourself on `main` with commits that should have been on a branch**, nothing is
+lost as long as you have not pushed:
+
+```bash
+git switch -c CAN-11-welcome-email-queue          # the commits come with you
+git branch -f main origin/main                    # put main back where it was
+```
+
 ## The `gh` account trap
 
 Three GitHub accounts are authenticated on this machine — `jacobdrees`, `jacobreesdev` and

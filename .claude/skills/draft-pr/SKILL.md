@@ -11,8 +11,21 @@ policy and the reasoning; this is the procedure. `/review-pr` lands it afterward
 
 ## Steps
 
-1. **Refuse to run on `main`.** `git branch --show-current`. If it is `main`, stop and say to
-   branch first — there would be nothing left to open a PR against.
+1. **Refuse to run on `main`.** `git branch --show-current`. If it is `main`, stop — there
+   would be nothing left to open a PR against.
+
+   Do not just refuse. The likely cause is that `/implement` ran without a branch being created
+   first, so there are now commits on `main` that were meant for one. Say that, and give the
+   recovery rather than leaving the user to work it out:
+
+   ```bash
+   git switch -c CAN-<n>-<slug>     # the commits come with you
+   git branch -f main origin/main   # put main back
+   ```
+
+   Check `git log origin/main..main` first and report what you found there. If `main` has
+   already been pushed, stop and say so — that is a different problem and not one to fix from
+   inside a PR command.
 
 2. **Switch to the `gh` account that can write.** That is `jacobdrees`. Three accounts are
    authenticated and the active one is often not it; `git push` works regardless because it
