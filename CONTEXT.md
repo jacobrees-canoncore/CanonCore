@@ -1,6 +1,6 @@
 # CanonCore
 
-A workspace for a media collection where one item legitimately belongs in more than one place
+A workspace for a media collection where one Story legitimately belongs in more than one place
 at once. The natural hierarchy of franchise, series, season and episode is real but not
 sufficient, because an episode also sits in an in-universe chronology that disagrees with the
 broadcast one, and it must appear in both without being duplicated.
@@ -9,6 +9,10 @@ Examples throughout are drawn from Doctor Who's 2005 series onward, because that
 collection. Nothing in the language is specific to it.
 
 ## Language
+
+Each `_Avoid_` list names words not to use **for that concept**. The same word used for a
+different concept is fine: a Catalogue is never "a collection", but this is still a media
+collection.
 
 ### The catalogue
 
@@ -85,15 +89,16 @@ _Avoid_: Credit, link, mention, tag, cast, role
 **Ordering**:
 A named, authored sequence over Stories or Versions. It is a piece of work someone made and can
 be disagreed with, never a property of the things it orders.
-_e.g._ Broadcast order. An in-universe chronology. One character's own timeline.
+_e.g._ Broadcast order. An in-universe chronology. One character's own life, told out of order.
 _Avoid_: List, order, sort, sequence, timeline, collection, playlist
 
 **Placement**:
-One entry in one Ordering, carrying its position, its entry type and its argument. A Placement
-may exist with no Story behind it, and one Story may have several Placements in the same Ordering.
+One Story's place in one Ordering, carrying its position, its entry type and its argument. A
+Placement may exist with no Story behind it, and one Story may have several Placements in the same
+Ordering.
 _e.g._ Blink follows The Family of Blood in broadcast order and Evolution of the Daleks in
 production order. One Story, two Placements, no duplication.
-_Avoid_: Entry, item, member, node, link, row
+_Avoid_: Item, member, node, link, row
 
 **Argument**:
 The stated reason a Placement sits where it does, in terms of evidence from the stories
@@ -175,7 +180,7 @@ Anchor when they are about the same thing, and Placements point at Anchors rathe
 anyone's rows.
 _e.g._ Your record of Blink and mine are different rows on the same Anchor, so an Ordering
 naming it resolves against whichever of us is reading.
-_Avoid_: Canonical record, master, shared item, concept, entity, peg
+_Avoid_: Canonical record, master, shared item, concept, peg
 
 **Merge**:
 One person's assertion that two Anchors are the same thing. It holds only for the person who made
@@ -192,7 +197,7 @@ _Avoid_: Copy, clone, import, duplicate, remix
 **Lineage**:
 The people a forked record descends from. A list rather than a single pointer, because a record
 can be forked from more than one person.
-_Avoid_: Parent, origin, source, ancestry
+_Avoid_: Parent, origin, ancestry
 
 **Divergence**:
 The state of a forked record whose Source has changed since it was taken. Surfaced to its owner
@@ -218,18 +223,14 @@ Where a held copy actually is, as a short kind and free text for the detail. It 
 several Versions can be reached tonight.
 _e.g._ On the Series 1 Blu-ray. In a folder on Drive. Kinds are physical, local file, cloud,
 streaming, other.
-_Avoid_: Path, URL, source, storage, availability
+_Avoid_: Path, URL, storage, availability
 
 **Progress**:
-How far one person has got through one Version. Never shared, never forked, and never inferred
-from anyone else's.
-_Avoid_: Status, history, bookmark
-
-**Position**:
-Where in a Version someone had got to: a fraction of the way through, and a label for it in the
-units of that medium. Both may be absent, because some media have no position to be had.
+How far one person has got through one Version: a fraction of the way through, and a label for it
+in the units of that medium. Both may be absent, because some media have no position to be had,
+and the label is whatever was recorded at the time rather than anything recalculated.
 _e.g._ Fourteen minutes into an episode. Page 143 of the Rose novelisation.
-_Avoid_: Timestamp, page, offset, locator, progress
+_Avoid_: Status, history, bookmark, timestamp, page, offset, locator
 
 **Watched**:
 That a person has consumed a Story, which counts everywhere that Story appears. Distinct from

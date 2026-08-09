@@ -63,10 +63,12 @@ first commit, but no boundary is drawn before a second consumer exists.
 **Providers live in separate repositories**, never in `apps/`. See
 [ADR-0007](docs/adr/0007-provider-contract.md) for why that separation has to be structural.
 
-**Three rules that are not negotiable**, all from ADR-0005: the application database role must not
-have `BYPASSRLS`; every RLS-protected table needs a test asserting a cross-tenant read returns zero
-rows, because a broken policy looks exactly like "no data"; and session context is set with
-`SET LOCAL` inside an explicit transaction.
+**Three rules that are not negotiable** — the application database role without `BYPASSRLS`, a
+cross-tenant read test on every RLS-protected table, and session context via `SET LOCAL` inside an
+explicit transaction. [ADR-0005](docs/adr/0005-stack.md) states them and says why each one's
+failure is silent.
+
+Coding standards and what overrides a reviewer's default heuristics: `CODING_STANDARDS.md`.
 
 ## Agent skills
 

@@ -80,12 +80,16 @@ The plain form is fine — the identifier in the name is the documented fallback
 you `orca linear issue --current`; use `orca linear issue CAN-11` instead.
 
 **If you find yourself on `main` with commits that should have been on a branch**, nothing is
-lost as long as you have not pushed:
+lost as long as you have not pushed. This is the recovery, and it is written once here rather
+than in each skill that might need it:
 
 ```bash
 git switch -c CAN-11-welcome-email-queue          # the commits come with you
 git branch -f main origin/main                    # put main back where it was
 ```
+
+If `main` has already been pushed, stop — that is a different problem, and not one to fix from
+inside a PR command.
 
 ## The `gh` account trap
 
@@ -170,15 +174,14 @@ rather than shipping code against a database that never moved. Any other out-of-
 scheduled job, a queue, a permission, an environment variable — is hand-run and must be named in
 the PR body.
 
-This is a question to answer *before* the first change of a kind that needs it, not after. A build applies some artefacts automatically and leaves others exactly as they
-were — a schema, a queue topology, a scheduled job, a permission — and merging one of those
-deploys the code that depends on it while the thing itself stays behind. Which artefacts a
-merge carries, and which need a hand-run step, has to be written down here once the host is
-known. Waveger learned this the expensive way: nothing in its build ran its migration
-command, that was true for months, and it was written down nowhere until a migration landed
-whose safety turned out to depend on the day of the week.
+The lesson behind that rule: a build applies some artefacts automatically and leaves others
+exactly as they were, and merging one of those deploys the code that depends on it while the
+thing itself stays behind. Waveger learned it the expensive way — nothing in its build ran its
+migration command, that was true for months, and it was written down nowhere until a migration
+landed whose safety turned out to depend on the day of the week. Answer this for each new *kind*
+of artefact before the first change that needs it, not after, and add it above.
 
-The second half of that lesson generalises even before the host is chosen. **A change that
+The second half of that lesson generalises. **A change that
 only works in one deploy order is a change to rewrite**, not a window to reason about: widen
 first so old and new code both work, move the data, then narrow in a *later* change once only
 new code is live. File the narrowing as its own ticket before the widening lands — the

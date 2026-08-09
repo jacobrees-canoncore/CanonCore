@@ -13,12 +13,12 @@ ADR wins and the smell is suppressed.
 Three decisions will otherwise be flagged as smells, because they were each taken deliberately
 against the obvious default:
 
-- **Structures built before the feature that uses them.** Anchors, Operations, and the
-  snapshot/override split exist in the first release while almost nothing exercises them. Reads as
-  Speculative Generality; is [ADR-0002](docs/adr/0002-orderings-are-separate-from-containment.md),
-  [ADR-0003](docs/adr/0003-no-shared-catalogue.md) and
-  [ADR-0004](docs/adr/0004-layered-overlay-for-sources-and-edits.md). Each is cheap now and a
-  rewrite later, which is the whole reason they are early.
+- **Structures built before the feature that uses them.** Three exist in the first release while
+  almost nothing exercises them, and each reads as Speculative Generality: Anchors
+  ([ADR-0003](docs/adr/0003-no-shared-catalogue.md)), the snapshot/override split
+  ([ADR-0004](docs/adr/0004-layered-overlay-for-sources-and-edits.md)), and Operations
+  ([ADR-0008](docs/adr/0008-operations-and-undo.md)). Each is cheap now and a rewrite later, which
+  is the whole reason they are early.
 - **A value repeated across sibling rows.** Two Versions of one Story may carry the same location
   string. Reads as Duplicated Code; is
   [ADR-0001](docs/adr/0001-two-levels-story-and-version.md), which accepted one short duplicated
@@ -31,10 +31,13 @@ against the obvious default:
 
 ## Domain language
 
-Names in code, tests and issues use the terms in [`CONTEXT.md`](CONTEXT.md), including its
-`_Avoid_` lists. A synonym for a defined term is a finding.
+Names in code, tests and issue titles use the terms in [`CONTEXT.md`](CONTEXT.md). Using an
+`_Avoid_` word **for the concept it is listed against** is a finding; the same word used for a
+different concept is not, since the lists are per-concept rather than a banned-word list.
 
 ## Enforced by tooling
 
-`pnpm turbo test typecheck lint`. Skip anything those already catch — a review's attention is
-better spent on what tooling cannot see.
+`pnpm turbo test typecheck lint`, once there is anything to run — see
+[`docs/agents/workflow.md`](docs/agents/workflow.md), which notes the gates are named but unbuilt
+until the walking skeleton exists. Skip anything tooling catches; a review's attention is better
+spent on what it cannot see.
