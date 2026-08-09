@@ -140,7 +140,8 @@ Each names the settled answer first, then what will offer you something else.
   catalogue this avoids.
 - **TheTVDB as the general source**
   ([ADR-0009](docs/adr/0009-external-source-thetvdb.md)) — TMDB is the better-known API and habit
-  will offer it. Its terms forbid keeping what a Snapshot exists to keep.
+  will offer it, and it is genuinely the richer ordering model. TMDB's terms still forbid keeping
+  what a Snapshot exists to keep.
 
 ## Working practice
 

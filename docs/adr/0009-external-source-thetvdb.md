@@ -24,25 +24,23 @@ TheTVDB points the other way in its own best-practice guidance: "We strongly rec
 your own copy of the database or making use of a caching proxy if your end users make direct use of
 data from TheTVDB."
 
-Note the shape of this argument. It is not that TMDB is worse data — it is that TMDB's terms and our
-storage model are incompatible, and the storage model is already decided.
+This is not a claim that TMDB is worse data. It is that TMDB's terms and our storage model are
+incompatible, and the storage model was decided first.
+
+The research marks one detail **unverified**: whether a row that is refreshed counts as having been
+cached beyond six months. The incompatibility does not depend on it. The termination clause above is
+unambiguous on its own, and a Snapshot that must be purged on termination is not permanent.
 
 ## A source-declared default order
 
 `defaultSeasonType` is present on TheTVDB's series record and holds the id of the order that series
-treats as its own default. TMDB's series response carries no episode-group field at all, so choosing
-among Doctor Who's five episode groups would be our adjudication rather than something read from the
-data.
+treats as its own default.
 
-The founding case wants broadcast order to arrive as data. An adjudication is a position we would
-then have to defend on a public page, which is the opposite of what an imported ordering should be.
-
-## The shape matches how we model orderings
-
-In TheTVDB an order owns its own named seasons as addressable records carrying a type, and an
-episode lists the several typed seasons it belongs to. That is position carried on the membership,
-which is what [ADR-0002](0002-orderings-are-separate-from-containment.md) requires. TMDB's
-sub-groups are named, but they are anonymous members of a single group with no independent identity.
+TMDB has episode groups — Doctor Who has five — but nothing that marks one as the series' own. The
+`/3/tv/{series_id}` response carries no episode-group field, so there is no default to read.
+Choosing among the five would be our adjudication rather than something taken from the data, and an
+adjudication is a position we would then have to defend on a public page. An imported ordering
+should be the source's claim, not ours.
 
 ## What we accept by choosing it
 
@@ -52,10 +50,21 @@ sub-groups are named, but they are anonymous members of a single group with no i
 - **Attribution is a product requirement, not a README line.** TheTVDB requires attribution with a
   direct link to TheTVDB.com to be displayed to end users viewing metadata from the API. It
   therefore appears on the public page.
-- **The licence does not cover displaying images or trailers**, in capitals in the terms. This costs
-  nothing: artwork is out of scope for v1 and nothing is imported.
-- **No rate limit is published.** The only governing text prohibits "excessive calls to the API, as
-  determined by us", so the importer is sequential and throttled rather than parallel.
+- **The licence does not cover displaying images, trailers or programming**, in capitals in the
+  terms, which leaves securing those rights to us. This costs nothing today: artwork is its own
+  piece of work with its own rights and takedown questions (CAN-13) and is not in the first
+  release, so nothing imports it.
+- **No rate limit is published**, so there is no number to code against — only a prohibition on
+  "excessive calls to the API, as determined by us". An importer has to be conservative by default,
+  because the limit is discovered by exceeding it.
+- **TMDB is the richer ordering model, and we lose that.** Both sources put the ordinal on the
+  membership rather than on the work, so neither has an advantage on the shape
+  [ADR-0002](0002-orderings-are-separate-from-containment.md) requires. Where they differ, TMDB is
+  ahead: it allows unlimited named groups, each sub-group carrying its own id and name, while
+  TheTVDB has exactly seven slots per series whose display names are per-series overrides. The
+  research calls TMDB Episode Groups "the closest existing model to named phases". Retention
+  outweighs it, and the loss is bounded because Orderings are authored here rather than imported —
+  only the one imported broadcast Ordering is affected.
 - **Neither source models Versions**, so nothing was given up here. TMDB refuses in writing and
   TheTVDB has no version entity. The Version layer in
   [ADR-0001](0001-two-levels-story-and-version.md) is ours to populate either way.
@@ -71,9 +80,10 @@ sub-groups are named, but they are anonymous members of a single group with no i
   information within the series' *default* order. Reading them as the position in whichever order
   was requested produces a silently wrong Ordering, so position comes from the order actually
   queried.
-- **One Source exists, and the schema is built for more.** Snapshots are keyed per (record, Source)
-  and the composed read picks by configured Source order. Adding a second source is rows, not a
-  rewrite.
-- **Retention is a per-source property.** The two candidates' terms point in opposite directions, so
-  a future source has to be checked rather than assumed compatible with the Snapshot model. That
-  check is this ADR's first section, generalised.
+- **One Source exists, and the schema is built for more.** The overlay in
+  [ADR-0004](0004-layered-overlay-for-sources-and-edits.md) already keys Snapshots per source and
+  composes them in a configured order, so adding a second source is rows rather than a rewrite.
+- **Retention has to be checked per source.** The two candidates' terms point in opposite
+  directions, so a future source is not compatible with the Snapshot model until its terms have
+  been read. Whether it permits keeping a record indefinitely is the question to ask first, before
+  any assessment of coverage or data quality.

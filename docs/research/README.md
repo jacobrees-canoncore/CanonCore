@@ -8,7 +8,7 @@ Read the ADRs first. Come here only for the detail an ADR deliberately left out.
 
 | File | Status | Read it when |
 | --- | --- | --- |
-| [external-metadata-sources.md](external-metadata-sources.md) | **Live reference** | Touching TMDB, TheTVDB, MusicBrainz, Open Library, Wikidata, tardis.wiki or Big Finish. Endpoints, field names, coverage, rate limits, and the licence terms for each — including which data may be stored and for how long |
+| [external-metadata-sources.md](external-metadata-sources.md) | **Live reference** | Touching TMDB, TheTVDB, MusicBrainz, Open Library, Wikidata, tardis.wiki or Big Finish. Endpoints, field names, coverage, rate limits, and the licence terms for each — including which data may be stored and for how long. Which source we use is decided in [ADR-0009](../adr/0009-external-source-thetvdb.md) |
 | [chronology-reference-shape.md](chronology-reference-shape.md) | **Live reference** | Building or importing Orderings. First-hand reading of a real fan chronology: entry counts by medium, the six facet axes, entry types, branching, and the two kinds of unplaced |
 | [audiobookshelf-provider-contract.md](audiobookshelf-provider-contract.md) | **Live reference** | Designing or implementing the provider contract. The full prior-art contract, field by field, plus where its schema fails this domain |
 | [versions-and-orderings-prior-art.md](versions-and-orderings-prior-art.md) | **Live reference** | Implementing orderings or versions. TMDB Episode Groups and TheTVDB season types are the two public schemas worth borrowing vocabulary from |
