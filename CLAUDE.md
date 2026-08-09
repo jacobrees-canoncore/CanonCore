@@ -72,31 +72,28 @@ rows, because a broken policy looks exactly like "no data"; and session context 
 
 ### Issue tracker
 
-Issues live in Linear (workspace `CanonCore`, team `CAN`), driven through the `orca linear`
-CLI. `--workspace ad2669ec-93a5-4ce1-97fa-c7d9247a1452` is **mandatory on every call** — Orca
-is connected to three workspaces, does not infer one from the directory, and the wrong-
-workspace failure is silent. The remote must live in the `jacobrees-canoncore` GitHub org
-(one GitHub owner binds to one Linear workspace); GitHub Issues is then a two-way mirror, not
-a second place to write. See `docs/agents/issue-tracker.md`.
+Issues live in Linear (team `CAN`), driven through the `orca linear` CLI, mirrored two-way to
+GitHub Issues. Pass `--workspace ad2669ec-93a5-4ce1-97fa-c7d9247a1452` on **every** call: Orca is
+connected to three workspaces and picks the wrong one silently. See
+`docs/agents/issue-tracker.md`.
 
 ### Triage labels
 
-The five canonical state roles verbatim, plus `bug`/`enhancement` mapping to Linear's
-existing `Bug`/`Feature`. The five must be created in the Linear UI before use. Change them
-with `label add`/`label remove`, never `label set`. See `docs/agents/triage-labels.md`.
+The five canonical state roles verbatim, plus `bug`/`enhancement` mapping to Linear's existing
+`Bug`/`Feature`. All eight exist. Change them with `label add` and `label remove`. See
+`docs/agents/triage-labels.md`.
 
 ### Domain docs
 
-Single-context: one `CONTEXT.md` and one `docs/adr/` at the repo root, both created lazily.
-See `docs/agents/domain.md`.
+Single-context: one `CONTEXT.md` and one `docs/adr/` at the repo root, both populated. See
+`docs/agents/domain.md`.
 
 ### Branches and landing
 
-Trunk-based and solo: one `main`, a branch per ticket carrying its `CAN-n` in upper case,
-squash-merge to land. The gates and the deployment story are settled now that the stack is —
-`docs/agents/workflow.md` names the commands, the preview environment and exactly which
-artefacts a merge carries. They are *named but unbuilt* until the walking skeleton exists, and
-that file says so; do not report a gate as passing because nothing ran.
+Trunk-based and solo: one `main`, a branch per ticket carrying its `CAN-n`, squash-merge to
+land. `docs/agents/workflow.md` names the gates, the preview environment and which artefacts a
+merge carries. They are *named but unbuilt* until the walking skeleton exists — until then, report
+plainly that there was nothing to run.
 
 ## Working practice
 
