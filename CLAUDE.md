@@ -51,8 +51,7 @@ Settled by the grilling session of 8 August 2026. Rationale and rejected alterna
 | Auth | better-auth, users in our own Postgres |
 | Hosting | Vercel |
 | Database host | Neon |
-| Package manager | pnpm workspaces |
-| Task runner | Turborepo |
+| Package manager | pnpm workspaces, no build orchestrator |
 | Mobile *(later)* | Expo, on `react-native-tvos` from its first commit |
 | TV *(later)* | Expo, Apple TV, separate app |
 
@@ -96,6 +95,53 @@ Trunk-based and solo: one `main`, a branch per ticket carrying its `CAN-n`, squa
 land. `docs/agents/workflow.md` names the gates, the preview environment and which artefacts a
 merge carries. They are *named but unbuilt* until the walking skeleton exists — until then, report
 plainly that there was nothing to run.
+
+## Which tool owns what
+
+Several tools overlap here. Picking the wrong one wastes time, and a long tool list makes the
+agent slower to choose and likelier to reach for the wrong one.
+
+| Job | Tool |
+|---|---|
+| Docs for a library, framework, SDK or CLI — Next.js, Drizzle, better-auth, Expo, React | **`context7` MCP**. The standing rule, and it beats web search even when you think you know |
+| Anything else on the web — licences, terms of use, prior art, current practice | **`WebSearch`** |
+| Issues, tickets, projects, triage | **`orca linear … --workspace <id>`** — see Issue tracker above |
+| Pull requests, merges, repo administration | **`gh`**, on the `jacobdrees` account — see Branches and landing |
+| Driving a browser, for anything | **`playwright` MCP**. Not `claude-in-chrome` — an agent should not be operating in your own signed-in browser |
+| Driving a site that needs a **login** — the Linear UI, the Vercel dashboard | **`playwright` MCP** still. It has its own profile with no cookies, so ask Jacob to sign in to that browser once and then carry on |
+| Web performance, Core Web Vitals, traces, heap | **`chrome-devtools` MCP** |
+| Deployments, environment variables, build and runtime logs | **`vercel` MCP** |
+| Next.js and React patterns, App Router, caching | **`vercel` plugin skills** (`vercel:*`) |
+| Working through a tangled decision with several dependent parts | **`sequential-thinking` MCP** |
+
+Playwright starts signed out of everything, which is a feature rather than a limitation: the
+session it holds is one Jacob opened deliberately, not the whole of his browsing. Landing on a
+login page is the expected first result, not a failure to route around.
+
+Not yet installed, each waiting on a trigger: `neon` (a real database), `next-devtools-mcp` (Next
+scaffolded) for dev-server errors and route compiles, and `sentry` at the first shipped build.
+
+## Settled decisions some skills will try to relitigate
+
+Several installed skills default to options the ADRs deliberately rejected. Treat a suggestion to
+use one as a proposal to reopen a closed decision, not as advice.
+
+- **`vercel:auth`** covers Clerk, Descope and Auth0. [ADR-0005](docs/adr/0005-stack.md) chose
+  better-auth precisely so user records stay in our own Postgres and a GDPR erasure stays one
+  transaction. Clerk holds the user table.
+- **`vercel:next-forge`** installs its own opinionated `@repo/*` layout. ADR-0005 specifies a
+  different shape, and packages are extracted only when a second consumer exists.
+- **Prisma** for data access. ADR-0005 chose Drizzle because its SQL-first design makes
+  row-level security natural, and the overlay model is joins rather than documents.
+- **Storage, uploads, transcoding, a media player.**
+  [ADR-0006](docs/adr/0006-no-playback-hand-off-to-media-servers.md) says CanonCore never holds or
+  serves bytes. Playback is delegated to a media server the owner already runs.
+- **A canonical records table**, a "master" catalogue, or an edit-approval queue over shared rows.
+  [ADR-0003](docs/adr/0003-no-shared-catalogue.md) has no shared catalogue: an Anchor carries no
+  metadata, which is what removes the need to moderate anything.
+- **Deleting structures that nothing yet uses** — Anchors, Operations, the snapshot/override
+  split. They are early on purpose; `CODING_STANDARDS.md` names each with the ADR that authorises
+  it.
 
 ## Working practice
 

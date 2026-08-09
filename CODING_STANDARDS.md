@@ -35,9 +35,24 @@ Names in code, tests and issue titles use the terms in [`CONTEXT.md`](CONTEXT.md
 `_Avoid_` word **for the concept it is listed against** is a finding; the same word used for a
 different concept is not, since the lists are per-concept rather than a banned-word list.
 
+## Documents are the artefact here
+
+Most of this repo is prose an agent consumes, so review it against the standards written for that,
+not only against prose taste:
+
+- **`writing-for-agents`** (mattpocock-skills) — duplication, no-ops, steering by negation, and
+  context load on always-loaded files. `CLAUDE.md` is read every turn, so a line that changes no
+  behaviour is a real cost.
+- **`SKILL-MECHANICS.md`**, same pack — frontmatter for anything under `.claude/skills/`. A
+  user-invoked skill carries `disable-model-invocation: true` and a one-line human-facing
+  description with no trigger list.
+- **A claim must cite what it checked.** Which tools an agent used leaves no trace in a diff and so
+  cannot be reviewed — but an assertion citing nothing, or citing a document that does not say it,
+  can be and should be.
+
 ## Enforced by tooling
 
-`pnpm turbo test typecheck lint`, once there is anything to run — see
+`pnpm -r test typecheck lint`, once there is anything to run — see
 [`docs/agents/workflow.md`](docs/agents/workflow.md), which notes the gates are named but unbuilt
 until the walking skeleton exists. Skip anything tooling catches; a review's attention is better
 spent on what it cannot see.

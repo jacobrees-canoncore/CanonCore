@@ -3,7 +3,10 @@
 Settled after the domain work rather than before it, as `CLAUDE.md` requires.
 
 **TypeScript. Next.js App Router. Postgres with row-level security. Drizzle. better-auth.
-Vercel plus Neon. pnpm workspaces with Turborepo, in one monorepo.**
+Vercel plus Neon. Plain pnpm workspaces, in one monorepo.**
+
+*Revised 9 August 2026: this originally specified Turborepo. Nothing had been built, so the change
+is a correction rather than a migration — see "No build orchestrator" below.*
 
 ## Why each
 
@@ -38,6 +41,19 @@ delete stays one transaction.
    cross-tenant read returns zero rows. Manual QA cannot catch a failure whose symptom is silence.
 3. Session context via `SET LOCAL` inside an explicit transaction, because serverless pooling
    otherwise drops it.
+
+## No build orchestrator
+
+Turborepo's value is task orchestration and remote caching across many packages. Day one is one app
+and one config package, so it would be configuration whose benefit has not arrived: `pnpm -r`
+covers the fan-out and `pnpm --filter` covers the targeting. Adding it later is a config file
+rather than a migration, which makes deferring it nearly free and adopting it early a speculative
+abstraction of the sort this repo's principles rule out. Revisit when a second app arrives, or when
+CI is slow enough to notice.
+
+**Packages ship source, with no build step.** Each package's `exports` points at `src/index.ts` and
+the consumer compiles it. That costs one `transpilePackages` entry in `next.config.ts` and avoids a
+class of bug that is expensive to recognise: editing a package and testing a stale `dist/`.
 
 ## Repo shape
 
