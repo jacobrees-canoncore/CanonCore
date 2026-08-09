@@ -38,3 +38,11 @@ uses, position, and duration".
   at more than one point (a framing device, a split serial).
 - Completeness rolls up over containment, not over Orderings, and counts distinct Anchors rather
   than Placements — otherwise an item that legitimately appears twice is counted twice.
+- **Entry type and rank are orthogonal, and both are needed.** There are two different reasons one
+  Story appears more than once in one Ordering, and they are structurally identical but mean
+  opposite things. Either it genuinely happens more than once (a framing device, a split serial),
+  in which case every placement is true and the reader should see them all; or nobody knows which
+  position is right, in which case at most one is true. Entry type distinguishes the first, rank
+  the second. Conflating them makes a chronology unreadable, because a reader cannot tell whether
+  an episode appearing twice means "watch it twice" or "we are not sure". A discredited flashback
+  is perfectly coherent.
