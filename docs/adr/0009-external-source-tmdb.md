@@ -22,7 +22,8 @@ record of what a Source last said, and states that a Source ceasing to carry som
 Snapshot.
 
 **TMDB has approved indefinite retention for this project.** Recorded 9 August 2026 on the project
-owner's statement; the written approval is to be attached to CAN-33. Everything below assumes it.
+owner's statement; the written approval is being located and attached under CAN-34. Everything
+below assumes it.
 
 This is the one load-bearing claim in this ADR that does not cite a document, and it is flagged
 rather than buried because everything else here does cite one. If the approval lapses, is not
