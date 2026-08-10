@@ -513,7 +513,9 @@ sending region, 22 sub-processors, and no test credential. CAN-21 needs all thre
 
 ## Reporting address
 
-Decided by CAN-21, **not yet provisioned**. The Online Safety Act requires a reporting route that works
+Decided by CAN-21, which wrote the documents; **created by
+[CAN-44](https://linear.app/jacobrees-canoncore/issue/CAN-44)**, which is where the remaining steps live
+now that CAN-21 is closed. **Not yet provisioned.** The Online Safety Act requires a reporting route that works
 for people who have no account and are not users at all (`s.20(5)` affected persons), and the Codes
 require it to be easy to find and use. What that needs is in
 [`docs/compliance/code-measures-register.md`](compliance/code-measures-register.md); this section records
@@ -542,8 +544,8 @@ application code and cannot land before `apps/web` exists.
 
 | | Owner |
 | --- | --- |
-| Add the apex MX record and the forwarding rule at Namecheap | [CAN-21](https://linear.app/jacobrees-canoncore/issue/CAN-21) |
-| Send a test message to `report@canoncore.com` and confirm it arrives, reading the destination mailbox with `macos-mail-mcp`. **A forward that silently fails is worse than no address**, because the published document promises a person that reports are read | [CAN-21](https://linear.app/jacobrees-canoncore/issue/CAN-21) |
+| Add the apex MX record and the forwarding rule at Namecheap | [CAN-44](https://linear.app/jacobrees-canoncore/issue/CAN-44) |
+| Send a test message to `report@canoncore.com` and confirm it arrives, reading the destination mailbox with `macos-mail-mcp`. **A forward that silently fails is worse than no address**, because the published document promises a person that reports are read | [CAN-44](https://linear.app/jacobrees-canoncore/issue/CAN-44) |
 | Make the address available to the application as configuration rather than hard-coded, so the two public documents and the reporting route cannot drift apart | [CAN-32](https://linear.app/jacobrees-canoncore/issue/CAN-32) |
 
 **The reporting route itself is not finished by this address.** ICU D2.2(a) recommends a report control on
@@ -551,9 +553,9 @@ each publicly visible record, which v1 does not ship; it is recorded as an alter
 [`docs/compliance/code-measures-register.md`](compliance/code-measures-register.md) and built by
 [CAN-43](https://linear.app/jacobrees-canoncore/issue/CAN-43), deliberately outside v1.
 
-> **CAN-21's own wording is now out of date.** Its acceptance criterion says the address exists "on
-> `mail.canoncore.com`". The decision moved it to the apex, for the reason above. Correct the criterion
-> before closing the ticket, or it will be closed against something nobody did.
+> **CAN-21 closed with this unticked, and its wording was already out of date** — its criterion said the
+> address exists "on `mail.canoncore.com`", when the decision moved it to the apex for the reason above.
+> CAN-44 carries the corrected version. Nothing here is owned by a closed ticket.
 
 ## Holding page
 
