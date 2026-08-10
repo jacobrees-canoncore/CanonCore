@@ -94,6 +94,9 @@ on the way rather than the destination. This skill is the landing.
    The comment says what shipped and what to expect next, not a summary of the diff. The PR is
    the diff.
 
+   **Leave the issue's acceptance-criteria checkboxes alone here.** Step 8 sets them, from what it
+   actually verified, so that the two steps do not both write the description.
+
 8. **Verify what the ticket promised, in the deployed environment.** The step that gets
    skipped. Check whatever the ticket actually claimed — a cron entry that registered, an
    environment variable set for production, a route that answers and still refuses without its
@@ -101,6 +104,32 @@ on the way rather than the destination. This skill is the landing.
    doing what the ticket said it would.
 
    While nothing is deployed, say that this could not be done rather than omitting it.
+
+   **Then set the issue's acceptance-criteria checkboxes to match, and only to match.** Tick what
+   this step confirmed. Leave everything else unticked — a criterion carried to another ticket, one
+   nothing could prove yet, one you simply did not check. Name every box you left unticked, in the
+   step 7 comment and again in the step 9 report.
+
+   Ticking is not a closing formality and must never be done as one. The rule from step 2 applies
+   unchanged: the absence of a failing check is not a green check. A box ticked by an agent that did
+   not check it is worse than a blank one, because it is a claim someone will later build on, and
+   nothing in the issue records who ticked it or on what evidence. When in doubt, leave it and say
+   why.
+
+   A landed issue with every box blank is the failure this exists to fix: CAN-18 merged with 13 of
+   13 unticked, two of which were genuine deferrals to CAN-22 that no reader could distinguish from
+   the eleven nobody had confirmed. Unticked boxes only carry meaning once the ticked ones are
+   ticked.
+
+   ```bash
+   orca linear issue CAN-<n> --workspace "$WS" --full --json   # read .description first
+   orca linear save-issue --id CAN-<n> --workspace "$WS" --body-file <path> --json
+   ```
+
+   `save-issue` replaces the **entire** description. Read the current body, change only `- [ ]` to
+   `- [x]` on the lines you verified, and write everything else back byte for byte. Re-read the
+   issue afterwards to confirm: this CLI reports writes as unconfirmed even when they land
+   (`docs/agents/issue-tracker.md`), so never retry blind.
 
 9. **Report** the merged PR, the Linear state, and what you verified — including, explicitly,
    anything you could not.
