@@ -5,6 +5,10 @@
 # Scratch output from browser/automation MCP servers
 .playwright-mcp/
 
+# `vercel link` writes the project link here. Per-machine, and it holds no secret,
+# but it pins a project id that a fork has no business inheriting.
+.vercel/
+
 # Secrets — never commit. A `.env.example`, if one is ever added, is deliberately
 # NOT ignored: it documents the required variables and belongs in the repo.
 .env

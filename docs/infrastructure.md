@@ -1,6 +1,6 @@
 # Infrastructure
 
-Provisioned by CAN-18 on 10 August 2026. Everything here is fact, not intent.
+Provisioned by CAN-18 and CAN-19, both on 10 August 2026. Everything here is fact, not intent.
 
 ## The production URL is `https://www.canoncore.com`
 
@@ -105,6 +105,121 @@ rather than to the letter.
 Automated preview branching is a property of the Vercel-managed integration and is not exposed as a
 toggle on either dashboard. **Confirm a Neon branch actually appears for a preview deployment in
 CAN-22.** It is not proven yet.
+
+## External data source: TMDB
+
+Provisioned by CAN-19. *Why* TMDB, the licence conditions the import and the UI have to honour, and
+the retention exception the whole choice rests on are [ADR-0009](adr/0009-external-source-tmdb.md).
+This section records the credential and the account behind it.
+
+### The account
+
+| | |
+| --- | --- |
+| TMDB user | `jacobrees` |
+| Account object id | `687e1a9f0213a4f73538dbd3` |
+| Registered application | `CanonCore`, `https://www.canoncore.com`, "Used for metadata for expanded universe content." |
+| Token scope | `api_read`, and nothing else |
+
+The registered application URL read `http://canoncore.com` and was corrected to
+`https://www.canoncore.com` on 10 August 2026. [ADR-0010](adr/0010-canonical-host-www.md) makes `www`
+canonical and the apex a 301, so the registration named the host that redirects.
+
+**`api_read` is the entire scope**, read from the token's own claims, so this credential is
+read-only against TMDB — no ratings, no list edits, no contributions.
+
+### The credential
+
+| Secret | Location |
+| --- | --- |
+| `TMDB_API_READ_ACCESS_TOKEN` | Vercel env, production and preview, **Sensitive** |
+
+**Use the bearer token everywhere.** TMDB's own guidance is that "using the Bearer token has the
+added benefit of being a single authentication process that you can use across both the v3 and v4
+methods", and that "both authentication methods provide the same level of access"
+([Application based authentication](https://developer.themoviedb.org/docs/authentication-application)).
+One credential, both API versions.
+
+**The v3 `api_key` is deliberately not stored beside it**, because it is not a second secret: it is
+the bearer token's `aud` claim. Storing it separately would be two things to rotate instead of one.
+Note what that does *not* buy you — the stored token cannot be read back (see below), so the `aud`
+claim is an explanation of why one variable suffices, not a recovery route. **Both credentials are
+recoverable only from
+[`themoviedb.org/settings/api`](https://www.themoviedb.org/settings/api), which is where they are
+recorded.**
+
+> **This departs from CAN-19 as written.** That ticket asked that "both the v3 `api_key` and the API
+> Read Access Token are recorded". Only the bearer is *stored*, on the reasoning above. Both remain
+> recorded, on the TMDB settings page that issues them; neither is in this repository, and only one
+> is in Vercel. If a future reader expects a `TMDB_API_KEY` variable, this is why there is not one.
+
+**Do not read the token's `nbf` claim as an issue date.** It is `21 July 2025` on both the old token
+and the one that replaced it, so it dates the account's API registration and survives regeneration.
+It says nothing about the age of the credential in front of you.
+
+### What was verified, and how
+
+Run on 10 August 2026 against the live API, from this worktree. **Every row was run after the
+regeneration below, against the credential that is now in Vercel**, which matters because the
+section after it establishes that a `200` alone does not distinguish this key from the one it
+replaced:
+
+| Request | Result |
+| --- | --- |
+| `GET /3/tv/121/episode_groups?api_key=…` | 200 |
+| the same with `Authorization: Bearer` and no query parameter | 200, and a byte-identical body |
+| the same with neither | 401 `{"status_code":7,"status_message":"Invalid API key…"}` |
+| `GET /4/list/1` with `Authorization: Bearer` | 200 |
+| `GET /4/list/1?api_key=…` | 200 |
+
+`tv/121` is Doctor Who, and it returned five episode groups typed 3, 4, 5, 5, 5 — so ADR-0009's
+"five groups, three of them story-arc" still described TMDB accurately on the day the key was
+issued.
+
+That last row is the "same level of access" above showing through: the v3 query parameter is
+accepted by a v4 endpoint too. Prefer the bearer anyway, for the single-process reason TMDB gives,
+not because the other one fails.
+
+### Regenerating the key does not revoke the old one promptly
+
+The key was regenerated on 10 August 2026, because the original had been pasted into a chat
+transcript. The warning on
+[`themoviedb.org/settings/api/regenerate`](https://www.themoviedb.org/settings/api/regenerate) reads
+*"This will disable your old API key and regenerate a new one. This action cannot be undone."*
+
+**It did not disable it.** The old key and the old bearer token both still returned 200 sixteen
+minutes after the regeneration completed — checked repeatedly throughout, and still answering at the
+last check, so sixteen minutes is a floor rather than a measurement. So TMDB revocation is
+eventual rather than immediate, and regenerating is **not** a way to burn a leaked credential
+quickly. A leaked TMDB key has to be assumed live for some window whose length is unknown.
+
+Regeneration costs nothing under the licence, which is why it was safe to do at all: ADR-0009
+records the retention exception as surviving the key being disabled, expiring or being terminated.
+Nothing already fetched depends on which key fetched it.
+
+### A sensitive variable cannot be read back, by anyone
+
+`vercel env pull --environment=production` returns `TMDB_API_READ_ACCESS_TOKEN="[SENSITIVE]"`. That
+is the documented behaviour rather than a CLI limitation: sensitive environment variables are ones
+*"whose values are non-readable once created"*, stored *"in an unreadable format"*
+([sensitive environment
+variables](https://vercel.com/docs/environment-variables/sensitive-environment-variables)). The same
+is already true of `DATABASE_URL` and `DATABASE_APP_PASSWORD` above. **If one is lost, the answer is
+to reissue it at the source, never to retrieve it.**
+
+One consequence lands on CAN-26 rather than here. Sensitivity is *"only possible for environment
+variables in the production and preview environments"* (same page), so local work cannot
+`vercel env pull` this token and will need it written into a local `.env.local` by hand.
+`.gitignore` already covers that file.
+
+> **No deployment has read this variable.** There is no application to read it — `apps/web` does not
+> exist. That a production and a preview build receive it is a platform guarantee rather than
+> something CAN-19 observed. Confirm it in CAN-22, with the Neon preview-branch question above.
+
+> **Nothing here ties the CAN-34 correspondence to this TMDB account.** The registered application
+> name and the exception's project scope agree with each other, which is consistency rather than
+> proof; ADR-0009 carries the provenance gap in full. Confirm it in CAN-34 if an original with
+> headers is ever recovered.
 
 ## Agent tooling
 
