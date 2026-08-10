@@ -136,5 +136,8 @@ on the way rather than the destination. This skill is the landing.
    `docs/agents/issue-tracker.md`, which names `create`, `comment add`, `attach` and `status set` —
    so re-read the issue to confirm the write rather than repeating it.
 
+   When you re-read, match `- [[xX]]`. Linear stores a ticked box as `- [X]`, so a case-sensitive
+   check for `- [x]` reports zero ticked and looks exactly like a write that silently failed.
+
 9. **Report** the merged PR, the Linear state, and what you verified — including, explicitly,
    anything you could not. Name the acceptance criteria you left unticked, and why.
