@@ -158,8 +158,9 @@ Two different things answer to the name *code review* and it is worth keeping th
 point; the built-in `/code-review` takes an effort level, or `ultra <PR#>` for a cloud review
 of a GitHub PR. Either works on a branch; neither works before there is one.
 
-- **Squash-merge only.** One ticket, one branch, one commit on `main`. Configure the repo to
-  permit nothing else if you can; until then it is a rule, not an enforcement.
+- **Squash-merge only.** One ticket, one branch, one commit on `main`. Today it is a rule rather
+  than an enforcement — the repo still permits merge and rebase merges. It does not have to stay
+  that way; see *The repo should refuse the merge too* below.
 - **Rebase to stay current**, never merge `main` in:
   `git rebase main && git push --force-with-lease`.
 - **Commit subjects are prose, not Conventional Commits.** `Send the welcome email from the queue
@@ -194,6 +195,49 @@ indistinguishable from "no data" in the UI and cannot be caught by looking.
 
 **Until the walking skeleton exists there is nothing to run**, and `/review-pr` must say so
 rather than passing silently.
+
+**The gate is GitHub's copy of those checks, not yours.** `/review-pr` merges, so the green it acts
+on has to belong to the commit it is about to land, and it has to have come from a clean checkout. A
+local run proves the code works on the machine that wrote it. Actions proves it works on a fresh
+one, which is the failure a solo repo has no other way to see.
+
+Waiting for them is not a `--watch` one-liner, because `gh` cannot tell *CI has not registered yet*
+from *CI failed*:
+
+- `gh pr checks <n> --watch --fail-fast --interval 15` polls until every check finishes.
+  `--fail-fast` works only alongside `--watch`, and `--interval` defaults to 10 seconds
+  ([gh pr checks](https://cli.github.com/manual/gh_pr_checks)).
+- **Exit 8 means pending**, and it is the only additional exit code documented.
+- **"No checks reported" exits 1** — the same code as a real failure. The proposal for a distinct
+  code was closed unmerged ([cli/cli#9691](https://github.com/cli/cli/pull/9691)), and the race it
+  existed for was closed *not planned* ([cli/cli#7401](https://github.com/cli/cli/issues/7401)). For
+  a few seconds after a push the API reports no checks at all and `--watch` exits instead of waiting.
+- **Do not pass `--required`.** It errors when no required check has reported
+  ([cli/cli#9682](https://github.com/cli/cli/issues/9682)), which is every pull request until the
+  ruleset below exists.
+
+So poll `gh pr checks <n> --json bucket || true` until it returns something, *then* watch. `bucket`
+sorts each check into `pass`, `fail`, `pending`, `skipping` or `cancel`, and that is the field to
+read; the exit code is not. The `|| true` is load-bearing — exit 8 is the normal state throughout a
+poll, so without it the healthy path aborts the wait under `set -e` or in a `&&` chain.
+
+Re-read the head SHA afterwards and start again if it moved, then **merge with
+`gh pr merge --match-head-commit <SHA>`**. Checking and merging are separate moments with a human
+confirmation between them; the flag is what stops a push landing in that gap from being squashed
+into `main` unchecked.
+
+None of this applies while `.github/workflows` is empty. There is nothing to wait for, and a wait
+with no possible answer refuses PRs that are perfectly landable — the same failure as passing
+silently, pointed the other way.
+
+**The repo should refuse the merge too.** A waiting skill is a convention and a ruleset is an
+enforcement, and only the second one survives the skill being edited, skipped or run by something
+else. `main` currently has neither branch protection nor a ruleset. The repo is public, so rulesets
+and required status checks cost nothing here (`issue-tracker.md`). Two traps are documented and both
+fail quietly: a strict *require branches to be up to date* rule with no check defined does nothing
+at all, and a required context that never reports blocks every merge for ever at *Expected —
+Waiting for status to be reported*, so only require checks that run on every pull request. CAN-40
+carries this work; it is blocked on there being checks to require.
 
 **A deployed preview works.** Vercel builds a preview deployment per pull request. The value of
 a preview is that it is a real environment rather than a smoke screen, so a preview must point at
