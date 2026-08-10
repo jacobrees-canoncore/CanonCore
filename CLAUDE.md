@@ -107,12 +107,15 @@ plainly that there was nothing to run.
 |---|---|
 | Docs for a library, framework, SDK or CLI | **`context7` MCP**, per the global rule — except the next row |
 | Next.js and React patterns, App Router, caching | **`vercel` plugin skills** (`vercel:*`), which are closer to the source than Context7 |
+| Resend APIs, React Email, the `resend` CLI | **`resend` plugin skills** (`resend:*`), same reasoning |
 | Anything else on the web — licences, terms, prior art, current practice | **`WebSearch`** |
 | Issues, tickets, projects, triage | **`orca linear … --workspace <id>`** |
 | Pull requests, merges, repo administration | **`gh`**, on the `jacobdrees` account |
 | Navigating, clicking, filling, reading a page — including behind a login | **`playwright` MCP** |
 | Profiling a page — Core Web Vitals, traces, heap | **`chrome-devtools` MCP** |
 | Deployments, environment variables, build and runtime logs | **`vercel` MCP** |
+| Transactional email — sending, domains, API keys, delivery logs, inbound mail | **`resend` MCP** |
+| Whether a message actually arrived, and in which folder | **`macos-mail-mcp`**, Jacob's Mail.app |
 
 **Playwright drives the browser; chrome-devtools measures it.** `claude-in-chrome` is denied in
 `.claude/settings.json` — both its tools and its skill — because its browser is Jacob's own and
@@ -121,8 +124,20 @@ a prompt ([settings docs](https://code.claude.com/docs/en/settings)), so that is
 than advisory. Playwright runs a separate profile, so when something needs a login, ask Jacob to
 sign in to *that* browser; the session then persists.
 
+**The two email tools are not interchangeable, and neither is optional.** `resend` reports what the
+provider did with a message; `macos-mail-mcp` reports what the recipient's mail client did with it.
+A send can be `delivered` in Resend and sitting in Junk, so a deliverability claim needs both. The
+pattern is: send with `resend`, then read the folder with `macos-mail-mcp`. CAN-20 used exactly that
+to prove inbox placement, and CAN-31 should too.
+
+`resend` is scoped to this project in `.claude/settings.json`. **`macos-mail-mcp` is user scope and
+reads every account in Jacob's Mail.app**, work and personal, so it is his tool rather than this
+project's — never use it for anything but checking mail this project sent. What it is pointed at is
+in `docs/infrastructure.md`.
+
 Installed on a trigger, not before: `neon` at a real database, `next-devtools-mcp` once Next is
-scaffolded, `sentry` at the first shipped build.
+scaffolded, `sentry` at the first shipped build. `resend` arrived that way in CAN-20, when there was
+a real sending domain for it to act on.
 
 ## Closed decisions, and what will try to reopen them
 

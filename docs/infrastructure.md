@@ -1,6 +1,6 @@
 # Infrastructure
 
-Provisioned by CAN-18 and CAN-19, both on 10 August 2026. Everything here is fact, not intent.
+Provisioned by CAN-18, CAN-19 and CAN-20, all on 10 August 2026. Everything here is fact, not intent.
 
 ## The production URL is `https://www.canoncore.com`
 
@@ -234,10 +234,32 @@ a separate server from this one and is not necessarily on the same account.
 
 ## Domains
 
-`canoncore.com` is registered at Namecheap on BasicDNS, with a wildcard `* ALIAS` to
-`cname.vercel-dns-017.com`. **No Namecheap change was needed for the cutover**, exactly as CAN-18
-predicted: the wildcard already resolves every hostname to Vercel, so reassignment happened entirely
-inside Vercel.
+`canoncore.com` is registered at Namecheap on BasicDNS. **No Namecheap change was needed for the
+cutover**: reassignment happened entirely inside Vercel.
+
+**There is no wildcard record.** An earlier revision of this file recorded a wildcard `* ALIAS` to
+`cname.vercel-dns-017.com` and credited it for the cutover needing no DNS change. The zone contains
+no `*` record of any type. Read from the Namecheap dashboard on 10 August 2026 and confirmed against
+the authoritative nameserver:
+
+```
+$ dig +short @dns1.registrar-servers.com randomprobe123.canoncore.com A
+$ dig +noall +comments @dns1.registrar-servers.com randomprobe123.canoncore.com A | grep status
+;; ->>HEADER<<- opcode: QUERY, status: NXDOMAIN, id: …
+```
+
+Hostnames reach Vercel through explicit per-host records instead, one per domain:
+
+| Type | Host | Value |
+| --- | --- | --- |
+| A | `@` | `216.198.79.1` |
+| CNAME | `www` | `930a5c34adc350de.vercel-dns-017.com.` |
+| CNAME | `demo` | `bc3b9806163bfed9.vercel-dns-017.com.` |
+
+The correction matters in one direction only. **A new subdomain does not resolve until someone adds
+a record for it**, so anything assuming a hostname is already live — a preview alias, a sending
+subdomain, a future service — has to add its own. Why the cutover needed no change is not
+established by this observation and is no longer claimed here.
 
 The two older projects were left in place, reachable on their own `.vercel.app` domains, rather than
 deleted:
@@ -250,6 +272,110 @@ deleted:
 `demo.canoncore.com` now returns 404. Releasing it mattered beyond tidiness: while it was live a
 stranger could reach the old product on the domain that serves v1, putting it in scope for the
 Online Safety Act obligations in CAN-21.
+
+## Transactional email: Resend
+
+Provisioned by CAN-20 on 10 August 2026. *Why* Resend, what it was weighed against, and the terms it
+commits us to are in [transactional-email-providers.md](research/transactional-email-providers.md).
+This section records what exists.
+
+| | |
+| --- | --- |
+| Provider | Resend, free tier (3,000/month, 100/day) |
+| Sending domain | `mail.canoncore.com`, region `eu-west-1` (Ireland) |
+| Sending address | `CanonCore <noreply@mail.canoncore.com>` |
+| Receiving | **Enabled** on `mail.canoncore.com`, for DMARC reports |
+| Marketplace integration | **Not installed.** A plain API key, deliberately |
+
+**Mail is sent from a subdomain, never the apex.** Resend's own guidance is to "send emails from a
+subdomain instead of your root domain to conform to deliverability best practices". The point is
+containment: a bad month for mail reputation must not reach `www.canoncore.com`. `mail.` is a sibling
+of `www`, so [ADR-0010](adr/0010-canonical-host-www.md) is untouched and the session cookie stays
+host-only.
+
+**The Vercel Marketplace integration was declined on purpose.** Resend is the only email provider on
+it, but it provisions a billable resource on a Hobby account and takes ownership of the environment
+variable. That is the same failure mode the `NEON_` prefix exists to avoid, one section up.
+
+### DNS
+
+Five records at Namecheap. The first four are Resend's, taken from its Records tab; the fifth is ours.
+
+| Type | Host | Value | Priority |
+| --- | --- | --- | --- |
+| `TXT` | `resend._domainkey.mail` | `p=MIGfMA0GCSqGSIb3…ku66YzQIDAQAB` | |
+| `TXT` | `send.mail` | `v=spf1 include:amazonses.com ~all` | |
+| `MX` | `send.mail` | `feedback-smtp.eu-west-1.amazonses.com.` | 10 |
+| `MX` | `mail` | `inbound-smtp.eu-west-1.amazonaws.com.` | 10 |
+| `TXT` | `_dmarc` | `v=DMARC1; p=none; rua=mailto:dmarc@mail.canoncore.com;` | |
+
+`send.mail` is the Return-Path: Resend defaults it to `send.<domain>`, which is why the sending
+domain is `mail.canoncore.com` and the bounce path is `send.mail.canoncore.com`. Do not make the
+Return-Path a name you also send from — AWS, whose MAIL FROM machinery this is, says it "shouldn't be
+a subdomain that you also use to send email from", and the zone previously violated exactly that.
+
+**The DMARC reporting address must stay inside `canoncore.com`.** RFC 7489 §7.1 makes an external
+`rua` conditional on the destination domain publishing an authorising record, and a personal iCloud
+or Gmail address will never do so, so reports would be discarded in silence. `dmarc@mail.canoncore.com`
+is within the same Organizational Domain and needs no such record. That is the reason receiving is
+enabled at all.
+
+`p=none` is monitor-only and changes nothing about delivery. Tighten it only once reports show a
+clean picture.
+
+### What was removed, and why it mattered
+
+The zone previously carried **seven** Resend records: two complete domain entries, one for
+`canoncore.com` and one for `send.canoncore.com`, with two distinct DKIM public keys. All seven were
+deleted on 10 August 2026 and the `canoncore.com` domain entry was deleted from Resend.
+
+This was not tidying. A published DKIM public key is a standing authority to sign mail as that
+domain, and the only way to revoke it is to remove the record. The `canoncore.com` entry was
+confirmed to belong to this account; the `send.canoncore.com` entry **did not appear in the account's
+domain list at all**, so its private key was unaccounted for. Both are now revoked. Provenance was
+deliberately not investigated.
+
+### Where the credentials live
+
+| Secret | Location |
+| --- | --- |
+| `RESEND_API_KEY` | Vercel env, production and preview, **Sensitive**, a *different key in each* |
+| `EMAIL_FROM` | Vercel env, production and preview |
+
+Two keys under one name is deliberate, so a leaked preview key can be revoked without touching
+production. Both are scoped to **sending only** and restricted to the `mail.canoncore.com` domain, so
+neither can read logs, manage domains or create further keys.
+
+**Resend has no sandbox and no test credential.** Isolation comes from the recipient instead:
+`delivered@`, `bounced@`, `complained@` and `suppressed@resend.dev` simulate each outcome without
+touching domain reputation. A mistyped real address in a preview deployment **will send for real**,
+so CAN-31 should refuse non-`resend.dev` recipients outside production. Test sends still count
+against the 100/day quota.
+
+### How delivery is checked
+
+Resend reporting a send as `delivered` means it handed the message over, not that anyone saw it. A
+message can be `delivered` and sitting in Junk. Confirming placement needs a second tool reading the
+recipient's side:
+
+| Step | Tool |
+| --- | --- |
+| Send, and read the provider's verdict | `resend` MCP |
+| Read which mailbox it landed in | `macos-mail-mcp`, against Jacob's Mail.app |
+
+CAN-20 was proven this way. The test send from `noreply@mail.canoncore.com` was found in `INBOX` on
+the `jacobrees@me.com` account, which is the one carrying `jacobrees@icloud.com`. That account is the
+reference recipient: check it, not one of the Gmail accounts, unless the point is to compare
+receivers.
+
+Mail sent to `*@mail.canoncore.com` needs no such check, because receiving is enabled and the
+`resend` MCP can read that mailbox directly.
+
+### What this commits us to
+
+**Every log and every piece of email metadata is stored in the United States**, whichever sending
+region is selected, and Resend lists 22 sub-processors. CAN-21's terms of service and any privacy
+notice have to say so. The EU region governs where mail is *sent from*, not where records are kept.
 
 ## Holding page
 

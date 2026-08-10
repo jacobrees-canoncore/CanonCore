@@ -5,5 +5,8 @@
       "mcp__claude-in-chrome",
       "Skill(claude-in-chrome)"
     ]
+  },
+  "enabledPlugins": {
+    "resend@claude-plugins-official": true
   }
 }
