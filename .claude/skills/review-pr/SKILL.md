@@ -98,15 +98,14 @@ on the way rather than the destination. This skill is the landing.
    These are the PR's own boxes. The issue's acceptance criteria are a different list held to a
    stricter bar, and step 7 sets those.
 
-5. **Mark ready.** `gh pr ready`. Reversible with `gh pr ready --undo`.
+   `gh pr edit <n> --body-file <path>`. **This is the skill's first write to GitHub, so it is
+   where a refusal that is not GitHub's shows up first** — the auto mode classifier blocks `gh`
+   writes sometimes, and it reads like a permissions problem, so `gh auth switch` gets reached for
+   and fixes nothing. `docs/agents/workflow.md` → *The other `gh` failure, which is not the
+   account* tells that apart from the 403 and names the `github` MCP fallback. **It applies to
+   every step below as much as to this one**, which is why it is said here rather than at each.
 
-   This is the first `gh` **write** in this skill, so it is where a refusal that has nothing to do
-   with GitHub shows up first. Claude Code's auto mode classifier blocks `gh` writes sometimes, and
-   the refusal reads like a permissions problem: it is not, and `gh auth switch` fixes nothing. A
-   403 naming the repository is the account trap; a refusal naming the classifier, permissions or
-   auto mode is the harness. The fallback is the `github` MCP over the same credentials —
-   `docs/agents/workflow.md` → *The other `gh` failure, which is not the account* has both the
-   discriminator and the tool names.
+5. **Mark ready.** `gh pr ready`. Reversible with `gh pr ready --undo`.
 
 6. **Ask before merging.** This is the one step here that puts the change into production and
    the one that is not a click away from being undone. On a yes:
@@ -119,13 +118,12 @@ on the way rather than the destination. This skill is the landing.
 
    Squash only. If the repo permits merge or rebase merges, do not use them.
 
-   **The merge command's exit code is not the answer, and no `--delete-branch`.** That flag deletes
-   the local branch too, which needs `main` checked out here — and Orca keeps `main` permanently
-   checked out in another worktree, so `gh` fails *after* GitHub has already merged. Read
-   `state,mergedAt` and branch on that. `MERGED` means the landing succeeded no matter what the
-   command printed: carry on to step 7 rather than retrying, because a second merge attempt on a
-   merged PR is a decision made from a false report. `docs/agents/workflow.md` → *The merge reports
-   failure after it has succeeded* has the mechanism and the evidence.
+   **The merge command's exit code is not the answer, and no `--delete-branch`.** That flag makes
+   `gh` fail *after* GitHub has already merged, every time, from a worktree. Read `state,mergedAt`
+   and branch on that: `MERGED` means the landing succeeded no matter what the command printed, so
+   carry on to step 7 rather than retrying — a second merge attempt would be a decision made from a
+   false report. `docs/agents/workflow.md` → *The merge reports failure after it has succeeded* has
+   the mechanism and the evidence.
 
    Delete the remote branch only after that read says `MERGED`. Done before it, on a merge that did
    not happen, it closes the PR and discards the pushed work.
@@ -136,7 +134,7 @@ on the way rather than the destination. This skill is the landing.
    guarantee. With the flag, GitHub refuses the merge instead. Omit it only if step 2 found no
    checks to wait for, since then there is no verified SHA to match.
 
-   **If the classifier refuses this one** (step 5 names the failure), `mcp__github__merge_pull_request`
+   **If the classifier refuses this one** (step 4 names the failure), `mcp__github__merge_pull_request`
    is the fallback — but it has no head-SHA parameter, so it cannot enforce the paragraph above.
    Re-read `gh pr view <n> --json headRefOid` immediately before calling it and stop if it no longer
    matches step 2's SHA. Say in the report that the merge went by that route and that the match was
@@ -212,9 +210,10 @@ on the way rather than the destination. This skill is the landing.
    ```
 
    **Read `.state.name` before setting it** — step 7's settled read already has it. The GitHub
-   integration transitions the issue on merge, so it is normally `Done` before this line runs and
-   the call changes nothing. Setting it again costs nothing; reporting it as what closed the issue
-   is the thing to avoid, because it describes work that had already happened.
+   integration transitions the issue on merge, so it is normally `Done` before this line runs.
+   Skip the call when it is, and credit the sync in the report. Running it anyway is harmless;
+   *reporting* it as the thing that closed the issue is not, because that describes work which had
+   already happened.
 
    Then drop the state role. **Read the issue's labels first and remove the one it actually
    has** — it is `ready-for-agent` most of the time and `ready-for-human` or `needs-info`

@@ -134,9 +134,8 @@ equivalent for the merge, and that is the worst moment to be improvising — the
 nothing landed.
 
 **The merge fallback is weaker than the command it replaces**, so know what you are giving up
-before you reach for it. `mcp__github__merge_pull_request` takes `owner`, `repo`, `pullNumber`,
-`merge_method` and the commit title and message, and exposes no head-SHA parameter — even though
-the REST endpoint underneath it accepts `sha` ([merge a pull
+before you reach for it. `mcp__github__merge_pull_request` exposes no head-SHA parameter — read its
+schema and see — even though the REST endpoint underneath it accepts `sha` ([merge a pull
 request](https://docs.github.com/en/rest/pulls/pulls#merge-a-pull-request)). So it cannot enforce
 `--match-head-commit`, and the guarantee below in *The gates* — that the commit merged is the
 commit that was checked — becomes an unverified assumption. Re-read the head SHA immediately

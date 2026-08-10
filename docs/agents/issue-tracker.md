@@ -133,10 +133,10 @@ GitHub Issues → `+`, pick the repo and team `CAN`.
 
 `jacobdrees` is the account with push here; the active one is often not it, and `gh` fails with
 a 403 that reads like a repo problem. `git` uses SSH and `gh` uses its own token, so the two
-disagree. Full detail, including why the remote is an SSH URL, is in
-[workflow.md](./workflow.md) — it is written once, there. That file also carries the *other* `gh`
-failure, where the harness refuses the write and the account is irrelevant; do not conclude
-"account" from a refused `gh` command without reading both.
+disagree. **It is not the only way `gh` fails**: the harness can refuse a write with the right
+account active, and that one is not fixed by switching. Both are written once, in
+[workflow.md](./workflow.md), along with why the remote is an SSH URL. Read it before concluding
+"account" from a refused `gh` command.
 
 **PRs as a request surface: no.** _(Set to `yes` if this repo should treat external GitHub
 PRs as feature requests in the triage queue; `/triage` reads this flag.)_
