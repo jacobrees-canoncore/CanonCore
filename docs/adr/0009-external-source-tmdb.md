@@ -34,12 +34,25 @@ obtained if CanonCore stops using the API, or if the key is disabled, expires or
 states that no purge is required on that basis — which is what answers the termination clause quoted
 above. What it does not grant is obtaining *new* data after access has ended.
 
-The correspondence is private, so this is the one load-bearing claim in this ADR that cites a
-document a reader cannot open; everything else here cites a public one. It is flagged rather than
-buried because anyone who checks TMDB's published terms will find them saying the opposite. The
-exception carries no expiry and no renewal requirement, and TMDB would communicate a withdrawal or
-a change of terms separately. If that happens, the decision inverts — see **Fallback** below, which
-exists so that inversion is a lookup rather than a fresh investigation.
+The correspondence states that the exception carries no expiry and no renewal requirement, and that
+a withdrawal or a change of terms would be communicated separately by TMDB. Both are its words
+rather than our inference, which matters because the reversal conditions in **Fallback** below rest
+on them.
+
+**Three weaknesses in this evidence, recorded rather than left to be discovered.** This is the one
+load-bearing claim in the ADR that cites a document a reader cannot open; everything else here
+cites a public one, and quotes it. It is flagged rather than buried because anyone who checks
+TMDB's published terms will find them saying the opposite.
+
+1. **The text is deliberately not committed to this repository.** It is legal correspondence, and
+   it is held on CAN-34 instead. That is a decision, not an oversight — but it does mean the one
+   claim a reviewer would most want to check verbatim is the one they must leave the repo to read.
+2. **The copy held carries no headers, no sender address and no date.** So the exception's age
+   cannot be established from it, and the reply cannot be tied to a thread. If the original email
+   is recovered it should replace that copy on CAN-34.
+3. **The scope recorded here is one reading of it**, made on 10 August 2026 and set out in full in
+   a comment on CAN-34. Nobody has checked that reading against the source independently, which is
+   why "proves narrower than understood" survives as a reversal condition below.
 
 ## Why TMDB, once retention is not disqualifying
 
@@ -80,9 +93,10 @@ or a subscription PIN, and scopes the key to one declared project.
   with attribution and the non-commercial restriction, as surviving the exception untouched.
 - **The exception grants retention, not redistribution.** It says so explicitly, and the terms'
   restrictions on use, display, distribution and redistribution all survive it. Nothing built today
-  hands TMDB Content anywhere, but an export, a feed, or a Provider
-  ([ADR-0007](0007-provider-contract.md)) passing on Snapshot payloads would. Treat that as a
-  question to answer before building one, not after.
+  hands TMDB Content anywhere, but the GDPR export carries Snapshots by design, so it is the first
+  thing that will. Answer the question before building it rather than after. Providers are not a
+  route to this: [ADR-0007](0007-provider-contract.md) has them serving data *into* CanonCore, never
+  receiving ours.
 - **Identifier churn is real and already anticipated.** ADR-0004 records that TMDB loses roughly 2%
   of movie ids a year with no merge model, serving a 301 before a final 404. That is precisely why
   external ids live on the Snapshot and never on the record; choosing TMDB makes that existing
@@ -123,10 +137,11 @@ or a subscription PIN, and scopes the key to one declared project.
 Recorded because this decision rests on a project-specific exception rather than on public terms,
 so the conditions that would reverse it are foreseeable.
 
-**Go here if** TMDB withdraws the exception or changes the terms it rests on — either of which it
-would communicate separately — or if CanonCore becomes commercial in TMDB's sense. The exception
-has been read, has no expiry and needs no renewal, so those are the live reversal conditions rather
-than a lapse.
+**Go here if** TMDB withdraws the exception, changes the terms it rests on — either of which it
+would communicate separately — or if CanonCore becomes commercial in TMDB's sense, **or if the
+exception proves narrower than the reading recorded above.** The exception carries no expiry and
+needs no renewal, so a lapse is not among the conditions; but the reading is one person's, of a
+document held outside this repository, so it remains reversible on being read again.
 
 TheTVDB's posture on storage is the opposite of TMDB's published one: "We strongly recommend
 maintaining your own copy of the database or making use of a caching proxy if your end users make
