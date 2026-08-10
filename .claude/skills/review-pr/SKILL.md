@@ -105,16 +105,27 @@ on the way rather than the destination. This skill is the landing.
 
    While nothing is deployed, say that this could not be done rather than omitting it.
 
-   **Then set the issue's acceptance-criteria checkboxes to match, and only to match.** Tick what
-   this step confirmed. Leave everything else unticked — a criterion carried to another ticket, one
-   nothing could prove yet, one you simply did not check. Name every box you left unticked, in the
-   step 7 comment and again in the step 9 report.
+   **Work the acceptance criteria one at a time.** Not as a list you read and form an impression
+   of — as one check per box. Take each criterion in turn and answer it on its own evidence, before
+   looking at the next. An agent that verifies three things, decides the ticket feels done and ticks
+   eleven has done the thing this step exists to prevent.
 
-   Ticking is not a closing formality and must never be done as one. The rule from step 2 applies
-   unchanged: the absence of a failing check is not a green check. A box ticked by an agent that did
-   not check it is worse than a blank one, because it is a claim someone will later build on, and
-   nothing in the issue records who ticked it or on what evidence. When in doubt, leave it and say
-   why.
+   For each box, one of exactly two outcomes:
+
+   - **Ticked**, and you can name the check you ran and what it returned. `curl -sI` and the status
+     line. The `pg_roles` query and the row. The env var listed for the target you claimed. Prefer
+     a command whose output another person could re-run and compare
+     (`docs/agents/workflow.md` → the gates: prefer an executable check over prose).
+   - **Unticked**, with a reason: carried to another ticket, unprovable until something else exists,
+     or simply not checked. "Not checked" is an acceptable answer and a far better one than a tick.
+
+   **Put the evidence in the step 7 comment**, next to each criterion, so a reviewer can find the
+   proof without re-deriving it. A tick with no recorded check is indistinguishable from a guess the
+   moment you have closed the terminal — and the issue records neither who ticked it nor why.
+
+   Done means a defined check passed and the proof is attached, not that an agent summarised its own
+   work as complete. The rule from step 2 applies unchanged: the absence of a failing check is not a
+   green check. When in doubt, leave it unticked and say so.
 
    A landed issue with every box blank is the failure this exists to fix: CAN-18 merged with 13 of
    13 unticked, two of which were genuine deferrals to CAN-22 that no reader could distinguish from
