@@ -67,6 +67,11 @@ cross-tenant read test on every RLS-protected table, and session context via `SE
 explicit transaction. [ADR-0005](docs/adr/0005-stack.md) states them and says why each one's
 failure is silent.
 
+**Production is `https://www.canoncore.com`**, apex 301s to it. What is actually provisioned — the
+Vercel project, the Neon database, the two Postgres roles and where each credential lives:
+`docs/infrastructure.md`. Read it before touching deployment, environment variables or the database
+connection, and note the items it flags as unverified.
+
 Coding standards and what overrides a reviewer's default heuristics: `CODING_STANDARDS.md`.
 
 ## Agent skills
@@ -138,6 +143,9 @@ Each names the settled answer first, then what will offer you something else.
 - **Anchors carrying no metadata** ([ADR-0003](docs/adr/0003-no-shared-catalogue.md)) — a canonical
   records table, a "master" catalogue or an edit-approval queue all reintroduce the shared
   catalogue this avoids.
+- **`www.canoncore.com` as the canonical host, apex 301ing to it**
+  ([ADR-0010](docs/adr/0010-canonical-host-www.md)) — `vercel:auth` and most better-auth examples
+  will suggest a `Domain`-scoped cookie or serving from the apex. Either one reopens this.
 - **TMDB as the general source** ([ADR-0009](docs/adr/0009-external-source-tmdb.md)) — its
   published terms forbid keeping data beyond six months, so a reader who checks them will think
   this is wrong. It rests on a retention exception recorded on the owner's statement, with written
