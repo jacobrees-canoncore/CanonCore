@@ -198,8 +198,11 @@ appear in the model's skill list:
 whatever branch is current, so on `main` it commits to `main`, and pushing `main` deploys to
 production. `docs/agents/workflow.md` has the command and the recovery.
 
-`/implement` stops at the commit; the skill says so and nothing in the pack goes further.
-Everything after it is this repo's own, and it is two more user-invoked skills:
+`/implement` runs `/code-review` itself, *before* its commit, so its review is not this repo's
+review: that diff is `<fixed-point>...HEAD`, which excludes uncommitted work, and a session
+reviewing what it just wrote is "confirmation bias with a slash command" (`implement.md` and
+`code-review.md`, shipped with `mattpocock-skills`; `docs/agents/workflow.md` has both in full).
+Everything after `/implement` is this repo's own, and it is two more user-invoked skills:
 
 ```
 /draft-pr                 push the branch, open the draft PR, link the ticket

@@ -20,10 +20,21 @@ place twice over anyway:
   production. So the branch *is* the only gate there is, which makes the PR non-optional rather
   than a nicety.
 - **`/code-review` compares against a commit.** Its first step resolves the fixed point and
-  refuses an empty diff, so run against work that is not committed yet it stops before
-  reviewing anything. `/implement` commits last, which puts the review in exactly that gap. A
-  branch and a PR give it a real range. (Staging first and pointing it at `git diff --cached`
-  works, and is a workaround for the missing branch rather than a way of life.)
+  refuses an empty diff, and the diff it reads is `<fixed-point>...HEAD`, which excludes staged
+  and working-tree changes — so unless an interim commit already exists there is nothing in it
+  to review. `/implement` runs the review as its second-to-last step and commits *after* it,
+  which lands it in exactly that gap. A branch and a PR give it a real range. (Staging first and
+  pointing it at `git diff --cached` works, and is a workaround for the missing branch rather
+  than a way of life.)
+- **A session does not review its own work.** The pack's second reason for not leaning on
+  `/implement`'s built-in review, and the stronger one: "Same context reviewing itself isn't
+  review, it's confirmation bias with a slash command." A fresh session is free once the branch
+  is pushed, because the PR carries the range that session would otherwise lack.
+
+Both reasons are the pack's own, in `implement.md` and `code-review.md` under
+`~/.claude/plugins/cache/claude-plugins-official/mattpocock-skills/<version>/docs/engineering/`.
+Read them there. They are why the review sits where it does below, and they are stated here
+rather than in `CLAUDE.md`, which is read every turn.
 
 So the states mean: **draft** is "not yet reviewed", **ready** is "reviewed, and it works".
 Nobody is being signalled — the states are for you.
@@ -146,6 +157,34 @@ This is a property of the harness and its settings, not of this repository, so i
 without warning in either direction. Treat it as a thing to recognise, not a thing to design
 around.
 
+## The slash command that silently did not load
+
+Observed 10 August 2026. `/implement` was sent as the tail of a message whose opening lines were
+Orca's ticket-link preamble:
+
+```
+Linked Linear issue: CAN-22
+https://linear.app/jacobrees-canoncore/issue/CAN-22/... /implement
+```
+
+That is the message as sent — the preamble first, `/implement` following the URL on the same line.
+What is load-bearing is only that it was not the first thing in the message.
+
+Nothing arrived — no `<command-name>` block, no skill body. The session ran on the model's own
+judgement instead, so the skill's contents were never in context. In the same session `/draft-pr`,
+sent on its own, expanded normally with its whole body inlined.
+
+**No mechanism is claimed here**, because none can be cited. A missing `mattpocock-skills:` prefix
+is ruled out: a plugin skill's bare name works "unless another command already uses that name"
+([Extend Claude with skills](https://code.claude.com/docs/en/skills)), and nothing else uses
+`implement`. Position is the remaining explanation, but it is inference from two observations and
+is documented nowhere.
+
+**The rule holds under every explanation: send a slash command as its own message.** The tell that
+it worked is that a loaded skill echoes its own instructions. Without that tell, a skill that did
+not load is indistinguishable from one that loaded and had nothing to say — which is why this is
+written down rather than remembered.
+
 ## The loop
 
 ```bash
@@ -157,9 +196,9 @@ git checkout -b CAN-11-welcome-email-queue    # or an Orca worktree, above
 /review-pr                                    # gates, ready, squash-merge, close out Linear
 ```
 
-The review sits **after** `/draft-pr`, not inside `/implement`. `/implement` stops at the
-commit and a review needs a range to compare against, so the branch has to exist and be pushed
-first. `CLAUDE.md`'s pipeline shows the same order.
+The review sits **after** `/draft-pr`, not inside `/implement` — *Why a PR at all* above has the
+two reasons, and the branch has to exist and be pushed for either of them to be answered.
+`CLAUDE.md`'s pipeline shows the same order.
 
 Two different things answer to the name *code review* and it is worth keeping them apart:
 `mattpocock-skills:code-review` is the two-axis Standards/Spec review that takes a fixed
