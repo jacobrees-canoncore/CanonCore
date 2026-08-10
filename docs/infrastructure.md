@@ -297,8 +297,8 @@ own.
 
 **The account holds exactly two API keys**, both issued by CAN-20 and recorded under *Where the
 credentials live* below. Three older keys that predated it were revoked by CAN-39 on 10 August 2026;
-what they could do, and why deleting them was safe, is under *What was removed* below. No Resend
-credential on this account is now unaccounted for.
+what each one could do, and how far the evidence for revoking it went, is under *What was removed*
+below. Every key on this account is now recorded there or here.
 
 **Mail is sent from a subdomain, never the apex.** Resend's own guidance is to "send emails from a
 subdomain instead of your root domain to conform to deliverability best practices"
@@ -353,45 +353,63 @@ domain list at all**, so its private key was unaccounted for. Both are now revok
 deliberately not investigated.
 
 **Three API keys were revoked on 10 August 2026**, by CAN-39, for the same reason in a different
-shape. They predated CAN-20, their scope was written down nowhere, and a Resend key's plaintext is
-shown once at creation, so nothing could say what they could do or where they were installed.
+shape. They predated CAN-20 and their scope was written down nowhere.
 
-| Key | Id | Permission | Domain | Idle since |
-| --- | --- | --- | --- | --- |
-| `CanonCore V3` | `64ab6293-3d02-424a-9a79-54b7fb769b5d` | **Full access** | All domains | ~April 2026 |
-| `Onboarding` | `16284ada-d2da-4258-83bf-13492a2412fb` | Sending access | All domains | ~December 2025 |
-| `Onboarding` | `8e5e17c1-05bf-4ca8-824d-c03f07c5df94` | Sending access | All domains | never used |
+| Key | Id | Permission | Domain | Created | Idle since |
+| --- | --- | --- | --- | --- | --- |
+| `CanonCore V3` | `64ab6293-3d02-424a-9a79-54b7fb769b5d` | **Full access** | All domains | 20 March 2026 | ~April 2026 |
+| `Onboarding` | `16284ada-d2da-4258-83bf-13492a2412fb` | Sending access | All domains | 27 November 2025 | ~December 2025 |
+| `Onboarding` | `8e5e17c1-05bf-4ca8-824d-c03f07c5df94` | Sending access | All domains | 27 November 2025 | never used |
 
-All three were **all domains**, so none was confined to the `canoncore.com` entry it was probably
-issued for, and each would have kept working against whatever domain the account verified next.
+Read from each key's dashboard page on 10 August 2026, which is the only place those facts exist:
+[`list-api-keys`](https://resend.com/docs/api-reference/api-keys/list-api-keys) returns `id`, `name`,
+`created_at` and `last_used_at`, and no field for permission, domain or token.
 
-`CanonCore V3` was the widest credential on the account — wider than either key CAN-20 issued for
-production. Full access over all domains can add and delete domains, mint further API keys and read
-the logs, none of which a sending key can do.
+`CanonCore V3` was the widest credential on the account, wider than either key CAN-20 issued for
+production. Resend defines `full_access` as "Can create, delete, get, and update any resource" against
+`sending_access`, which "Can only send emails"
+([Create API key](https://resend.com/docs/api-reference/api-keys/create-api-key)). All three were
+**all domains**: the `domain_id` that would "restrict an API key to send emails only from a specific
+domain" is, per the same page, "only used when the `permission` is set to `sending_access`", and
+neither `Onboarding` key carried one. So none was confined to the `canoncore.com` entry, and each
+would have kept working against whatever domain the account verified next.
+
+`CanonCore V3` was created on the same day as the `canoncore.com` domain entry that CAN-20 deleted,
+which suggests it belonged to that setup. That is inference and was not investigated further.
 
 **CAN-20 left these alone on the theory that `canoncore-legacy` or `canoncore-demo` might be sending
 with one. They are not.** Those two projects and `canoncore-storybook` share a single identical
-`RESEND_API_KEY`, and its token matches none of the three revoked ones. It belongs to **a different
-Resend account**: a request carrying it leaves no entry in this account's log, while an identical
-request made one second later on this account's own key does. It also cannot send from
-`mail.canoncore.com`, which this account has verified. All three projects still name
-`noreply@canoncore.com` as `EMAIL_FROM`, an address no longer deliverable from here since the
-`canoncore.com` domain entry was deleted.
+`RESEND_API_KEY`, and it belongs to **a different Resend account**. Two independent observations, both
+from 10 August 2026:
 
-**That key is live, and it is not ours to revoke.** Three public Vercel projects hold a working
-credential for a Resend account this project does not control. It is outside CAN-39, which is scoped
-to this account's keys, but it is a standing credential of exactly the kind this section exists to
-stop going unrecorded.
+- **It leaves no trace in this account's log.** A `GET /domains` carrying it, timed at 15:20:34Z,
+  produced no log entry, while the identical call made one second later on this account's own key
+  did. The account logs 4xx responses, so a rejected-but-authenticated request would have appeared.
+- **Its token matches none of the three.** Ordinarily this comparison is impossible, which is why the
+  ticket ruled it out in advance. It was available here only because those three projects store the
+  variable as **non-sensitive**, so `vercel env pull` returns the plaintext, and it could be compared
+  against the masked token prefix each revoked key showed on its dashboard page. None matched.
+
+It also cannot send from `mail.canoncore.com`, which this account has verified. All three projects
+still name `noreply@canoncore.com` as `EMAIL_FROM`, an address no longer deliverable from here since
+the `canoncore.com` domain entry was deleted.
+
+> **That key is live, and it is not ours to revoke.** Three public Vercel projects hold a working
+> credential for a Resend account this project does not control, so nothing here can revoke it.
+> Outside CAN-39, which is scoped to this account's keys. Tracked as
+> [CAN-41](https://linear.app/jacobrees-canoncore/issue/CAN-41/account-for-the-resend-key-three-older-vercel-projects-still-carry-on).
 
 A fourth project, `canoncore-rebuild`, also carries a `RESEND_API_KEY`. It is stored **Sensitive**, so
-Vercel will not return the value and it cannot be matched against a key id by any means. It was
-treated as depending on nothing, on Jacob's instruction, and the deletions went ahead.
+Vercel returns `[SENSITIVE]` rather than the value and the comparison above cannot be repeated for it.
+Nothing rules out its holding one of the three. It was treated as depending on nothing, on Jacob's
+instruction, and the deletions went ahead on that basis rather than on evidence.
 
 Read *idle since* as the last recorded use, not as a lifetime total. Each key's page reported
 "Total uses: 0 times" while the list carried a last-used date whose log entry returned `Log not
-found`: Resend keeps the timestamp on the key record and purges the underlying log rows, and this
-account's entire retained log was 28 entries from a single day. The dates are therefore a floor on
-how long each key sat unused, not proof it was never used.
+found`, and this account's entire retained log was 28 entries from a single day. The reading that
+fits all three: the timestamp is kept on the key record and the underlying log rows are aged out.
+That is inference from the observations, not documented behaviour. Either way the dates are a floor
+on how long each key sat unused, not proof it was never used.
 
 ### Where the credentials live
 
@@ -403,15 +421,14 @@ how long each key sat unused, not proof it was never used.
 
 Both keys are `sending_access` and restricted to the `mail.canoncore.com` domain, so neither can read
 logs, manage domains or create further keys. Both were read from their dashboard pages on 10 August
-2026. Resend shows a key's plaintext once, at creation; to rotate, create a replacement in the
-dashboard and overwrite the Vercel variable, then delete the old key by the id above.
+2026. "You cannot view or edit an API Key value after it has been created"
+([API keys](https://resend.com/docs/dashboard/api-keys/introduction)), so to rotate, create a
+replacement in the dashboard and overwrite the Vercel variable, then delete the old key by the id
+above.
 
-**Store every Resend key in Vercel as Sensitive, and give it a name that says where it goes.** Both
-above are. The cost of not doing so is CAN-39: the API exposes only a key's name, id and creation
-date, never its scope or its token, so a key whose name records nothing can only be identified by
-reading the dashboard, and a key whose plaintext is readable from a Vercel variable is a key that
-leaked the moment that variable was readable. This repository is public, so no fragment of a live
-key is written here.
+**Both are stored Sensitive, and named for where they go.** Keep it that way: CAN-39 spent its whole
+length on three keys that were neither. This repository is public, so no fragment of a live key is
+written here.
 
 **This departs from CAN-20 as written.** That ticket asked that "**an** API key is a Vercel
 environment variable for production and preview". One key in both environments satisfies the letter.
