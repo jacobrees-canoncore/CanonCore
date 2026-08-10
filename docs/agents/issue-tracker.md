@@ -53,6 +53,44 @@ objects — same names, different colours, two independent sets.
 > 8 August 2026). *Wiring it up* below is kept as the record of how, and of what to redo if the
 > connection is ever removed.
 
+### A description write must not be bundled with anything else
+
+**Updates to an already-synced issue flow both ways** ([Linear's GitHub
+docs](https://linear.app/docs/github)), **and the last write wins.** The propagation takes a few
+seconds. That is how it works, not a fault in it: a `save-issue` on a quiet issue reaches GitHub
+correctly.
+
+It loses when a description write lands within seconds of an event that triggers a sync the
+*other* way. The in-flight GitHub→Linear push carries GitHub's copy of the body and overwrites
+yours — reverting every checkbox you ticked and discarding anything you wrote beside them. **The
+failure is silent.** Nothing errors, nothing warns, and the issue looks as though the write was
+never made.
+
+Observed on CAN-36 while landing [#39](https://github.com/jacobrees-canoncore/CanonCore/pull/39)
+on 10 August 2026: GitHub issue #38 was updated at `13:18:18`, the `save-issue` landed at
+`13:18:20`, and the sync reverted all four acceptance criteria to unticked. It happened twice on
+the same issue within four minutes, each time seconds after an automation-driven change. CAN-34
+was written at a quiet moment in the same session and propagated fine. **That is the GitHub→Linear
+direction; the reverse has not been caught losing a write here**, and the rule below is written to
+cover both anyway.
+
+The events that open the window:
+
+- a status change, or a close
+- **a merge**, when the PR body says `Fixes CAN-<n>` — that closes the mirrored GitHub issue, and
+  the close pushes GitHub's body back to Linear
+- `orca linear attach`. An issue write like any other, so treat it as a trigger — though this one
+  is inferred from the others rather than observed.
+
+**So: write the description on its own, on an issue nothing else is touching.** Let the previous
+event settle, write, then wait again before re-reading — on the order of half a minute each time,
+to clear the lag — and only then make the status change, the comment or the attach. Never write a
+description in the same breath as one of them.
+
+**Do not retry the write in a loop.** The write succeeds. Retrying it to outrun the sync is a race
+against a third party's scheduler: it would still lose sometimes, while looking like it had worked.
+Rewriting once, after a settled read has *shown* you a revert, is repair rather than retry.
+
 ### The remote must live in the `jacobrees-canoncore` org
 
 Not a preference — a constraint. A GitHub App installs once **per owner**, and one owner can
@@ -167,6 +205,15 @@ using the pinned `--write-id` command from that error's own `nextSteps`, with th
 body and an explicit issue target — never swap the pinned target for `--current`. If
 `status set` returns it, re-read the issue instead of retrying blind. If the retry also
 fails, stop and report the uncertainty.
+
+**Re-reading answers one question only: did the write land?** It does not answer whether the write
+will still be there in ten seconds. An immediate re-read cannot tell "written" from "written and
+about to be overwritten by the sync", because at that moment the two are the same read — which is
+why this rule reported success on CAN-36 while the ticks were being reverted.
+
+That applies to `save-issue` and to nothing else here: the other writes are not description writes
+and nothing overwrites them behind your back, so re-read those immediately. For `save-issue`,
+follow *A description write must not be bundled with anything else* above, which has the waits.
 
 ## Wayfinding operations
 

@@ -56,7 +56,7 @@ on the way rather than the destination. This skill is the landing.
    not happen; do not tick a box because the step was skipped.
 
    These are the PR's own boxes. The issue's acceptance criteria are a different list held to a
-   stricter bar, and step 8 sets those.
+   stricter bar, and step 7 sets those.
 
 5. **Mark ready.** `gh pr ready`. Reversible with `gh pr ready --undo`.
 
@@ -72,7 +72,65 @@ on the way rather than the destination. This skill is the landing.
    If the merge is blocked by conflicts, rebase onto `main` and force-push with
    `--force-with-lease`. Never merge `main` into the branch.
 
-7. **Close out Linear.** Resolve the issue the way `/draft-pr` does — `orca linear issue
+7. **Verify what the ticket promised, in the deployed environment, and set its checkboxes.** The
+   step that gets skipped. Check whatever the ticket actually claimed — a cron entry that
+   registered, an environment variable set for production, a route that answers and still refuses
+   without its secret. A green suite says the code is right. It says nothing about whether the
+   platform is doing what the ticket said it would.
+
+   While nothing is deployed, say that this could not be done rather than omitting it.
+
+   **Set the issue's acceptance-criteria checkboxes from what this step verified.** Work them one
+   at a time: take a criterion, check that one, record its outcome, then move to the next.
+
+   Each box ends in one of two states:
+
+   - **Ticked**, with the check named and what it returned — the command and its status line, the
+     query and its row, the variable listed for the target claimed. Prefer a check someone else
+     could re-run and compare.
+   - **Unticked**, with a reason: carried to another ticket, unprovable until something else exists,
+     or not checked. "Not checked" is a legitimate outcome.
+
+   The evidence belongs beside each criterion in the step 8 comment, which is why that comment is
+   written after this step. A tick recorded without its check cannot be told from a guess once the
+   terminal is closed, and the issue records neither who ticked it nor why.
+
+   **This step runs before the status change, and the ordering is the point.** A status change or a
+   comment can simply be written again; a description cannot, because the Linear↔GitHub sync can
+   revert it without saying so. `docs/agents/issue-tracker.md` → *A description write must not be
+   bundled with anything else* has the mechanism, the triggers and the rule. Step 6's merge is one
+   of those triggers, so the first wait below is not optional.
+
+   **Settle after the merge, then read.** One command, backgrounded — the wait and the read the
+   write needs anyway. `sleep` in the foreground is blocked in Claude Code, and an unbacked "wait
+   half a minute" is a wait that does not happen:
+
+   ```bash
+   sleep 45; orca linear issue CAN-<n> --workspace "$WS" --full --json   # run in background
+   ```
+
+   **Write.** Linear's `issueUpdate` takes the description as one whole string and offers no partial
+   patch ([Linear GraphQL API](https://linear.app/developers/graphql)), so `save-issue` replaces the
+   entire body. Toggle only the `- [ ]` lines you verified; write everything else back unchanged:
+
+   ```bash
+   orca linear save-issue --id CAN-<n> --workspace "$WS" --body-file <path> --json
+   ```
+
+   **Settle again, then confirm by reading** — same backgrounded form. `save-issue` sits outside the
+   retry rule in `docs/agents/issue-tracker.md`, so confirm this write by reading rather than by
+   repeating it, and read only after the delay. An immediate read proves nothing here: the write
+   *has* landed, and the overwrite has not arrived yet, so a description that will survive and one
+   seconds from being reverted read identically.
+
+   Match `- [[xX]]`. Linear stores a ticked box as `- [X]`, so a case-sensitive check for `- [x]`
+   reports zero ticked and looks exactly like a write that silently failed.
+
+   If the settled read comes back reverted, write once more and settle-and-read again — repair, not
+   the blind retry the doc rules out. If the second write is reverted too, leave it and say so in
+   the report.
+
+8. **Close out Linear.** Resolve the issue the way `/draft-pr` does — `orca linear issue
    --current` first, the identifier from the branch name as the fallback:
 
    ```bash
@@ -95,49 +153,11 @@ on the way rather than the destination. This skill is the landing.
    `docs/agents/triage-labels.md` says why.
 
    The comment says what shipped and what to expect next, not a summary of the diff. The PR is
-   the diff.
+   the diff. It carries step 7's evidence, which is why it is written after that step.
 
-   **Leave the issue's acceptance-criteria checkboxes alone here** — step 8 sets them from what it
-   verified, so the two steps do not both write the description. **Write this comment after step
-   8**, so that it can carry that step's evidence.
-
-8. **Verify what the ticket promised, in the deployed environment.** The step that gets
-   skipped. Check whatever the ticket actually claimed — a cron entry that registered, an
-   environment variable set for production, a route that answers and still refuses without its
-   secret. A green suite says the code is right. It says nothing about whether the platform is
-   doing what the ticket said it would.
-
-   While nothing is deployed, say that this could not be done rather than omitting it.
-
-   **Set the issue's acceptance-criteria checkboxes from what this step verified.** Work them one
-   at a time: take a criterion, check that one, record its outcome, then move to the next.
-
-   Each box ends in one of two states:
-
-   - **Ticked**, with the check named and what it returned — the command and its status line, the
-     query and its row, the variable listed for the target claimed. Prefer a check someone else
-     could re-run and compare.
-   - **Unticked**, with a reason: carried to another ticket, unprovable until something else exists,
-     or not checked. "Not checked" is a legitimate outcome.
-
-   The evidence belongs beside each criterion in the step 7 comment, which is why that comment is
-   written after this step. A tick recorded without its check cannot be told from a guess once the
-   terminal is closed, and the issue records neither who ticked it nor why.
-
-   ```bash
-   orca linear issue CAN-<n> --workspace "$WS" --full --json   # read .description first
-   orca linear save-issue --id CAN-<n> --workspace "$WS" --body-file <path> --json
-   ```
-
-   Linear's `issueUpdate` takes the description as one whole string and offers no partial patch
-   ([Linear GraphQL API](https://linear.app/developers/graphql)), so `save-issue` replaces the entire
-   body. Read the current description, toggle only the `- [ ]` lines you verified, and write
-   everything else back unchanged. `save-issue` sits outside the retry rule in
-   `docs/agents/issue-tracker.md`, which names `create`, `comment add`, `attach` and `status set` —
-   so re-read the issue to confirm the write rather than repeating it.
-
-   When you re-read, match `- [[xX]]`. Linear stores a ticked box as `- [X]`, so a case-sensitive
-   check for `- [x]` reports zero ticked and looks exactly like a write that silently failed.
+   **Step 7 owns the description.** If it turned up something that belongs in the issue's body, put
+   it in this comment instead.
 
 9. **Report** the merged PR, the Linear state, and what you verified — including, explicitly,
-   anything you could not. Name the acceptance criteria you left unticked, and why.
+   anything you could not. Name the acceptance criteria you left unticked, and why. If the
+   description had to be rewritten after a sync reverted it, say that too.
