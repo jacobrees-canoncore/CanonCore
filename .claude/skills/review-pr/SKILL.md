@@ -55,6 +55,9 @@ on the way rather than the destination. This skill is the landing.
    merged in rather than the state it opened in. Leave unticked anything that genuinely did
    not happen; do not tick a box because the step was skipped.
 
+   These are the PR's own boxes. The issue's acceptance criteria are a different list held to a
+   stricter bar, and step 8 sets those.
+
 5. **Mark ready.** `gh pr ready`. Reversible with `gh pr ready --undo`.
 
 6. **Ask before merging.** This is the one step here that puts the change into production and
@@ -94,6 +97,10 @@ on the way rather than the destination. This skill is the landing.
    The comment says what shipped and what to expect next, not a summary of the diff. The PR is
    the diff.
 
+   **Leave the issue's acceptance-criteria checkboxes alone here** — step 8 sets them from what it
+   verified, so the two steps do not both write the description. **Write this comment after step
+   8**, so that it can carry that step's evidence.
+
 8. **Verify what the ticket promised, in the deployed environment.** The step that gets
    skipped. Check whatever the ticket actually claimed — a cron entry that registered, an
    environment variable set for production, a route that answers and still refuses without its
@@ -102,5 +109,35 @@ on the way rather than the destination. This skill is the landing.
 
    While nothing is deployed, say that this could not be done rather than omitting it.
 
+   **Set the issue's acceptance-criteria checkboxes from what this step verified.** Work them one
+   at a time: take a criterion, check that one, record its outcome, then move to the next.
+
+   Each box ends in one of two states:
+
+   - **Ticked**, with the check named and what it returned — the command and its status line, the
+     query and its row, the variable listed for the target claimed. Prefer a check someone else
+     could re-run and compare.
+   - **Unticked**, with a reason: carried to another ticket, unprovable until something else exists,
+     or not checked. "Not checked" is a legitimate outcome.
+
+   The evidence belongs beside each criterion in the step 7 comment, which is why that comment is
+   written after this step. A tick recorded without its check cannot be told from a guess once the
+   terminal is closed, and the issue records neither who ticked it nor why.
+
+   ```bash
+   orca linear issue CAN-<n> --workspace "$WS" --full --json   # read .description first
+   orca linear save-issue --id CAN-<n> --workspace "$WS" --body-file <path> --json
+   ```
+
+   Linear's `issueUpdate` takes the description as one whole string and offers no partial patch
+   ([Linear GraphQL API](https://linear.app/developers/graphql)), so `save-issue` replaces the entire
+   body. Read the current description, toggle only the `- [ ]` lines you verified, and write
+   everything else back unchanged. `save-issue` sits outside the retry rule in
+   `docs/agents/issue-tracker.md`, which names `create`, `comment add`, `attach` and `status set` —
+   so re-read the issue to confirm the write rather than repeating it.
+
+   When you re-read, match `- [[xX]]`. Linear stores a ticked box as `- [X]`, so a case-sensitive
+   check for `- [x]` reports zero ticked and looks exactly like a write that silently failed.
+
 9. **Report** the merged PR, the Linear state, and what you verified — including, explicitly,
-   anything you could not.
+   anything you could not. Name the acceptance criteria you left unticked, and why.
