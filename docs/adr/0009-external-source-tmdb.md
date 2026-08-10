@@ -21,14 +21,40 @@ record of what a Source last said, and states that a Source ceasing to carry som
 `liveness` on one row and is **never** a local delete. A Snapshot that must be purged is not a
 Snapshot.
 
-**TMDB has approved indefinite retention for this project.** Recorded 9 August 2026 on the project
-owner's statement; the written approval is being located and attached under CAN-34. Everything
-below assumes it.
+**TMDB has approved indefinite retention for this project.** Confirmed in writing by TMDB API
+Support, in reply to a request for an exception. First recorded on the project owner's statement on
+9 August 2026; the correspondence itself is held on
+[CAN-34](https://linear.app/jacobrees-canoncore/issue/CAN-34/attach-tmdbs-written-retention-approval),
+where its scope is set out in full. It grants CanonCore a project-specific exception to the caching
+and retention limitation, permitting TMDB API data to be kept indefinitely in the Snapshot rather
+than for six months. Everything below assumes it.
 
-This is the one load-bearing claim in this ADR that does not cite a document, and it is flagged
-rather than buried because everything else here does cite one. If the approval lapses, is not
-renewed, or proves narrower than understood, the decision inverts — see **Fallback** below, which
-exists so that inversion is a lookup rather than a fresh investigation.
+**The exception also survives the end of API access.** The same correspondence covers data already
+obtained if CanonCore stops using the API, or if the key is disabled, expires or is terminated, and
+states that no purge is required on that basis — which is what answers the termination clause quoted
+above. What it does not grant is obtaining *new* data after access has ended.
+
+The correspondence states that the exception carries no expiry and no renewal requirement, and that
+a withdrawal or a change of terms would be communicated separately by TMDB. Both are its words
+rather than our inference, which matters because the reversal conditions in **Fallback** below rest
+on them.
+
+**Three weaknesses in this evidence, recorded rather than left to be discovered.** This is the one
+load-bearing claim in the ADR that cites a document a reader cannot open; everything else here
+cites a public one, and quotes it. It is flagged rather than buried because anyone who checks
+TMDB's published terms will find them saying the opposite.
+
+1. **The text is deliberately not committed to this repository.** It is legal correspondence, and
+   it is held on CAN-34 instead. That is a decision, not an oversight — but it does mean the one
+   claim a reviewer would most want to check verbatim is the one they must leave the repo to read.
+2. **Neither copy held carries headers, a sender address or a date.** CAN-34 holds two: a reply
+   covering retention alone, and a fuller one covering retention and the export together. They
+   agree on retention. Both are pasted bodies rather than saved messages, so the exception's age
+   cannot be established and neither can be tied to a thread. If an original with headers is
+   recovered it should replace them.
+3. **The scope recorded here is one reading of it**, made on 10 August 2026 and set out in full in
+   a comment on CAN-34. Nobody has checked that reading against the source independently, which is
+   why "proves narrower than understood" survives as a reversal condition below.
 
 ## Why TMDB, once retention is not disqualifying
 
@@ -65,7 +91,29 @@ or a subscription PIN, and scopes the key to one declared project.
   revenue for the benefit of the owner". If CanonCore ever monetises, the licence changes and this
   ADR is reopened.
 - **The non-commercial licence carries an AI/ML prohibition** in paragraph 1.C. It is not merely a
-  commercial-use trigger, so it binds us as we are.
+  commercial-use trigger, so it binds us as we are. The retention correspondence restates it, along
+  with attribution and the non-commercial restriction, as surviving the exception untouched.
+- **The exception grants retention, not redistribution to third parties.** The terms' restrictions
+  on use, display, distribution and redistribution all survive it. Providers are not a route to
+  this: [ADR-0007](0007-provider-contract.md) has them serving data *into* CanonCore, never
+  receiving ours.
+- **The GDPR export to the account holder is approved, and is narrower than the Snapshot.** TMDB
+  confirmed in writing that giving a user an export of their own account data "alongside the
+  associated TMDB fields (episode titles, runtimes, and IDs)" falls outside the third-party
+  redistribution prohibition. Two things follow, and both are easy to get wrong:
+  - **The export carries those fields, not the Snapshot payload.** A Snapshot holds what TMDB
+    returned verbatim — overviews, air dates, credits, image paths, vote counts. The approval names
+    three field types. Exporting the payload whole would exceed it, so the export is built from the
+    composed read rather than by serialising Snapshot rows.
+  - **The export file itself carries the attribution notice and the terms disclosure.** TMDB asked
+    for this explicitly as a condition of the approval. It is the only place attribution is required
+    outside the application's own pages.
+
+  This is the second exception this project holds and it has the same evidential weakness as the
+  first: the copy is a pasted body without headers. [CAN-30](https://linear.app/jacobrees-canoncore/issue/CAN-30/gdpr-export-and-erasure)
+  carries both consequences as criteria. If the approval is ever withdrawn the export narrows to
+  external identifiers; the source decision does not invert, and **Fallback** below is not triggered
+  by it.
 - **Identifier churn is real and already anticipated.** ADR-0004 records that TMDB loses roughly 2%
   of movie ids a year with no merge model, serving a 301 before a final 404. That is precisely why
   external ids live on the Snapshot and never on the record; choosing TMDB makes that existing
@@ -106,8 +154,11 @@ or a subscription PIN, and scopes the key to one declared project.
 Recorded because this decision rests on a project-specific exception rather than on public terms,
 so the conditions that would reverse it are foreseeable.
 
-**Go here if** the TMDB approval lapses, is not renewed, proves narrower than understood, or
-CanonCore becomes commercial in TMDB's sense.
+**Go here if** TMDB withdraws the exception, changes the terms it rests on — either of which it
+would communicate separately — or if CanonCore becomes commercial in TMDB's sense, **or if the
+exception proves narrower than the reading recorded above.** The exception carries no expiry and
+needs no renewal, so a lapse is not among the conditions; but the reading is one person's, of a
+document held outside this repository, so it remains reversible on being read again.
 
 TheTVDB's posture on storage is the opposite of TMDB's published one: "We strongly recommend
 maintaining your own copy of the database or making use of a caching proxy if your end users make

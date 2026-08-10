@@ -148,9 +148,9 @@ Each names the settled answer first, then what will offer you something else.
   will suggest a `Domain`-scoped cookie or serving from the apex. Either one reopens this.
 - **TMDB as the general source** ([ADR-0009](docs/adr/0009-external-source-tmdb.md)) — its
   published terms forbid keeping data beyond six months, so a reader who checks them will think
-  this is wrong. It rests on a retention exception recorded on the owner's statement, with written
-  confirmation still pending on CAN-34. TheTVDB is the recorded fallback if that does not hold, not
-  a live alternative.
+  this is wrong. It rests on a project-specific exception TMDB confirmed in writing, held on CAN-34.
+  TheTVDB is the recorded fallback, not a live alternative; ADR-0009 names the conditions that would
+  return the decision to it, and is the only place they are stated.
 
 ## Working practice
 
