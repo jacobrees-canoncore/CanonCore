@@ -80,7 +80,7 @@ reader will otherwise wonder where they went. Twelve plus one plus three is the 
 > apparatus out of scope. Weakening the primary priority content prohibition in the terms would pull age
 > verification or age estimation into the build.
 
-## Known gap against ICU D2.2(a)
+## ICU D2.2(a): recorded as an alternative measure
 
 **ICU D2.2(a)** requires that "for relevant complaints regarding a specific piece of content, a
 **reporting function or tool is clearly accessible in relation to that content**" — a per-item report
@@ -90,5 +90,15 @@ At launch, CAN-32 surfaces the reporting address from the footer and from the pu
 defers the report form, the reports table and the administrator queue to a later increment. The address
 satisfies D2.2(b) for other kinds of complaint; **it does not fully satisfy D2.2(a)**.
 
-This is recorded as a known and deliberate gap rather than an oversight, with the closing work tracked on
-CAN-32. It should be closed before the service carries content from any account other than the operator's.
+**This is an alternative measure, not an unexplained gap**, and the distinction matters: the Act permits a
+provider to take measures other than those a Code recommends, provided the alternative is recorded. The
+record and its justification are in
+[`illegal-content-risk-assessment.md`](illegal-content-risk-assessment.md) Step 3. In short: `s.20(2)`
+requires easy reporting, not a specific control, and the address is on the same public page as the content
+and needs no account.
+
+The same reasoning covers **PCU D2.2(a)**, which is the identical requirement under the children's codes.
+
+Building the per-item control is [CAN-43](https://linear.app/jacobrees-canoncore/issue/CAN-43), which is
+deliberately outside v1. **When it lands, both this section and the Step 3 alternative-measure record are
+deleted**, because the Code measure will then simply be adopted.

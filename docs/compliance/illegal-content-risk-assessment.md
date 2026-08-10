@@ -155,7 +155,22 @@ The 14 ICU measures binding a smaller, low-risk service are recorded separately 
 [`code-measures-register.md`](code-measures-register.md), each with its description, its Code reference
 and the date it takes effect.
 
-**No alternative measures are taken.** Every applicable Code measure is adopted, with one exception:
+**One alternative measure is taken**, and it is recorded here because `s.23(3)` requires a written record
+of any measure taken in place of a Code measure, and Ofcom's record-keeping template has a Step 3 field
+for exactly that.
+
+**ICU D2.2(a) — a per-item report control — is not adopted at launch.** In its place, the reporting route
+is published as an address reachable without an account, linked from the footer of every page and from the
+public Ordering page. The `s.20(2)` duty is to operate systems and processes letting users and affected
+persons **easily report** content, and that is satisfied: a reporter is never more than one click from the
+address on the same page as the content, and needs no account to use it. The service has no upload, no
+messaging, and a corpus small enough for the operator to review, so the volume a per-item control exists to
+handle does not arise. **Building it is tracked as
+[CAN-43](https://linear.app/jacobrees-canoncore/issue/CAN-43)**, and this record is removed when it lands.
+If any of that justification stops holding — user numbers grow, upload or messaging is added — the
+alternative stops being defensible and CAN-43 becomes urgent.
+
+Otherwise every applicable Code measure is adopted, with one exception:
 **ICU D13 is not adopted.** D13 is permissive rather than mandatory — it allows a provider to decline
 manifestly unfounded complaints — and relying on it would require a written policy, a mis-identification
 monitoring process, an annual review and a change record. At this service's expected complaint volume

@@ -446,14 +446,24 @@ own MX records and are untouched; the apex currently has none. Adding one for fo
 receiving only, so SPF, DKIM and the DMARC policy above are unaffected, and `www` is untouched, so
 [ADR-0010](adr/0010-canonical-host-www.md) still holds.
 
-**Outstanding before the public URL is shared:**
+**Outstanding, with the ticket that owns each.** The split matters: the first two are acts on someone
+else's dashboard and in a mailbox, which is why they sit on the human-only ticket, while the third needs
+application code and cannot land before `apps/web` exists.
 
-- [ ] Add the apex MX record and the forwarding rule at Namecheap.
-- [ ] Send a test message to `report@canoncore.com` and confirm it arrives, using `macos-mail-mcp` to read
-      the destination mailbox. A forward that silently fails is worse than no address, because the
-      published document promises someone that reports are read.
-- [ ] Make the address available to the application as configuration rather than hard-coding it, so the
-      two public documents and the reporting route agree.
+| | Owner |
+| --- | --- |
+| Add the apex MX record and the forwarding rule at Namecheap | [CAN-21](https://linear.app/jacobrees-canoncore/issue/CAN-21) |
+| Send a test message to `report@canoncore.com` and confirm it arrives, reading the destination mailbox with `macos-mail-mcp`. **A forward that silently fails is worse than no address**, because the published document promises a person that reports are read | [CAN-21](https://linear.app/jacobrees-canoncore/issue/CAN-21) |
+| Make the address available to the application as configuration rather than hard-coded, so the two public documents and the reporting route cannot drift apart | [CAN-32](https://linear.app/jacobrees-canoncore/issue/CAN-32) |
+
+**The reporting route itself is not finished by this address.** ICU D2.2(a) recommends a report control on
+each publicly visible record, which v1 does not ship; it is recorded as an alternative measure in
+[`docs/compliance/code-measures-register.md`](compliance/code-measures-register.md) and built by
+[CAN-43](https://linear.app/jacobrees-canoncore/issue/CAN-43), deliberately outside v1.
+
+> **CAN-21's own wording is now out of date.** Its acceptance criterion says the address exists "on
+> `mail.canoncore.com`". The decision moved it to the apex, for the reason above. Correct the criterion
+> before closing the ticket, or it will be closed against something nobody did.
 
 ## Holding page
 
