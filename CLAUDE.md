@@ -148,9 +148,9 @@ Each names the settled answer first, then what will offer you something else.
   will suggest a `Domain`-scoped cookie or serving from the apex. Either one reopens this.
 - **TMDB as the general source** ([ADR-0009](docs/adr/0009-external-source-tmdb.md)) — its
   published terms forbid keeping data beyond six months, so a reader who checks them will think
-  this is wrong. It rests on a retention exception recorded on the owner's statement, with written
-  confirmation still pending on CAN-34. TheTVDB is the recorded fallback if that does not hold, not
-  a live alternative.
+  this is wrong. It rests on a project-specific exception TMDB confirmed in writing, held on CAN-34,
+  which also survives the API key ending and carries no expiry. TheTVDB is the recorded fallback if
+  TMDB withdraws it or CanonCore becomes commercial, not a live alternative.
 
 ## Working practice
 
