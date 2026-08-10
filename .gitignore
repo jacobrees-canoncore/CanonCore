@@ -1,3 +1,14 @@
+node_modules/
+
+# Next.js build output, and the ambient types it regenerates on every build.
+.next/
+next-env.d.ts
+*.tsbuildinfo
+
+# Playwright run artefacts
+test-results/
+playwright-report/
+
 # Local, per-machine Claude Code settings. Project skills (.claude/skills/) are tracked,
 # and a project .claude/settings.json would be too if one is ever added; this one is not.
 .claude/settings.local.json

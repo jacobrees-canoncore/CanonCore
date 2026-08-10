@@ -98,8 +98,7 @@ Single-context: one `CONTEXT.md` and one `docs/adr/` at the repo root, both popu
 
 Trunk-based and solo: one `main`, a branch per ticket carrying its `CAN-n`, squash-merge to
 land. `docs/agents/workflow.md` names the gates, the preview environment and which artefacts a
-merge carries. They are *named but unbuilt* until the walking skeleton exists — until then, report
-plainly that there was nothing to run.
+merge carries. The gates and the preview environment are built and running as of CAN-22.
 
 ## Which tool owns what
 

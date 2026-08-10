@@ -1,0 +1,9 @@
+packages:
+  - apps/*
+  - packages/*
+
+# `unrs-resolver` (pulled in by eslint-import-resolver-typescript) publishes a prebuilt
+# binary per platform, so its build script is a fallback we do not need. `false` is what
+# create-next-app emits.
+allowBuilds:
+  unrs-resolver: false

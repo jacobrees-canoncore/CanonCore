@@ -31,23 +31,16 @@ on the way rather than the destination. This skill is the landing.
 2. **Run the gates.**
 
    `docs/agents/workflow.md` names them and is the only place they are written down. Read the
-   commands from there rather than from memory. **Until the walking skeleton exists there is nothing to run — say that
-   plainly and do not treat it as a pass.** The absence of a failing check is not a green check,
-   and a landing that reports "gates passed" when nothing ran is the specific thing this step
-   exists to prevent.
+   commands from there rather than from memory. Treat anything red as a full stop. **The absence of
+   a failing check is not a green check**, and a landing that reports "gates passed" when nothing
+   ran is the specific thing this step exists to prevent.
 
-   Once they exist, treat anything red as a full stop. Pay particular attention to the
-   cross-tenant row-level-security tests: a broken policy returns an empty result rather than an
-   error, so that failure is invisible anywhere except in those tests.
+   Pay particular attention to the cross-tenant row-level-security tests: a broken policy returns
+   an empty result rather than an error, so that failure is invisible anywhere except in those
+   tests.
 
    **A local run is not the gate.** This skill merges a few steps below, so the green has to belong
    to the commit being landed and has to have come from a clean checkout.
-
-   **First, check there is anything to wait for.** If `.github/workflows` holds no workflow files,
-   nothing will ever report and the wait below would burn its ceiling and stop a PR that is
-   perfectly landable. Say there are no checks yet, exactly as the paragraph above says to, and go
-   to step 3. Everything from here to the end of this step is conditional on that directory being
-   populated.
 
    ```bash
    gh pr view <n> --json headRefOid --jq .headRefOid              # note the SHA; step 6 needs it
@@ -79,8 +72,7 @@ on the way rather than the destination. This skill is the landing.
    or a single combined job would make the literals wrong.
 
 3. **Confirm it works.** Vercel builds a preview deployment per pull request — read its URL from
-   the PR's checks or comments. Until the first deploy exists there is no preview, and that is a
-   "nothing to check" rather than a pass.
+   the PR's checks or comments.
 
    **An empty read means "not yet", not "none".** Step 2's wait covers this whenever Vercel's own
    check is among the ones it waited on. Where it is not, poll for the URL instead of concluding

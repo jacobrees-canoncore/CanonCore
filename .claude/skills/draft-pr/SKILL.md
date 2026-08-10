@@ -94,8 +94,8 @@ policy and the reasoning; this is the procedure. `/review-pr` lands it afterward
    **Both.** The base has diverged. Stop and say so. Sorting that out is a deliberate act on
    the repository, not something to do inside a PR command.
 
-   This is a precondition, not a gate. `docs/agents/workflow.md` now names the gates, but they
-   are unbuilt until the walking skeleton exists, so there may still be nothing to run.
+   This is a precondition, not a gate. The gates themselves are `docs/agents/workflow.md`'s, and
+   `/review-pr` runs them.
 
 6. **Read the range**, against the remote base and now that the base is known — doing this
    earlier describes commits the PR will not contain, and doing it against the local ref
@@ -127,9 +127,8 @@ policy and the reasoning; this is the procedure. `/review-pr` lands it afterward
    ```
 
    Leave the boxes unticked — `/review-pr` ticks them once they are true. **Drop any line this
-   diff cannot apply to** rather than leaving it as noise, and drop the first two outright until
-   the walking skeleton exists, since until then there are no checks to run and nothing deployed
-   to look at. A checklist of things that cannot be done is worse than no checklist.
+   diff cannot apply to** rather than leaving it as noise: a checklist of things that cannot be
+   done is worse than no checklist.
 
 9. **Create it.**
 

@@ -5,11 +5,11 @@ Trunk-based, solo. One `main`, short-lived branches, squash-merge to land.
 This file is the policy. `/draft-pr` and `/review-pr` are the procedure and defer to it — a
 rule belongs here, a step belongs in the skill.
 
-> **Read this first.** The stack is settled (see **Stack** in `CLAUDE.md` and
-> [ADR-0005](../adr/0005-stack.md)), but nothing is built yet: no code, no CI, nothing deployed.
-> The policy below is settled and the mechanics are now *named*, but they do not exist until the
-> walking skeleton is built. Where a mechanic is named but unbuilt this file says so; do not
-> assume a command runs just because it is written down here.
+> **Read this first.** The walking skeleton landed with CAN-22, so the mechanics below are built:
+> `apps/web` deploys to production from `main`, pull requests get preview deployments, and the
+> three checks run in GitHub Actions on every push. What is still only *named* is called out where
+> it appears. The stack itself is settled — see **Stack** in `CLAUDE.md` and
+> [ADR-0005](../adr/0005-stack.md).
 
 ## Why a PR at all, for one developer
 
@@ -193,8 +193,9 @@ row-level-security-protected table has a test asserting that a cross-tenant read
 rows.** A misconfigured RLS policy returns an empty result rather than an error, so it is
 indistinguishable from "no data" in the UI and cannot be caught by looking.
 
-**Until the walking skeleton exists there is nothing to run**, and `/review-pr` must say so
-rather than passing silently.
+They run as `.github/workflows/ci.yml`, one job called `checks`, triggered on `push` with no
+branch filter. A check attaches to a commit rather than to a pull request, so the same run is what
+a PR displays and what a ruleset can require.
 
 **The gate is GitHub's copy of those checks, not yours.** `/review-pr` merges, so the green it acts
 on has to belong to the commit it is about to land, and it has to have come from a clean checkout. A
@@ -226,10 +227,6 @@ Re-read the head SHA afterwards and start again if it moved, then **merge with
 confirmation between them; the flag is what stops a push landing in that gap from being squashed
 into `main` unchecked.
 
-None of this applies while `.github/workflows` is empty. There is nothing to wait for, and a wait
-with no possible answer refuses PRs that are perfectly landable — the same failure as passing
-silently, pointed the other way.
-
 **The repo should refuse the merge too.** A waiting skill is a convention and a ruleset is an
 enforcement, and only the second one survives the skill being edited, skipped or run by something
 else. `main` currently has neither branch protection nor a ruleset. The repo is public, so rulesets
@@ -237,17 +234,30 @@ and required status checks cost nothing here (`issue-tracker.md`). Two traps are
 fail quietly: a strict *require branches to be up to date* rule with no check defined does nothing
 at all, and a required context that never reports blocks every merge for ever at *Expected —
 Waiting for status to be reported*, so only require checks that run on every pull request. CAN-40
-carries this work; it is blocked on there being checks to require.
+carries this work. It was blocked on there being a check to require, and CAN-22 unblocked it: the
+context to require is `checks`, the single job in `ci.yml`.
 
 **A deployed preview works.** Vercel builds a preview deployment per pull request. The value of
 a preview is that it is a real environment rather than a smoke screen, so a preview must point at
 its own Neon branch rather than at production's data.
 
+The Playwright suite is how to check one, rather than looking at it:
+
+```bash
+E2E_BASE_URL=https://<preview>.vercel.app pnpm --filter @canoncore/web test
+```
+
+`E2E_BASE_URL` is the only difference between that and what Actions runs. With it unset the suite
+builds and serves the app locally; with it set the same test drives a real browser against the
+deployment.
+
 **Everything the branch changes actually reaches production.** Now answerable, and the answer is
 that **a merge does not carry everything**. Vercel's build deploys the application code and nothing
 else. Drizzle migrations do **not** run as part of it: they run as an explicit step in the Actions
 pipeline before the production deploy is promoted, so a schema change that fails stops the release
-rather than shipping code against a database that never moved. Any other out-of-band artefact — a
+rather than shipping code against a database that never moved. **That step is not in `ci.yml`
+yet** — there is no schema, so there is nothing for it to run; it arrives with CAN-23, which brings
+the first table. Any other out-of-band artefact — a
 scheduled job, a queue, a permission, an environment variable — is hand-run and must be named in
 the PR body.
 

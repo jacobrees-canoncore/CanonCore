@@ -1,0 +1,30 @@
+name: CI
+
+on: push
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      # No `version` input: the action reads `packageManager` from the root package.json,
+      # so the pinned pnpm lives in one place.
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      # The suite drives a real browser against a production build of the app.
+      - run: pnpm --filter @canoncore/web exec playwright install --with-deps chromium
+
+      # Three commands, not one. `pnpm -r test typecheck lint` passes the trailing words
+      # to `test` as arguments and silently skips the other two — see
+      # docs/agents/workflow.md.
+      - run: pnpm -r test
+      - run: pnpm -r typecheck
+      - run: pnpm -r lint
