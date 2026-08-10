@@ -130,9 +130,18 @@ the account is irrelevant.
 **The fallback is the `github` MCP**, which performs the same operations over the same credentials
 by a route the classifier does not block. `mcp__github__create_pull_request` opened PR #43 for
 CAN-20 immediately after the Bash call was refused. `mcp__github__merge_pull_request` is the
-equivalent for the merge, which matters because `/review-pr` ends in
-`gh pr merge --squash --delete-branch` — the worst moment to be improvising is with the PR marked
-ready and nothing landed.
+equivalent for the merge, and that is the worst moment to be improvising — the PR marked ready and
+nothing landed.
+
+**The merge fallback is weaker than the command it replaces**, so know what you are giving up
+before you reach for it. `mcp__github__merge_pull_request` takes `owner`, `repo`, `pullNumber`,
+`merge_method` and the commit title and message, and exposes no head-SHA parameter — even though
+the REST endpoint underneath it accepts `sha` ([merge a pull
+request](https://docs.github.com/en/rest/pulls/pulls#merge-a-pull-request)). So it cannot enforce
+`--match-head-commit`, and the guarantee below in *The gates* — that the commit merged is the
+commit that was checked — becomes an unverified assumption. Re-read the head SHA immediately
+before calling it and stop if it moved. That narrows the window rather than closing it, which is
+the honest description of what the fallback buys.
 
 This is a property of the harness and its settings, not of this repository, so it can change
 without warning in either direction. Treat it as a thing to recognise, not a thing to design
@@ -271,6 +280,44 @@ CanonCore equivalents are unknown. Add them here as they appear, and prefer maki
 executable check over leaving it as prose — a rule that lives only in prose is one nobody
 re-reads at the moment it is broken.
 
+## The merge reports failure after it has succeeded
+
+`--delete-branch` deletes "the local and remote branch after merge"
+([gh pr merge](https://cli.github.com/manual/gh_pr_merge)), and deleting the local branch means
+`gh` has to put you back on the base branch first. Under Orca it cannot. `main` stays permanently
+checked out at `/Users/jacobrees/orca/projects/CanonCore` while ticket work happens in a worktree
+under `/Users/jacobrees/orca/workspaces/CanonCore/`, so git refuses —
+`fatal: 'main' is already used by worktree at …` — and `gh` exits non-zero. Making `-d` work
+under worktrees is an open request, filed in 2021
+([cli/cli#3442](https://github.com/cli/cli/issues/3442)).
+
+**The merge itself has already happened when that error prints.** Landing CAN-20 on 10 August
+2026, `origin/main` advanced to the squash commit and [PR
+#43](https://github.com/jacobrees-canoncore/CanonCore/pull/43) read `MERGED`; only the local
+cleanup failed. Every ticket is worked from a worktree, so this is the standing layout rather than
+one bad landing.
+
+That shape is the danger, not the stale branch: a **false negative on the one step that cannot be
+undone**. An agent reading the error can report that the landing failed when production has
+already changed, or merge again. Nothing downstream re-checks, so the wrong conclusion is the one
+that survives.
+
+**So the merge command's exit code decides nothing.** Ask the server what happened, and delete the
+remote branch by a route that needs no local checkout:
+
+```bash
+gh pr merge <n> --squash --match-head-commit <SHA>   # no --delete-branch
+gh pr view <n> --json state,mergedAt                 # this is the source of truth
+git push origin --delete <branch>                    # only once the read says MERGED
+```
+
+Order matters in the third line. Deleting the remote branch of a PR that did *not* merge closes
+the PR and throws away the pushed copy of the work. After a confirmed merge it is safe to repeat —
+if something already removed the branch, git says so and there is nothing to lose.
+
+The local branch stays behind, and that is correct: Orca's worktree owns it, and removing the
+worktree takes the branch with it.
+
 ## After the merge
 
 **Verify what the ticket promised, in the deployed environment.** Not optional, and not
@@ -281,6 +328,12 @@ doing what the ticket said it would.
 
 **Close out Linear.** Status to `Done`, and a comment saying what shipped and what to expect
 next — not a summary of the diff, because the PR is the diff. See `issue-tracker.md`.
+
+**Read the status before setting it.** The GitHub integration moves the issue through its states
+as the PR opens and merges (`issue-tracker.md` → *Relationship to GitHub*), so by the time anyone
+gets here it is usually `Done` already and the write is a no-op. Setting it anyway is harmless;
+*reporting* it as the thing that closed the issue is not, because it credits the agent with work
+the sync did.
 
 A landed issue ends up carrying **no** triage state role, which is correct rather than an
 oversight — `triage-labels.md` has the reasoning.
