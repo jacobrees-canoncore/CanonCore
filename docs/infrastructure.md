@@ -138,6 +138,15 @@ Online Safety Act obligations in CAN-21.
 
 ## Holding page
 
-`www.canoncore.com` currently serves a static holding page deployed from a temporary directory, not
-from the repository. It exists so the cutover caused no outage. **The first push to `main` in CAN-22
-replaces it automatically**, and nothing needs cleaning up.
+`www.canoncore.com` serves `public/index.html` from this repository, so the cutover caused no outage.
+`vercel.json` sets `outputDirectory` to `public`, which keeps the served surface to that one file
+rather than publishing the whole tree as static assets.
+
+It lives in the repository on purpose. It was first deployed from a temporary directory with
+`vercel deploy --prod`, which was a mistake: **any** push to `main` triggers a production build, and
+a build of a repository with no application produces a 404 — so a documentation-only merge would
+have taken the site down. Committing it means every production deploy from here reproduces it.
+
+**CAN-22 deletes `public/` and this `vercel.json` when `apps/web` exists**, and Next.js takes over
+serving. Until then, do not remove either: they are the only thing standing between a push to `main`
+and a 404 on the production domain.
