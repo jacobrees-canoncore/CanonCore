@@ -511,6 +511,50 @@ Mail sent to `*@mail.canoncore.com` needs no such check, because receiving is en
 Recorded once, in [ADR-0011](adr/0011-transactional-email-resend.md): US log storage regardless of
 sending region, 22 sub-processors, and no test credential. CAN-21 needs all three.
 
+## Reporting address
+
+Decided by CAN-21, **not yet provisioned**. The Online Safety Act requires a reporting route that works
+for people who have no account and are not users at all (`s.20(5)` affected persons), and the Codes
+require it to be easy to find and use. What that needs is in
+[`docs/compliance/code-measures-register.md`](compliance/code-measures-register.md); this section records
+the address itself.
+
+| | |
+| --- | --- |
+| Address | `report@canoncore.com` |
+| Mechanism | Namecheap free email forwarding on the apex, forwarding to Jacob's iCloud |
+| Status | **Not created.** No MX record for the apex exists yet |
+
+**It is on the apex, not on `mail.canoncore.com`.** That is a change from CAN-21's original wording,
+which assumed the Resend inbound domain. Resend receives at `*@mail.canoncore.com`, but that mailbox is
+readable only through the API, and **an inbox only an API can read is not "monitored by a human"**. The
+duty is to have reports reach a person. Forwarding to a mailbox Jacob already reads is the simplest thing
+that makes that true, and it needs no application code, so it does not wait on `apps/web`.
+
+**This does not disturb the Resend setup.** `mail.canoncore.com` and `send.mail.canoncore.com` keep their
+own MX records and are untouched; the apex currently has none. Adding one for forwarding affects
+receiving only, so SPF, DKIM and the DMARC policy above are unaffected, and `www` is untouched, so
+[ADR-0010](adr/0010-canonical-host-www.md) still holds.
+
+**Outstanding, with the ticket that owns each.** The split matters: the first two are acts on someone
+else's dashboard and in a mailbox, which is why they sit on the human-only ticket, while the third needs
+application code and cannot land before `apps/web` exists.
+
+| | Owner |
+| --- | --- |
+| Add the apex MX record and the forwarding rule at Namecheap | [CAN-21](https://linear.app/jacobrees-canoncore/issue/CAN-21) |
+| Send a test message to `report@canoncore.com` and confirm it arrives, reading the destination mailbox with `macos-mail-mcp`. **A forward that silently fails is worse than no address**, because the published document promises a person that reports are read | [CAN-21](https://linear.app/jacobrees-canoncore/issue/CAN-21) |
+| Make the address available to the application as configuration rather than hard-coded, so the two public documents and the reporting route cannot drift apart | [CAN-32](https://linear.app/jacobrees-canoncore/issue/CAN-32) |
+
+**The reporting route itself is not finished by this address.** ICU D2.2(a) recommends a report control on
+each publicly visible record, which v1 does not ship; it is recorded as an alternative measure in
+[`docs/compliance/code-measures-register.md`](compliance/code-measures-register.md) and built by
+[CAN-43](https://linear.app/jacobrees-canoncore/issue/CAN-43), deliberately outside v1.
+
+> **CAN-21's own wording is now out of date.** Its acceptance criterion says the address exists "on
+> `mail.canoncore.com`". The decision moved it to the apex, for the reason above. Correct the criterion
+> before closing the ticket, or it will be closed against something nobody did.
+
 ## Holding page
 
 `www.canoncore.com` serves `public/index.html` from this repository, so the cutover caused no outage.
