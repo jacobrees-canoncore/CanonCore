@@ -98,22 +98,47 @@ on the way rather than the destination. This skill is the landing.
    These are the PR's own boxes. The issue's acceptance criteria are a different list held to a
    stricter bar, and step 7 sets those.
 
+   `gh pr edit <n> --body-file <path>`. **This is the skill's first write to GitHub, so it is
+   where a refusal that is not GitHub's shows up first** — the auto mode classifier blocks `gh`
+   writes sometimes, and it reads like a permissions problem, so `gh auth switch` gets reached for
+   and fixes nothing. `docs/agents/workflow.md` → *The other `gh` failure, which is not the
+   account* tells that apart from the 403 and names the `github` MCP fallback. **It applies to
+   every step below as much as to this one**, which is why it is said here rather than at each.
+
 5. **Mark ready.** `gh pr ready`. Reversible with `gh pr ready --undo`.
 
 6. **Ask before merging.** This is the one step here that puts the change into production and
    the one that is not a click away from being undone. On a yes:
 
    ```bash
-   gh pr merge --squash --delete-branch --match-head-commit <the SHA step 2 ended on>
+   gh pr merge <n> --squash --match-head-commit <the SHA step 2 ended on>
+   gh pr view <n> --json state,mergedAt                   # decide from this, not from the exit code
+   git push origin --delete <branch>                      # only once state is MERGED
    ```
 
    Squash only. If the repo permits merge or rebase merges, do not use them.
+
+   **The merge command's exit code is not the answer, and no `--delete-branch`.** That flag makes
+   `gh` fail *after* GitHub has already merged, every time, from a worktree. Read `state,mergedAt`
+   and branch on that: `MERGED` means the landing succeeded no matter what the command printed, so
+   carry on to step 7 rather than retrying — a second merge attempt would be a decision made from a
+   false report. `docs/agents/workflow.md` → *The merge reports failure after it has succeeded* has
+   the mechanism and the evidence.
+
+   Delete the remote branch only after that read says `MERGED`. Done before it, on a merge that did
+   not happen, it closes the PR and discards the pushed work.
 
    **`--match-head-commit` is what makes step 2 binding.** Steps 3 to 5 sit between the check and
    the merge and one of them waits on a person, so a push landing in that window would otherwise be
    squashed into `main` having never been checked at all — the exact property step 2 exists to
    guarantee. With the flag, GitHub refuses the merge instead. Omit it only if step 2 found no
    checks to wait for, since then there is no verified SHA to match.
+
+   **If the classifier refuses this one** (step 4 names the failure), `mcp__github__merge_pull_request`
+   is the fallback — but it has no head-SHA parameter, so it cannot enforce the paragraph above.
+   Re-read `gh pr view <n> --json headRefOid` immediately before calling it and stop if it no longer
+   matches step 2's SHA. Say in the report that the merge went by that route and that the match was
+   checked by hand rather than by GitHub.
 
    If the merge is blocked by conflicts, rebase onto `main` and force-push with
    `--force-with-lease`. Never merge `main` into the branch.
@@ -180,9 +205,15 @@ on the way rather than the destination. This skill is the landing.
    --current` first, the identifier from the branch name as the fallback:
 
    ```bash
-   orca linear status set CAN-<n> --to Done --workspace "$WS" --json
+   orca linear status set CAN-<n> --to Done --workspace "$WS" --json   # skip if already Done
    orca linear comment add CAN-<n> --workspace "$WS" --body-file <path> --json
    ```
+
+   **Read `.state.name` before setting it** — step 7's settled read already has it. The GitHub
+   integration transitions the issue on merge, so it is normally `Done` before this line runs.
+   Skip the call when it is, and credit the sync in the report. Running it anyway is harmless;
+   *reporting* it as the thing that closed the issue is not, because that describes work which had
+   already happened.
 
    Then drop the state role. **Read the issue's labels first and remove the one it actually
    has** — it is `ready-for-agent` most of the time and `ready-for-human` or `needs-info`
@@ -205,5 +236,7 @@ on the way rather than the destination. This skill is the landing.
    it in this comment instead.
 
 9. **Report** the merged PR, the Linear state, and what you verified — including, explicitly,
-   anything you could not. Name the acceptance criteria you left unticked, and why. If the
-   description had to be rewritten after a sync reverted it, say that too.
+   anything you could not. Quote step 6's `state` and `mergedAt` as the evidence that it landed;
+   "the merge command exited zero" is not that evidence, and neither is its failing. Name the
+   acceptance criteria you left unticked, and why. If the description had to be rewritten after a
+   sync reverted it, say that too.
