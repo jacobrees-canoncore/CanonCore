@@ -15,5 +15,19 @@
 .env.local
 .env.*.local
 
+# Dependencies and build output
+node_modules/
+.next/
+*.tsbuildinfo
+
+# Generated, not authored. `next typegen` rewrites it, observed here by
+# deleting it and running `pnpm -r typecheck` on a clean checkout; the file
+# itself says "This file should not be edited". create-next-app ignores it too.
+next-env.d.ts
+
+# Playwright's own artefacts, written wherever the suite is run from
+test-results/
+playwright-report/
+
 # macOS
 .DS_Store

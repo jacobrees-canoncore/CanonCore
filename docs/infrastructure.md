@@ -23,6 +23,21 @@ was weighed against it, and what will try to reopen it are in
 | Repository | `jacobrees-canoncore/CanonCore`, production branch `main` |
 | Function region | `lhr1` (London) |
 | Preview protection | Off. Preview URLs are public. |
+| Root Directory | `apps/web` |
+| Framework Preset | Next.js |
+| Include files outside the root directory | On |
+| Node.js version | 24.x |
+
+**The last four rows exist nowhere but here.** They are project settings, so no file in this
+repository can assert them, and `vercel.json` cannot set any of them either. Without the first two
+the build runs at the repository root, finds no application and produces a 404 on the production
+domain; without the third it cannot see `packages/config`, which sits outside `apps/web`. Set by
+CAN-22 on 10 August 2026 and read back with `vercel project inspect canoncore`.
+
+**The API name for the third one is not the name on the dashboard.** `PATCH /v9/projects/{id}`
+takes `sourceFilesOutsideRootDirectory`; `includeSourceFilesOutsideRootDirectory` is rejected with
+`should NOT have additional property`. Observed on 10 August 2026, and confirmed against the field
+name in the CLI's own cached OpenAPI spec — Vercel's public reference documents neither spelling.
 
 **The repository is public.** Creating the project against the private repo failed with
 `repo_owned_by_org`: *“The repository CanonCore is private and owned by an organisation, which is
@@ -212,9 +227,11 @@ variables in the production and preview environments"* (same page), so local wor
 `vercel env pull` this token and will need it written into a local `.env.local` by hand.
 `.gitignore` already covers that file.
 
-> **No deployment has read this variable.** There is no application to read it — `apps/web` does not
-> exist. That a production and a preview build receive it is a platform guarantee rather than
-> something CAN-19 observed. Confirm it in CAN-22, with the Neon preview-branch question above.
+> **No deployment has read this variable**, and CAN-22 did not change that. `apps/web` now exists
+> and deploys, but nothing in it reads an environment variable, so the first read still has not
+> happened. That a production and a preview build receive it remains a platform guarantee rather
+> than an observation. It falls to the first ticket that consumes a credential — CAN-23 for the
+> database, CAN-26 for TMDB.
 
 > **Nothing here ties the CAN-34 correspondence to this TMDB account.** The registered application
 > name and the exception's project scope agree with each other, which is consistency rather than
@@ -559,15 +576,19 @@ each publicly visible record, which v1 does not ship; it is recorded as an alter
 
 ## Holding page
 
-`www.canoncore.com` serves `public/index.html` from this repository, so the cutover caused no outage.
-`vercel.json` sets `outputDirectory` to `public`, which keeps the served surface to that one file
-rather than publishing the whole tree as static assets.
+`www.canoncore.com` serves `apps/web`, a Next.js application, and its one route renders the same
+copy the static holding page carried. **CAN-22 deleted `public/index.html` and the root
+`vercel.json`** that served it, as this section previously said it would.
 
-It lives in the repository on purpose. It was first deployed from a temporary directory with
-`vercel deploy --prod`, which was a mistake: **any** push to `main` triggers a production build, and
-a build of a repository with no application produces a 404 — so a documentation-only merge would
-have taken the site down. Committing it means every production deploy from here reproduces it.
+The page still says the product is being rebuilt, because it is. What changed at CAN-22 is the
+mechanism, not the message: the point of the walking skeleton is to prove the path from a push to a
+public URL, and holding the copy still lets a stranger's view of production stay honest while that
+path is replaced underneath it.
 
-**CAN-22 deletes `public/` and this `vercel.json` when `apps/web` exists**, and Next.js takes over
-serving. Until then, do not remove either: they are the only thing standing between a push to `main`
-and a 404 on the production domain.
+Two things about the deleted files are worth keeping, because they are what the setting rows in
+**Hosting** above are protecting against. The static page was first deployed from a temporary
+directory with `vercel deploy --prod`, which was a mistake: **any** push to `main` triggers a
+production build, and a build of a repository with no application produces a 404, so a
+documentation-only merge would have taken the site down. And the old `vercel.json` set
+`outputDirectory` to `public` to keep the served surface to that one file; the Next.js preset now
+decides the output directory, which is why nothing replaces that file.

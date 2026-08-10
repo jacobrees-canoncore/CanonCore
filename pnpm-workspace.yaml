@@ -1,0 +1,15 @@
+packages:
+  - apps/*
+  - packages/*
+
+# pnpm 11 refuses to run a dependency's install scripts until they are named
+# here, and writes a placeholder into this file when it meets one. `allowBuilds`
+# replaced `onlyBuiltDependencies` and four other settings in pnpm 11.0
+# (https://pnpm.io/settings/build).
+#
+# `unrs-resolver` reaches us transitively, not by choice — `pnpm why` puts it
+# under `eslint-import-resolver-typescript`, which `eslint-config-next` depends
+# on. It declares `postinstall: node postinstall.js` and carries 22 optional
+# packages, one per platform, which is what that script is there to resolve.
+allowBuilds:
+  unrs-resolver: true

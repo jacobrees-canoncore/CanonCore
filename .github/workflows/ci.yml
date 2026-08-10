@@ -1,0 +1,36 @@
+name: CI
+
+on: push
+
+concurrency:
+  group: ci-${{ github.ref }}
+  # Superseding a push is only safe where a later commit replaces the earlier
+  # one as the thing being judged. On `main` it does not: every push there is
+  # its own release, and a cancelled run is not a passing one.
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+jobs:
+  check:
+    name: test, typecheck, lint, build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+
+      # Three commands, not one. `pnpm -r test typecheck lint` passes the last
+      # two to the `test` script as arguments and silently skips them — see
+      # docs/agents/workflow.md.
+      - run: pnpm -r test
+      - run: pnpm -r typecheck
+      - run: pnpm -r lint
+
+      # A fourth, and not one of the three the ticket named. `next build` fails
+      # on things the other three cannot see — a server-only API reached from a
+      # client component, a page that throws during static generation — and
+      # without it the first machine to find out is the deploy.
+      - run: pnpm -r build

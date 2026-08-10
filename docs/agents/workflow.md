@@ -6,10 +6,15 @@ This file is the policy. `/draft-pr` and `/review-pr` are the procedure and defe
 rule belongs here, a step belongs in the skill.
 
 > **Read this first.** The stack is settled (see **Stack** in `CLAUDE.md` and
-> [ADR-0005](../adr/0005-stack.md)), but nothing is built yet: no code, no CI, nothing deployed.
-> The policy below is settled and the mechanics are now *named*, but they do not exist until the
-> walking skeleton is built. Where a mechanic is named but unbuilt this file says so; do not
-> assume a command runs just because it is written down here.
+> [ADR-0005](../adr/0005-stack.md)), and CAN-22 built the walking skeleton, so the checks below
+> genuinely run: `apps/web` exists and GitHub Actions runs them on every push.
+>
+> What the Vercel project does with a push — production from `main`, a preview per pull request —
+> is **not** asserted here. Those are project settings, so [`docs/infrastructure.md`](../infrastructure.md)
+> is the only place they can be recorded, and it is the place to check them.
+>
+> What does **not** exist yet is a database, auth, or any migration step, so the deploy-order and
+> migration rules below are policy written ahead of the thing they govern.
 
 ## Why a PR at all, for one developer
 
@@ -235,13 +240,41 @@ silently skip the rest. The one-command form is the regex selector
 `pnpm -r run "/^(test|typecheck|lint)$/"`, which arrived in pnpm 11.11 and buys nothing here
 ([pnpm run](https://pnpm.io/cli/run)). Use `pnpm --filter` to scope to one workspace while iterating.
 
+**A fourth command runs after them**, and it is deliberately not one of the three:
+
+```bash
+pnpm -r build
+```
+
+`next build` fails on things the other three cannot see — a server-only API reached from a client
+component, a page that throws during static generation. Type checking does not catch those, and
+without this step the first machine to find out is the one doing the deploy. It is listed apart
+from the three because the three are what CAN-22 required; this one is ours.
+
+All four run in one Actions job, `test, typecheck, lint, build`, in that order, so the first
+failure stops the rest. That is the single check a pull request reports, and the one CAN-40's
+ruleset should require.
+
+**Cancellation is scoped to branches other than `main`.** Superseding a run is only safe where a
+later commit replaces the earlier one as the thing being judged, which is true on a branch and
+false on `main`, where every push is its own release and a cancelled run is not a passing one.
+
 One check is not optional and is called out here because its failure mode is silence: **every
 row-level-security-protected table has a test asserting that a cross-tenant read returns zero
 rows.** A misconfigured RLS policy returns an empty result rather than an error, so it is
-indistinguishable from "no data" in the UI and cannot be caught by looking.
+indistinguishable from "no data" in the UI and cannot be caught by looking. No such table exists
+yet; the first arrives with CAN-23.
 
-**Until the walking skeleton exists there is nothing to run**, and `/review-pr` must say so
-rather than passing silently.
+**The Playwright suite is not one of the three.** It drives a *deployed* URL rather than a build,
+so there is nothing for it to talk to inside a CI job that has deployed nothing. Run it against
+whatever a change is meant to have changed:
+
+```bash
+CANONCORE_E2E_BASE_URL=<preview url> pnpm --filter @canoncore/web test:e2e
+```
+
+Without that variable it runs against production. That is a check on a deploy that has already
+happened, and is the *After the merge* step below rather than a gate.
 
 **The gate is GitHub's copy of those checks, not yours.** `/review-pr` merges, so the green it acts
 on has to belong to the commit it is about to land, and it has to have come from a clean checkout. A
@@ -273,10 +306,6 @@ Re-read the head SHA afterwards and start again if it moved, then **merge with
 confirmation between them; the flag is what stops a push landing in that gap from being squashed
 into `main` unchecked.
 
-None of this applies while `.github/workflows` is empty. There is nothing to wait for, and a wait
-with no possible answer refuses PRs that are perfectly landable — the same failure as passing
-silently, pointed the other way.
-
 **The repo should refuse the merge too.** A waiting skill is a convention and a ruleset is an
 enforcement, and only the second one survives the skill being edited, skipped or run by something
 else. `main` currently has neither branch protection nor a ruleset. The repo is public, so rulesets
@@ -284,7 +313,8 @@ and required status checks cost nothing here (`issue-tracker.md`). Two traps are
 fail quietly: a strict *require branches to be up to date* rule with no check defined does nothing
 at all, and a required context that never reports blocks every merge for ever at *Expected —
 Waiting for status to be reported*, so only require checks that run on every pull request. CAN-40
-carries this work; it is blocked on there being checks to require.
+carries this work, and CAN-22 unblocked it: `test, typecheck, lint` runs on every push and is the
+context to require.
 
 **A deployed preview works.** Vercel builds a preview deployment per pull request. The value of
 a preview is that it is a real environment rather than a smoke screen, so a preview must point at
