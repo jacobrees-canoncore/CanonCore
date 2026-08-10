@@ -1,6 +1,6 @@
 # Infrastructure
 
-Provisioned by CAN-18 and CAN-19, both on 10 August 2026. Everything here is fact, not intent.
+Provisioned by CAN-18, CAN-19 and CAN-20, all on 10 August 2026. Everything here is fact, not intent.
 
 ## The production URL is `https://www.canoncore.com`
 
@@ -234,10 +234,32 @@ a separate server from this one and is not necessarily on the same account.
 
 ## Domains
 
-`canoncore.com` is registered at Namecheap on BasicDNS, with a wildcard `* ALIAS` to
-`cname.vercel-dns-017.com`. **No Namecheap change was needed for the cutover**, exactly as CAN-18
-predicted: the wildcard already resolves every hostname to Vercel, so reassignment happened entirely
-inside Vercel.
+`canoncore.com` is registered at Namecheap on BasicDNS. **No Namecheap change was needed for the
+cutover**: reassignment happened entirely inside Vercel.
+
+**There is no wildcard record.** An earlier revision of this file recorded a wildcard `* ALIAS` to
+`cname.vercel-dns-017.com` and credited it for the cutover needing no DNS change. The zone contains
+no `*` record of any type. Read from the Namecheap dashboard on 10 August 2026 and confirmed against
+the authoritative nameserver:
+
+```
+$ dig +short @dns1.registrar-servers.com randomprobe123.canoncore.com A
+$ dig +noall +comments @dns1.registrar-servers.com randomprobe123.canoncore.com A | grep status
+;; ->>HEADER<<- opcode: QUERY, status: NXDOMAIN, id: …
+```
+
+Hostnames reach Vercel through explicit per-host records instead, one per domain:
+
+| Type | Host | Value |
+| --- | --- | --- |
+| A | `@` | `216.198.79.1` |
+| CNAME | `www` | `930a5c34adc350de.vercel-dns-017.com.` |
+| CNAME | `demo` | `bc3b9806163bfed9.vercel-dns-017.com.` |
+
+The correction matters in one direction only. **A new subdomain does not resolve until someone adds
+a record for it**, so anything assuming a hostname is already live — a preview alias, a sending
+subdomain, a future service — has to add its own. Why the cutover needed no change is not
+established by this observation and is no longer claimed here.
 
 The two older projects were left in place, reachable on their own `.vercel.app` domains, rather than
 deleted:
@@ -250,6 +272,154 @@ deleted:
 `demo.canoncore.com` now returns 404. Releasing it mattered beyond tidiness: while it was live a
 stranger could reach the old product on the domain that serves v1, putting it in scope for the
 Online Safety Act obligations in CAN-21.
+
+## Transactional email: Resend
+
+Provisioned by CAN-20 on 10 August 2026. *Why* Resend, what it was weighed against, and the terms it
+commits us to are [ADR-0011](adr/0011-transactional-email-resend.md); the evidence behind it is
+[transactional-email-providers.md](research/transactional-email-providers.md). This section records
+the account, the domain and the credentials.
+
+### The account
+
+| | |
+| --- | --- |
+| Provider | Resend, free tier (3,000/month, 100/day) |
+| Sending domain | `mail.canoncore.com`, id `5e9ca08d-ddae-444f-9d7b-066979148a73` |
+| Region | `eu-west-1` (Ireland). **Cannot be changed** without deleting and re-adding the domain |
+| Sending address | `CanonCore <noreply@mail.canoncore.com>` |
+| Receiving | **Enabled** on `mail.canoncore.com`, for DMARC reports |
+| Marketplace integration | **Not installed.** A plain API key, deliberately |
+
+The free tier allows **one domain**, which is why `mail.canoncore.com` replaced an earlier
+`canoncore.com` entry rather than sitting beside it, and why previews cannot have a domain of their
+own.
+
+**Three older API keys predate CAN-20 and are still live**: `CanonCore V3`
+(`64ab6293-3d02-424a-9a79-54b7fb769b5d`, created 20 March 2026, the same day as the deleted
+`canoncore.com` domain entry) and two named `Onboarding` from 27 November 2025. Their scope is not
+recorded and their plaintext is unrecoverable. They were **not** revoked, because `canoncore-legacy`
+and `canoncore-demo` still exist on Vercel and may be using one. Establish that before deleting them.
+
+**Mail is sent from a subdomain, never the apex.** Resend's own guidance is to "send emails from a
+subdomain instead of your root domain to conform to deliverability best practices"
+([Add a domain](https://resend.com/docs/add-a-domain)). The point is
+containment: a bad month for mail reputation must not reach `www.canoncore.com`. `mail.` is a sibling
+of `www`, so [ADR-0010](adr/0010-canonical-host-www.md) is untouched and the session cookie stays
+host-only.
+
+**The Vercel Marketplace integration was declined on purpose.** Resend is the only email provider on
+it, but it provisions a billable resource on a Hobby account and takes ownership of the environment
+variable. That is the same failure mode the `NEON_` prefix exists to avoid, one section up.
+
+### DNS
+
+Five records at Namecheap. The first four are Resend's, taken from its Records tab; the fifth is ours.
+
+| Type | Host | Value | Priority |
+| --- | --- | --- | --- |
+| `TXT` | `resend._domainkey.mail` | `p=MIGfMA0GCSqGSIb3…ku66YzQIDAQAB` | |
+| `TXT` | `send.mail` | `v=spf1 include:amazonses.com ~all` | |
+| `MX` | `send.mail` | `feedback-smtp.eu-west-1.amazonses.com.` | 10 |
+| `MX` | `mail` | `inbound-smtp.eu-west-1.amazonaws.com.` | 10 |
+| `TXT` | `_dmarc` | `v=DMARC1; p=none; rua=mailto:dmarc@mail.canoncore.com;` | |
+
+`send.mail` is the Return-Path: Resend defaults it to `send.<domain>`, which is why the sending
+domain is `mail.canoncore.com` and the bounce path is `send.mail.canoncore.com`. Do not make the
+Return-Path a name you also send from — AWS, whose MAIL FROM machinery this is, says it "shouldn't be
+a subdomain that you also use to send email from"
+([Custom MAIL FROM](https://docs.aws.amazon.com/ses/latest/dg/mail-from.html)), and the zone
+previously violated exactly that.
+
+**The DMARC reporting address must stay inside `canoncore.com`.** RFC 7489 §7.1 makes an external
+`rua` conditional on the destination domain publishing an authorising record, and a personal iCloud
+or Gmail address will never do so, so reports would be discarded in silence. `dmarc@mail.canoncore.com`
+is within the same Organizational Domain and needs no such record. That is the reason receiving is
+enabled at all.
+
+`p=none` is monitor-only and changes nothing about delivery. iCloud read the record as published and
+reported `pdomain=canoncore.com`, confirming the reporting address sits inside the Organizational
+Domain that the RFC's test uses.
+
+### What was removed, and why it mattered
+
+The zone previously carried **seven** Resend records: two complete domain entries, one for
+`canoncore.com` and one for `send.canoncore.com`, with two distinct DKIM public keys. All seven were
+deleted on 10 August 2026 and the `canoncore.com` domain entry was deleted from Resend.
+
+This was not tidying. A published DKIM public key is a standing authority to sign mail as that
+domain, and the only way to revoke it is to remove the record. The `canoncore.com` entry was
+confirmed to belong to this account; the `send.canoncore.com` entry **did not appear in the account's
+domain list at all**, so its private key was unaccounted for. Both are now revoked. Provenance was
+deliberately not investigated.
+
+### Where the credentials live
+
+| Secret | Location | Resend key |
+| --- | --- | --- |
+| `RESEND_API_KEY` | Vercel env, **production**, Sensitive | `canoncore-production`, `fe0bb980-4998-4343-9a60-f03fd607bbfd` |
+| `RESEND_API_KEY` | Vercel env, **preview**, Sensitive | `canoncore-preview`, `49af56bc-d365-4f5c-9cb1-6b85a638a2df` |
+| `EMAIL_FROM` | Vercel env, production and preview | — |
+
+Both keys are `sending_access` and restricted to the `mail.canoncore.com` domain, so neither can read
+logs, manage domains or create further keys. Resend shows a key's plaintext once, at creation; to
+rotate, create a replacement in the dashboard and overwrite the Vercel variable, then delete the old
+key by the id above.
+
+**This departs from CAN-20 as written.** That ticket asked that "**an** API key is a Vercel
+environment variable for production and preview". One key in both environments satisfies the letter.
+Two were issued instead, one per environment under the same variable name, so that a leaked or abused
+preview key can be revoked without interrupting production. The criterion was met by a stricter
+mechanism rather than to the letter, in the same way CAN-18's connection string was.
+
+**Resend has no sandbox and no test credential**, so a mistyped real address in a preview deployment
+will send for real. What follows from that for code that sends mail is in
+[ADR-0011](adr/0011-transactional-email-resend.md). Test sends consume the 100/day quota.
+
+### How delivery is checked
+
+Resend reporting a send as `delivered` means it handed the message over, not that anyone saw it. A
+message can be `delivered` and sitting in Junk. Confirming placement needs a second tool reading the
+recipient's side:
+
+| Step | Tool |
+| --- | --- |
+| Send, and read the provider's verdict | `resend` MCP |
+| Read which mailbox it landed in | `macos-mail-mcp`, against Jacob's Mail.app |
+
+CAN-20 was proven this way. The test send from `noreply@mail.canoncore.com` was found in `INBOX` on
+the `jacobrees@me.com` account, which is the one carrying `jacobrees@icloud.com`. That account is the
+reference recipient: check it, not one of the Gmail accounts, unless the point is to compare
+receivers.
+
+The receiving side's own verdict, read from the delivered message's headers on 10 August 2026:
+
+```
+Authentication-Results: dmarc.icloud.com;        dmarc=pass header.from=mail.canoncore.com
+Authentication-Results: dkim-verifier.icloud.com; dkim=pass header.d=mail.canoncore.com
+Authentication-Results: spf.icloud.com;           spf=pass  smtp.mailfrom=…@send.mail.canoncore.com
+Dkim-Signature: s=resend; d=mail.canoncore.com
+Return-Path:    <…@send.mail.canoncore.com>
+X-Dmarc-Info:   pass=pass; dmarc-policy=none; pdomain=canoncore.com
+X-Apple-Movetofolder: INBOX
+```
+
+All three checks pass and the DKIM signature is `d=mail.canoncore.com`, so alignment is on the
+sending domain rather than on Amazon's. The bounce and complaint paths CAN-31 needs were proven the
+same day: sends to `bounced@resend.dev` and `complained@resend.dev` returned Resend statuses
+`bounced` and `complained`.
+
+One thing the headers show that is worth knowing before DMARC is tightened:
+`bimi=skipped reason="insufficient dmarc"`. BIMI needs a policy of `quarantine` or `reject`, so it is
+unavailable while the policy is `p=none`. That is a consequence of the policy choice, not a fault.
+
+Mail sent to `*@mail.canoncore.com` needs no such check, because receiving is enabled and the
+`resend` MCP can read that mailbox directly.
+
+### What this commits us to
+
+Recorded once, in [ADR-0011](adr/0011-transactional-email-resend.md): US log storage regardless of
+sending region, 22 sub-processors, and no test credential. CAN-21 needs all three.
 
 ## Holding page
 

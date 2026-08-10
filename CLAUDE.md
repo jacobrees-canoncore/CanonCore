@@ -107,12 +107,15 @@ plainly that there was nothing to run.
 |---|---|
 | Docs for a library, framework, SDK or CLI | **`context7` MCP**, per the global rule — except the next row |
 | Next.js and React patterns, App Router, caching | **`vercel` plugin skills** (`vercel:*`), which are closer to the source than Context7 |
+| Resend APIs, React Email, the `resend` CLI | **`resend` plugin skills** (`resend:*`), same reasoning |
 | Anything else on the web — licences, terms, prior art, current practice | **`WebSearch`** |
 | Issues, tickets, projects, triage | **`orca linear … --workspace <id>`** |
 | Pull requests, merges, repo administration | **`gh`**, on the `jacobdrees` account |
 | Navigating, clicking, filling, reading a page — including behind a login | **`playwright` MCP** |
 | Profiling a page — Core Web Vitals, traces, heap | **`chrome-devtools` MCP** |
 | Deployments, environment variables, build and runtime logs | **`vercel` MCP** |
+| Transactional email — sending, domains, API keys, delivery logs, inbound mail | **`resend` MCP** |
+| Whether a message actually arrived, and in which folder | **`macos-mail-mcp`**, Jacob's Mail.app |
 
 **Playwright drives the browser; chrome-devtools measures it.** `claude-in-chrome` is denied in
 `.claude/settings.json` — both its tools and its skill — because its browser is Jacob's own and
@@ -120,6 +123,16 @@ carries all of his sessions. Deny is evaluated before allow and cannot be overri
 a prompt ([settings docs](https://code.claude.com/docs/en/settings)), so that is settled rather
 than advisory. Playwright runs a separate profile, so when something needs a login, ask Jacob to
 sign in to *that* browser; the session then persists.
+
+**The two email tools are not interchangeable.** `resend` reports what the provider did with a
+message; `macos-mail-mcp` reports what the recipient's mail client did with it. A send can be
+`delivered` in Resend and sitting in Junk, so **a deliverability claim needs both**: send with
+`resend`, then read the folder with `macos-mail-mcp`. Which account to check, and the evidence from
+CAN-20, are in `docs/infrastructure.md`.
+
+`resend` is scoped to this project in `.claude/settings.json`. **`macos-mail-mcp` is user scope and
+reads every account in Jacob's Mail.app**, work and personal, so it is his tool rather than this
+project's — never use it for anything but checking mail this project sent.
 
 Installed on a trigger, not before: `neon` at a real database, `next-devtools-mcp` once Next is
 scaffolded, `sentry` at the first shipped build.
@@ -146,6 +159,13 @@ Each names the settled answer first, then what will offer you something else.
 - **`www.canoncore.com` as the canonical host, apex 301ing to it**
   ([ADR-0010](docs/adr/0010-canonical-host-www.md)) — `vercel:auth` and most better-auth examples
   will suggest a `Domain`-scoped cookie or serving from the apex. Either one reopens this.
+- **Resend for transactional email, with the Marketplace integration declined**
+  ([ADR-0011](docs/adr/0011-transactional-email-resend.md)) — Resend is the *only* email provider on
+  the Vercel Marketplace, so installing it reads as the obvious path. That is the thing to refuse: it
+  provisions a billable resource on a Hobby account and takes ownership of the environment variable,
+  which is the failure CAN-18 already paid for with `DATABASE_URL`. Postmark is the recorded runner-up
+  and the margin is genuinely narrow; ADR-0011 names the conditions that flip it, and is the only
+  place they are stated.
 - **TMDB as the general source** ([ADR-0009](docs/adr/0009-external-source-tmdb.md)) — its
   published terms forbid keeping data beyond six months, so a reader who checks them will think
   this is wrong. It rests on a project-specific exception TMDB confirmed in writing, held on CAN-34.
