@@ -155,10 +155,9 @@ policy and the reasoning; this is the procedure. `/review-pr` lands it afterward
    On `linear_write_unconfirmed`, retry **once** with the pinned `--write-id` from the error's
    own `nextSteps` (`docs/agents/issue-tracker.md`).
 
-   `attach` fires a sync, and `gh pr create` with `Fixes CAN-<n>` moves the issue's state, so this
-   is a busy moment on a mirrored issue. Nothing here writes the issue's description and nothing
-   should start to: a description write next to either of these is the one that silently loses
-   (`docs/agents/issue-tracker.md` → *A description write must not be bundled with anything else*).
+   Both this and step 9's `Fixes CAN-<n>` are sync triggers, so keep the issue's description out of
+   this skill entirely (`docs/agents/issue-tracker.md` → *A description write must not be bundled
+   with anything else*).
 
 11. **Report the PR URL** and say that a code review comes next.
 

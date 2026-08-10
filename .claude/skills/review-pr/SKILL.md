@@ -95,46 +95,40 @@ on the way rather than the destination. This skill is the landing.
    written after this step. A tick recorded without its check cannot be told from a guess once the
    terminal is closed, and the issue records neither who ticked it nor why.
 
-   **This step runs before the status change, and the ordering is the whole point.** The
-   description is the one write in this skill that cannot be repaired by repeating it: a status
-   change or a comment is idempotent and a lost one is obvious, while a description that the
-   Linear↔GitHub sync silently reverts looks exactly like a description nobody wrote.
-   `docs/agents/issue-tracker.md` → *A description write must not be bundled with anything else*
-   has the mechanism. Two things follow.
+   **This step runs before the status change, and the ordering is the point.** A status change or a
+   comment can simply be written again; a description cannot, because the Linear↔GitHub sync can
+   revert it without saying so. `docs/agents/issue-tracker.md` → *A description write must not be
+   bundled with anything else* has the mechanism, the triggers and the rule. Step 6's merge is one
+   of those triggers, so the first wait below is not optional.
 
-   **Let the merge settle first.** Step 6 closed the mirrored GitHub issue through `Fixes CAN-<n>`,
-   and that close pushes GitHub's copy of the body back to Linear. Writing on top of a push that is
-   still in flight is the exact failure this ordering exists to avoid. Give it half a minute before
-   the write, and do not touch the issue in between.
+   **Settle after the merge, then read.** One command, backgrounded — the wait and the read the
+   write needs anyway. `sleep` in the foreground is blocked in Claude Code, and an unbacked "wait
+   half a minute" is a wait that does not happen:
 
    ```bash
-   orca linear issue CAN-<n> --workspace "$WS" --full --json   # read .description first
+   sleep 45; orca linear issue CAN-<n> --workspace "$WS" --full --json   # run in background
+   ```
+
+   **Write.** Linear's `issueUpdate` takes the description as one whole string and offers no partial
+   patch ([Linear GraphQL API](https://linear.app/developers/graphql)), so `save-issue` replaces the
+   entire body. Toggle only the `- [ ]` lines you verified; write everything else back unchanged:
+
+   ```bash
    orca linear save-issue --id CAN-<n> --workspace "$WS" --body-file <path> --json
    ```
 
-   Linear's `issueUpdate` takes the description as one whole string and offers no partial patch
-   ([Linear GraphQL API](https://linear.app/developers/graphql)), so `save-issue` replaces the entire
-   body. Read the current description, toggle only the `- [ ]` lines you verified, and write
-   everything else back unchanged.
-
-   **Then re-read after a settling delay, never immediately.** `save-issue` sits outside the retry
-   rule in `docs/agents/issue-tracker.md`, which names `create`, `comment add`, `attach` and
-   `status set` — so confirm this write by reading rather than by repeating it. But an immediate
-   read proves nothing here: the write *has* landed, and the overwrite has not arrived yet, so a
-   description that will survive and one that is seconds from being reverted read identically. Wait
-   for the sync's lag to pass, then read:
-
-   ```bash
-   sleep 30 && orca linear issue CAN-<n> --workspace "$WS" --full --json
-   ```
+   **Settle again, then confirm by reading** — same backgrounded form. `save-issue` sits outside the
+   retry rule in `docs/agents/issue-tracker.md`, so confirm this write by reading rather than by
+   repeating it, and read only after the delay. An immediate read proves nothing here: the write
+   *has* landed, and the overwrite has not arrived yet, so a description that will survive and one
+   seconds from being reverted read identically.
 
    Match `- [[xX]]`. Linear stores a ticked box as `- [X]`, so a case-sensitive check for `- [x]`
    reports zero ticked and looks exactly like a write that silently failed.
 
-   If it comes back reverted, write it **once** more and settle-and-read again — that is repairing a
-   loss you have observed, not retrying blind. If the second write is reverted too, stop, leave it,
-   and say so in the report. Do not loop: the write is succeeding, and racing a third party's
-   scheduler would eventually look like it had worked while losing.
+   If the settled read comes back reverted, write once more and settle-and-read again — repair, not
+   the blind retry the doc rules out. If the second write is reverted too, leave it and say so in
+   the report.
 
 8. **Close out Linear.** Resolve the issue the way `/draft-pr` does — `orca linear issue
    --current` first, the identifier from the branch name as the fallback:
@@ -161,10 +155,8 @@ on the way rather than the destination. This skill is the landing.
    The comment says what shipped and what to expect next, not a summary of the diff. The PR is
    the diff. It carries step 7's evidence, which is why it is written after that step.
 
-   **Do not write the description here.** Step 7 has already set the checkboxes and confirmed
-   them; the status change in this step fires a sync, and a description write next to it is the
-   thing that gets lost. If step 7 turned up something that belongs in the body, put it in this
-   comment instead.
+   **Step 7 owns the description.** If it turned up something that belongs in the issue's body, put
+   it in this comment instead.
 
 9. **Report** the merged PR, the Linear state, and what you verified — including, explicitly,
    anything you could not. Name the acceptance criteria you left unticked, and why. If the
