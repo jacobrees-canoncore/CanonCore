@@ -710,98 +710,24 @@ recipient addresses in code** — because Resend has no test credential.
 
 This is the axis on which Postmark is clearly better, and it is worth restating in CAN-31.
 
-## What CAN-20 actually has to do
+## What CAN-20 actually did
 
-Written for Resend, in the style of `docs/infrastructure.md`. Step 0 and the deletions in step 2 are
-the parts the ticket does not anticipate.
+This section was a runbook. CAN-20 executed it on 10 August 2026, so what is provisioned — the
+account, the domain, the five DNS records, the two API keys and the delivery evidence — is recorded
+in [`docs/infrastructure.md`](../infrastructure.md), and the decision itself is
+[ADR-0011](../adr/0011-transactional-email-resend.md). Keeping a second copy of the steps here would
+only let the two drift.
 
-**0. Establish who owns the existing Resend records.** Sign in to Resend and look at the domain list.
-Do `canoncore.com` or `send.canoncore.com` appear? If they do not, and Resend refuses to let you add
-`canoncore.com` because "someone else has already verified your domain in their own team", then the
-keys are not ours and the sending domain must be a fresh name. Do **not** investigate where the
-records came from. Whatever the answer, everything below still applies.
+Three things are worth carrying forward, because they were discovered by doing it rather than by
+reading:
 
-**1. Create the account and one domain.** Sign up at resend.com. Add **`mail.canoncore.com`** and
-choose **Ireland (`eu-west-1`)** — closest to `lhr1` and `eu-west-2`, and the region cannot be
-changed without deleting and re-adding the domain. Do **not** install the Vercel Marketplace
-integration: it provisions a billable resource on a Hobby account and takes ownership of the
-environment variable, and CAN-18 already learned what it costs to let a marketplace integration own a
-variable name. A plain API key keeps the control.
-
-**2. Rewrite the DNS at Namecheap.** Domain List → Manage → **Advanced DNS**.
-
-**Delete all seven Resend records.** Both existing domain entries go. Deleting the two DKIM `TXT`
-records is the only revocation available, and it takes effect as soon as it propagates.
-
-| Type | Host | Why |
-| --- | --- | --- |
-| `TXT` | `resend._domainkey` | DKIM for a `canoncore.com` domain entry we are not using. An unaccounted signing authority |
-| `TXT` | `send` | Return-path SPF for that entry |
-| `MX` | `send` | Return-path MX for that entry |
-| `TXT` | `resend._domainkey.send` | DKIM for the `send.canoncore.com` entry |
-| `TXT` | `send.send` | Return-path SPF for that entry |
-| `MX` | `send.send` | Return-path MX for that entry |
-| `TXT` | `_dmarc.send` | DMARC scoped to a sending domain we are retiring |
-
-Keep untouched: `A @`, `CNAME www`, `CNAME demo`, `TXT @` (the Google verification).
-
-Add, taking every value from Resend's **Records** tab by copy and paste rather than retyping, and
-following Resend's [Namecheap guide](https://resend.com/docs/knowledge-base/namecheap) —
-**omit the domain from the host**, so `send.mail` rather than `send.mail.canoncore.com`:
-
-| Section | Type | Host | Value | Priority | TTL |
-| --- | --- | --- | --- | --- | --- |
-| Mail Settings → Custom MX | `MX` | `send.mail` | `feedback-smtp.eu-west-1.amazonses.com` | `10` | Automatic |
-| Host Records | `TXT` | `send.mail` | `v=spf1 include:amazonses.com ~all` | — | Automatic |
-| Host Records | `TXT` | `resend._domainkey.mail` | Resend's DKIM value, beginning `p=` | — | Automatic |
-| Host Records | `TXT` | `_dmarc` | `v=DMARC1; p=none; rua=mailto:dmarc@mail.canoncore.com;` | — | Automatic |
-
-The `_dmarc` row is the apex policy from [The DMARC gap](#the-dmarc-gap); it is not required by
-Resend and not required of us at this volume, and it should go up anyway. Namecheap's limits are not
-close to binding: 800 records per domain, `TXT` values up to 2,500 characters, `MX` priority up to
-255. There is no wildcard, so nothing here collides with anything.
-
-Then click **Verify DNS Records** in Resend. Expect minutes; allow up to 72 hours.
-
-**3. Set the Vercel environment variables.** Project `canoncore`
-(`prj_BMzP9Dq7Qx3Eev8WwsvVoH5khnaU`) on `jacobreesnew-7380's projects`. Check `vercel whoami` says
-`jacobreesvercel` first — the second account looks empty rather than wrong.
-
-| Variable | Environments | Value |
-| --- | --- | --- |
-| `RESEND_API_KEY` | production | A key created in Resend, scoped to **sending only**, named for production |
-| `RESEND_API_KEY` | preview | A **separate** key, so a leaked preview key can be revoked alone |
-| `EMAIL_FROM` | production, preview | `CanonCore <noreply@mail.canoncore.com>` |
-
-`RESEND_API_KEY` is the name Vercel's own Resend guide uses, so it is the least surprising choice even
-though we are not installing the integration. Two distinct values under one name is deliberate, and
-is the opposite of CAN-18's `DATABASE_URL` case: there the value could not be static across
-environments, here it can be but should not be.
-
-The environment is a positional argument, not a flag, and production and preview cannot be combined
-with development in one command:
-
-```
-vercel env add RESEND_API_KEY production
-vercel env add RESEND_API_KEY preview
-vercel env add EMAIL_FROM production
-vercel env add EMAIL_FROM preview
-```
-
-Note that `vercel env add` now defaults to `sensitive` for production and preview, so the values
-"cannot be viewed later in the dashboard or with `vercel env ls`". Keep them where you keep the rest.
-
-**4. Send the test.** From the Resend dashboard or a one-off script, send from
-`noreply@mail.canoncore.com` to a real personal inbox and confirm arrival, including that it is not in
-spam. Check the headers for `dkim=pass` and `spf=pass`, and that the DKIM signature is `d=mail.canoncore.com`.
-Then send once each to `bounced@resend.dev` and `complained@resend.dev` and confirm the events land
-in the dashboard — that proves the failure paths CAN-31 needs. All of these count against the 100/day
-quota.
-
-**5. Record it.** Add an `## Email` section to `docs/infrastructure.md` naming the account, the
-region, the verified domain, the four DNS records, where each key lives, and the fact that the seven
-older Resend records were removed and why. Note that Resend stores all logs and metadata in the US
-regardless of region, because CAN-21's terms of service and any future privacy notice have to say so.
+- **The free tier allows one domain.** Adding `mail.canoncore.com` required deleting the existing
+  `canoncore.com` entry first, so there is a window with no verified sending domain. Plan for it.
+- **Namecheap will not remove the last MX record** while Mail Settings is set to Custom MX. Edit that
+  row into the one you want instead of deleting it.
+- **Namecheap's record-type selector is a select2 widget**, so setting the underlying `<select>`
+  programmatically does not reach Angular's model and the save silently no-ops. Drive it through
+  jQuery, or use the UI.
 
 ## Unverified
 
@@ -809,10 +735,10 @@ Everything below could not be pinned to a page owned by the party making the cla
 
 | Claim | Why it is unverified | How to settle it |
 | --- | --- | --- |
-| Who holds the private keys for `resend._domainkey` and `resend._domainkey.send` | Only the public halves are visible; account ownership is not, and provenance must not be investigated | Sign in to Resend and read the domain list. Step 0 |
+| ~~Who holds the private keys for `resend._domainkey` and `resend._domainkey.send`~~ | **Settled 10 August 2026.** `canoncore.com` was verified in this account; `send.canoncore.com` did not appear in it at all. Both records are deleted, so both keys are revoked | — |
 | Whether a Resend private key survives domain deletion, and whether re-adding a domain reissues the same key | Resend documents neither. The delete-domain reference warns only about tracking proxies | Ask Resend support. Until then, deleting the published `TXT` is the revocation |
 | Whether Resend deactivates domains on dormant or unpaid accounts | Not documented | Ask Resend support |
-| Whether `mail.canoncore.com` can be verified if `canoncore.com` is held by another Resend team | Resend's exclusivity rule is stated per domain; it does not say whether a subdomain counts as the same domain | Try it. If it is blocked, the decision flips to Postmark |
+| ~~Whether `mail.canoncore.com` can be verified if `canoncore.com` is held by another Resend team~~ | **Not reached.** `canoncore.com` turned out to be ours, so the exclusivity rule was never tested against a subdomain. Still open if it ever matters | Only settleable against a domain another team holds |
 | Resend's incident history beyond about two months | [resend-status.com](https://resend-status.com/history) exposes only a rolling window and ignores date parameters | Re-read monthly and keep a running count. The 99.77% figure is Resend's own for 2026-07 to 2026-08 |
 | Whether Postmark refuses hobby or zero-traffic accounts | No Postmark-owned page states any criterion; they market to side projects. The approval criteria are undisclosed | Only settleable by applying |
 | Whether a Hobby account may install a native Marketplace integration | Vercel's docs neither permit nor forbid it; the Marketplace terms require a payment method and say access "is not guaranteed for all Vercel users" | Moot under this recommendation, which declines the integration |

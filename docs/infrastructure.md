@@ -276,19 +276,34 @@ Online Safety Act obligations in CAN-21.
 ## Transactional email: Resend
 
 Provisioned by CAN-20 on 10 August 2026. *Why* Resend, what it was weighed against, and the terms it
-commits us to are in [transactional-email-providers.md](research/transactional-email-providers.md).
-This section records what exists.
+commits us to are [ADR-0011](adr/0011-transactional-email-resend.md); the evidence behind it is
+[transactional-email-providers.md](research/transactional-email-providers.md). This section records
+the account, the domain and the credentials.
+
+### The account
 
 | | |
 | --- | --- |
 | Provider | Resend, free tier (3,000/month, 100/day) |
-| Sending domain | `mail.canoncore.com`, region `eu-west-1` (Ireland) |
+| Sending domain | `mail.canoncore.com`, id `5e9ca08d-ddae-444f-9d7b-066979148a73` |
+| Region | `eu-west-1` (Ireland). **Cannot be changed** without deleting and re-adding the domain |
 | Sending address | `CanonCore <noreply@mail.canoncore.com>` |
 | Receiving | **Enabled** on `mail.canoncore.com`, for DMARC reports |
 | Marketplace integration | **Not installed.** A plain API key, deliberately |
 
+The free tier allows **one domain**, which is why `mail.canoncore.com` replaced an earlier
+`canoncore.com` entry rather than sitting beside it, and why previews cannot have a domain of their
+own.
+
+**Three older API keys predate CAN-20 and are still live**: `CanonCore V3`
+(`64ab6293-3d02-424a-9a79-54b7fb769b5d`, created 20 March 2026, the same day as the deleted
+`canoncore.com` domain entry) and two named `Onboarding` from 27 November 2025. Their scope is not
+recorded and their plaintext is unrecoverable. They were **not** revoked, because `canoncore-legacy`
+and `canoncore-demo` still exist on Vercel and may be using one. Establish that before deleting them.
+
 **Mail is sent from a subdomain, never the apex.** Resend's own guidance is to "send emails from a
-subdomain instead of your root domain to conform to deliverability best practices". The point is
+subdomain instead of your root domain to conform to deliverability best practices"
+([Add a domain](https://resend.com/docs/add-a-domain)). The point is
 containment: a bad month for mail reputation must not reach `www.canoncore.com`. `mail.` is a sibling
 of `www`, so [ADR-0010](adr/0010-canonical-host-www.md) is untouched and the session cookie stays
 host-only.
@@ -312,7 +327,9 @@ Five records at Namecheap. The first four are Resend's, taken from its Records t
 `send.mail` is the Return-Path: Resend defaults it to `send.<domain>`, which is why the sending
 domain is `mail.canoncore.com` and the bounce path is `send.mail.canoncore.com`. Do not make the
 Return-Path a name you also send from — AWS, whose MAIL FROM machinery this is, says it "shouldn't be
-a subdomain that you also use to send email from", and the zone previously violated exactly that.
+a subdomain that you also use to send email from"
+([Custom MAIL FROM](https://docs.aws.amazon.com/ses/latest/dg/mail-from.html)), and the zone
+previously violated exactly that.
 
 **The DMARC reporting address must stay inside `canoncore.com`.** RFC 7489 §7.1 makes an external
 `rua` conditional on the destination domain publishing an authorising record, and a personal iCloud
@@ -320,8 +337,9 @@ or Gmail address will never do so, so reports would be discarded in silence. `dm
 is within the same Organizational Domain and needs no such record. That is the reason receiving is
 enabled at all.
 
-`p=none` is monitor-only and changes nothing about delivery. Tighten it only once reports show a
-clean picture.
+`p=none` is monitor-only and changes nothing about delivery. iCloud read the record as published and
+reported `pdomain=canoncore.com`, confirming the reporting address sits inside the Organizational
+Domain that the RFC's test uses.
 
 ### What was removed, and why it mattered
 
@@ -337,20 +355,26 @@ deliberately not investigated.
 
 ### Where the credentials live
 
-| Secret | Location |
-| --- | --- |
-| `RESEND_API_KEY` | Vercel env, production and preview, **Sensitive**, a *different key in each* |
-| `EMAIL_FROM` | Vercel env, production and preview |
+| Secret | Location | Resend key |
+| --- | --- | --- |
+| `RESEND_API_KEY` | Vercel env, **production**, Sensitive | `canoncore-production`, `fe0bb980-4998-4343-9a60-f03fd607bbfd` |
+| `RESEND_API_KEY` | Vercel env, **preview**, Sensitive | `canoncore-preview`, `49af56bc-d365-4f5c-9cb1-6b85a638a2df` |
+| `EMAIL_FROM` | Vercel env, production and preview | — |
 
-Two keys under one name is deliberate, so a leaked preview key can be revoked without touching
-production. Both are scoped to **sending only** and restricted to the `mail.canoncore.com` domain, so
-neither can read logs, manage domains or create further keys.
+Both keys are `sending_access` and restricted to the `mail.canoncore.com` domain, so neither can read
+logs, manage domains or create further keys. Resend shows a key's plaintext once, at creation; to
+rotate, create a replacement in the dashboard and overwrite the Vercel variable, then delete the old
+key by the id above.
 
-**Resend has no sandbox and no test credential.** Isolation comes from the recipient instead:
-`delivered@`, `bounced@`, `complained@` and `suppressed@resend.dev` simulate each outcome without
-touching domain reputation. A mistyped real address in a preview deployment **will send for real**,
-so CAN-31 should refuse non-`resend.dev` recipients outside production. Test sends still count
-against the 100/day quota.
+**This departs from CAN-20 as written.** That ticket asked that "**an** API key is a Vercel
+environment variable for production and preview". One key in both environments satisfies the letter.
+Two were issued instead, one per environment under the same variable name, so that a leaked or abused
+preview key can be revoked without interrupting production. The criterion was met by a stricter
+mechanism rather than to the letter, in the same way CAN-18's connection string was.
+
+**Resend has no sandbox and no test credential**, so a mistyped real address in a preview deployment
+will send for real. What follows from that for code that sends mail is in
+[ADR-0011](adr/0011-transactional-email-resend.md). Test sends consume the 100/day quota.
 
 ### How delivery is checked
 
@@ -368,14 +392,34 @@ the `jacobrees@me.com` account, which is the one carrying `jacobrees@icloud.com`
 reference recipient: check it, not one of the Gmail accounts, unless the point is to compare
 receivers.
 
+The receiving side's own verdict, read from the delivered message's headers on 10 August 2026:
+
+```
+Authentication-Results: dmarc.icloud.com;        dmarc=pass header.from=mail.canoncore.com
+Authentication-Results: dkim-verifier.icloud.com; dkim=pass header.d=mail.canoncore.com
+Authentication-Results: spf.icloud.com;           spf=pass  smtp.mailfrom=…@send.mail.canoncore.com
+Dkim-Signature: s=resend; d=mail.canoncore.com
+Return-Path:    <…@send.mail.canoncore.com>
+X-Dmarc-Info:   pass=pass; dmarc-policy=none; pdomain=canoncore.com
+X-Apple-Movetofolder: INBOX
+```
+
+All three checks pass and the DKIM signature is `d=mail.canoncore.com`, so alignment is on the
+sending domain rather than on Amazon's. The bounce and complaint paths CAN-31 needs were proven the
+same day: sends to `bounced@resend.dev` and `complained@resend.dev` returned Resend statuses
+`bounced` and `complained`.
+
+One thing the headers show that is worth knowing before DMARC is tightened:
+`bimi=skipped reason="insufficient dmarc"`. BIMI needs a policy of `quarantine` or `reject`, so it is
+unavailable while the policy is `p=none`. That is a consequence of the policy choice, not a fault.
+
 Mail sent to `*@mail.canoncore.com` needs no such check, because receiving is enabled and the
 `resend` MCP can read that mailbox directly.
 
 ### What this commits us to
 
-**Every log and every piece of email metadata is stored in the United States**, whichever sending
-region is selected, and Resend lists 22 sub-processors. CAN-21's terms of service and any privacy
-notice have to say so. The EU region governs where mail is *sent from*, not where records are kept.
+Recorded once, in [ADR-0011](adr/0011-transactional-email-resend.md): US log storage regardless of
+sending region, 22 sub-processors, and no test credential. CAN-21 needs all three.
 
 ## Holding page
 
