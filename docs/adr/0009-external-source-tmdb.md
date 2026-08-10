@@ -47,9 +47,11 @@ TMDB's published terms will find them saying the opposite.
 1. **The text is deliberately not committed to this repository.** It is legal correspondence, and
    it is held on CAN-34 instead. That is a decision, not an oversight — but it does mean the one
    claim a reviewer would most want to check verbatim is the one they must leave the repo to read.
-2. **The copy held carries no headers, no sender address and no date.** So the exception's age
-   cannot be established from it, and the reply cannot be tied to a thread. If the original email
-   is recovered it should replace that copy on CAN-34.
+2. **Neither copy held carries headers, a sender address or a date.** CAN-34 holds two: a reply
+   covering retention alone, and a fuller one covering retention and the export together. They
+   agree on retention. Both are pasted bodies rather than saved messages, so the exception's age
+   cannot be established and neither can be tied to a thread. If an original with headers is
+   recovered it should replace them.
 3. **The scope recorded here is one reading of it**, made on 10 August 2026 and set out in full in
    a comment on CAN-34. Nobody has checked that reading against the source independently, which is
    why "proves narrower than understood" survives as a reversal condition below.
@@ -91,12 +93,27 @@ or a subscription PIN, and scopes the key to one declared project.
 - **The non-commercial licence carries an AI/ML prohibition** in paragraph 1.C. It is not merely a
   commercial-use trigger, so it binds us as we are. The retention correspondence restates it, along
   with attribution and the non-commercial restriction, as surviving the exception untouched.
-- **The exception grants retention, not redistribution.** It says so explicitly, and the terms'
-  restrictions on use, display, distribution and redistribution all survive it. Nothing built today
-  hands TMDB Content anywhere, but the GDPR export carries Snapshots by design, so it is the first
-  thing that will. Answer the question before building it rather than after. Providers are not a
-  route to this: [ADR-0007](0007-provider-contract.md) has them serving data *into* CanonCore, never
+- **The exception grants retention, not redistribution to third parties.** The terms' restrictions
+  on use, display, distribution and redistribution all survive it. Providers are not a route to
+  this: [ADR-0007](0007-provider-contract.md) has them serving data *into* CanonCore, never
   receiving ours.
+- **The GDPR export to the account holder is approved, and is narrower than the Snapshot.** TMDB
+  confirmed in writing that giving a user an export of their own account data "alongside the
+  associated TMDB fields (episode titles, runtimes, and IDs)" falls outside the third-party
+  redistribution prohibition. Two things follow, and both are easy to get wrong:
+  - **The export carries those fields, not the Snapshot payload.** A Snapshot holds what TMDB
+    returned verbatim — overviews, air dates, credits, image paths, vote counts. The approval names
+    three field types. Exporting the payload whole would exceed it, so the export is built from the
+    composed read rather than by serialising Snapshot rows.
+  - **The export file itself carries the attribution notice and the terms disclosure.** TMDB asked
+    for this explicitly as a condition of the approval. It is the only place attribution is required
+    outside the application's own pages.
+
+  This is the second exception this project holds and it has the same evidential weakness as the
+  first: the copy is a pasted body without headers. [CAN-30](https://linear.app/jacobrees-canoncore/issue/CAN-30/gdpr-export-and-erasure)
+  carries both consequences as criteria. If the approval is ever withdrawn the export narrows to
+  external identifiers; the source decision does not invert, and **Fallback** below is not triggered
+  by it.
 - **Identifier churn is real and already anticipated.** ADR-0004 records that TMDB loses roughly 2%
   of movie ids a year with no merge model, serving a 301 before a final 404. That is precisely why
   external ids live on the Snapshot and never on the record; choosing TMDB makes that existing
