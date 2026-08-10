@@ -390,14 +390,40 @@ from 10 August 2026:
   variable as **non-sensitive**, so `vercel env pull` returns the plaintext, and it could be compared
   against the masked token prefix each revoked key showed on its dashboard page. None matched.
 
-It also cannot send from `mail.canoncore.com`, which this account has verified. All three projects
-still name `noreply@canoncore.com` as `EMAIL_FROM`, an address no longer deliverable from here since
-the `canoncore.com` domain entry was deleted.
+All three projects still name `noreply@canoncore.com` as `EMAIL_FROM`. What that is worth now is
+below.
 
-> **That key is live, and it is not ours to revoke.** Three public Vercel projects hold a working
-> credential for a Resend account this project does not control, so nothing here can revoke it.
-> Outside CAN-39, which is scoped to this account's keys. Tracked as
-> [CAN-41](https://linear.app/jacobrees-canoncore/issue/CAN-41/account-for-the-resend-key-three-older-vercel-projects-still-carry-on).
+> **That key is live, it is not ours to revoke, and the risk was accepted on 10 August 2026.**
+> [CAN-41](https://linear.app/jacobrees-canoncore/issue/CAN-41/account-for-the-resend-key-three-older-vercel-projects-still-carry-on)
+> was closed without acting on it: the owning account was never identified, no owner was told, and the
+> variable is still stored non-sensitive on all three projects.
+
+What the acceptance rests on:
+
+- **It cannot reach this account's sending path.** The key is not on this account, so it cannot send
+  from `mail.canoncore.com`. Nothing publishes a DKIM key for `canoncore.com` any more, since CAN-20
+  deleted both the domain entry and the zone's records, above. So mail claiming
+  `noreply@canoncore.com` is unsigned and unaligned as of 10 August 2026. Read that as a reason such
+  mail fails scrutiny, not as proof it fails delivery: `_dmarc.canoncore.com` is `p=none`, which
+  reports rather than rejects.
+- **Nothing on `canoncore.com` reaches those projects.** `canoncore-legacy` and `canoncore-demo`
+  serve only their own `.vercel.app` domains since CAN-18, per the table above, and
+  `canoncore-storybook` has no production URL at all. No code in this repository reads the variable.
+- **Reading the value takes access to this Vercel account.** Non-sensitive storage is what makes it
+  readable at all: Vercel hides a Sensitive variable in the dashboard and will not return its value
+  ([Sensitive environment variables](https://vercel.com/docs/environment-variables/sensitive-environment-variables)),
+  which is why the comparison above was possible for these three and not for `canoncore-rebuild`. The
+  exposure is therefore bounded by who can sign in to `jacobreesnew-7380's projects`, under *The
+  account* above. **Who that is was not enumerated, and that bound is the whole of the argument.**
+- **What remains is someone else's credential on someone else's account**, with no mechanism here to
+  revoke it.
+
+**What would reopen it.** Any of: the owning account becomes identifiable; anyone else gains access
+to `jacobreesnew-7380's projects`; or `canoncore.com` is verified on a Resend account again, which
+would give a key that names it somewhere to send from.
+
+Deleting the three projects, or removing `RESEND_API_KEY` from each, would end the exposure at this
+end. Neither was done, and nothing depends on those projects.
 
 A fourth project, `canoncore-rebuild`, also carries a `RESEND_API_KEY`. It is stored **Sensitive**, so
 Vercel returns `[SENSITIVE]` rather than the value and the comparison above cannot be repeated for it.
