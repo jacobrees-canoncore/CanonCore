@@ -421,6 +421,40 @@ Mail sent to `*@mail.canoncore.com` needs no such check, because receiving is en
 Recorded once, in [ADR-0011](adr/0011-transactional-email-resend.md): US log storage regardless of
 sending region, 22 sub-processors, and no test credential. CAN-21 needs all three.
 
+## Reporting address
+
+Decided by CAN-21, **not yet provisioned**. The Online Safety Act requires a reporting route that works
+for people who have no account and are not users at all (`s.20(5)` affected persons), and the Codes
+require it to be easy to find and use. What that needs is in
+[`docs/compliance/code-measures-register.md`](compliance/code-measures-register.md); this section records
+the address itself.
+
+| | |
+| --- | --- |
+| Address | `report@canoncore.com` |
+| Mechanism | Namecheap free email forwarding on the apex, forwarding to Jacob's iCloud |
+| Status | **Not created.** No MX record for the apex exists yet |
+
+**It is on the apex, not on `mail.canoncore.com`.** That is a change from CAN-21's original wording,
+which assumed the Resend inbound domain. Resend receives at `*@mail.canoncore.com`, but that mailbox is
+readable only through the API, and **an inbox only an API can read is not "monitored by a human"**. The
+duty is to have reports reach a person. Forwarding to a mailbox Jacob already reads is the simplest thing
+that makes that true, and it needs no application code, so it does not wait on `apps/web`.
+
+**This does not disturb the Resend setup.** `mail.canoncore.com` and `send.mail.canoncore.com` keep their
+own MX records and are untouched; the apex currently has none. Adding one for forwarding affects
+receiving only, so SPF, DKIM and the DMARC policy above are unaffected, and `www` is untouched, so
+[ADR-0010](adr/0010-canonical-host-www.md) still holds.
+
+**Outstanding before the public URL is shared:**
+
+- [ ] Add the apex MX record and the forwarding rule at Namecheap.
+- [ ] Send a test message to `report@canoncore.com` and confirm it arrives, using `macos-mail-mcp` to read
+      the destination mailbox. A forward that silently fails is worse than no address, because the
+      published document promises someone that reports are read.
+- [ ] Make the address available to the application as configuration rather than hard-coding it, so the
+      two public documents and the reporting route agree.
+
 ## Holding page
 
 `www.canoncore.com` serves `public/index.html` from this repository, so the cutover caused no outage.

@@ -27,7 +27,9 @@ to `legislation.gov.uk`, `ofcom.org.uk` and `gov.uk`, so no such result could su
 5. **s.71 does not apply** — it is a Category 1 duty. The terms-of-service requirements that bind us are
    **s.10(5)–(8)** and **s.21(3)**.
 
-The ticket names three deliverables. The real set is **nine** (see [Deliverables](#deliverables)).
+The ticket names three deliverables. The real set is **ten**, since the children's access assessment
+concluded "met" and so the children's risk assessment is real rather than conditional (see
+[Deliverables](#deliverables)).
 
 ## 1. Scope: confirmed, and there is no way out short of deleting a feature
 
@@ -35,6 +37,11 @@ The ticket names three deliverables. The real set is **nine** (see [Deliverables
 service by a user … may be encountered by another user". Titles, notes and Arguments are generated
 directly by users; Visibility and Fork mean they may be encountered by others.
 ([s.3](https://www.legislation.gov.uk/ukpga/2023/50/section/3))
+
+> **Fork is not in v1** — CAN-17 lists CAN-9 as out of scope. Scope is unaffected, because **Visibility
+> alone satisfies s.3(1)**: one person authors, publishes, and another encounters. Fork was always the
+> second and independent route, not a necessary one. The assessments in `docs/compliance/` describe the
+> service without it; this section describes the product as designed.
 
 Two sub-sections kill the "we are mostly private" argument outright:
 
@@ -101,8 +108,12 @@ That leaves the **child user condition** (s.35(3)): a significant number of chil
 judged "based on evidence about **who actually uses a service, rather than who the intended users** are"
 — which a pre-launch service does not have.
 
-> **Open decision, flagged rather than settled.** A Doctor Who catalogue is plausibly "of a kind likely to
-> attract" children. Concluding "likely" roughly doubles the document set (it adds a children's risk
+> **Settled: met.** See
+> [`docs/compliance/childrens-access-assessment.md`](../compliance/childrens-access-assessment.md) for the
+> conclusion and its reasoning. The decisive point is `s.35(4)(a)`: "significant" includes a number
+> significant *in proportion to* total UK users, so a small service reaches it with a handful of children.
+> Do not reason about this from the seed collection — the catalogue is unbounded and user-chosen, and the
+> test is about the kind of service. Concluding "likely" roughly doubles the document set (it adds a children's risk
 > assessment under s.11 and the s.12 duties), but concluding "not likely" without evidence is fragile,
 > and s.37(4)–(5) makes the fragile answer the expensive one if it is wrong. **s.12(5) is the escape
 > hatch**: prohibiting every kind of primary priority content harmful to children, for all users, in the
@@ -170,7 +181,13 @@ It would be an error to let the imagery argument carry the URL one.
 
 > **Do not write "free-text fields" and call it an Ofcom risk factor** — the phrase does not appear in the
 > guidance. Map it onto the factors Ofcom does name: commenting on content, UGC searching, hyperlinking,
-> profiles and anonymity. Public sharing *is* squarely covered, by the re-posting/forwarding factor.
+> profiles and anonymity.
+
+> **Correction, on review.** An earlier draft of this file said public sharing *is* covered by the
+> re-posting/forwarding factor. That was too loose. **Publishing your own record is not re-posting or
+> forwarding someone else's content** — Fork would be, and Fork is out of scope for v1. The illegal
+> content risk assessment therefore does not tick that factor, and the two documents now agree. If Fork
+> ships, the factor applies and the assessment must be redone.
 
 ### Deadline
 
@@ -342,10 +359,15 @@ children's risk assessment and the Protection of Children Codes.
 conflict: the tool's list includes **ICU G2**, which it simultaneously labels Category 1 only and
 inapplicable. Fourteen apply.
 
-**What the tool flags as our risk factors** — useful, because it means CanonCore does not have a clean
-sheet: user profiles, fake/anonymous user profiles, re-posting or forwarding content, and user-generated
-content searching. Plus child users, if the access assessment says so. This is the concrete input to the
-per-harm reasoning in §3.
+**What the tool flagged on the run that produced this list** — user profiles, fake or anonymous user
+profiles, re-posting or forwarding content, and user-generated content searching, plus child users.
+
+> ⚠️ **That run's answers are not v1's answers.** It was driven exploratorily, before the v1 tickets were
+> cross-checked. **v1 has no re-posting or forwarding** (Fork is out of scope) and **no search over
+> user-generated content** (CAN-17 defers search; the import is entered by identifier). The authoritative
+> answers are the ones in
+> [`docs/compliance/illegal-content-risk-assessment.md`](../compliance/illegal-content-risk-assessment.md),
+> which record **three** factors: user profiles, users without accounts, and child users. Use those.
 
 ### Third-party generators: all nine checked, all fail
 
@@ -400,7 +422,8 @@ in hidden panels and go missing; and the Salesforce-hosted Regulation Checker ig
 
 ## Deliverables
 
-The ticket names three. The set is nine, and the order matters: the illegal content risk assessment
+The ticket names three. The set is **ten** — the children's risk assessment below is no longer
+conditional, because the access assessment concluded "met". The order matters: the illegal content risk assessment
 establishes the low-risk status that determines which Code measures bind, and the children's access
 assessment determines whether a children's risk assessment exists at all.
 
@@ -408,7 +431,7 @@ assessment determines whether a children's risk assessment exists at all.
 |---|---|---|
 | 1 | **Illegal content risk assessment** — 18 kinds + 3 CSEA sub-levels + other illegal content | s.9; s.23(2) |
 | 2 | **Children's access assessment** record | s.35, s.36(7) |
-| 3 | **Children's risk assessment** — *only if #2 concludes "likely"* | s.11; s.23(2) |
+| 3 | **Children's risk assessment** — **required**, since #2 concluded the child user condition is met | s.11; s.23(2) |
 | 4 | **Code measures register** — the 14 ICU measures, each with description, Code and effective date | s.23(3) |
 | 5 | **Terms of service** — per the §5 checklist | s.10(5)–(8), s.21(3); G1, G3 |
 | 6 | **Reporting and complaints procedure** — per-item control, non-user route, intimate image option, appeals | s.20, s.20A, s.21; D1, D2, D7, D9–D12 |

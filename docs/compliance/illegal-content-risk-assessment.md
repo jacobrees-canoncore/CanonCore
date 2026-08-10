@@ -140,7 +140,7 @@ Each of these is in place, or ships with the service, rather than being an inten
 
 | Control | What it mitigates | Effect on levels |
 | --- | --- | --- |
-| No image, video or file upload | CSAM imagery, extreme pornography, intimate image abuse, animal cruelty, cyberflashing | The basis of four negligible findings |
+| No image, video or file upload | CSAM imagery, extreme pornography, intimate image abuse, animal cruelty, cyberflashing | The basis of three negligible findings (2b, 7 and 18) |
 | No messaging, connections or comments | Grooming, controlling or coercive behaviour, harassment delivery, trafficking coordination | The basis of one negligible finding and a limiting factor on several low ones |
 | No marketplace, payments or advertising | Fraud, proceeds of crime, drugs, weapons, sexual exploitation, trafficking | Holds these at low rather than higher |
 | User free text not linkified | CSAM URLs, terrorism, drugs, weapons, fraud | Removes the hyperlinking risk factor entirely |
@@ -176,7 +176,7 @@ Ofcom materially changes a relevant Risk Profile.
   and forwarding mechanism, which Ofcom associates with intimate image abuse, suicide and serious
   self-harm, and foreign interference. **This is the most likely of these changes to actually happen**,
   and the assessment must be redone before it goes live.
-- Adding image, video or file upload — would reopen four negligible findings.
+- Adding image, video or file upload — would reopen three negligible findings (2b, 7 and 18).
 - Adding direct messaging, comments, mentions or user connections — would reopen grooming and
   controlling or coercive behaviour.
 - **Linkifying user free text** — would switch on the hyperlinking risk factor and reopen CSAM URLs.

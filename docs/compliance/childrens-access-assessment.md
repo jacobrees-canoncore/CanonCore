@@ -3,8 +3,8 @@
 **INTERNAL RECORD — NOT PUBLISHED.** Kept to satisfy `s.36(7)`, which requires a written record "in an
 easily understandable form" of every children's access assessment.
 
-> **DRAFT — and this is the one substantive decision in CAN-21 that is not settled.** See
-> [The decision](#the-decision) below before completing it.
+> **DRAFT — complete the fields below.** The conclusion itself is settled: the child user condition is
+> **met**. The reasoning, and what it costs, are recorded in [The conclusion](#the-conclusion-and-what-it-costs).
 
 | | |
 | --- | --- |
@@ -28,7 +28,7 @@ Per Ofcom's template, a "yes" at this stage **requires no recorded evidence**. C
 
 ## Stage 2 — Is the child user condition met?
 
-**Answer: yes** *(subject to the decision below)*.
+**Answer: yes.**
 
 `s.35(3)` sets two limbs, and the condition is met if **either** is satisfied:
 
@@ -49,9 +49,10 @@ Per Ofcom's template, a "yes" at this stage **requires no recorded evidence**.
 **Consequence:** the service is treated as likely to be accessed by children. A **children's risk
 assessment** is required under `s.11` within three months, and the Protection of Children Codes apply.
 
-## The decision
+## The conclusion, and what it costs
 
-This is the highest-stakes judgement in CAN-21, so the trade-off is recorded rather than assumed.
+This is the highest-stakes judgement in CAN-21, so the reasoning and the trade-off are recorded rather
+than assumed.
 
 **Answering "met" (as drafted):**
 
@@ -70,9 +71,14 @@ This is the highest-stakes judgement in CAN-21, so the trade-off is recorded rat
   the assessment deadline until a valid assessment concludes otherwise, so a "not met" that does not hold
   up leaves the children's duties switched on anyway, retrospectively.
 
-**Recommendation: answer "met".** It is the only limb that can be evidenced honestly before launch, the
-downside of being wrong is asymmetric, and the expensive consequence — age assurance — is avoided by a
-terms-of-service clause that costs three sentences.
+**Concluded: met.** Three reasons, in order of weight. First, `s.35(4)(a)` says "significant" includes a
+number significant **in proportion to** the total number of United Kingdom users, so on a service with a
+few dozen users a handful of children is significant — small size makes "met" *more* likely, not less.
+Second, the test in limb 2 is about the **kind** of service, and media catalogues and collection trackers
+demonstrably carry substantial under-18 populations. Third, "not met" requires recorded evidence that a
+pre-launch service cannot have. The asymmetry settles it: a wrong "not met" is punished retrospectively by
+`s.37(4)–(5)`, while a wrong "met" costs paperwork. The expensive consequence, age assurance, is avoided
+by a terms-of-service clause that costs three sentences.
 
 **Revisit at the first review.** Once there is real usage data, limb 1 becomes answerable on evidence, and
 "not met" may become properly available.

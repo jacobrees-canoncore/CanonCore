@@ -82,8 +82,8 @@ what we did and why, and we may suspend or remove the account that posted it.
 ## Intimate images shared without consent
 
 If an intimate image of you, or of someone you are acting for, is on CanonCore, you can make an **intimate
-image content report**. There is a form for this on the
-[Reporting and complaints](/legal/reporting-and-complaints) page.
+image content report**. The
+[Reporting and complaints](/legal/reporting-and-complaints) page tells you how, and what to include.
 
 **When we receive such a report we will take the content down as soon as we reasonably can, and no later
 than 48 hours.** We will also take down any other content we identify as the same, or substantially the
@@ -122,7 +122,7 @@ every time.
 ## Your privacy, and where your data is held
 
 We send email using Resend. **Email logs and email metadata are stored in the United States, whatever
-country the email itself is sent from, and Resend uses a number of sub-processors to provide the service.**
+country the email itself is sent from, and Resend uses 22 sub-processors to provide the service.**
 We are telling you this here because it is easy to assume otherwise.
 
 `[ ]` *Link the privacy notice here once it exists (CAN-30).*
@@ -134,4 +134,4 @@ we handle reports, we will make that clear rather than changing it quietly.
 
 ## Contact
 
-`[ ]` `report@mail.canoncore.com`
+`[ ]` `report@canoncore.com`

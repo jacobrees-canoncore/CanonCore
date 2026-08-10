@@ -1,7 +1,9 @@
 # Reporting and complaints
 
 **PUBLIC DOCUMENT.** Rendered by the application and reachable from the footer of every page and from
-every publicly visible record, without signing in.
+the public Ordering page, without signing in. See the ICU D2.2(a) gap in
+`docs/compliance/code-measures-register.md`: a per-item report control on every record is not shipped at
+launch.
 
 > **DRAFT.** Complete the items marked `[ ]` and remove this box before publishing.
 
@@ -12,7 +14,7 @@ content whether or not it is about you.
 
 ## How to report something
 
-`[ ]` *Reporting address, once created: `report@mail.canoncore.com`*
+`[ ]` *Reporting address, once created: `report@canoncore.com`*
 
 Tell us:
 

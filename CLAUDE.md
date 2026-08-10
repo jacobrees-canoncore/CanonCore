@@ -166,6 +166,12 @@ Each names the settled answer first, then what will offer you something else.
   which is the failure CAN-18 already paid for with `DATABASE_URL`. Postmark is the recorded runner-up
   and the margin is genuinely narrow; ADR-0011 names the conditions that flip it, and is the only
   place they are stated.
+- **Adult works catalogued, their artwork never displayed**
+  ([ADR-0012](docs/adr/0012-adult-works-catalogued-artwork-never-displayed.md)) — Trakt filters adult
+  titles out of its TMDB import, so "just exclude them" reads as the obvious path. It is not: recording
+  that a work exists is not carrying pornographic content, and the exposure is the poster. A per-account
+  "show adult content" toggle is the other tempting answer and is worse, because self-declaration is not
+  highly effective age assurance.
 - **TMDB as the general source** ([ADR-0009](docs/adr/0009-external-source-tmdb.md)) — its
   published terms forbid keeping data beyond six months, so a reader who checks them will think
   this is wrong. It rests on a project-specific exception TMDB confirmed in writing, held on CAN-34.

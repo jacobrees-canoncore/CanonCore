@@ -89,7 +89,9 @@ work from.
 disseminate any kind of content harmful to children.
 
 > **If non-designated content is ever identified on this service, Ofcom must be notified** by email at
-> `nondesignatedcontent@ofcom.org.uk`. This is a duty specific to user-to-user services and is easy to
+> `nondesignatedcontent@ofcom.org.uk`: "Where you provide a user-to-user service and you identify that
+> non-designated content is present on your service then you must notify Ofcom using the following email
+> address" ([Ofcom, *Protection of children duties under the Online Safety Act*](https://www.ofcom.org.uk/online-safety/protecting-children/protection-of-children-duties-under-the-online-safety-act)). This is a duty specific to user-to-user services and is easy to
 > miss. It is recorded in [`review-policy.md`](review-policy.md) as a standing obligation.
 
 **Overall: low for every kind of content harmful to children, and no non-designated content identified.**
@@ -126,12 +128,16 @@ two that matter most for children specifically:
 
 ## Adult works in the catalogue, and why they do not change the finding
 
+> The decision itself is [ADR-0012](../adr/0012-adult-works-catalogued-artwork-never-displayed.md).
+> This section records how it bears on the assessment.
+
 The catalogue is deliberately unbounded: any work may be recorded, including pornographic films, which
 TMDB carries and marks with an `adult` flag. This was considered directly rather than avoided, because
 the alternative reading would be that recording an adult film's existence is itself pornographic content.
 
-**It is not.** "Pornographic content" means content produced solely or principally for the purpose of
-sexual arousal. A title, a year, a runtime and a `part of` edge are not that. Recording that a
+**It is not.** `s.236(1)` defines "pornographic content" as "content of such a nature that it is
+reasonable to assume that it was produced solely or principally for the purpose of sexual arousal"
+([s.236](https://www.legislation.gov.uk/ukpga/2023/50/section/236)). A title, a year, a runtime and a `part of` edge are not that. Recording that a
 pornographic film exists is not hosting pornography, which is why a catalogue can carry the record
 without carrying the content.
 

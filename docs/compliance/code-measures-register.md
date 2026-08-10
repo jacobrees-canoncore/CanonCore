@@ -28,7 +28,7 @@ met. Several measures pair across the two, and where they do the same implementa
 | **ICU C1** | Content moderation function to review and assess suspected illegal content | Content reported or otherwise noticed is reviewed by the operator. **The C1.3(b) route is used**: the terms of service prohibit illegal content by category, so content is assessed against the terms rather than by making a full `s.192` illegal content judgement | `[ ]` |
 | **ICU C2** | Content moderation function allowing swift takedown | An admin can set any public record's Visibility to private, which removes it from public view. Recorded as an Operation with an audit entry | `[ ]` |
 | **ICU D1** | Enabling complaints | A reporting route reachable **without an account**, covering all five limbs of "relevant complaints" and open to affected persons who are not users. Described in [`../../content/legal/reporting-and-complaints.md`](../../content/legal/reporting-and-complaints.md) | `[ ]` |
-| **ICU D2** | Complaints systems easy to find, access and use | Reporting route linked from the footer of every page and from each publicly visible record; minimal steps; a field for supporting information; keyboard-navigable and screen-reader-usable. **See the gap noted below** | `[ ]` |
+| **ICU D2** | Complaints systems easy to find, access and use | Reporting route linked from the footer of every page and from the public Ordering page; minimal steps; a field for supporting information; keyboard-navigable and screen-reader-usable. **See the gap noted below** | `[ ]` |
 | **ICU D7** | Appropriate action on complaints about suspected illegal content | A complaint is treated as reason to suspect the content may be illegal and is reviewed under C1.3. Considered promptly; ICU C4 and C5 do not apply to this service | `[ ]` |
 | **ICU D9** | Appeals — determination | Appeals are determined promptly. This measure applies because the service is neither large nor multi-risk | `[ ]` |
 | **ICU D10** | Appeals — action following determination | Where a decision that content was illegal is reversed, the takedown is reversed and the position restored: Visibility is set back and any restriction lifted | `[ ]` |
@@ -47,8 +47,9 @@ tool (reference code `POCVMT95NIB`), run with all kinds low, non-designated cont
 700,000 monthly active UK users, terms prohibiting all four kinds of primary priority content, and no
 principal purpose of hosting harmful content.
 
-The tool returns 16 measures. **Thirteen bind, and the three that do not are recorded here with the
-reason**, since a reader will otherwise wonder where they went.
+The tool returns 16 measures, and they do not all land the same way. **Twelve bind. One (D14) is
+permissive and is not adopted. Three do not apply**, and the reason for each is recorded below, since a
+reader will otherwise wonder where they went. Twelve plus one plus three is the sixteen.
 
 | Ref | Measure | How it is met | Effective |
 | --- | --- | --- | --- |
@@ -56,7 +57,7 @@ reason**, since a reader will otherwise wonder where they went.
 | **PCU C1** | Content moderation function to review and assess suspected content harmful to children | The same function as ICU C1, extended to content harmful to children | `[ ]` |
 | **PCU C2** | Content moderation function allowing swift action | Admin sets Visibility to private. Takedown **is** technically feasible here, which is why PCU B4 and B5 do not apply | `[ ]` |
 | **PCU D1** | Enabling complaints | The same reporting route as ICU D1, reachable without an account | `[ ]` |
-| **PCU D2** | Easy to find, access and use complaints systems | As ICU D2. **The same D2.2(a) gap applies** — see below | `[ ]` |
+| **PCU D2** | Easy to find, access and use complaints systems | As ICU D2: the footer of every page and the public Ordering page. **The same D2.2(a) gap applies** — see below | `[ ]` |
 | **PCU D7** | Appropriate action for complaints about content harmful to children | Considered promptly; the prioritisation and target measures do not apply to this service | `[ ]` |
 | **PCU D9** | Content appeals — determination (neither large nor multi-risk) | Determined promptly, per the timeframes in [`review-policy.md`](review-policy.md) | `[ ]` |
 | **PCU D10** | Content appeals — action following determination | Visibility restored and restrictions lifted where a decision is reversed | `[ ]` |
@@ -73,6 +74,7 @@ reason**, since a reader will otherwise wonder where they went.
 | **PCU B1** | Principles of age assurance. Applies only where highly effective age assurance is used to identify child users. **This service uses none**, and does not need to: `s.12(5)` removes the requirement because the terms prohibit all four kinds of primary priority content for all users |
 | **PCU B4** | Applies where it is not currently technically feasible to take content down. Takedown is feasible here |
 | **PCU G2** | Category 1 services only. Summarising the children's risk assessment findings in the terms is not required of this service |
+| **PCU B5** | Not among the sixteen the tool returned — it is referenced inside PCU C2's text, as applying where takedown is not technically feasible. It is feasible here, so B5 does not apply either |
 
 > **The `s.12(5)` prohibition is doing real work.** It is what keeps PCU B1 and the whole age-assurance
 > apparatus out of scope. Weakening the primary priority content prohibition in the terms would pull age
