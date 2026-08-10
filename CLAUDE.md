@@ -67,6 +67,11 @@ cross-tenant read test on every RLS-protected table, and session context via `SE
 explicit transaction. [ADR-0005](docs/adr/0005-stack.md) states them and says why each one's
 failure is silent.
 
+**Production is `https://www.canoncore.com`**, apex 301s to it. What is actually provisioned — the
+Vercel project, the Neon database, the two Postgres roles and where each credential lives:
+`docs/infrastructure.md`. Read it before touching deployment, environment variables or the database
+connection, and note the two items it flags as unverified.
+
 Coding standards and what overrides a reviewer's default heuristics: `CODING_STANDARDS.md`.
 
 ## Agent skills
