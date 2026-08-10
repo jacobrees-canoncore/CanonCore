@@ -48,10 +48,19 @@ is fine; editing both is a conflict waiting to happen. Prefer the Linear copy, s
 where labels and triage state live. Labels sync by name, but GitHub holds its own label
 objects — same names, different colours, two independent sets.
 
-> **Status: wired.** The remote is `jacobrees-canoncore/CanonCore` (private), created in the
-> right org, and the Linear↔GitHub issue sync is set up with two-way enabled (confirmed
-> 8 August 2026). *Wiring it up* below is kept as the record of how, and of what to redo if the
-> connection is ever removed.
+> **Status: wired.** The remote is `jacobrees-canoncore/CanonCore` (**public** — `private: false`,
+> checked against the API on 10 August 2026), created in the right org, and the Linear↔GitHub issue
+> sync is set up with two-way enabled (confirmed 8 August 2026). *Wiring it up* below is kept as the
+> record of how, and of what to redo if the connection is ever removed.
+>
+> **Public is a constraint, not a default — do not flip it back.** Vercel's Hobby plan refuses a
+> private organisation-owned repo, so the project could not be created until the repo was made
+> public; `docs/infrastructure.md` has the API response and why that was chosen over upgrading. Made
+> private again, the Vercel project breaks. It decides a second thing too: rulesets and required
+> status checks are free on **public** repositories under GitHub Free, which is what lets `main` be
+> protected without a paid plan
+> ([about rulesets](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-rulesets/about-rulesets)).
+> `workflow.md` → *The gates* depends on that.
 
 ### A description write must not be bundled with anything else
 

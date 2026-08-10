@@ -159,7 +159,15 @@ policy and the reasoning; this is the procedure. `/review-pr` lands it afterward
    this skill entirely (`docs/agents/issue-tracker.md` → *A description write must not be bundled
    with anything else*).
 
-11. **Report the PR URL** and say that a code review comes next.
+11. **Report the PR URL** and say that a code review comes next. Say that opening the PR has queued
+   the repo's checks **only if `.github/workflows` holds any** — until it does, nothing is queued
+   beyond Vercel's deployment, and announcing checks that will later be reported as missing reads as
+   a CI outage rather than as the pre-skeleton state it is.
+
+   **Do not wait for those checks here.** They were queued seconds ago, so waiting blocks for a full
+   run before anyone has read the diff; `/code-review` comes next and does not need them; and any
+   green seen now is stale the moment the review changes the branch. `/review-pr` waits, and it
+   waits because it merges.
 
 ## Notes
 

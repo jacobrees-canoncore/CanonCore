@@ -40,12 +40,52 @@ on the way rather than the destination. This skill is the landing.
    cross-tenant row-level-security tests: a broken policy returns an empty result rather than an
    error, so that failure is invisible anywhere except in those tests.
 
-   `gh pr view --json statusCheckRollup` is not a substitute. A rollup can be green because a
-   deployment succeeded while carrying no tests at all.
+   **A local run is not the gate.** This skill merges a few steps below, so the green has to belong
+   to the commit being landed and has to have come from a clean checkout.
+
+   **First, check there is anything to wait for.** If `.github/workflows` holds no workflow files,
+   nothing will ever report and the wait below would burn its ceiling and stop a PR that is
+   perfectly landable. Say there are no checks yet, exactly as the paragraph above says to, and go
+   to step 3. Everything from here to the end of this step is conditional on that directory being
+   populated.
+
+   ```bash
+   gh pr view <n> --json headRefOid --jq .headRefOid              # note the SHA; step 6 needs it
+   gh pr checks <n> --json bucket --jq '.[].bucket' || true       # poll until this returns anything
+   gh pr checks <n> --watch --fail-fast --interval 15
+   ```
+
+   **Poll first, watch second.** For a few seconds after a push the API reports no checks at all and
+   `--watch` exits 1 rather than waiting — the same code a genuine failure exits with, so the two
+   cannot be told apart. Read `bucket` (`pass` / `fail` / `pending` / `skipping` / `cancel`), not the
+   exit code: `gh pr checks` exits 8 whenever anything is pending, `--json` included, which is the
+   normal state throughout the poll. Hence the `|| true` — without it the healthy path reads as a
+   failure under `set -e` or in a `&&` chain, and the wait aborts. Do not pass `--required`: it
+   errors while no required check has reported. `docs/agents/workflow.md` → *The gates* has the
+   references for all three.
+
+   Put a ceiling on the wait, around fifteen minutes, and report a timeout as a stop rather than a
+   pass.
+
+   **Then re-read the head SHA.** If it moved while you waited, the result describes a commit that
+   is not the one you are about to merge. Wait again on the new one, and carry the final SHA to
+   step 6.
+
+   `gh pr view --json statusCheckRollup` on its own is not a substitute. A rollup can be green
+   because a deployment succeeded while carrying no tests at all. Confirm that every check the
+   workflow files declare is present and passing — **read the job names out of `.github/workflows`**
+   rather than assuming they are `test`, `typecheck` and `lint`. `workflow.md` defines the gates as
+   three pnpm commands; how those map onto job names is the workflow file's business, and a matrix
+   or a single combined job would make the literals wrong.
 
 3. **Confirm it works.** Vercel builds a preview deployment per pull request — read its URL from
    the PR's checks or comments. Until the first deploy exists there is no preview, and that is a
    "nothing to check" rather than a pass.
+
+   **An empty read means "not yet", not "none".** Step 2's wait covers this whenever Vercel's own
+   check is among the ones it waited on. Where it is not, poll for the URL instead of concluding
+   from a single look that no preview exists. Reporting "no preview" while one is still building is
+   the same error as reporting "gates passed" when nothing ran.
 
    Either way, **ask the user to confirm they have looked at the change working**, unless they
    have already said so. This is what a solo repo has instead of a reviewer, and an agent
@@ -64,10 +104,16 @@ on the way rather than the destination. This skill is the landing.
    the one that is not a click away from being undone. On a yes:
 
    ```bash
-   gh pr merge --squash --delete-branch
+   gh pr merge --squash --delete-branch --match-head-commit <the SHA step 2 ended on>
    ```
 
    Squash only. If the repo permits merge or rebase merges, do not use them.
+
+   **`--match-head-commit` is what makes step 2 binding.** Steps 3 to 5 sit between the check and
+   the merge and one of them waits on a person, so a push landing in that window would otherwise be
+   squashed into `main` having never been checked at all — the exact property step 2 exists to
+   guarantee. With the flag, GitHub refuses the merge instead. Omit it only if step 2 found no
+   checks to wait for, since then there is no verified SHA to match.
 
    If the merge is blocked by conflicts, rebase onto `main` and force-push with
    `--force-with-lease`. Never merge `main` into the branch.
