@@ -11,9 +11,13 @@ are the gates; this is the procedure.
 Solo, "mark ready" signals nobody and GitHub simply refuses to merge a draft, so it is a step
 on the way rather than the destination. This skill is the landing.
 
-**A code review should already have run against this branch.** The one `/implement` runs before
-its commit does not satisfy this (`docs/agents/workflow.md` → *Why a PR at all, for one
-developer*). If it has not, say so and stop.
+**A code review should already have covered this branch's range.** `/implement`'s own review
+satisfies that when it ran against the committed change — `docs/agents/workflow.md` → *The review
+runs once, and `/implement` is normally where*. Do not send the user back for a second pass over a
+range that has already been reviewed. Stop only when no review covered it: `/implement` never ran,
+the diff it read was empty or partial, or commits have landed since. A review of an empty range
+reports no findings and reads like a clean one, so the question to ask is which diff command it
+ran — not whether a review happened. Ask rather than assume when this session cannot tell.
 
 `WS=ad2669ec-93a5-4ce1-97fa-c7d9247a1452` throughout.
 
@@ -97,6 +101,21 @@ developer*). If it has not, say so and stop.
    three pnpm commands; how those map onto job names is the workflow file's business, and a matrix
    or a single combined job would make the literals wrong.
 
+   **`main`'s ruleset holds a *different* list, and it is the one the merge is judged against.** It
+   requires `Vercel` as well, which no workflow file declares, so the two reads are complementary
+   rather than a cross-check: the workflow files say what CI promises, the ruleset says what blocks
+   the merge. Ask it for its names too, and confirm each is present and green on the SHA:
+
+   ```bash
+   gh api repos/{owner}/{repo}/rules/branches/main \
+     --jq '.[] | select(.type == "required_status_checks")
+                 | .parameters.required_status_checks[].context'
+   ```
+
+   A required context missing from the rollup is not a slow check. It is a context nothing emits,
+   which blocks the merge for ever rather than until CI finishes — so report it as a stop and fix
+   the ruleset or the workflow, do not wait for it.
+
 3. **Confirm it works.** Vercel builds a preview deployment per pull request — read its URL from
    the PR's checks or comments. Until the first deploy exists there is no preview, and that is a
    "nothing to check" rather than a pass.
@@ -132,10 +151,18 @@ developer*). If it has not, say so and stop.
    ```bash
    gh pr merge <n> --squash --match-head-commit <the SHA step 2 ended on>
    gh pr view <n> --json state,mergedAt                   # decide from this, not from the exit code
-   git push origin --delete <branch>                      # only once state is MERGED
+   git ls-remote --heads origin <branch>                  # empty means GitHub already deleted it
    ```
 
-   Squash only. If the repo permits merge or rebase merges, do not use them.
+   **Squash only, and the repository now offers nothing else** — merge commits and rebase merges
+   are off, and `main`'s ruleset refuses a non-linear history anyway (`docs/agents/workflow.md` →
+   *What `main` refuses*).
+
+   **`main` refuses a merge its checks do not support, so a refusal here is a stop.** Do not pass
+   `--admin`: there is no bypass actor for it to use, and an agent that made it work would have
+   removed the guard rather than satisfied it. If GitHub declines the merge, step 2 ended somewhere
+   it should not have — read `gh pr view <n> --json mergeStateStatus,mergeable`, say what it
+   returned, and go back to step 2 rather than trying the merge a second way.
 
    **The merge command's exit code is not the answer, and no `--delete-branch`.** That flag makes
    `gh` fail *after* GitHub has already merged, every time, from a worktree. Read `state,mergedAt`
@@ -144,8 +171,13 @@ developer*). If it has not, say so and stop.
    false report. `docs/agents/workflow.md` → *The merge reports failure after it has succeeded* has
    the mechanism and the evidence.
 
-   Delete the remote branch only after that read says `MERGED`. Done before it, on a merge that did
-   not happen, it closes the PR and discards the pushed work.
+   **The remote branch deletes itself**, since `delete_branch_on_merge` is on
+   (`docs/infrastructure.md`), so the third line above confirms rather than acts: no output is the
+   expected result and means GitHub has already removed it. Read that output rather than the exit
+   code; `workflow.md` says why `--exit-code` is the wrong flag here. Run
+   `git push origin --delete <branch>` only if the branch
+   is somehow still there, and only after `state` reads `MERGED` — done before that, on a merge that
+   did not happen, it closes the PR and discards the pushed work.
 
    **`--match-head-commit` is what makes step 2 binding.** Steps 3 to 5 sit between the check and
    the merge and one of them waits on a person, so a push landing in that window would otherwise be

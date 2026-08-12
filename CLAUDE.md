@@ -231,17 +231,21 @@ appear in the model's skill list:
 whatever branch is current, so on `main` it commits to `main`, and pushing `main` deploys to
 production. `docs/agents/workflow.md` has the command and the recovery.
 
-`/implement` runs `/code-review` itself, *before* its commit, so its review is not this repo's
-review: that diff is `<fixed-point>...HEAD`, which excludes uncommitted work, and a session
-reviewing what it just wrote is "confirmation bias with a slash command" (`implement.md` and
-`code-review.md`, shipped with `mattpocock-skills`; `docs/agents/workflow.md` has both in full).
+**`/implement` runs `/code-review` itself, and that is the review — do not ask for a second one.**
+It counts when the review **actually read the committed change**, which staging alone does not
+achieve: `<fixed-point>...HEAD` compares two commits and ignores the index, so with nothing
+committed that range is empty and a review of it reports no findings. Commit first and review
+against the branch point, or hand the review `git diff --cached` by hand. The fresh eyes are in the
+sub-agents `code-review` fans out to, not in whichever session invokes it.
+`docs/agents/workflow.md` → *The review runs once, and `/implement` is normally where* has the
+argument and the three cases where a review still has to run: `/implement` never ran, the diff it
+read was empty or partial, or the branch moved after it.
+
 Everything after `/implement` is this repo's own, and it is two more user-invoked skills:
 
 ```
 /draft-pr                 push the branch, open the draft PR, link the ticket
-   ↓
-/code-review              two-axis review — needs the pushed branch, so it runs here
-   ↓
+   ↓                      (/code-review here only in those three cases)
 /review-pr                gates, ready, squash-merge, close out Linear
 ```
 

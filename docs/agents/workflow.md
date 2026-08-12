@@ -18,38 +18,76 @@ rule belongs here, a step belongs in the skill.
 
 ## Why a PR at all, for one developer
 
-There is nobody to review it, so the PR is not doing what a PR usually does. It earns its
-place twice over anyway:
+There is nobody to review it, so the PR is not doing what a PR usually does. It earns its place
+anyway, and the reason is the deployment rather than the review:
 
-- **A branch is a gate before production.** On Vercel, pushing `main` deploys straight to
+- **A branch is the gate before production.** On Vercel, pushing `main` deploys straight to
   production. So the branch *is* the only gate there is, which makes the PR non-optional rather
   than a nicety.
+- **`main` refuses anything else.** Since CAN-40 its ruleset requires the checks by name, so a
+  commit that has not been through them cannot land by any route — *What `main` refuses* below.
+
+**Two further reasons are often given, and they are about the review rather than the PR.** They
+are the pack's own, in `implement.md` and `code-review.md` under
+`~/.claude/plugins/cache/claude-plugins-official/mattpocock-skills/<version>/docs/engineering/`:
+
 - **`/code-review` compares against a commit.** Its first step resolves the fixed point and
   refuses an empty diff, and the diff it reads is `<fixed-point>...HEAD`, which excludes staged
   and working-tree changes — so unless an interim commit already exists there is nothing in it
   to review. `/implement` runs the review as its second-to-last step and commits *after* it,
-  which lands it in exactly that gap. A branch and a PR give it a real range. (Staging first and
-  pointing it at `git diff --cached` works. What it works around is that ordering, not a missing
-  branch — `/implement` reviews before it commits whether or not a branch exists.)
-- **A session does not review its own work.** The pack's second reason for not leaning on
-  `/implement`'s built-in review, and the stronger one: "Same context reviewing itself isn't
-  review, it's confirmation bias with a slash command." A fresh session is free once the branch
-  is pushed, because the PR carries the range that session would otherwise lack.
+  which lands it in exactly that gap.
+- **A session does not review its own work.** "Same context reviewing itself isn't review, it's
+  confirmation bias with a slash command."
 
-**Staging defeats one of those reasons and leaves the other standing.** *`/code-review` compares
-against a commit* is answered for that run and carries nothing further; *A session does not review
-its own work* does not move, because the session reviewing is still the session that wrote the
-code. A run that has just staged its way past the first therefore has the whole of the second left
-to answer — and on CAN-48 that surviving half earned its keep, the sub-agents finding a defect the
-implementing session had missed (CAN-63).
+Read them there, then read the next section, which is where this repo parts company with both.
 
-Both reasons are the pack's own, in `implement.md` and `code-review.md` under
-`~/.claude/plugins/cache/claude-plugins-official/mattpocock-skills/<version>/docs/engineering/`.
-Read them there. They are why the review sits where it does below, and they are stated here
-rather than in `CLAUDE.md`, which is read every turn.
+### The review runs once, and `/implement` is normally where
 
-So the states mean: **draft** is "not yet reviewed", **ready** is "reviewed, and it works".
-Nobody is being signalled — the states are for you.
+**Do not ask for a second review of a change `/implement` has already reviewed.** That is this
+repo's rule and it overrides the reflex, which is to treat the review as a step in the landing
+sequence and run it again because the branch is now pushed.
+
+The two reasons above look like they demand otherwise. Neither survives contact with what the
+review actually does:
+
+- *`/code-review` compares against a commit* is answered by **making the review read the change
+  that gets committed** — and **staging alone does not do that**. `<fixed-point>...HEAD` compares
+  two commits, so the index is not in it: with the work staged and nothing committed, that range
+  is empty. Checked on CAN-40, 12 August 2026, against a scratch repository — `git diff $BASE...HEAD`
+  printed nothing while `git diff --cached $BASE` printed the change. So either commit first and
+  review against the branch point, which is the pack's own answer (*"Commit first, then review
+  against the point you branched from"*, `implement.md`), or stage and hand the review
+  `git diff --cached <branch-point>` explicitly. **The thing to check is which diff command the
+  review ran**, not whether anything was staged.
+- *A session does not review its own work* mistakes which context does the reviewing.
+  `mattpocock-skills:code-review` fans the work out to **parallel sub-agents that never saw the
+  implementing session's reasoning**, so the fresh eyes are in the sub-agents rather than in the
+  session that invokes them. CAN-48 is evidence about sub-agents rather than about a second
+  invocation: they found a defect the implementing session had missed (CAN-63), and they would
+  have found it from either caller. CAN-40 then tested it the other way round on 12 August 2026 —
+  sub-agents invoked *by the implementing session* caught two uncited claims, an exit-code trap,
+  and the `git` error that the bullet above now corrects, which was that session's own.
+
+  **This departs from the pack**, and the departure should be visible: `implement.md` offers a
+  fresh-session review as "a legitimate alternative", and `code-review.md` gives a different
+  reason for the sub-agents (keeping the two axes out of each other's context). The claim here is
+  that the isolation buys the fresh eyes as a side effect, whoever calls it.
+
+**What the implementing session does keep is the choice of what it hands them** — the range, the
+spec, the standards sources. That is the residual risk, and it is checkable rather than a matter
+of trust, which is why the claim to make is *"a review ran against this range"* and never *"a
+review ran"*.
+
+**So the review has not happened** when `/implement` did not run, when the diff it read was empty
+or partial, or when the branch has since gained commits it never saw. In each the range it read is
+not the range being landed, and `/code-review` against the pushed branch is how to fix that. A
+rebase or a review-driven edit after the fact puts you in the third case.
+
+The middle one is the quiet one: a review of an empty range **reports no findings**, which reads
+exactly like a clean review. That is why the claim to make names the command.
+
+So the states mean: **draft** is "not yet checked against the gates", **ready** is "the gates are
+green and it works". Nobody is being signalled — the states are for you.
 
 ## Branches
 
@@ -247,22 +285,26 @@ git checkout main && git pull --ff-only
 git checkout -b CAN-11-welcome-email-queue    # or an Orca worktree, above
 # ...work, via /implement...
 /draft-pr                                     # push, open the draft, link Linear
-/mattpocock-skills:code-review main           # two-axis review against the branch point
 /review-pr                                    # gates, ready, squash-merge, close out Linear
 ```
 
-The review sits **after** `/draft-pr`, not inside `/implement` — *Why a PR at all* above has the
-two reasons, and the branch has to exist and be pushed for either of them to be answered.
-`CLAUDE.md`'s pipeline shows the same order.
+**No review step sits between those two**, because `/implement` already ran it — *The review runs
+once, and `/implement` is normally where* above says when that counts and when it does not.
+`CLAUDE.md`'s pipeline shows the same order. Reach for the line below only in the cases that
+section names, and pass the point the branch was cut from:
+
+```bash
+/mattpocock-skills:code-review main           # two-axis review against the branch point
+```
 
 Two different things answer to the name *code review* and it is worth keeping them apart:
 `mattpocock-skills:code-review` is the two-axis Standards/Spec review that takes a fixed
 point; the built-in `/code-review` takes an effort level, or `ultra <PR#>` for a cloud review
 of a GitHub PR. Either works on a branch; neither works before there is one.
 
-- **Squash-merge only.** One ticket, one branch, one commit on `main`. Today it is a rule rather
-  than an enforcement — the repo still permits merge and rebase merges. It does not have to stay
-  that way; see *The repo should refuse the merge too* below.
+- **Squash-merge only.** One ticket, one branch, one commit on `main`. Since CAN-40 it is an
+  enforcement rather than a rule: the repository offers no other merge method, and `main`'s
+  ruleset requires a linear history — *What `main` refuses* below.
 - **Rebase to stay current**, never merge `main` in:
   `git rebase main && git push --force-with-lease`.
 - **Commit subjects are prose, not Conventional Commits.** `Send the welcome email from the queue
@@ -302,8 +344,10 @@ without this step the first machine to find out is the one doing the deploy. It 
 from the three because the three are what CAN-22 required; this one is ours.
 
 All four run in one Actions job, `test, typecheck, lint, build`, in that order, so the first
-failure stops the rest. That is the single check a pull request reports, and the one CAN-40's
-ruleset should require.
+failure stops the rest. That is the single check a pull request reports, and — since CAN-40 — the
+one `main`'s ruleset requires by that name. One job means one context: requiring the three commands
+as three contexts would require names nothing emits, and *What `main` refuses* below says why that
+is worse than requiring too little.
 
 **Cancellation is scoped to branches other than `main`.** Superseding a run is only safe where a
 later commit replaces the earlier one as the thing being judged, which is true on a branch and
@@ -343,8 +387,9 @@ from *CI failed*:
   existed for was closed *not planned* ([cli/cli#7401](https://github.com/cli/cli/issues/7401)). For
   a few seconds after a push the API reports no checks at all and `--watch` exits instead of waiting.
 - **Do not pass `--required`.** It errors when no required check has reported
-  ([cli/cli#9682](https://github.com/cli/cli/issues/9682)), which is every pull request until the
-  ruleset below exists.
+  ([cli/cli#9682](https://github.com/cli/cli/issues/9682)). The ruleset below defines required
+  checks, so this no longer describes every pull request — it describes the poll window at the
+  start of every one of them, which is exactly where the wait begins.
 
 So poll `gh pr checks <n> --json bucket || true` until it returns something, *then* watch. `bucket`
 sorts each check into `pass`, `fail`, `pending`, `skipping` or `cancel`, and that is the field to
@@ -406,15 +451,14 @@ Re-read the head SHA afterwards and start again if it moved, then **merge with
 confirmation between them; the flag is what stops a push landing in that gap from being squashed
 into `main` unchecked.
 
-**The repo should refuse the merge too.** A waiting skill is a convention and a ruleset is an
-enforcement, and only the second one survives the skill being edited, skipped or run by something
-else. `main` currently has neither branch protection nor a ruleset. The repo is public, so rulesets
-and required status checks cost nothing here (`issue-tracker.md`). Two traps are documented and both
-fail quietly: a strict *require branches to be up to date* rule with no check defined does nothing
-at all, and a required context that never reports blocks every merge for ever at *Expected —
-Waiting for status to be reported*, so only require checks that run on every pull request. CAN-40
-carries this work, and CAN-22 unblocked it: `test, typecheck, lint` runs on every push and is the
-context to require.
+**The repo refuses the merge too, since CAN-40.** A waiting skill is a convention and a ruleset is
+an enforcement, and only the second survives the skill being edited, skipped or run by something
+else. `main` now carries one — the rules, the two required contexts and the no-bypass reading are in
+[`docs/infrastructure.md`](../infrastructure.md) → *The repository, and what `main` refuses*, and
+what it means for this loop is *What `main` refuses* below. The repo being public is what pays for
+it (`issue-tracker.md`). The trap that shaped it is still worth carrying: a required context that
+never reports blocks every merge for ever rather than until CI finishes, so only require checks that
+run on every pull request.
 
 **A deployed preview works.** Vercel builds a preview deployment per pull request. The value of
 a preview is that it is a real environment rather than a smoke screen, so a preview must point at
@@ -448,6 +492,36 @@ CanonCore equivalents are unknown. Add them here as they appear, and prefer maki
 executable check over leaving it as prose — a rule that lives only in prose is one nobody
 re-reads at the moment it is broken.
 
+### What `main` refuses
+
+The gates above are a wait. A wait is a step, and a step can be skipped — which is what CAN-40
+fixed, by moving the last word from the skill to the repository. Since 12 August 2026 `main` carries
+a ruleset, and GitHub refuses a merge that the checks do not support whatever the skill running it
+believes. The provisioned form — the rule list, the two context names, why only those, and why
+branches are not required to be up to date — is in
+[`docs/infrastructure.md`](../infrastructure.md) → *The repository, and what `main` refuses*, because
+it is repository configuration and no file here can assert it. What belongs here is what it means
+for the loop:
+
+- **Squash is no longer a convention.** `allow_merge_commit` and `allow_rebase_merge` are off, so
+  the repository offers nothing else, and `required_linear_history` refuses a merge commit reaching
+  `main` by any other route.
+- **The remote branch deletes itself on merge.** See *The merge reports failure after it has
+  succeeded* below, which is the step that changes.
+- **Never pass `--admin` to `gh pr merge`.** There is no bypass actor to use it, so the flag cannot
+  work — but reaching for it is what an agent does when a merge is refused, and an agent that got it
+  working would have removed the guard rather than passed it.
+- **A refused merge is a stop, not a retry.** `gh pr view <n> --json mergeStateStatus,mergeable`
+  says whether GitHub will take it, which is a better question than what the merge command printed.
+  If it refuses, the wait above ended somewhere it should not have; find out where, rather than
+  merging again.
+
+**The wait does not become redundant.** The ruleset refuses; it does not wait, and it does not
+report. Without the wait, `/review-pr` reaches the merge while CI is still queued, is refused, and
+has to work out from a rejection whether the branch is broken or simply early. The two halves do
+different jobs: the wait is how the landing succeeds, and the ruleset is what happens when the wait
+was skipped.
+
 ## The merge reports failure after it has succeeded
 
 `--delete-branch` deletes "the local and remote branch after merge"
@@ -475,12 +549,17 @@ remote branch by a route that needs no local checkout:
 ```bash
 gh pr merge <n> --squash --match-head-commit <SHA>   # no --delete-branch
 gh pr view <n> --json state,mergedAt                 # this is the source of truth
-git push origin --delete <branch>                    # only once the read says MERGED
+git ls-remote --heads origin <branch>                # empty output: already gone, which is normal
 ```
 
-Order matters in the third line. Deleting the remote branch of a PR that did *not* merge closes
-the PR and throws away the pushed copy of the work. After a confirmed merge it is safe to repeat —
-if something already removed the branch, git says so and there is nothing to lose.
+**Since CAN-40 the remote branch deletes itself.** `delete_branch_on_merge` is on
+(`docs/infrastructure.md`), so GitHub removes the head branch as the merge lands and the third line
+is a confirmation rather than a step. **Read its output, not its exit code** — the same rule as the
+two lines above it. `--exit-code` would make the ordinary case exit 2 and abort the healthy path
+under `set -e`, which is the trap `|| true` exists for in *The gates*; without the flag, no match
+prints nothing and exits 0. Run `git push origin --delete <branch>` only if the branch is still
+there, and only once `state` says `MERGED` — deleting the remote branch of a PR that did *not*
+merge closes the PR and throws away the pushed copy of the work.
 
 The local branch stays behind, and that is correct: Orca's worktree owns it, and removing the
 worktree takes the branch with it.

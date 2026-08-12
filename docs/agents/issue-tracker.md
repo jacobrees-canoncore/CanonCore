@@ -57,8 +57,9 @@ objects — same names, different colours, two independent sets.
 > private organisation-owned repo, so the project could not be created until the repo was made
 > public; `docs/infrastructure.md` has the API response and why that was chosen over upgrading. Made
 > private again, the Vercel project breaks. It decides a second thing too: rulesets and required
-> status checks are free on **public** repositories under GitHub Free, which is what lets `main` be
-> protected without a paid plan
+> status checks are free on **public** repositories under GitHub Free, which is what pays for the
+> ruleset `main` has carried since CAN-40 (`docs/infrastructure.md`) — going private would take that
+> as well as the deployment
 > ([about rulesets](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-rulesets/about-rulesets)).
 > `workflow.md` → *The gates* depends on that.
 
