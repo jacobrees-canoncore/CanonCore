@@ -29,12 +29,19 @@ place twice over anyway:
   and working-tree changes — so unless an interim commit already exists there is nothing in it
   to review. `/implement` runs the review as its second-to-last step and commits *after* it,
   which lands it in exactly that gap. A branch and a PR give it a real range. (Staging first and
-  pointing it at `git diff --cached` works, and is a workaround for the missing branch rather
-  than a way of life.)
+  pointing it at `git diff --cached` works. What it works around is that ordering, not a missing
+  branch — `/implement` reviews before it commits whether or not a branch exists.)
 - **A session does not review its own work.** The pack's second reason for not leaning on
   `/implement`'s built-in review, and the stronger one: "Same context reviewing itself isn't
   review, it's confirmation bias with a slash command." A fresh session is free once the branch
   is pushed, because the PR carries the range that session would otherwise lack.
+
+**Staging defeats one of those reasons and leaves the other standing.** *`/code-review` compares
+against a commit* is answered for that run and carries nothing further; *A session does not review
+its own work* does not move, because the session reviewing is still the session that wrote the
+code. A run that has just staged its way past the first therefore has the whole of the second left
+to answer — and on CAN-48 that surviving half earned its keep, the sub-agents finding a defect the
+implementing session had missed (CAN-63).
 
 Both reasons are the pack's own, in `implement.md` and `code-review.md` under
 `~/.claude/plugins/cache/claude-plugins-official/mattpocock-skills/<version>/docs/engineering/`.

@@ -11,7 +11,9 @@ are the gates; this is the procedure.
 Solo, "mark ready" signals nobody and GitHub simply refuses to merge a draft, so it is a step
 on the way rather than the destination. This skill is the landing.
 
-**A code review should already have run against this branch.** If it has not, say so and stop.
+**A code review should already have run against this branch.** The one `/implement` runs before
+its commit does not satisfy this (`docs/agents/workflow.md` → *Why a PR at all, for one
+developer*). If it has not, say so and stop.
 
 `WS=ad2669ec-93a5-4ce1-97fa-c7d9247a1452` throughout.
 
