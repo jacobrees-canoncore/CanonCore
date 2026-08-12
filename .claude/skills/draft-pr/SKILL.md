@@ -204,6 +204,10 @@ policy and the reasoning; this is the procedure. `/review-pr` lands it afterward
    green seen now is stale the moment the review changes the branch. `/review-pr` waits, and it
    waits because it merges.
 
+   **The review that comes next is not the one `/implement` ran.** Say so, and cite
+   `docs/agents/workflow.md` → *Why a PR at all, for one developer* — it holds the two reasons, and
+   marks which of them a staged review leaves standing.
+
 ## Notes
 
 - Do not set reviewers or labels. Nobody is reviewing it, and triage labels live on the Linear
