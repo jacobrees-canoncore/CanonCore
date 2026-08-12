@@ -107,6 +107,49 @@ git branch -f main origin/main                    # put main back where it was
 If `main` has already been pushed, stop — that is a different problem, and not one to fix from
 inside a PR command.
 
+### The local `main` is permanently stale in a worktree
+
+**`main` stays checked out at `/Users/jacobrees/orca/projects/CanonCore` for as long as the
+project exists**, while every ticket is worked from a worktree under
+`/Users/jacobrees/orca/workspaces/CanonCore/`. That is the standing layout rather than a
+property of one session, and it changes what two ordinary commands mean. This is the first
+consequence; *The merge reports failure after it has succeeded*, below, is the second.
+
+Nothing a worktree does moves the local `main` ref. `git fetch` advances `origin/main` and
+leaves `main` alone; `git pull` here pulls the ticket branch, because `main` is not the branch
+this working tree has checked out; and `git branch -f main` and `git fetch origin main:main`
+are both refused outright, for the same reason `--delete-branch` is. Only a `git pull` in the
+project checkout moves it, so it falls a commit further behind with every merge that lands.
+
+A count taken against that ref therefore reads *behind* almost every time, and almost every
+time that means nothing:
+
+```bash
+git rev-list --left-right --count origin/main...main   # behind <TAB> ahead
+```
+
+A branch cut from the remote base — which is what `orca worktree create` gives you — is on the
+remote base whatever the count says. Observed on CAN-46: `1	0` while the branch was in perfect
+shape.
+
+**So ask where `HEAD` sits, not where the local ref sits.**
+
+```bash
+git merge-base --is-ancestor origin/main HEAD   # exit 0: HEAD already contains origin/main
+```
+
+`--is-ancestor` checks whether the first commit is an ancestor of the second and exits 0 if it
+is, 1 if it is not ([git merge-base](https://git-scm.com/docs/git-merge-base)). Exit 0, and there is
+nothing to rebase — a rebase onto `origin/main` is a no-op. Exit 1, and the branch really is on
+a stale base. `/draft-pr` step 5 makes exactly this distinction, and this is why it has to.
+
+**Two limits on that check**, and both matter because the step that uses it is the one guarding
+what goes into a PR. It answers the *behind* reading only: commits sitting on the local `main`
+that nothing has pushed are a real problem whatever it says, and the recovery for those is
+directly above. And it cannot tell a diverged base from a stale one, because `HEAD` fails to
+contain `origin/main` in both — so read the *ahead* count first, and stop there when it is
+non-zero rather than reaching for this.
+
 ## The `gh` account trap
 
 Three GitHub accounts are authenticated on this machine — `jacobdrees`, `jacobreesdev` and
@@ -352,10 +395,9 @@ re-reads at the moment it is broken.
 
 `--delete-branch` deletes "the local and remote branch after merge"
 ([gh pr merge](https://cli.github.com/manual/gh_pr_merge)), and deleting the local branch means
-`gh` has to put you back on the base branch first. Under Orca it cannot. `main` stays permanently
-checked out at `/Users/jacobrees/orca/projects/CanonCore` while ticket work happens in a worktree
-under `/Users/jacobrees/orca/workspaces/CanonCore/`, so git refuses —
-`fatal: 'main' is already used by worktree at …` — and `gh` exits non-zero. Making `-d` work
+`gh` has to put you back on the base branch first. Under Orca it cannot: `main` is permanently
+checked out elsewhere (*The local `main` is permanently stale in a worktree*, above), so git
+refuses — `fatal: 'main' is already used by worktree at …` — and `gh` exits non-zero. Making `-d` work
 under worktrees is an open request, filed in 2021
 ([cli/cli#3442](https://github.com/cli/cli/issues/3442)).
 
