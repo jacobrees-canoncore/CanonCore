@@ -68,10 +68,11 @@ policy and the reasoning; this is the procedure. `/review-pr` lands it afterward
 
    Say which base you chose, in one sentence.
 
-5. **Check the base is level with its remote.** GitHub computes the PR against
-   `origin/<base>`, not against the local ref. A local base carrying unpushed commits puts
-   every one of them in the PR, and the range in step 6 will not show them, because it reads
-   the local ref too. That is how a four-file change opens as ten.
+5. **Check the base, and whether the branch is on it.** GitHub computes the PR against
+   `origin/<base>`, not against the local ref, and so does step 6. A local base carrying
+   unpushed commits puts every one of them in the PR, which is how a four-file change opens as
+   ten. A local base that has merely fallen behind puts nothing anywhere. Telling those two
+   apart is the whole of this step.
 
    ```bash
    git fetch origin <base>
@@ -80,19 +81,45 @@ policy and the reasoning; this is the procedure. `/review-pr` lands it afterward
 
    `0	0` — carry on.
 
-   **Ahead.** The local base holds commits the remote does not, and this branch sits on top of
-   them. Stop. Either push the base first, if those commits belong on it, or lift this branch
-   off them:
+   Read the two numbers as one shape rather than one at a time. **A non-zero *ahead* count ends
+   the step**, whatever the behind count says; the gate further down applies to the behind
+   reading only.
+
+   **Ahead (`0	n`).** The local base holds commits the remote does not, and this branch sits on
+   top of them. Stop. Either push the base first, if those commits belong on it, or lift this
+   branch off them:
 
    ```bash
    git rebase --onto origin/<base> <base>
    ```
 
-   **Behind.** The PR itself will be right, but the range you are about to read describes a
-   base that has moved. Rebase onto `origin/<base>` so what you read is what GitHub will show.
+   **Both (`n	m`).** The base has diverged. Stop and say so. Sorting that out is a deliberate
+   act on the repository, not something to do inside a PR command. Do not carry on into the
+   behind case below: its gate cannot tell a diverged base from a stale one, so a diverged base
+   reaches its rebase, which replays the base's unpushed commits onto this branch and makes them
+   permanently part of it.
 
-   **Both.** The base has diverged. Stop and say so. Sorting that out is a deliberate act on
-   the repository, not something to do inside a PR command.
+   **Behind only (`n	0`).** Expected under Orca, and usually not a problem: nothing a worktree
+   does moves the local `main` ref, so it is stale here as a matter of course
+   (`docs/agents/workflow.md` → Branches → *The local `main` is permanently stale in a
+   worktree*). Do not act on this count. Ask instead whether the branch already contains the
+   remote base:
+
+   ```bash
+   git merge-base --is-ancestor origin/<base> HEAD   # exit 0 = it does
+   ```
+
+   **Exit 0** — nothing to rebase, and step 6's range is already the one GitHub will show.
+   Carry on, and do not report the count as a finding.
+
+   **Exit 1** — the branch is genuinely on a stale base. Step 6 still describes the PR
+   correctly, so this is not about what you are about to read; it is that nothing has been
+   checked against the base this will merge into. Rebase, so that step 7's push runs the gates
+   against that base and any conflict surfaces here rather than in `/review-pr`:
+
+   ```bash
+   git rebase origin/<base>
+   ```
 
    This is a precondition, not a gate. `/review-pr` runs the gates; `docs/agents/workflow.md`
    names them.
