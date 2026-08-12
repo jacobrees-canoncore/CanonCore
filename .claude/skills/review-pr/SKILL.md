@@ -61,8 +61,30 @@ developer*). If it has not, say so and stop.
    errors while no required check has reported. `docs/agents/workflow.md` → *The gates* has the
    references for all three.
 
+   **A third state, which neither of those names: registered, finished, never reported.** *Poll
+   first, watch second* separates *not registered yet* from *failed*. Neither separates either from
+   a check-run whose work has finished and whose record never closed — the run reads
+   `completed`/`success`, every step passed, and the check-run on that SHA still reads `in_progress`
+   with a null `completed_at`, so `bucket` stays `pending` and the watch runs all the way to the
+   ceiling. Before concluding CI is slow, run the run-against-check-run cross-check in
+   `docs/agents/workflow.md` → *The gates*, which holds those two commands for the same reason it
+   holds the gate commands.
+
+   **If it reads stuck, the remedy is a fresh run, not a longer wait** — waiting cannot resolve it.
+   `gh run rerun <run-id>` first; an empty commit pushed to the branch if that does not clear it.
+   **Do not reach for a rebase**, which is the reflex and is a no-op in a worktree whose `HEAD`
+   already contains `origin/main`, so it produces no new SHA and no new run; `workflow.md` gives the
+   one condition under which it is worth trying. Then start this step again on the SHA the fresh run
+   belongs to. Do not edit `.github/workflows/ci.yml`: `workflow.md` has the evidence that this is
+   GitHub's record rather than the pipeline, and that the record back-fills itself afterwards, so
+   the cross-check only answers while the wait is still on.
+
    Put a ceiling on the wait, around fifteen minutes, and report a timeout as a stop rather than a
-   pass.
+   pass. **Run the cross-check above before reporting that timeout, and say which of the two states
+   it was**, because they send the reader in opposite directions: *CI is still running after fifteen
+   minutes* invites waiting longer, and *CI passed eight minutes ago and its check-run never closed*
+   means waiting longer can only fail. A stop that names the wrong cause costs the next attempt as
+   well as this one.
 
    **Then re-read the head SHA.** If it moved while you waited, the result describes a commit that
    is not the one you are about to merge. Wait again on the new one, and carry the final SHA to
