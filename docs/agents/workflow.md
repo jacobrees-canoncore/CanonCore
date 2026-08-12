@@ -302,8 +302,10 @@ without this step the first machine to find out is the one doing the deploy. It 
 from the three because the three are what CAN-22 required; this one is ours.
 
 All four run in one Actions job, `test, typecheck, lint, build`, in that order, so the first
-failure stops the rest. That is the single check a pull request reports, and the one CAN-40's
-ruleset should require.
+failure stops the rest. That is the single check a pull request reports, and — since CAN-40 — the
+one `main`'s ruleset requires by that name. One job means one context: requiring the three commands
+as three contexts would require names nothing emits, and *What `main` refuses* below says why that
+is worse than requiring too little.
 
 **Cancellation is scoped to branches other than `main`.** Superseding a run is only safe where a
 later commit replaces the earlier one as the thing being judged, which is true on a branch and
@@ -343,8 +345,9 @@ from *CI failed*:
   existed for was closed *not planned* ([cli/cli#7401](https://github.com/cli/cli/issues/7401)). For
   a few seconds after a push the API reports no checks at all and `--watch` exits instead of waiting.
 - **Do not pass `--required`.** It errors when no required check has reported
-  ([cli/cli#9682](https://github.com/cli/cli/issues/9682)), which is every pull request until the
-  ruleset below exists.
+  ([cli/cli#9682](https://github.com/cli/cli/issues/9682)). The ruleset below defines required
+  checks, so this no longer describes every pull request — it describes the poll window at the
+  start of every one of them, which is exactly where the wait begins.
 
 So poll `gh pr checks <n> --json bucket || true` until it returns something, *then* watch. `bucket`
 sorts each check into `pass`, `fail`, `pending`, `skipping` or `cancel`, and that is the field to
@@ -448,6 +451,36 @@ CanonCore equivalents are unknown. Add them here as they appear, and prefer maki
 executable check over leaving it as prose — a rule that lives only in prose is one nobody
 re-reads at the moment it is broken.
 
+### What `main` refuses
+
+Everything above is a wait. A wait is a step, and a step can be skipped — which is what CAN-40
+fixed, by moving the last word from the skill to the repository. Since 12 August 2026 `main` carries
+a ruleset, and GitHub refuses a merge that the checks do not support whatever the skill running it
+believes. The provisioned form — the rule list, the two context names, why only those, and why
+branches are not required to be up to date — is in
+[`docs/infrastructure.md`](../infrastructure.md) → *The repository, and what `main` refuses*, because
+it is repository configuration and no file here can assert it. What belongs here is what it means
+for the loop:
+
+- **Squash is no longer a convention.** `allow_merge_commit` and `allow_rebase_merge` are off, so
+  the repository offers nothing else, and `required_linear_history` refuses a merge commit reaching
+  `main` by any other route.
+- **The remote branch deletes itself on merge.** See *The merge reports failure after it has
+  succeeded* below, which is the step that changes.
+- **Never pass `--admin` to `gh pr merge`.** There is no bypass actor to use it, so the flag cannot
+  work — but reaching for it is what an agent does when a merge is refused, and an agent that got it
+  working would have removed the guard rather than passed it.
+- **A refused merge is a stop, not a retry.** `gh pr view <n> --json mergeStateStatus,mergeable`
+  says whether GitHub will take it, which is a better question than what the merge command printed.
+  If it refuses, the wait above ended somewhere it should not have; find out where, rather than
+  merging again.
+
+**The wait does not become redundant.** The ruleset refuses; it does not wait, and it does not
+report. Without the wait, `/review-pr` reaches the merge while CI is still queued, is refused, and
+has to work out from a rejection whether the branch is broken or simply early. The two halves do
+different jobs: the wait is how the landing succeeds, and the ruleset is what happens when the wait
+was skipped.
+
 ## The merge reports failure after it has succeeded
 
 `--delete-branch` deletes "the local and remote branch after merge"
@@ -475,12 +508,17 @@ remote branch by a route that needs no local checkout:
 ```bash
 gh pr merge <n> --squash --match-head-commit <SHA>   # no --delete-branch
 gh pr view <n> --json state,mergedAt                 # this is the source of truth
-git push origin --delete <branch>                    # only once the read says MERGED
+git ls-remote --heads origin <branch>                # empty output: already gone, which is normal
 ```
 
-Order matters in the third line. Deleting the remote branch of a PR that did *not* merge closes
-the PR and throws away the pushed copy of the work. After a confirmed merge it is safe to repeat —
-if something already removed the branch, git says so and there is nothing to lose.
+**Since CAN-40 the remote branch deletes itself.** `delete_branch_on_merge` is on
+(`docs/infrastructure.md`), so GitHub removes the head branch as the merge lands and the third line
+is a confirmation rather than a step. **Read its output, not its exit code** — the same rule as the
+two lines above it. `--exit-code` would make the ordinary case exit 2 and abort the healthy path
+under `set -e`, which is the trap `|| true` exists for in *The gates*; without the flag, no match
+prints nothing and exits 0. Run `git push origin --delete <branch>` only if the branch is still
+there, and only once `state` says `MERGED` — deleting the remote branch of a PR that did *not*
+merge closes the PR and throws away the pushed copy of the work.
 
 The local branch stays behind, and that is correct: Orca's worktree owns it, and removing the
 worktree takes the branch with it.

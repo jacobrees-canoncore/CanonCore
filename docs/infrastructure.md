@@ -59,6 +59,105 @@ The Vercel GitHub App is installed on `jacobrees-canoncore` scoped to this one r
 parameter in Vercel's import URL controls, it is therefore not an account-level cap. Waveger was
 never at risk.
 
+## The repository, and what `main` refuses
+
+Provisioned by CAN-40 on 12 August 2026, and blocked until then: a required status check that never
+reports blocks every merge for ever, so none of this could exist before CAN-22 gave the repository
+checks to require.
+
+`docs/agents/workflow.md` says squash-merge only, and that the gate is GitHub's copy of the checks
+rather than a local run. Until now both were policy a skill could simply not follow. They are now
+settings, which is the only form in which either survives an agent that skips a step.
+
+### Merge methods
+
+| Setting | Value |
+| --- | --- |
+| `allow_squash_merge` | `true` |
+| `allow_merge_commit` | `false` |
+| `allow_rebase_merge` | `false` |
+| `delete_branch_on_merge` | `true` |
+
+The middle two were `true` until CAN-40. **`delete_branch_on_merge` changes a step rather than
+merely tidying up**: GitHub deletes the head branch itself the moment the PR merges, so
+`/review-pr`'s remote-branch delete now runs against a branch that is already gone.
+`docs/agents/workflow.md` → *The merge reports failure after it has succeeded* carries what that
+changes about the step; this file records only that the setting is on.
+
+### The ruleset
+
+One ruleset, `main`, id `20761164`, `enforcement: active`, targeting `~DEFAULT_BRANCH` — which
+resolves to `main` and keeps resolving to whatever the default branch is, so renaming the branch
+cannot silently unprotect it.
+
+| Rule | What it does |
+| --- | --- |
+| `required_status_checks` | `test, typecheck, lint, build` and `Vercel` must both be green on the commit |
+| `required_linear_history` | No merge commits reach `main` |
+| `non_fast_forward` | `main` cannot be force-pushed |
+
+Read it back with:
+
+```bash
+gh api repos/jacobrees-canoncore/CanonCore/rules/branches/main
+gh api repos/jacobrees-canoncore/CanonCore/rulesets/20761164 --jq '{bypass_actors,current_user_can_bypass}'
+```
+
+**Nobody bypasses it.** `bypass_actors` is empty, and the second command returns
+`"current_user_can_bypass": "never"` when run as `jacobdrees`, which holds `admin` on this
+repository. That is the reading that matters: an admin bypass would make the whole thing decorative,
+because `gh pr merge --admin` would then land an unchecked commit and the guard would only ever stop
+someone who was not trying. What that obliges the landing skill to do is
+`docs/agents/workflow.md` → *What `main` refuses*.
+
+**No approving-review requirement, and no `pull_request` rule at all.** Solo, a required review can
+only block — there is nobody to give it. Requiring a pull request would be a separate decision from
+the one CAN-40 made, and the status-check rule already refuses a `main` that carries no green
+checks.
+
+### Why those two contexts, and only those
+
+The names are the ones GitHub actually reports, read off merged pull requests rather than guessed:
+
+| Context | Where it comes from |
+| --- | --- |
+| `test, typecheck, lint, build` | The `name:` of the single job in `.github/workflows/ci.yml`. For a workflow, *"the name format is `<job name>`"* ([Troubleshooting rules](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-rulesets/troubleshooting-rules#troubleshooting-required-status-checks)), so the commas are part of the context. |
+| `Vercel` | A commit **status**, not a check run — the same page's rule for *other checks* — posted by the Vercel GitHub App for the deployment. A ruleset accepts either kind. |
+
+**A required context that never reports blocks the merge indefinitely.** Nothing turns it green,
+so the requirement never clears and the wait has no end — which is a different failure from a red
+check, and a worse one. A context therefore only belongs here if it reports on every pull request.
+
+Both of these were confirmed present and `SUCCESS` on the five most recent merged pull requests
+(#80, #81, #82, #85, #86), all of which were documentation-only. That last part is what was actually
+in doubt: with **Include files outside the root directory** on (see **Hosting**), Vercel builds a
+change that touches nothing under `apps/web`, so it reports on those PRs too.
+
+**`Vercel Preview Comments` is deliberately not required.** Vercel posts it as a third check, but it
+records that a comment was written, not that a deployment succeeded — requiring it would gate the
+merge on something that is not evidence about the build.
+
+**The check contexts are one, not three.** The ticket asked for the three gate commands as three
+contexts. `ci.yml` runs all four commands in one job so the first failure stops the rest, which
+means the pull request reports one check. Requiring three names that nothing emits is the trap in
+the paragraph above, so the requirement is the job that exists.
+
+**Branches are not required to be up to date** — `strict_required_status_checks_policy` is `false`,
+which is GitHub's *loose* setting rather than its default. Strict *"is the default behavior for
+required status checks"* and costs a rebase whenever the base moves: *"More builds may be required,
+as you'll need to bring the head branch up to date after other collaborators update the target
+branch."* Solo, with one branch open at a time, that is paid on every landing to guard a race that
+needs two people.
+
+**What loose gives up is named in the same table**, and is worth reading rather than assuming it is
+free: *"Status checks may fail after you merge your branch if there are incompatible changes with
+the base branch"* ([Available rules for
+rulesets](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-rulesets/available-rules-for-rulesets#require-status-checks-to-pass-before-merging)).
+Here that means a green pull request can still break `main`, and pushing `main` deploys to
+production. The run on `main` itself is what catches it — CI is `on: push`, so the merge commit is
+tested too, and `docs/agents/workflow.md` → *After the merge* is the step that looks. Turn strict on
+if a second person starts landing work, or if two branches are ever routinely open at once.
+
 ## Database
 
 | | |
