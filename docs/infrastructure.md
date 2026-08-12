@@ -65,7 +65,8 @@ never at risk.
 | --- | --- |
 | Provider | Neon, via the Vercel-managed marketplace integration |
 | Neon project | `steep-wave-52467839`, resource `store_ft1xdGxeaZQCEbN7` |
-| Production branch | `main` (Neon's default branch, and the only one so far). Note it shares a name with the repository's `main` and is a different thing. |
+| Production branch | `main` (Neon's default branch). Note it shares a name with the repository's `main` and is a different thing. |
+| Other branches | One `preview/<git-branch>` per git branch with an open preview deployment, created automatically. See *Preview branching was off, and is now on* |
 | Region | `eu-west-2` (London) |
 | Plan | Launch, billed through Vercel |
 | Neon Auth | **Disabled.** ADR-0005 settled on better-auth; the integration would otherwise provision a competing auth system. |
@@ -103,12 +104,29 @@ attribute always bypass the row security system."*
 `DATABASE_URL` is production-only on purpose, and that part still holds: a static connection string
 must not be the thing a preview uses, because a preview must not read production data.
 
-**How a preview is meant to get its own is now in doubt.** CAN-18 designed it as previews composing
-their URL at runtime from an injected `NEON_PGHOST` plus `DATABASE_APP_USER` and
+**How a preview gets its own was in doubt, and the cause is now known.** CAN-18 designed it as
+previews composing their URL at runtime from an injected `NEON_PGHOST` plus `DATABASE_APP_USER` and
 `DATABASE_APP_PASSWORD`, on the assumption that each preview deployment gets its own Neon branch on
-a different host. CAN-22 tested that assumption and found no evidence for it — see *Preview
-branching does not appear to happen* below. **Do not build against the composed URL until that is
-settled.**
+a different host. CAN-22 tested that assumption and found no evidence for it. CAN-45 then read
+Neon's branch list and found the reason: **branching was switched off**, so for the whole of CAN-18
+and CAN-22 the design described an intent rather than the platform's behaviour. It is on as of
+12 August 2026, and a real preview branch has since been observed carrying the credentials the
+design needs — see *Preview branching was off, and is now on* below.
+
+**The composed URL rests on two things, and only one of them was observed.** Keep them apart, because
+the untested half is the one that would silently point a preview at production:
+
+| Half | Standing |
+| --- | --- |
+| A branch exists, with `canoncore_app` usable on it, at a host that is not production's | **Observed.** The table below compares both, measured |
+| The branch's `NEON_PGHOST` actually reaches the preview's runtime, in place of the static project-level value | **Cited, not observed.** Neon states the branch variables are "injected via webhook at deployment time, overriding preview environment variables for this deployment only" ([preview branching](https://neon.com/docs/guides/vercel-native-integration-previews)) |
+
+> **No preview runtime has yet reported the host it resolved**, so the second half is the provider's
+> documented behaviour rather than something this repository has watched happen. It cannot be checked
+> from outside a running deployment: the injected values never appear in `vercel env pull`, by design.
+> [CAN-23](https://linear.app/jacobrees-canoncore/issue/CAN-23) is the first code to connect to
+> Postgres and is where it gets confirmed. **Until it does, treat the composed URL as sound in design
+> and unproven in execution**, and have CAN-23 assert the host it connected to rather than assume it.
 
 **This departs from CAN-18 as written.** That ticket asked for "the application role's connection
 string is a Vercel environment variable for production **and preview**". Taken literally it is
@@ -117,32 +135,109 @@ exist when the variable is set, and setting one would have pointed previews at p
 which the very next criterion forbids. The criterion was met in substance, by a different mechanism,
 rather than to the letter.
 
-### Preview branching does not appear to happen
+**A Neon branch does inherit its parent's role passwords, and that is now measured rather than
+assumed.** It was the assumption the composed URL rests on, and CAN-22 could not test it because
+there was no branch to connect to. CAN-45 read Neon's `connection_uri` for `canoncore_app` on both
+`main` and the first preview branch and compared them:
 
-CAN-18 could not test this, because testing it needs a real preview deployment. CAN-22 produced the
-first one — [PR #59](https://github.com/jacobrees-canoncore/CanonCore/pull/59), commit `3d9eea9`,
-deployed 12 August 2026 — and looked. **Two observations, both negative:**
+| | `main` | the preview branch |
+| --- | --- | --- |
+| Role | `canoncore_app` | `canoncore_app` |
+| Password | 28 characters, SHA-256 `8606a49d65d8…` | **identical on both counts** |
+| Host | `ep-aged-moon-zaujrwy4-pooler.c-2.eu-west-2.aws.neon.tech` | `ep-misty-math-zamlwlio-pooler.c-2.eu-west-2.aws.neon.tech` |
 
-| Check | Result |
+Same credential, different host, which is exactly the shape the design assumed. **So the recorded
+fallback — read the branch's own `NEON_DATABASE_URL` and swap only the credentials — buys nothing the
+composed URL does not already have, and should not be built** unless CAN-23 finds the injection half
+above does not hold.
+
+The passwords were compared by digest on purpose. `DATABASE_APP_PASSWORD` is a Vercel *sensitive*
+variable and cannot be read back, and a password does not belong in a commit or a transcript, so the
+check returned a hash and a length rather than the value. Anyone repeating it should do the same.
+
+### Preview branching was off, and is now on
+
+**CAN-18 recorded that automated preview branching "is not exposed as a toggle on either dashboard".
+That is wrong, and being wrong about it is why no branch was ever created.** It is exposed, on the
+Vercel side, at *Integrations -> Neon -> the `canoncore` resource -> Projects -> the row's menu ->
+Update Project Connection*. The dialog is *Configure canoncore* and it carries a **Create Database
+Branch For Deployment** control with `Preview` and `Production` checkboxes.
+
+Half of the CAN-18 sentence holds: **Neon's own dashboard genuinely has nothing.** Its Integrations
+page lists Vercel under *Added* and offers a single "Manage Neon subscription" button, which hands
+straight back to Vercel. Looking there and concluding the feature is absent is the easy mistake, and
+it is the one that was made.
+
+**The checkboxes are greyed out until `Require Active Resource Before Deploy` reads `Required`.**
+That is what makes the setting so easy to miss even on the right page: it is not absent, it is
+disabled behind a second setting, and a greyed-out control reads like an unavailable feature rather
+than an unmet prerequisite. Neon's
+[preview branching guide](https://neon.com/docs/guides/vercel-native-integration-previews) gives the
+same order, telling you to toggle `Required -> Preview` and to ensure "Resource must be active before
+deployment is also on".
+
+**Read from the Neon dashboard on 12 August 2026, before any change was made:** the project's branch
+list showed **`1 / 5000 Branch`** and `main` alone, no parent, created two days earlier. That is the
+direct look at Neon's branch list which
+[CAN-45](https://linear.app/jacobrees-canoncore/issue/CAN-45) said would settle it. It settles it: the repository's
+first preview deployment ([PR #59](https://github.com/jacobrees-canoncore/CanonCore/pull/59), commit
+`3d9eea9`) created no branch, with the consequence recorded above:
+a preview composing its connection string from `NEON_PGHOST` would have reached production's host.
+
+Set on 12 August 2026 by CAN-45, on the `canoncore` project's connection:
+
+| Setting | Value |
 | --- | --- |
-| `NEON_PGHOST` and `NEON_PROJECT_ID`, preview against production | **Identical.** Same endpoint, same project, one static value covering Production, Preview and Development |
-| The preview deployment's build log, searched for Neon activity | **Nothing.** The only line matching "branch" is the git clone |
+| Require Active Resource Before Deploy | **Required** |
+| Create Database Branch For Deployment | **`Preview`** only. `Production` deliberately left unchecked |
 
-So a preview composing its URL from `NEON_PGHOST` today would connect to **production's** host —
-the precise outcome the design above exists to prevent.
+`Production` is unchecked because production must run against `main` itself, not a per-deployment
+copy of it. **Turning `Required` on is not free, and was accepted knowingly**: it gates *production*
+deploys as well, so a deploy now fails if the Neon resource is unavailable instead of building
+without it. That is the price of the `Preview` checkbox and there is no way to pay only part of it.
 
-**This is evidence, not proof, and the gap is worth naming.** `vercel env pull` reads *project-level*
-variables, so a value injected per deployment would not appear in it; the silent build log is what
-makes absence the better reading of the two. Neither observation is a look at Neon's own branch list,
-which is the one thing that would settle it and needs the Neon dashboard.
+**Neither of CAN-22's two checks can detect this, before or after the change, and both must be
+retired.** That matters more than it sounds: they are the obvious things to reach for, and both
+return the same answer whether branching is on or off.
 
-**The second CAN-18 question is unanswerable while this stands.** Whether a Neon branch inherits role
-passwords from its parent cannot be tested by connecting to a preview branch as `canoncore_app` when
-there is no preview branch to connect to. The recorded fallback — read the branch's own injected
-`NEON_DATABASE_URL` and swap only the credentials — assumes a branch too.
+| CAN-22's check | Why it proves nothing |
+| --- | --- |
+| `NEON_PGHOST` in `vercel env pull`, preview against production | Per Neon's guide the branch variables are "injected via webhook at deployment time" and "cannot be accessed or viewed in your Vercel project's environment variable settings". `vercel env pull` reads project-level values, so it still shows one static host for all three environments |
+| The preview build log, searched for Neon activity | **Still completely silent.** The branch is created by the platform out of band, not by the build. The only line matching "branch" is still the git clone |
 
-Carried by [CAN-45](https://linear.app/jacobrees-canoncore/issue/CAN-45). CAN-22 recorded this and
-raised it rather than fixing it, which is what CAN-22 asked for.
+**Only Neon's branch list answers the question.** That is the check to repeat.
+
+### What a preview branch actually looks like
+
+Observed on the first preview deployment after the change, 12 August 2026:
+
+| | |
+| --- | --- |
+| Branch | `preview/jacobreesnew/can-45-preview-deployments-do-not-appear-to-get-their-own-neon` |
+| Id, parent | `br-restless-bread-za5ebaq1`, parent `main` |
+| Created by | **Vercel**, at 12:51:21 +01:00, two seconds before the build started |
+| Carries | `canoncore_app` and `canoncore_migrator`, both stamped created two days earlier, i.e. copied from `main` rather than issued fresh |
+
+The credentials on it were compared against `main`'s under *Where the credentials live* above, which
+is where that table stays: it is the evidence for the composed URL and belongs next to the claim it
+supports, not here with the branch's shape.
+
+The branch name is `preview/` plus the **git branch**, so it is one branch per git branch and not one
+per deployment: the second push to the same branch reused it rather than making another.
+
+**A branch is created even when the build fails.** The one above was created by the deployment that
+errored on `The specified Root Directory "apps/web" does not exist`, and survived to serve the
+successful build a minute later. **That error was not the Root Directory setting being wrong** — it is
+`apps/web` and has been since CAN-22, as recorded above. The branch being built simply predated
+CAN-22's merge and so did not contain that directory yet; rebasing onto `main` fixed it. A stale
+branch, not a broken project.
+
+So a failed preview still costs a Neon branch. They are cleaned up rather than kept forever, but not
+promptly: Neon deletes a preview branch "when their corresponding Vercel deployments are removed",
+and that "depends on Vercel's deployment retention policy, which retains preview deployments for
+6 months by default", so branches "can persist long after a PR is closed"
+([preview branching](https://neon.com/docs/guides/vercel-native-integration-previews)). Budget for
+one live branch per git branch that has ever had a preview, not per open PR.
 
 ## External data source: TMDB
 
