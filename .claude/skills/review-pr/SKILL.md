@@ -11,9 +11,12 @@ are the gates; this is the procedure.
 Solo, "mark ready" signals nobody and GitHub simply refuses to merge a draft, so it is a step
 on the way rather than the destination. This skill is the landing.
 
-**A code review should already have run against this branch.** The one `/implement` runs before
-its commit does not satisfy this (`docs/agents/workflow.md` → *Why a PR at all, for one
-developer*). If it has not, say so and stop.
+**A code review should already have covered this branch's range.** `/implement`'s own review
+satisfies that when it ran against the committed change — `docs/agents/workflow.md` → *The review
+runs once, and `/implement` is normally where*. Do not send the user back for a second pass over a
+range that has already been reviewed. Stop only when no review covered it: `/implement` never ran,
+it ran without staging first, or commits have landed since. Ask rather than assume when this
+session cannot tell.
 
 `WS=ad2669ec-93a5-4ce1-97fa-c7d9247a1452` throughout.
 

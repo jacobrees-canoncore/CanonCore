@@ -194,19 +194,21 @@ policy and the reasoning; this is the procedure. `/review-pr` lands it afterward
    this skill entirely (`docs/agents/issue-tracker.md` → *A description write must not be bundled
    with anything else*).
 
-11. **Report the PR URL** and say that a code review comes next. If you mention the checks or the
-   preview, be accurate about what queued them: **step 7's push did, not step 9's PR creation.**
-   Both the workflow and Vercel trigger on push, so they were already running before the PR
-   existed.
+11. **Report the PR URL**, and say that `/review-pr` is what comes next. If you mention the checks
+   or the preview, be accurate about what queued them: **step 7's push did, not step 9's PR
+   creation.** Both the workflow and Vercel trigger on push, so they were already running before
+   the PR existed.
 
-   **Do not wait for those checks here.** They were queued seconds ago, so waiting blocks for a full
-   run before anyone has read the diff; `/code-review` comes next and does not need them; and any
-   green seen now is stale the moment the review changes the branch. `/review-pr` waits, and it
-   waits because it merges.
+   **Do not tell the user to run a code review that has already run.** `/implement` runs it, and
+   `docs/agents/workflow.md` → *The review runs once, and `/implement` is normally where* says that
+   is the review — asking for a second pass on the same range is the noise this line exists to
+   prevent. Say a review is needed only in the three cases that section names, and say which one
+   applies: `/implement` never ran, it ran without staging first, or the branch has gained commits
+   it never saw. Ask rather than assume when you cannot tell from this session.
 
-   **The review that comes next is not the one `/implement` ran.** Say so, and cite
-   `docs/agents/workflow.md` → *Why a PR at all, for one developer* — it holds the two reasons, and
-   marks which of them a staged review leaves standing.
+   **Do not wait for the checks here either.** They were queued seconds ago, so waiting blocks for
+   a full run before anyone has read the diff, and any green seen now is stale the moment anything
+   changes the branch. `/review-pr` waits, and it waits because it merges.
 
 ## Notes
 

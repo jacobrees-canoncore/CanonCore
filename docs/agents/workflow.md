@@ -18,38 +18,61 @@ rule belongs here, a step belongs in the skill.
 
 ## Why a PR at all, for one developer
 
-There is nobody to review it, so the PR is not doing what a PR usually does. It earns its
-place twice over anyway:
+There is nobody to review it, so the PR is not doing what a PR usually does. It earns its place
+anyway, and the reason is the deployment rather than the review:
 
-- **A branch is a gate before production.** On Vercel, pushing `main` deploys straight to
+- **A branch is the gate before production.** On Vercel, pushing `main` deploys straight to
   production. So the branch *is* the only gate there is, which makes the PR non-optional rather
   than a nicety.
+- **`main` refuses anything else.** Since CAN-40 its ruleset requires the checks by name, so a
+  commit that has not been through them cannot land by any route — *What `main` refuses* below.
+
+**Two further reasons are often given, and they are about the review rather than the PR.** They
+are the pack's own, in `implement.md` and `code-review.md` under
+`~/.claude/plugins/cache/claude-plugins-official/mattpocock-skills/<version>/docs/engineering/`:
+
 - **`/code-review` compares against a commit.** Its first step resolves the fixed point and
   refuses an empty diff, and the diff it reads is `<fixed-point>...HEAD`, which excludes staged
   and working-tree changes — so unless an interim commit already exists there is nothing in it
   to review. `/implement` runs the review as its second-to-last step and commits *after* it,
-  which lands it in exactly that gap. A branch and a PR give it a real range. (Staging first and
-  pointing it at `git diff --cached` works. What it works around is that ordering, not a missing
-  branch — `/implement` reviews before it commits whether or not a branch exists.)
-- **A session does not review its own work.** The pack's second reason for not leaning on
-  `/implement`'s built-in review, and the stronger one: "Same context reviewing itself isn't
-  review, it's confirmation bias with a slash command." A fresh session is free once the branch
-  is pushed, because the PR carries the range that session would otherwise lack.
+  which lands it in exactly that gap.
+- **A session does not review its own work.** "Same context reviewing itself isn't review, it's
+  confirmation bias with a slash command."
 
-**Staging defeats one of those reasons and leaves the other standing.** *`/code-review` compares
-against a commit* is answered for that run and carries nothing further; *A session does not review
-its own work* does not move, because the session reviewing is still the session that wrote the
-code. A run that has just staged its way past the first therefore has the whole of the second left
-to answer — and on CAN-48 that surviving half earned its keep, the sub-agents finding a defect the
-implementing session had missed (CAN-63).
+Read them there, then read the next section, which is where this repo parts company with both.
 
-Both reasons are the pack's own, in `implement.md` and `code-review.md` under
-`~/.claude/plugins/cache/claude-plugins-official/mattpocock-skills/<version>/docs/engineering/`.
-Read them there. They are why the review sits where it does below, and they are stated here
-rather than in `CLAUDE.md`, which is read every turn.
+### The review runs once, and `/implement` is normally where
 
-So the states mean: **draft** is "not yet reviewed", **ready** is "reviewed, and it works".
-Nobody is being signalled — the states are for you.
+**Do not ask for a second review of a change `/implement` has already reviewed.** That is this
+repo's rule and it overrides the reflex, which is to treat the review as a step in the landing
+sequence and run it again because the branch is now pushed.
+
+The two reasons above look like they demand otherwise. Neither survives contact with what the
+review actually does:
+
+- *`/code-review` compares against a commit* is answered by **staging before the review**. Its
+  range is `<fixed-point>...HEAD`, which excludes the working tree, so an unstaged `/implement`
+  run reviews an empty or partial diff. Staged, it reviews the change that is about to be
+  committed. This is a precondition, not a workaround.
+- *A session does not review its own work* mistakes which context does the reviewing.
+  `mattpocock-skills:code-review` fans the work out to **parallel sub-agents that never saw the
+  implementing session's reasoning**, so the fresh eyes are in the sub-agents rather than in the
+  session that invokes them. CAN-48 is the evidence, and it is evidence about sub-agents rather
+  than about a second invocation: they found a defect the implementing session had missed
+  (CAN-63), and they would have found it from either caller.
+
+**What the implementing session does keep is the choice of what it hands them** — the range, the
+spec, the standards sources. That is the residual risk, and it is checkable rather than a matter
+of trust, which is why the claim to make is *"a review ran against this range"* and never *"a
+review ran"*.
+
+**So the review has not happened** when `/implement` did not run, when it ran without staging, or
+when the branch has since gained commits it never saw. In each of those the range it read is not
+the range being landed, and `/code-review` against the pushed branch is how to fix that. A rebase
+or a review-driven edit after the fact puts you in the third case.
+
+So the states mean: **draft** is "not yet checked against the gates", **ready** is "the gates are
+green and it works". Nobody is being signalled — the states are for you.
 
 ## Branches
 
@@ -247,13 +270,17 @@ git checkout main && git pull --ff-only
 git checkout -b CAN-11-welcome-email-queue    # or an Orca worktree, above
 # ...work, via /implement...
 /draft-pr                                     # push, open the draft, link Linear
-/mattpocock-skills:code-review main           # two-axis review against the branch point
 /review-pr                                    # gates, ready, squash-merge, close out Linear
 ```
 
-The review sits **after** `/draft-pr`, not inside `/implement` — *Why a PR at all* above has the
-two reasons, and the branch has to exist and be pushed for either of them to be answered.
-`CLAUDE.md`'s pipeline shows the same order.
+**No review step sits between those two**, because `/implement` already ran it — *The review runs
+once, and `/implement` is normally where* above says when that counts and when it does not.
+`CLAUDE.md`'s pipeline shows the same order. Reach for the line below only in the cases that
+section names, and pass the point the branch was cut from:
+
+```bash
+/mattpocock-skills:code-review main           # two-axis review against the branch point
+```
 
 Two different things answer to the name *code review* and it is worth keeping them apart:
 `mattpocock-skills:code-review` is the two-axis Standards/Spec review that takes a fixed
