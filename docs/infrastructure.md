@@ -239,6 +239,27 @@ and that "depends on Vercel's deployment retention policy, which retains preview
 ([preview branching](https://neon.com/docs/guides/vercel-native-integration-previews)). Budget for
 one live branch per git branch that has ever had a preview, not per open PR.
 
+**That persistence is now measured rather than quoted, on CAN-47.** CAN-46's branch outlived
+everything that made it:
+
+| | |
+| --- | --- |
+| Branch | `preview/CAN-46-pr-skills-say-skeleton-missing`, `br-rapid-boat-zav226ha` |
+| Created by | Vercel, 12 August 2026 15:44:25Z |
+| Its PR | [#63](https://github.com/jacobrees-canoncore/CanonCore/pull/63), **merged 15:48:18Z**, three minutes later |
+| Its git branch | **deleted from `origin`** by that merge |
+| The Neon branch, 24 minutes after the merge | `current_state: ready`. Still there |
+
+**What survives is the storage, not the compute.** That branch's compute suspended itself at
+15:49:30Z, five minutes after its last activity, and now reads `current_state: idle`. So an abandoned
+preview branch is not a running instance quietly billing, and because the branch is copy-on-write from
+`main` (`init_source: parent-data`, `written_data_bytes: 0`) it holds nothing of its own until
+something writes to it. The number of branches grows with every git branch that has ever had a
+preview; the compute bill does not follow it.
+
+Both readings above came from the `neon` MCP rather than the dashboard, which is what
+*Which tool owns what* in `CLAUDE.md` now points at for exactly this.
+
 ## External data source: TMDB
 
 Provisioned by CAN-19. *Why* TMDB, the licence conditions the import and the UI have to honour, and
