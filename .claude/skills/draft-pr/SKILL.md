@@ -94,8 +94,8 @@ policy and the reasoning; this is the procedure. `/review-pr` lands it afterward
    **Both.** The base has diverged. Stop and say so. Sorting that out is a deliberate act on
    the repository, not something to do inside a PR command.
 
-   This is a precondition, not a gate. `docs/agents/workflow.md` now names the gates, but they
-   are unbuilt until the walking skeleton exists, so there may still be nothing to run.
+   This is a precondition, not a gate. `/review-pr` runs the gates; `docs/agents/workflow.md`
+   names them.
 
 6. **Read the range**, against the remote base and now that the base is known — doing this
    earlier describes commits the PR will not contain, and doing it against the local ref
@@ -127,9 +127,9 @@ policy and the reasoning; this is the procedure. `/review-pr` lands it afterward
    ```
 
    Leave the boxes unticked — `/review-pr` ticks them once they are true. **Drop any line this
-   diff cannot apply to** rather than leaving it as noise, and drop the first two outright until
-   the walking skeleton exists, since until then there are no checks to run and nothing deployed
-   to look at. A checklist of things that cannot be done is worse than no checklist.
+   diff cannot apply to** rather than leaving it as noise: a checklist of things that cannot be
+   done is worse than no checklist. The first two apply to every change, so dropping either needs
+   a reason particular to the diff.
 
 9. **Create it.**
 
@@ -167,10 +167,10 @@ policy and the reasoning; this is the procedure. `/review-pr` lands it afterward
    this skill entirely (`docs/agents/issue-tracker.md` → *A description write must not be bundled
    with anything else*).
 
-11. **Report the PR URL** and say that a code review comes next. Say that opening the PR has queued
-   the repo's checks **only if `.github/workflows` holds any** — until it does, nothing is queued
-   beyond Vercel's deployment, and announcing checks that will later be reported as missing reads as
-   a CI outage rather than as the pre-skeleton state it is.
+11. **Report the PR URL** and say that a code review comes next. If you mention the checks or the
+   preview, be accurate about what queued them: **step 7's push did, not step 9's PR creation.**
+   Both the workflow and Vercel trigger on push, so they were already running before the PR
+   existed.
 
    **Do not wait for those checks here.** They were queued seconds ago, so waiting blocks for a full
    run before anyone has read the diff; `/code-review` comes next and does not need them; and any
