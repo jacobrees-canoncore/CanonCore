@@ -11,16 +11,35 @@ for `eslint-config-next` and `eslint-plugin-jsx-a11y`; and `ixartz/Next-js-Boile
 Nothing here comes from a comparison article or a listicle. Claims that could only be reached
 second-hand are marked **unverified**.
 
-> **Exclusion note.** Per this repository's standing constraint, no repository or page matching
-> `canoncore*`, `CanonCore*` or `universora*` was read, fetched, searched for or quoted. All three
-> research agents reported that no such result surfaced.
+> **Exclusion note.** Per this repository's standing constraint, no **earlier** CanonCore or
+> Universora repository — anything matching `canoncore*`, `CanonCore*` or `universora*` under any
+> account or org — was read, fetched, searched for or quoted. All three research agents reported
+> that no such result surfaced. This repository's own `jacobrees-canoncore/CanonCore` is cited
+> throughout and is not what the constraint excludes.
 
 ## What this produced
 
-Thirteen tickets, [CAN-49](https://linear.app/jacobrees-canoncore/issue/CAN-49) to
-[CAN-61](https://linear.app/jacobrees-canoncore/issue/CAN-61), and five amendments to existing ones
-— CAN-17 (a third test seam), CAN-23 (assert the resolved host), CAN-24 (auth hardening), CAN-30
-(the privacy notice), CAN-32 (what makes its accessibility criteria checkable).
+Thirteen tickets and five amendments to existing ones. Each is listed here so the document that is
+their shared evidence can actually reach them.
+
+| Ticket | What it does | Section below |
+| --- | --- | --- |
+| [CAN-49](https://linear.app/jacobrees-canoncore/issue/CAN-49) | Fail the build on a missing environment variable | *What v1 does not carry* |
+| [CAN-50](https://linear.app/jacobrees-canoncore/issue/CAN-50) | Record the styling decision as an ADR | *What CAN-22 already settled* |
+| [CAN-51](https://linear.app/jacobrees-canoncore/issue/CAN-51) | Sentry, because Hobby keeps logs one hour | *Observability* |
+| [CAN-52](https://linear.app/jacobrees-canoncore/issue/CAN-52) | `jsx-a11y` at `recommended`, as `error` | *Front-end quality as a gate* |
+| [CAN-53](https://linear.app/jacobrees-canoncore/issue/CAN-53) | Security headers, CSP report-only first | *Security posture* |
+| [CAN-54](https://linear.app/jacobrees-canoncore/issue/CAN-54) | Dependency and secret scanning | *Security posture* |
+| [CAN-55](https://linear.app/jacobrees-canoncore/issue/CAN-55) | A backup past Neon's six-hour window | *Data durability* |
+| [CAN-56](https://linear.app/jacobrees-canoncore/issue/CAN-56) | Uptime monitoring and alerting | *Observability* |
+| [CAN-57](https://linear.app/jacobrees-canoncore/issue/CAN-57) | Discoverability: sitemap, robots, Open Graph | *The product hole* |
+| [CAN-58](https://linear.app/jacobrees-canoncore/issue/CAN-58) | `axe-core` assertions in the E2E suite | *Front-end quality as a gate* |
+| [CAN-59](https://linear.app/jacobrees-canoncore/issue/CAN-59) | Decide whether Hobby can carry a public service | *Two platform facts that constrain everything else* |
+| [CAN-60](https://linear.app/jacobrees-canoncore/issue/CAN-60) | Lab budgets, react-doctor, field vitals | *Front-end quality as a gate* |
+| [CAN-61](https://linear.app/jacobrees-canoncore/issue/CAN-61) | `knip` and Renovate | *Rejected, with reasons* |
+
+The five amendments: CAN-17 (a third test seam), CAN-23 (assert the resolved host), CAN-24 (auth
+hardening), CAN-30 (the privacy notice), CAN-32 (what makes its accessibility criteria checkable).
 
 Each ticket cites this document rather than restating it, so **a claim that moves should move
 here**. The *Rejected* section near the end is the load-bearing half: it is why several obvious
@@ -74,10 +93,15 @@ rate limiting, performance, dependency scanning, or a unit-test layer.
 ### The compliance hole
 
 `content/legal/terms-of-service.md:128` carries `[ ] Link the privacy notice here once it exists
-(CAN-30)`. **CAN-30's acceptance criteria do not include writing one.** A merged document on `main`
-therefore makes a promise nothing in the plan keeps. A privacy notice is required by UK GDPR
-Article 13 independently of the Online Safety Act work, and it must name every processor: Vercel,
-Neon, Resend, and Sentry once added.
+(CAN-30)`, and when this research was done **CAN-30's acceptance criteria did not include writing
+one** — a merged document on `main` making a promise nothing in the plan kept.
+
+**Closed on 12 August 2026.** CAN-30 now carries a *The privacy notice, added 12 August 2026* block
+whose criteria include replacing that exact placeholder. The requirement itself is unchanged and is
+recorded here because the ticket cites it rather than restating it: a privacy notice is required by
+UK GDPR Article 13 independently of the Online Safety Act work, and it must name every processor —
+Vercel, Neon, Resend, and Sentry once [CAN-51](https://linear.app/jacobrees-canoncore/issue/CAN-51)
+adds it.
 
 ### The product hole
 
@@ -181,8 +205,10 @@ either way. Also raise the password minimum from 8 to 12.
 and push protection for users "Is enabled by default"
 ([about secret scanning](https://docs.github.com/en/code-security/secret-scanning/introduction/about-secret-scanning);
 [about push protection](https://docs.github.com/en/code-security/secret-scanning/introduction/about-push-protection)).
-This repository is public, so both apply at no cost. Dependabot alerts are included in GitHub Free
-for personal accounts, and Actions is free on public repositories. Socket's free tier is "Unlimited
+This repository is public, so both apply at no cost. GitHub Free for personal accounts includes
+"Dependabot alerts" and 2,000 Actions minutes a month, and "GitHub Actions usage is free for
+standard GitHub-hosted runners in public repositories, and for self-hosted runners"
+([GitHub's plans](https://docs.github.com/en/get-started/learning-about-github/githubs-plans)). Socket's free tier is "Unlimited
 developers & repos", 1,000 scans/month ([Socket pricing](https://socket.dev/pricing)) and catches
 install-script and malware supply-chain attacks that CVE-based scanners structurally cannot.
 
@@ -223,8 +249,10 @@ the table that grows without anyone noticing. Crossing it makes writes fail with
 **Core Web Vitals thresholds are unchanged**: LCP ≤ 2.5s, INP ≤ 200ms, CLS ≤ 0.1, at the 75th
 percentile of page loads segmented across mobile and desktop
 ([web.dev, Web Vitals](https://web.dev/articles/vitals)). INP fully replaced FID as a stable Core
-Web Vital in 2024 ([web.dev, INP](https://web.dev/articles/inp)). No fourth metric was found as of
-August 2026, but that is absence of evidence rather than a citation, so treat it as **unverified**.
+Web Vital in 2024 ([web.dev, INP](https://web.dev/articles/inp)). The web.dev page cited above
+**enumerates** the Core Web Vitals, and that enumeration is still LCP, INP and CLS as of August
+2026 — so "no fourth metric" is positive evidence from a primary source rather than an absence, and
+is not marked unverified.
 
 **Two of the three cannot be gated in CI, and the Chrome team says so.** On INP: lab tests "cannot
 accurately predict when users will choose to interact with a page, and thus cannot accurately
@@ -238,10 +266,13 @@ So any claim to "gate on Core Web Vitals in CI" is strictly false. **In CI you g
 static analysis, because those are exact. In production you monitor INP and CLS, because that is
 the only place they exist.**
 
-**Lighthouse CI is the de-facto standard and is effectively frozen.** `@lhci/cli` v0.15.1 released
-2025-06-26, with the last commit to `main` on the same day — roughly fourteen months of no
-activity — pinned to Lighthouse 12.6.1 while Lighthouse itself shipped v13.4.1 on 2026-07-20. No
-deprecation notice, and 1.45M weekly downloads. Its assertions support `minScore`, `maxLength` and
+**Lighthouse CI is the de-facto standard and is effectively frozen.** `@lhci/cli` v0.15.1 was
+published 2025-06-25 ([npm registry](https://registry.npmjs.org/@lhci%2Fcli)) and the last commit to
+`main` is `ebee453`, 2025-06-26 (`GET /repos/GoogleChrome/lighthouse-ci/commits/main`) — roughly
+fourteen months of no activity — while Lighthouse itself shipped v13.4.1 on 2026-07-20
+(`GET /repos/GoogleChrome/lighthouse/releases/latest`). No deprecation notice, and 1,455,527
+downloads in the week to 2026-08-09
+([npm downloads API](https://api.npmjs.org/downloads/point/last-week/@lhci/cli)). Its assertions support `minScore`, `maxLength` and
 `maxNumericValue`, with `median`, `optimistic`, `pessimistic` and `median-run` aggregation
 ([LHCI configuration](https://github.com/GoogleChrome/lighthouse-ci/blob/main/docs/configuration.md)).
 
@@ -260,8 +291,9 @@ ARIA attribute validity**: `aria-props`, `aria-proptypes`, `aria-unsupported-ele
 enables **29 rules as `error`**, including `alt-text`, `label-has-associated-control`,
 `click-events-have-key-events`, `anchor-is-valid`, `html-has-lang` and `iframe-has-title`. The
 Next.js ESLint documentation omits jsx-a11y from its stated plugin list entirely
-([Next.js, ESLint](https://nextjs.org/docs/app/api-reference/config/eslint)). Note also that
-`next lint` was removed in Next 16; use the ESLint CLI.
+([Next.js, ESLint](https://nextjs.org/docs/app/api-reference/config/eslint)). Note also that `next lint` was
+removed in Next 16 — the same page's version table records `v16.0.0`: "`next lint` and the `eslint`
+next.config.js option were removed in favor of the ESLint CLI", with a codemod offered to migrate.
 
 **Enable `jsx-a11y` at `recommended` and `error` explicitly.** The default catches essentially
 nothing anyone cares about, and warns rather than fails.
@@ -285,10 +317,16 @@ with it.
 
 ### react.doctor
 
-Published by Million Software, Inc. (`million.dev`), repo `millionco/react-doctor`, 14,353 stars.
-`react-doctor@0.9.11` published 2026-08-09; the package was **created 2026-02-13** and has shipped
-**750 versions** in six months, at 1.5M weekly downloads. Genuinely popular, still pre-1.0,
-churning fast.
+Published by Million Software, Inc. (`million.dev`), repo `millionco/react-doctor`, 14,356 stars
+(`GET /repos/millionco/react-doctor`). `react-doctor@0.9.11` is latest; the package was **created
+2026-02-13** and has shipped **751 versions** since
+([npm registry](https://registry.npmjs.org/react-doctor)), at 1,501,689 downloads in the week to
+2026-08-09 ([npm downloads API](https://api.npmjs.org/downloads/point/last-week/react-doctor)).
+Genuinely popular, still pre-1.0, churning fast.
+
+Those last three figures are the most perishable thing in this document — the star count and version
+count both moved between the research and the commit that landed it. Read them as "this order of
+magnitude on 12 August 2026", not as current.
 
 **It is static analysis only** — 825 active rules across "state and effects, performance,
 architecture, security, and accessibility", plus dead-code and supply-chain checks
@@ -435,15 +473,21 @@ each gap as an oversight.
 
 ## What CAN-22 already settled
 
-Read from `origin/main` at `19223b0`, so this is what exists rather than what was planned.
+Read from `origin/main` at `eb90782`, so this is what exists rather than what was planned. The
+research itself was done against `19223b0`; CAN-45 (Neon preview branching) and CAN-46 (stale
+assertions in the PR skills) landed in between and change nothing below.
 
 **A third test seam, which the spec did not call for.**
-[CAN-17](https://linear.app/jacobrees-canoncore/issue/CAN-17) settles on exactly two seams —
-Playwright over HTTP, and the database as the application role — and the cost it does not price is
+[CAN-17](https://linear.app/jacobrees-canoncore/issue/CAN-17) settled on exactly two seams —
+Playwright over HTTP, and the database as the application role — and the cost it did not price is
 feedback latency, since every assertion about a pure function would route through a browser and a
 database. CAN-22 shipped `vitest` with `@testing-library/react` and `jsdom` alongside Playwright,
-which is the industry-standard shape and resolves that concern. The spec's two-seam text is now
-narrower than the repository.
+which is the industry-standard shape and resolves that concern.
+
+**Closed on 12 August 2026.** CAN-17 now carries *Amended 12 August 2026: three seams, not two* and
+a Seam C section describing what the unit seam is for and, importantly, what it cannot cover — a
+unit test runs in process against no database, so the per-table cross-tenant obligation under Seam
+B is untouched by it.
 
 **A fourth CI command.** `.github/workflows/ci.yml` runs `pnpm -r build` after the three the ticket
 named, on the reasoning that `next build` fails on things the other three cannot see. Correct, and
