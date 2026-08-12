@@ -32,11 +32,11 @@ was weighed against it, and what will try to reopen it are in
 repository can assert them, and `vercel.json` cannot set any of them either. Without the first two
 the build runs at the repository root, finds no application and produces a 404 on the production
 domain; without the third it cannot see `packages/config`, which sits outside `apps/web`. Set by
-CAN-22 on 10 August 2026 and read back with `vercel project inspect canoncore`.
+CAN-22 on 11 August 2026 and read back with `vercel project inspect canoncore`.
 
 **The API name for the third one is not the name on the dashboard.** `PATCH /v9/projects/{id}`
 takes `sourceFilesOutsideRootDirectory`; `includeSourceFilesOutsideRootDirectory` is rejected with
-`should NOT have additional property`. Observed on 10 August 2026, and confirmed against the field
+`should NOT have additional property`. Observed on 11 August 2026, and confirmed against the field
 name in the CLI's own cached OpenAPI spec — Vercel's public reference documents neither spelling.
 
 **The repository is public.** Creating the project against the private repo failed with
@@ -100,10 +100,15 @@ attribute always bypass the row security system."*
 | `DATABASE_APP_USER` / `DATABASE_APP_PASSWORD` | Vercel env, production and preview |
 | `MIGRATION_DATABASE_URL` | GitHub Actions secret on the repo, migration role |
 
-`DATABASE_URL` is production-only on purpose. Each preview deployment gets its own Neon branch on a
-**different host**, so a static connection string would silently point previews at production data.
-Previews compose their URL at runtime from the injected `NEON_PGHOST` plus `DATABASE_APP_USER` and
-`DATABASE_APP_PASSWORD`.
+`DATABASE_URL` is production-only on purpose, and that part still holds: a static connection string
+must not be the thing a preview uses, because a preview must not read production data.
+
+**How a preview is meant to get its own is now in doubt.** CAN-18 designed it as previews composing
+their URL at runtime from an injected `NEON_PGHOST` plus `DATABASE_APP_USER` and
+`DATABASE_APP_PASSWORD`, on the assumption that each preview deployment gets its own Neon branch on
+a different host. CAN-22 tested that assumption and found no evidence for it — see *Preview
+branching does not appear to happen* below. **Do not build against the composed URL until that is
+settled.**
 
 **This departs from CAN-18 as written.** That ticket asked for "the application role's connection
 string is a Vercel environment variable for production **and preview**". Taken literally it is
@@ -112,14 +117,32 @@ exist when the variable is set, and setting one would have pointed previews at p
 which the very next criterion forbids. The criterion was met in substance, by a different mechanism,
 rather than to the letter.
 
-> **Unverified, and it gates that design.** This assumes a Neon branch inherits role passwords from
-> its parent. It has not been tested, because testing it needs a real preview deployment. Confirm it
-> in CAN-22 before relying on the composed URL. If it turns out false, the fallback is to read the
-> branch's own injected `NEON_DATABASE_URL` and swap only the credentials.
+### Preview branching does not appear to happen
 
-Automated preview branching is a property of the Vercel-managed integration and is not exposed as a
-toggle on either dashboard. **Confirm a Neon branch actually appears for a preview deployment in
-CAN-22.** It is not proven yet.
+CAN-18 could not test this, because testing it needs a real preview deployment. CAN-22 produced the
+first one — [PR #59](https://github.com/jacobrees-canoncore/CanonCore/pull/59), commit `3d9eea9`,
+deployed 12 August 2026 — and looked. **Two observations, both negative:**
+
+| Check | Result |
+| --- | --- |
+| `NEON_PGHOST` and `NEON_PROJECT_ID`, preview against production | **Identical.** Same endpoint, same project, one static value covering Production, Preview and Development |
+| The preview deployment's build log, searched for Neon activity | **Nothing.** The only line matching "branch" is the git clone |
+
+So a preview composing its URL from `NEON_PGHOST` today would connect to **production's** host —
+the precise outcome the design above exists to prevent.
+
+**This is evidence, not proof, and the gap is worth naming.** `vercel env pull` reads *project-level*
+variables, so a value injected per deployment would not appear in it; the silent build log is what
+makes absence the better reading of the two. Neither observation is a look at Neon's own branch list,
+which is the one thing that would settle it and needs the Neon dashboard.
+
+**The second CAN-18 question is unanswerable while this stands.** Whether a Neon branch inherits role
+passwords from its parent cannot be tested by connecting to a preview branch as `canoncore_app` when
+there is no preview branch to connect to. The recorded fallback — read the branch's own injected
+`NEON_DATABASE_URL` and swap only the credentials — assumes a branch too.
+
+Carried by [CAN-45](https://linear.app/jacobrees-canoncore/issue/CAN-45). CAN-22 recorded this and
+raised it rather than fixing it, which is what CAN-22 asked for.
 
 ## External data source: TMDB
 
