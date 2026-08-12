@@ -109,8 +109,9 @@ previews composing their URL at runtime from an injected `NEON_PGHOST` plus `DAT
 a different host. CAN-22 tested that assumption and found no evidence for it. CAN-45 then read
 Neon's branch list and found the reason: **branching was switched off**, so for the whole of CAN-18
 and CAN-22 the design described an intent rather than the platform's behaviour. It is on as of
-12 August 2026 — see *Preview branching was off, and is now on* below. **Do not build against the
-composed URL until a branch has actually been observed.**
+12 August 2026, and a real preview branch has since been observed carrying the credentials the
+design needs — see *Preview branching was off, and is now on* below. **The composed URL is safe to
+build against.**
 
 **This departs from CAN-18 as written.** That ticket asked for "the application role's connection
 string is a Vercel environment variable for production **and preview**". Taken literally it is
@@ -119,11 +120,24 @@ exist when the variable is set, and setting one would have pointed previews at p
 which the very next criterion forbids. The criterion was met in substance, by a different mechanism,
 rather than to the letter.
 
-> **Unverified, and it gates that design.** This assumes a Neon branch inherits role passwords from
-> its parent. It could not be tested by CAN-22, because testing it needs a preview branch to connect
-> to and none existed. Confirm it against the first preview deployment made after the change below,
-> before relying on the composed URL. If it turns out false, the fallback is to read the branch's own
-> injected `NEON_DATABASE_URL` and swap only the credentials.
+**A Neon branch does inherit its parent's role passwords, and that is now measured rather than
+assumed.** It was the assumption the composed URL rests on, and CAN-22 could not test it because
+there was no branch to connect to. CAN-45 read Neon's `connection_uri` for `canoncore_app` on both
+`main` and the first preview branch and compared them:
+
+| | `main` | the preview branch |
+| --- | --- | --- |
+| Role | `canoncore_app` | `canoncore_app` |
+| Password | 28 characters, SHA-256 `8606a49d65d8…` | **identical on both counts** |
+| Host | `ep-aged-moon-zaujrwy4-pooler.c-2.eu-west-2.aws.neon.tech` | `ep-misty-math-zamlwlio-pooler.c-2.eu-west-2.aws.neon.tech` |
+
+Same credential, different host, which is exactly the shape the design assumed. **The recorded
+fallback — read the branch's own `NEON_DATABASE_URL` and swap only the credentials — is therefore
+not needed, and should not be built.**
+
+The passwords were compared by digest on purpose. `DATABASE_APP_PASSWORD` is a Vercel *sensitive*
+variable and cannot be read back, and a password does not belong in a commit or a transcript, so the
+check returned a hash and a length rather than the value. Anyone repeating it should do the same.
 
 ### Preview branching was off, and is now on
 
@@ -164,17 +178,35 @@ copy of it. **Turning `Required` on is not free, and was accepted knowingly**: i
 deploys as well, so a deploy now fails if the Neon resource is unavailable instead of building
 without it. That is the price of the `Preview` checkbox and there is no way to pay only part of it.
 
-One consequence is worth stating because it will otherwise read as a bug. Per Neon's guide, the
-branch's connection variables are "injected via webhook at deployment time" and "cannot be accessed
-or viewed in your Vercel project's environment variable settings". **So `vercel env pull` will keep
-showing the one static `NEON_PGHOST` covering all three environments, exactly as CAN-45 observed.**
-That observation was never evidence of anything, before or after this change, and it must not be used
-as a check again.
+**Neither of CAN-22's two checks can detect this, before or after the change, and both must be
+retired.** That matters more than it sounds: they are the obvious things to reach for, and both
+return the same answer whether branching is on or off.
 
-> **The branch itself is still unobserved, and so is password inheritance.** Enabling a setting is
-> not the same as watching a branch appear. Both remain open until the first preview deployment made
-> after 12 August 2026 is checked for a `preview/*` branch in Neon, and `canoncore_app` is connected
-> to that branch with the parent's password.
+| CAN-22's check | Why it proves nothing |
+| --- | --- |
+| `NEON_PGHOST` in `vercel env pull`, preview against production | Per Neon's guide the branch variables are "injected via webhook at deployment time" and "cannot be accessed or viewed in your Vercel project's environment variable settings". `vercel env pull` reads project-level values, so it still shows one static host for all three environments |
+| The preview build log, searched for Neon activity | **Still completely silent.** The branch is created by the platform out of band, not by the build. The only line matching "branch" is still the git clone |
+
+**Only Neon's branch list answers the question.** That is the check to repeat.
+
+### What a preview branch actually looks like
+
+Observed on the first preview deployment after the change, 12 August 2026:
+
+| | |
+| --- | --- |
+| Branch | `preview/jacobreesnew/can-45-preview-deployments-do-not-appear-to-get-their-own-neon` |
+| Id, parent | `br-restless-bread-za5ebaq1`, parent `main` |
+| Created by | **Vercel**, at 12:51:21 +01:00, two seconds before the build started |
+| Carries | `canoncore_app` and `canoncore_migrator`, both stamped created two days earlier, i.e. copied from `main` rather than issued fresh |
+
+The branch name is `preview/` plus the **git branch**, so it is one branch per git branch and not one
+per deployment: the second push to the same branch reused it rather than making another.
+
+**A branch is created even when the build fails.** The one above was created by the deployment that
+errored on `The specified Root Directory "apps/web" does not exist`, and survived to serve the
+successful build a minute later. So a failed preview still costs a Neon branch, and branches will
+accumulate per git branch until Vercel removes them.
 
 ## External data source: TMDB
 
