@@ -351,6 +351,56 @@ sorts each check into `pass`, `fail`, `pending`, `skipping` or `cancel`, and tha
 read; the exit code is not. The `|| true` is load-bearing — exit 8 is the normal state throughout a
 poll, so without it the healthy path aborts the wait under `set -e` or in a `&&` chain.
 
+**A third state neither of those names: registered, finished, never reported.** The exit codes
+above separate *CI has not registered yet* from *CI failed*, and nothing separates either from a
+check-run whose work completed and whose record never closed. Observed on CAN-47, 12 August 2026,
+commit `715515b`: `gh run view 31618294656` read `completed`/`success`, every step of its only job
+read `success` including `pnpm -r test`, `typecheck`, `lint`, `build` and `Complete job`, and the
+check-run on that SHA still read `in_progress` with `completed_at: null` six minutes later. That
+null is what `gh pr checks` was reporting as `bucket: pending`, so a watch would have polled a check
+that had already passed and would never say so.
+
+Compare the run-level conclusion against the check-run's `completed_at` to tell them apart:
+
+```bash
+gh run list --branch <branch> --limit 1 --json headSha,status,conclusion
+gh api 'repos/{owner}/{repo}/commits/<sha>/check-runs' \
+  --jq '.check_runs[] | "\(.status)/\(.conclusion // "-")\t\(.completed_at // "NULL")\t\(.name)"'
+```
+
+`--limit 1` returns the newest run on the branch, which need not be the run for the SHA you are
+waiting on, so `headSha` is selected there to be *checked* rather than displayed: if it does not
+match, the two commands describe different commits and the comparison means nothing. `gh` fills in
+`{owner}/{repo}` from the checkout, so the second command carries no repository literal.
+
+A run reading `completed/success` while one of its check-runs reads `in_progress` with a null
+`completed_at` is a stuck record, not a slow check. The two want opposite remedies, which is the
+whole reason a ten-second cross-check earns its place: a slow check wants more waiting, and a stuck
+record never resolves by waiting at all.
+
+**What clears it is a fresh run, and a rebase is not reliably one.** Re-run the workflow first with
+`gh run rerun <run-id>`, which asks GitHub for a new check-run on the same commit and costs no
+history. If the record is still stuck after that, move the SHA instead: an empty commit
+(`git commit --allow-empty`) pushed to the branch, which the squash merge discards anyway. Reach for
+a rebase only when `git merge-base --is-ancestor origin/main HEAD` exits 1 — on exit 0, which is the
+ordinary case, *The local `main` is permanently stale in a worktree* above shows the rebase is a
+no-op, so it rewrites nothing, produces no new SHA and therefore triggers no new run. CAN-47's
+rebase did produce one, run `31619057832`, which finalised normally at 16:44:46Z; that worked
+because `main` genuinely had moved, which is a property of that moment rather than of the remedy.
+
+**This is GitHub's record rather than the pipeline, so do not change `ci.yml` for it.** One run of
+six was affected, on the same workflow, the same single job and the same `concurrency` block as the
+five that finalised normally — including `62ddfba`, eight minutes earlier on the same branch.
+Permanent configuration added to work around a one-off data inconsistency is what `CLAUDE.md`'s
+engineering principles rule out.
+
+**And the record back-fills itself, so the cross-check is only conclusive while the wait is still
+on.** `715515b`'s check-run now reads `completed/success` with `completed_at: 2026-08-12T16:35:44Z`
+— the moment the work actually finished, not the moment the record closed. Once GitHub fills that
+in there is no trace the check was ever stuck, so re-running the commands above after the fact
+returns a healthy record and makes a correct diagnosis look like a mistaken one. Make the call
+during the wait, and record what you saw.
+
 Re-read the head SHA afterwards and start again if it moved, then **merge with
 `gh pr merge --match-head-commit <SHA>`**. Checking and merging are separate moments with a human
 confirmation between them; the flag is what stops a push landing in that gap from being squashed
