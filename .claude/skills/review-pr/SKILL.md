@@ -15,8 +15,9 @@ on the way rather than the destination. This skill is the landing.
 satisfies that when it ran against the committed change — `docs/agents/workflow.md` → *The review
 runs once, and `/implement` is normally where*. Do not send the user back for a second pass over a
 range that has already been reviewed. Stop only when no review covered it: `/implement` never ran,
-it ran without staging first, or commits have landed since. Ask rather than assume when this
-session cannot tell.
+the diff it read was empty or partial, or commits have landed since. A review of an empty range
+reports no findings and reads like a clean one, so the question to ask is which diff command it
+ran — not whether a review happened. Ask rather than assume when this session cannot tell.
 
 `WS=ad2669ec-93a5-4ce1-97fa-c7d9247a1452` throughout.
 
@@ -100,8 +101,10 @@ session cannot tell.
    three pnpm commands; how those map onto job names is the workflow file's business, and a matrix
    or a single combined job would make the literals wrong.
 
-   **`main`'s ruleset holds the same list, and it is the one the merge is judged against.** Ask it
-   for the names rather than deciding them here, and confirm each is present and green on the SHA:
+   **`main`'s ruleset holds a *different* list, and it is the one the merge is judged against.** It
+   requires `Vercel` as well, which no workflow file declares, so the two reads are complementary
+   rather than a cross-check: the workflow files say what CI promises, the ruleset says what blocks
+   the merge. Ask it for its names too, and confirm each is present and green on the SHA:
 
    ```bash
    gh api repos/{owner}/{repo}/rules/branches/main \
@@ -171,8 +174,8 @@ session cannot tell.
    **The remote branch deletes itself**, since `delete_branch_on_merge` is on
    (`docs/infrastructure.md`), so the third line above confirms rather than acts: no output is the
    expected result and means GitHub has already removed it. Read that output rather than the exit
-   code — `--exit-code` would turn the ordinary case into exit 2 and abort the healthy path, the
-   same trap `|| true` covers in step 2. Run `git push origin --delete <branch>` only if the branch
+   code; `workflow.md` says why `--exit-code` is the wrong flag here. Run
+   `git push origin --delete <branch>` only if the branch
    is somehow still there, and only after `state` reads `MERGED` — done before that, on a merge that
    did not happen, it closes the PR and discards the pushed work.
 

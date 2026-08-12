@@ -156,7 +156,9 @@ rulesets](https://docs.github.com/en/repositories/configuring-branches-and-merge
 Here that means a green pull request can still break `main`, and pushing `main` deploys to
 production. The run on `main` itself is what catches it — CI is `on: push`, so the merge commit is
 tested too, and `docs/agents/workflow.md` → *After the merge* is the step that looks. Turn strict on
-if a second person starts landing work, or if two branches are ever routinely open at once.
+if a second person starts landing work, or if two branches are ever routinely open at once. It is
+only worth turning on in company with the contexts above: strict governs *when* required checks are
+judged, so with none required there is nothing for it to act on.
 
 ## Database
 

@@ -50,26 +50,41 @@ sequence and run it again because the branch is now pushed.
 The two reasons above look like they demand otherwise. Neither survives contact with what the
 review actually does:
 
-- *`/code-review` compares against a commit* is answered by **staging before the review**. Its
-  range is `<fixed-point>...HEAD`, which excludes the working tree, so an unstaged `/implement`
-  run reviews an empty or partial diff. Staged, it reviews the change that is about to be
-  committed. This is a precondition, not a workaround.
+- *`/code-review` compares against a commit* is answered by **making the review read the change
+  that gets committed** — and **staging alone does not do that**. `<fixed-point>...HEAD` compares
+  two commits, so the index is not in it: with the work staged and nothing committed, that range
+  is empty. Checked on CAN-40, 12 August 2026, against a scratch repository — `git diff $BASE...HEAD`
+  printed nothing while `git diff --cached $BASE` printed the change. So either commit first and
+  review against the branch point, which is the pack's own answer (*"Commit first, then review
+  against the point you branched from"*, `implement.md`), or stage and hand the review
+  `git diff --cached <branch-point>` explicitly. **The thing to check is which diff command the
+  review ran**, not whether anything was staged.
 - *A session does not review its own work* mistakes which context does the reviewing.
   `mattpocock-skills:code-review` fans the work out to **parallel sub-agents that never saw the
   implementing session's reasoning**, so the fresh eyes are in the sub-agents rather than in the
-  session that invokes them. CAN-48 is the evidence, and it is evidence about sub-agents rather
-  than about a second invocation: they found a defect the implementing session had missed
-  (CAN-63), and they would have found it from either caller.
+  session that invokes them. CAN-48 is evidence about sub-agents rather than about a second
+  invocation: they found a defect the implementing session had missed (CAN-63), and they would
+  have found it from either caller. CAN-40 then tested it the other way round on 12 August 2026 —
+  sub-agents invoked *by the implementing session* caught two uncited claims, an exit-code trap,
+  and the `git` error that the bullet above now corrects, which was that session's own.
+
+  **This departs from the pack**, and the departure should be visible: `implement.md` offers a
+  fresh-session review as "a legitimate alternative", and `code-review.md` gives a different
+  reason for the sub-agents (keeping the two axes out of each other's context). The claim here is
+  that the isolation buys the fresh eyes as a side effect, whoever calls it.
 
 **What the implementing session does keep is the choice of what it hands them** — the range, the
 spec, the standards sources. That is the residual risk, and it is checkable rather than a matter
 of trust, which is why the claim to make is *"a review ran against this range"* and never *"a
 review ran"*.
 
-**So the review has not happened** when `/implement` did not run, when it ran without staging, or
-when the branch has since gained commits it never saw. In each of those the range it read is not
-the range being landed, and `/code-review` against the pushed branch is how to fix that. A rebase
-or a review-driven edit after the fact puts you in the third case.
+**So the review has not happened** when `/implement` did not run, when the diff it read was empty
+or partial, or when the branch has since gained commits it never saw. In each the range it read is
+not the range being landed, and `/code-review` against the pushed branch is how to fix that. A
+rebase or a review-driven edit after the fact puts you in the third case.
+
+The middle one is the quiet one: a review of an empty range **reports no findings**, which reads
+exactly like a clean review. That is why the claim to make names the command.
 
 So the states mean: **draft** is "not yet checked against the gates", **ready** is "the gates are
 green and it works". Nobody is being signalled — the states are for you.
@@ -479,7 +494,7 @@ re-reads at the moment it is broken.
 
 ### What `main` refuses
 
-Everything above is a wait. A wait is a step, and a step can be skipped — which is what CAN-40
+The gates above are a wait. A wait is a step, and a step can be skipped — which is what CAN-40
 fixed, by moving the last word from the skill to the repository. Since 12 August 2026 `main` carries
 a ruleset, and GitHub refuses a merge that the checks do not support whatever the skill running it
 believes. The provisioned form — the rule list, the two context names, why only those, and why

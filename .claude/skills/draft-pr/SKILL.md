@@ -203,8 +203,8 @@ policy and the reasoning; this is the procedure. `/review-pr` lands it afterward
    `docs/agents/workflow.md` → *The review runs once, and `/implement` is normally where* says that
    is the review — asking for a second pass on the same range is the noise this line exists to
    prevent. Say a review is needed only in the three cases that section names, and say which one
-   applies: `/implement` never ran, it ran without staging first, or the branch has gained commits
-   it never saw. Ask rather than assume when you cannot tell from this session.
+   applies: `/implement` never ran, the diff its review read was empty or partial, or the branch
+   has gained commits it never saw. Ask rather than assume when you cannot tell from this session.
 
    **Do not wait for the checks here either.** They were queued seconds ago, so waiting blocks for
    a full run before anyone has read the diff, and any green seen now is stale the moment anything
