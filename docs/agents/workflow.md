@@ -287,9 +287,9 @@ Two different things answer to the name *code review* and it is worth keeping th
 point; the built-in `/code-review` takes an effort level, or `ultra <PR#>` for a cloud review
 of a GitHub PR. Either works on a branch; neither works before there is one.
 
-- **Squash-merge only.** One ticket, one branch, one commit on `main`. Today it is a rule rather
-  than an enforcement — the repo still permits merge and rebase merges. It does not have to stay
-  that way; see *The repo should refuse the merge too* below.
+- **Squash-merge only.** One ticket, one branch, one commit on `main`. Since CAN-40 it is an
+  enforcement rather than a rule: the repository offers no other merge method, and `main`'s
+  ruleset requires a linear history — *What `main` refuses* below.
 - **Rebase to stay current**, never merge `main` in:
   `git rebase main && git push --force-with-lease`.
 - **Commit subjects are prose, not Conventional Commits.** `Send the welcome email from the queue
@@ -436,15 +436,14 @@ Re-read the head SHA afterwards and start again if it moved, then **merge with
 confirmation between them; the flag is what stops a push landing in that gap from being squashed
 into `main` unchecked.
 
-**The repo should refuse the merge too.** A waiting skill is a convention and a ruleset is an
-enforcement, and only the second one survives the skill being edited, skipped or run by something
-else. `main` currently has neither branch protection nor a ruleset. The repo is public, so rulesets
-and required status checks cost nothing here (`issue-tracker.md`). Two traps are documented and both
-fail quietly: a strict *require branches to be up to date* rule with no check defined does nothing
-at all, and a required context that never reports blocks every merge for ever at *Expected —
-Waiting for status to be reported*, so only require checks that run on every pull request. CAN-40
-carries this work, and CAN-22 unblocked it: `test, typecheck, lint` runs on every push and is the
-context to require.
+**The repo refuses the merge too, since CAN-40.** A waiting skill is a convention and a ruleset is
+an enforcement, and only the second survives the skill being edited, skipped or run by something
+else. `main` now carries one — the rules, the two required contexts and the no-bypass reading are in
+[`docs/infrastructure.md`](../infrastructure.md) → *The repository, and what `main` refuses*, and
+what it means for this loop is *What `main` refuses* below. The repo being public is what pays for
+it (`issue-tracker.md`). The trap that shaped it is still worth carrying: a required context that
+never reports blocks every merge for ever rather than until CI finishes, so only require checks that
+run on every pull request.
 
 **A deployed preview works.** Vercel builds a preview deployment per pull request. The value of
 a preview is that it is a real environment rather than a smoke screen, so a preview must point at
