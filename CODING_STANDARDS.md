@@ -54,6 +54,6 @@ not only against prose taste:
 
 ## Enforced by tooling
 
-The checks live in [`docs/agents/workflow.md`](docs/agents/workflow.md), which also notes they are
-named but unbuilt until the walking skeleton exists. Skip anything tooling catches; a review's
-attention is better spent on what it cannot see.
+The checks live in [`docs/agents/workflow.md`](docs/agents/workflow.md) and run in GitHub Actions on
+every push. Skip anything tooling catches; a review's attention is better spent on what it cannot
+see.

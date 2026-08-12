@@ -23,6 +23,21 @@ was weighed against it, and what will try to reopen it are in
 | Repository | `jacobrees-canoncore/CanonCore`, production branch `main` |
 | Function region | `lhr1` (London) |
 | Preview protection | Off. Preview URLs are public. |
+| Root Directory | `apps/web` |
+| Framework Preset | Next.js |
+| Include files outside the root directory | On |
+| Node.js version | 24.x |
+
+**The last four rows exist nowhere but here.** They are project settings, so no file in this
+repository can assert them, and `vercel.json` cannot set any of them either. Without the first two
+the build runs at the repository root, finds no application and produces a 404 on the production
+domain; without the third it cannot see `packages/config`, which sits outside `apps/web`. Set by
+CAN-22 on 11 August 2026 and read back with `vercel project inspect canoncore`.
+
+**The API name for the third one is not the name on the dashboard.** `PATCH /v9/projects/{id}`
+takes `sourceFilesOutsideRootDirectory`; `includeSourceFilesOutsideRootDirectory` is rejected with
+`should NOT have additional property`. Observed on 11 August 2026, and confirmed against the field
+name in the CLI's own cached OpenAPI spec — Vercel's public reference documents neither spelling.
 
 **The repository is public.** Creating the project against the private repo failed with
 `repo_owned_by_org`: *“The repository CanonCore is private and owned by an organisation, which is
@@ -85,10 +100,15 @@ attribute always bypass the row security system."*
 | `DATABASE_APP_USER` / `DATABASE_APP_PASSWORD` | Vercel env, production and preview |
 | `MIGRATION_DATABASE_URL` | GitHub Actions secret on the repo, migration role |
 
-`DATABASE_URL` is production-only on purpose. Each preview deployment gets its own Neon branch on a
-**different host**, so a static connection string would silently point previews at production data.
-Previews compose their URL at runtime from the injected `NEON_PGHOST` plus `DATABASE_APP_USER` and
-`DATABASE_APP_PASSWORD`.
+`DATABASE_URL` is production-only on purpose, and that part still holds: a static connection string
+must not be the thing a preview uses, because a preview must not read production data.
+
+**How a preview is meant to get its own is now in doubt.** CAN-18 designed it as previews composing
+their URL at runtime from an injected `NEON_PGHOST` plus `DATABASE_APP_USER` and
+`DATABASE_APP_PASSWORD`, on the assumption that each preview deployment gets its own Neon branch on
+a different host. CAN-22 tested that assumption and found no evidence for it — see *Preview
+branching does not appear to happen* below. **Do not build against the composed URL until that is
+settled.**
 
 **This departs from CAN-18 as written.** That ticket asked for "the application role's connection
 string is a Vercel environment variable for production **and preview**". Taken literally it is
@@ -97,14 +117,32 @@ exist when the variable is set, and setting one would have pointed previews at p
 which the very next criterion forbids. The criterion was met in substance, by a different mechanism,
 rather than to the letter.
 
-> **Unverified, and it gates that design.** This assumes a Neon branch inherits role passwords from
-> its parent. It has not been tested, because testing it needs a real preview deployment. Confirm it
-> in CAN-22 before relying on the composed URL. If it turns out false, the fallback is to read the
-> branch's own injected `NEON_DATABASE_URL` and swap only the credentials.
+### Preview branching does not appear to happen
 
-Automated preview branching is a property of the Vercel-managed integration and is not exposed as a
-toggle on either dashboard. **Confirm a Neon branch actually appears for a preview deployment in
-CAN-22.** It is not proven yet.
+CAN-18 could not test this, because testing it needs a real preview deployment. CAN-22 produced the
+first one — [PR #59](https://github.com/jacobrees-canoncore/CanonCore/pull/59), commit `3d9eea9`,
+deployed 12 August 2026 — and looked. **Two observations, both negative:**
+
+| Check | Result |
+| --- | --- |
+| `NEON_PGHOST` and `NEON_PROJECT_ID`, preview against production | **Identical.** Same endpoint, same project, one static value covering Production, Preview and Development |
+| The preview deployment's build log, searched for Neon activity | **Nothing.** The only line matching "branch" is the git clone |
+
+So a preview composing its URL from `NEON_PGHOST` today would connect to **production's** host —
+the precise outcome the design above exists to prevent.
+
+**This is evidence, not proof, and the gap is worth naming.** `vercel env pull` reads *project-level*
+variables, so a value injected per deployment would not appear in it; the silent build log is what
+makes absence the better reading of the two. Neither observation is a look at Neon's own branch list,
+which is the one thing that would settle it and needs the Neon dashboard.
+
+**The second CAN-18 question is unanswerable while this stands.** Whether a Neon branch inherits role
+passwords from its parent cannot be tested by connecting to a preview branch as `canoncore_app` when
+there is no preview branch to connect to. The recorded fallback — read the branch's own injected
+`NEON_DATABASE_URL` and swap only the credentials — assumes a branch too.
+
+Carried by [CAN-45](https://linear.app/jacobrees-canoncore/issue/CAN-45). CAN-22 recorded this and
+raised it rather than fixing it, which is what CAN-22 asked for.
 
 ## External data source: TMDB
 
@@ -212,9 +250,11 @@ variables in the production and preview environments"* (same page), so local wor
 `vercel env pull` this token and will need it written into a local `.env.local` by hand.
 `.gitignore` already covers that file.
 
-> **No deployment has read this variable.** There is no application to read it — `apps/web` does not
-> exist. That a production and a preview build receive it is a platform guarantee rather than
-> something CAN-19 observed. Confirm it in CAN-22, with the Neon preview-branch question above.
+> **No deployment has read this variable**, and CAN-22 did not change that. `apps/web` now exists
+> and deploys, but nothing in it reads an environment variable, so the first read still has not
+> happened. That a production and a preview build receive it remains a platform guarantee rather
+> than an observation. It falls to the first ticket that consumes a credential — CAN-23 for the
+> database, CAN-26 for TMDB.
 
 > **Nothing here ties the CAN-34 correspondence to this TMDB account.** The registered application
 > name and the exception's project scope agree with each other, which is consistency rather than
@@ -559,15 +599,19 @@ each publicly visible record, which v1 does not ship; it is recorded as an alter
 
 ## Holding page
 
-`www.canoncore.com` serves `public/index.html` from this repository, so the cutover caused no outage.
-`vercel.json` sets `outputDirectory` to `public`, which keeps the served surface to that one file
-rather than publishing the whole tree as static assets.
+`www.canoncore.com` serves `apps/web`, a Next.js application, and its one route renders the same
+copy the static holding page carried. **CAN-22 deleted `public/index.html` and the root
+`vercel.json`** that served it, as this section previously said it would.
 
-It lives in the repository on purpose. It was first deployed from a temporary directory with
-`vercel deploy --prod`, which was a mistake: **any** push to `main` triggers a production build, and
-a build of a repository with no application produces a 404 — so a documentation-only merge would
-have taken the site down. Committing it means every production deploy from here reproduces it.
+The page still says the product is being rebuilt, because it is. What changed at CAN-22 is the
+mechanism, not the message: the point of the walking skeleton is to prove the path from a push to a
+public URL, and holding the copy still lets a stranger's view of production stay honest while that
+path is replaced underneath it.
 
-**CAN-22 deletes `public/` and this `vercel.json` when `apps/web` exists**, and Next.js takes over
-serving. Until then, do not remove either: they are the only thing standing between a push to `main`
-and a 404 on the production domain.
+Two things about the deleted files are worth keeping, because they are what the setting rows in
+**Hosting** above are protecting against. The static page was first deployed from a temporary
+directory with `vercel deploy --prod`, which was a mistake: **any** push to `main` triggers a
+production build, and a build of a repository with no application produces a 404, so a
+documentation-only merge would have taken the site down. And the old `vercel.json` set
+`outputDirectory` to `public` to keep the served surface to that one file; the Next.js preset now
+decides the output directory, which is why nothing replaces that file.

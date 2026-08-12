@@ -59,6 +59,9 @@ Settled by the grilling session of 8 August 2026. Rationale and rejected alterna
 TypeScript. Day one is `apps/web` and `packages/config` only — the workspace is real from the
 first commit, but no boundary is drawn before a second consumer exists.
 
+**Working in the repo.** `pnpm install`, then `pnpm --filter @canoncore/web dev`. The three CI
+gates and the Playwright suite are in `docs/agents/workflow.md`.
+
 **Providers live in separate repositories**, never in `apps/`. See
 [ADR-0007](docs/adr/0007-provider-contract.md) for why that separation has to be structural.
 
@@ -98,8 +101,7 @@ Single-context: one `CONTEXT.md` and one `docs/adr/` at the repo root, both popu
 
 Trunk-based and solo: one `main`, a branch per ticket carrying its `CAN-n`, squash-merge to
 land. `docs/agents/workflow.md` names the gates, the preview environment and which artefacts a
-merge carries. They are *named but unbuilt* until the walking skeleton exists — until then, report
-plainly that there was nothing to run.
+merge carries. Since CAN-22 those gates actually run, in GitHub Actions on every push.
 
 ## Which tool owns what
 
