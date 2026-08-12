@@ -107,7 +107,7 @@ merge carries. Since CAN-22 those gates actually run, in GitHub Actions on every
 
 | Job | Tool |
 |---|---|
-| Docs for a library, framework, SDK or CLI | **`context7` MCP**, per the global rule — except the next row |
+| Docs for a library, framework, SDK or CLI | **`context7` MCP**, per the global rule — except the next two rows |
 | Next.js and React patterns, App Router, caching | **`vercel` plugin skills** (`vercel:*`), which are closer to the source than Context7 |
 | A Next.js API's exact signature or options, at the version installed here | **`next-devtools-mcp`**'s `nextjs_docs`, which reads the docs shipped inside `node_modules/next` |
 | Resend APIs, React Email, the `resend` CLI | **`resend` plugin skills** (`resend:*`), same reasoning |
@@ -118,8 +118,8 @@ merge carries. Since CAN-22 those gates actually run, in GitHub Actions on every
 | Profiling a page — Core Web Vitals, traces, heap | **`chrome-devtools` MCP** |
 | Deployments, environment variables, build and runtime logs | **`vercel` MCP** |
 | Neon branches, roles and connection strings — the database's own control plane | **`neon` MCP** |
-| Production errors and their context | **`sentry` MCP** |
-| This app's own routes, compile errors and cache, as it is running now | **`next-devtools-mcp`**, against a live dev server |
+| Production errors and their context — but nothing reports to it yet | **`sentry` MCP** |
+| This app's own routes, compile errors and dev-server cache, as it is running now | **`next-devtools-mcp`**, against a live dev server |
 | Transactional email — sending, domains, API keys, delivery logs, inbound mail | **`resend` MCP** |
 | Whether a message actually arrived, and in which folder | **`macos-mail-mcp`**, Jacob's Mail.app |
 
@@ -143,28 +143,32 @@ server is down (`pnpm --filter @canoncore/web dev`). Its `nextjs_docs` tool is t
 the `vercel:*` row above: it reads the markdown Next ships inside `node_modules/next`, so it is exact
 to the 16.3.0 actually installed rather than to whatever version a skill was written against. Prefer
 it for a signature or an option, the `vercel:*` skills for a pattern. **Ignore its `browser_eval`
-tool**, which recommends the `agent-browser` CLI. Playwright already owns the browser here, per the
-paragraph above; that row is not reopened by a new tool offering to do it differently.
+tool**, which recommends the `agent-browser` CLI. *Playwright drives the browser* above already
+settled that, and a new tool offering to do it differently does not reopen it.
 
-**`neon` and `sentry` both sign in over OAuth**, and until that happens each exposes only
-`authenticate`, so the first call in a session can be a sign-in rather than an answer. Neon's control
-plane is the *only* thing that answers which branches exist: branch variables are injected per
-deployment, so `vercel env pull` cannot see them, and the build log is silent — `docs/infrastructure.md`
-records both, and repeating that check is what settled CAN-45. **Nothing reports to Sentry yet.** No
-SDK is installed in `apps/web`, so it will be empty, and an empty Sentry is not evidence of a healthy
-deploy.
+**`neon` is signed in; `sentry` is not.** Both authenticate over OAuth, and an unauthenticated
+server of this kind exposes only its `authenticate` and `complete_authentication` tools, so the first
+call in a session is a sign-in rather than an answer (observed on CAN-47, 12 August 2026, for both).
+Neon's control plane is the *only* thing that answers which branches exist, for the two reasons
+`docs/infrastructure.md` → *Preview branching was off, and is now on* records; repeating the check it
+names there is what settled CAN-45.
+
+**Nothing reports to Sentry yet**, which is why its sign-in is deliberately undone rather than
+forgotten. No SDK is installed in `apps/web`, so an empty Sentry is not evidence of a healthy deploy,
+and authorising before an account and an SDK exist buys nothing to verify against. **CAN-51 owns that
+sign-in**, along with the SDK and with correcting this paragraph once it lands.
 
 `resend` is scoped to this project in `.claude/settings.json`. **`macos-mail-mcp` is user scope and
 reads every account in Jacob's Mail.app**, work and personal, so it is his tool rather than this
 project's — never use it for anything but checking mail this project sent.
 
 **`neon`, `sentry` and `next-devtools-mcp` are user scope too, and belong there.** A committed
-`.mcp.json` is tempting, since all three were installed for this project and neither URL carries a
-credential. But none of them is pinned to a CanonCore resource: `mcp.neon.tech` and `mcp.sentry.dev`
-serve whichever account Jacob signs in as, and `next-devtools-mcp` discovers whatever dev server is
-running. They are keyed to him rather than to this repo, which is the test that puts `macos-mail-mcp`
-in the same place. Move them only if one gains repo-specific configuration, or if a second person ever
-needs this tooling reproducible.
+`.mcp.json` is tempting, since all three were installed for this project and the two remote entries
+carry no credential. But none of them is pinned to a CanonCore resource: `mcp.neon.tech` and
+`mcp.sentry.dev` serve whichever account Jacob signs in as, and `next-devtools-mcp` discovers whatever
+dev server is running. They are keyed to him rather than to this repo, which is the test that puts
+`macos-mail-mcp` in the same place. Move them only if one gains repo-specific configuration, or if a
+second person ever needs this tooling reproducible.
 
 ## Closed decisions, and what will try to reopen them
 

@@ -251,11 +251,15 @@ everything that made it:
 | The Neon branch, 24 minutes after the merge | `current_state: ready`. Still there |
 
 **What survives is the storage, not the compute.** That branch's compute suspended itself at
-15:49:30Z, five minutes after its last activity, and now reads `current_state: idle`. So an abandoned
-preview branch is not a running instance quietly billing, and because the branch is copy-on-write from
-`main` (`init_source: parent-data`, `written_data_bytes: 0`) it holds nothing of its own until
-something writes to it. The number of branches grows with every git branch that has ever had a
-preview; the compute bill does not follow it.
+15:49:30Z, five minutes after its last activity, and now reads `current_state: idle`, so an abandoned
+preview branch is not a running instance quietly billing.
+
+Its storage is not zero, and its two numbers say different things. It reports a `logical_size` of
+30941184 bytes against `main`'s 30892032, because that figure is the data it *can see* rather than the
+data it holds. What it has written of its own is `written_data_bytes: 0`, because it is copy-on-write
+from `main` (`init_source: parent-data`). So the marginal cost of an idle preview branch is its
+divergence from the parent rather than another 30 MB, and it stays that way until something writes
+to it.
 
 Both readings above came from the `neon` MCP rather than the dashboard, which is what
 *Which tool owns what* in `CLAUDE.md` now points at for exactly this.
