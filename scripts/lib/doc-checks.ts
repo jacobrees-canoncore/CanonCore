@@ -47,23 +47,41 @@ export function describeDisagreement(
   );
 }
 
-// Lines a failing CLI prints that say nothing about the failure: the harness's own plugin
-// markers, and the version banner every Vercel invocation opens with.
-const NOISE = [/^<[a-z-]+[^>]*\/?>$/i, /^[A-Z][\w.-]* CLI \d/];
-
 /**
  * Why a command failed, in one line fit to show an operator.
  *
- * The first line of stderr is the obvious choice and the wrong one — it is routinely a banner
- * or a marker, so a SKIP would report the tool's version where its reason should be, and a
- * skip nobody can act on is barely better than a silent one.
+ * Taking the first line is the obvious choice and the wrong one, in two different ways, both
+ * measured on 13 August 2026 against the CLIs this script runs:
+ *
+ * - `vercel env ls` with an invalid token puts its `Error:` on the **third** line, behind a
+ *   `Vercel CLI 58.7.1 (Node.js 24.19.0)` banner (and, under Claude Code, a plugin marker).
+ *   Reading line one reports the tool's version where its reason should be.
+ * - `orca linear …` with a bad workspace writes **nothing to stderr** and puts a JSON envelope
+ *   on stdout. Reading stderr at all reports nothing.
+ *
+ * A skip nobody can act on is barely better than a silent one, which is the whole reason skips
+ * carry a reason. So: an error envelope if the output is one, else the first line that announces
+ * itself as an error, else the first line there is.
  */
-export function explainFailure(stderr: string): string {
-  const lines = stderr
+export function explainFailure(output: string): string {
+  const enveloped = errorFromJson(output);
+  if (enveloped) return enveloped;
+  const lines = output
     .split("\n")
     .map((l) => l.trim())
-    .filter((l) => l && !NOISE.some((n) => n.test(l)));
+    .filter(Boolean);
   return lines.find((l) => /^(error|fatal)\b/i.test(l)) ?? lines[0] ?? "no output";
+}
+
+/** `orca` reports failure as `{ ok: false, error: { message } }` rather than as text. */
+function errorFromJson(output: string): string | undefined {
+  if (!output.trimStart().startsWith("{")) return undefined;
+  try {
+    const message = (JSON.parse(output) as { error?: { message?: unknown } })?.error?.message;
+    return typeof message === "string" && message.trim() ? message.trim() : undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 /** Rows of the first markdown table whose header row contains every column named. */

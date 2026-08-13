@@ -81,8 +81,12 @@ function source(cmd: string, args: string[], why: string): string {
       timeout: 60_000,
     });
   } catch (err) {
-    const stderr = (err as { stderr?: string }).stderr || (err as Error).message;
-    return skip(`${why}: \`${cmd} ${args.join(" ")}\` — ${explainFailure(stderr)}`);
+    // Where a CLI puts its diagnosis is its own business: `vercel` and `gh` use stderr, `orca`
+    // exits with an empty stderr and a JSON envelope on stdout. Take the first that says
+    // anything, and fall back to Node's own "Command failed: …", which names only the command.
+    const e = err as { stderr?: string; stdout?: string; message?: string };
+    const output = e.stderr?.trim() || e.stdout?.trim() || e.message || "";
+    return skip(`${why}: \`${cmd} ${args.join(" ")}\` — ${explainFailure(output)}`);
   }
 }
 

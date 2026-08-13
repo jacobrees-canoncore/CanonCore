@@ -184,7 +184,7 @@ test('a pointer may shorten a heading, but may not name a different one', () => 
 
 // --- Why a source failed --------------------------------------------------------------------
 
-test('the reason for a skip is the error, not a version banner or a harness marker', () => {
+test('the reason for a skip is the error line, not whatever came first', () => {
   // A SKIP exists to tell the operator what to fix. Taking stderr's first line gives them the
   // CLI's version instead — observed against `vercel env ls` with an invalid token, where the
   // real cause sat on the third line behind a plugin marker and a banner.
@@ -201,7 +201,24 @@ test('the reason for a skip is the error, not a version banner or a harness mark
   )
 })
 
-test('a failure with no error line still explains itself', () => {
+test('a failure with no error line falls back to its first line', () => {
+  // `git` absent from PATH reports exactly this, with no `Error:` prefix to find.
   assert.equal(explainFailure('\n\nspawnSync git ENOENT\n'), 'spawnSync git ENOENT')
+})
+
+test('a failure that said nothing at all says so', () => {
   assert.equal(explainFailure('   '), 'no output')
+})
+
+test('a CLI that reports its error as JSON on stdout still explains itself', () => {
+  // `orca` exits non-zero with an empty stderr and a JSON envelope on stdout. That is the one
+  // source with no CI backstop — the label roster gates locally or nowhere — so an unusable
+  // reason there is the worst place to have one.
+  const stdout = JSON.stringify(
+    { id: "8419418d", ok: false, error: { code: "linear_invalid_workspace", message: "No connected Linear workspace matched bogus." } },
+    null,
+    2,
+  )
+
+  assert.equal(explainFailure(stdout), "No connected Linear workspace matched bogus.")
 })
