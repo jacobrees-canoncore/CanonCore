@@ -1,5 +1,15 @@
 # CanonCore
 
+## Name every ticket you cite
+
+Never write a bare ticket identifier. Every reference to a Linear issue carries its title as
+well as its number, in conversation, in commit messages, in pull request bodies and in these
+documents: **CAN-30 GDPR export and erasure**, never `CAN-30`.
+
+A bare number tells the reader nothing and forces a lookup to follow the sentence. With this
+repository at sixty-plus issues, several of which differ only in scope, the number alone is
+also easy to misread as a neighbouring ticket.
+
 ## Prior repositories are off limits
 
 **Never look at any earlier CanonCore or Universora repository. Ever.** Not on GitHub, not in
