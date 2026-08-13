@@ -133,12 +133,14 @@ merge carries. Since CAN-22 those gates actually run, in GitHub Actions on every
 | Transactional email — sending, domains, API keys, delivery logs, inbound mail | **`resend` MCP** |
 | Whether a message actually arrived, and in which folder | **`macos-mail-mcp`**, Jacob's Mail.app |
 
-**Playwright drives the browser; chrome-devtools measures it.** `claude-in-chrome` is denied in
-`.claude/settings.json` — both its tools and its skill — because its browser is Jacob's own and
-carries all of his sessions. Deny is evaluated before allow and cannot be overridden by confirming
-a prompt ([settings docs](https://code.claude.com/docs/en/settings)), so that is settled rather
-than advisory. Playwright runs a separate profile, so when something needs a login, ask Jacob to
-sign in to *that* browser; the session then persists.
+**Playwright drives the browser; chrome-devtools measures it.** `claude-in-chrome` is shut off in
+`.claude/settings.json` two ways, because its browser is Jacob's own and carries all of his
+sessions: its MCP tools by a `deny` rule, which is evaluated before allow and cannot be overridden
+by confirming a prompt, and its skill twice over — a `Skill(claude-in-chrome)` deny entry, whose
+matching is undocumented and so unverified, and `skillOverrides: "off"`, which is the documented
+mechanism and makes invoking it error ([settings docs](https://code.claude.com/docs/en/settings)).
+Playwright runs a separate profile, so when something needs a login, ask Jacob to sign in to *that*
+browser; the session then persists.
 
 **The two email tools are not interchangeable.** `resend` reports what the provider did with a
 message; `macos-mail-mcp` reports what the recipient's mail client did with it. A send can be
@@ -157,28 +159,19 @@ tool**, which recommends the `agent-browser` CLI. *Playwright drives the browser
 settled that, and a new tool offering to do it differently does not reopen it.
 
 **`neon` is signed in; `sentry` is not.** Both authenticate over OAuth, and an unauthenticated
-server of this kind exposes only its `authenticate` and `complete_authentication` tools, so the first
-call in a session is a sign-in rather than an answer (observed on CAN-47, 12 August 2026, for both).
-Neon's control plane is the *only* thing that answers which branches exist, for the two reasons
-`docs/infrastructure.md` → *Preview branching was off, and is now on* records; repeating the check it
-names there is what settled CAN-45.
-
-**Nothing reports to Sentry yet**, which is why its sign-in is deliberately undone rather than
-forgotten. No SDK is installed in `apps/web`, so an empty Sentry is not evidence of a healthy deploy,
-and authorising before an account and an SDK exist buys nothing to verify against. **CAN-51 owns that
-sign-in**, along with the SDK and with correcting this paragraph once it lands.
+server of this kind exposes only its `authenticate` and `complete_authentication` tools, so the
+first call in a session is a sign-in rather than an answer (observed on **CAN-47 CLAUDE.md still
+defers three MCP installs that have happened**, 12 August 2026). **Nothing reports to Sentry yet**
+and no SDK is installed, so an empty Sentry is not evidence of a healthy deploy — **CAN-51 Keep a
+record of server errors past the hour Vercel keeps them** owns that. Neon's control plane is the
+*only* thing that answers which branches exist, for the reasons `docs/infrastructure.md` →
+*Preview branching was off, and is now on* records.
 
 `resend` is scoped to this project in `.claude/settings.json`. **`macos-mail-mcp` is user scope and
 reads every account in Jacob's Mail.app**, work and personal, so it is his tool rather than this
-project's — never use it for anything but checking mail this project sent.
-
-**`neon`, `sentry` and `next-devtools-mcp` are user scope too, and belong there.** A committed
-`.mcp.json` is tempting, since all three were installed for this project and the two remote entries
-carry no credential. But none of them is pinned to a CanonCore resource: `mcp.neon.tech` and
-`mcp.sentry.dev` serve whichever account Jacob signs in as, and `next-devtools-mcp` discovers whatever
-dev server is running. They are keyed to him rather than to this repo, which is the test that puts
-`macos-mail-mcp` in the same place. Move them only if one gains repo-specific configuration, or if a
-second person ever needs this tooling reproducible.
+project's — never use it for anything but checking mail this project sent. Why `neon`, `sentry` and
+`next-devtools-mcp` are user scope rather than a committed `.mcp.json`: `docs/infrastructure.md` →
+*Why three MCP servers are user scope*.
 
 ## Closed decisions, and what will try to reopen them
 
@@ -263,10 +256,19 @@ Both live in `.claude/skills/` and defer to `docs/agents/workflow.md` for the po
 `disable-model-invocation` like the rest — `/review-pr` merges to production, which is not a
 thing to reach for unprompted.
 
+**The whole chain is declared, so a clone runs the same process.** `/grill-with-docs`, `/to-spec`
+and `/to-tickets` come from `mattpocock-skills`, enabled for this project in
+`.claude/settings.json`. `/implement` and `/code-review` are in `.claude/skills/` as well, each keeping
+its rationale in a `references/rationale.md` beside it rather than in the loaded body.
+Keep no copy of either in `~/.claude/skills/`: personal scope overrides project, so a personal copy
+wins silently and the two drift.
+
 Small work can skip from the grill straight to `/implement`. `/wayfinder` replaces `/to-spec`
 when the shape is still foggy — it resolves unknown *decisions* one at a time, where
 `to-spec` assumes you know what you are building and are slicing *how*.
 
 Run the grill and the implementation in separate sessions. The stated ceiling is roughly 140K
-tokens before the model degrades, and the installed plugins already spend ~9k of that before
-anything is typed.
+tokens before the model degrades, and the enabled plugins spend ~5.3k of that before anything is
+typed — measured 13 August 2026 with `claude plugin details <name>`, of which `vercel` (~2,950) and
+`mattpocock-skills` (~1,620) are 86%. Re-measure rather than guessing; a plugin's skill listing also
+has a budget that silently drops descriptions when exceeded, and `/context` reports what survived.
