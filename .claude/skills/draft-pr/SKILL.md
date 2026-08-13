@@ -31,10 +31,9 @@ argument or a piece of evidence lives, for when a step surprises you:
    If `main` has already been pushed, stop there. That is a different problem and not one to fix
    from inside a PR command.
 
-2. **Switch to the `gh` account that can write.** That is `jacobdrees`. Three accounts are
-   authenticated, the active one moves on its own, and `git push` works regardless because it goes
-   over SSH while `gh` uses its own token — so the failure is a 403 that reads like a repo problem
-   (`docs/incidents.md` → *`gh` fails with a 403 when the wrong account is active*).
+2. **Switch to the `gh` account that can write** — `jacobdrees`. The active one moves on its own,
+   and the failure is a 403 that reads like a repo problem (`docs/agents/workflow.md` → *The `gh`
+   account*).
 
    ```bash
    gh auth status                        # check before assuming
@@ -182,11 +181,8 @@ argument or a piece of evidence lives, for when a step surprises you:
    instead of the request`, not `feat(domain): …`. A single-commit PR squashes under its commit
    title, so the two should agree. Use `--body-file`; markdown as an inline argument is fragile.
 
-   **A refusal here may not be GitHub's.** Claude Code's auto mode classifier blocks `gh` writes
-   sometimes, and it reads like a permissions problem even though step 2 is done and the token is
-   fine — so `gh auth switch` gets reached for and fixes nothing. A 403 naming the repository is
-   step 2's problem; a refusal naming the classifier, permissions or auto mode is the harness
-   (`docs/incidents.md` → *The harness classifier refused `gh pr create`*). The fallback is
+   **A refusal naming the classifier, permissions or auto mode is the harness, not GitHub: do not
+   switch accounts** (`docs/agents/workflow.md` → *The `gh` account*). The fallback is
    `mcp__github__create_pull_request`, which opens the same draft PR over the same credentials by a
    route the classifier does not block. Pass `draft: true`, and the text of the body file rather
    than its path — the tool's schema takes `body` as a string.

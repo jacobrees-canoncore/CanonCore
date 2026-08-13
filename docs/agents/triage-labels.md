@@ -8,7 +8,7 @@ The tracker itself is [issue-tracker.md](./issue-tracker.md) (Linear, team `CAN`
 
 ## The roster
 
-All eight exist on team `CAN`. `scripts/check-docs.mjs` compares this table against
+All eight exist on team `CAN`. `scripts/check-docs.ts` compares this table against
 `orca linear team labels` and fails when they disagree.
 
 **Category roles** — exactly one per triaged issue. These map onto labels Linear created by default.

@@ -92,7 +92,7 @@ hand the review `git diff --cached <branch-point>` explicitly.
 
 ## Sub-agent reviews find defects for the session that invoked them
 
-**Two observations, in both directions.**
+**11–12 August 2026. Two observations, in both directions.**
 
 **CAN-48**, from a fresh session: parallel sub-agents found a defect the implementing session had
 missed, which became **CAN-63 The code review after /draft-pr reads as a repeat of the one
@@ -125,7 +125,7 @@ Neither ticket records the reversal, which is why it is recorded here.
 
 ## A worktree branch reads *behind* while being in perfect shape
 
-**On CAN-46 PR skills say the skeleton is missing.**
+**12 August 2026, on CAN-46 PR skills say the skeleton is missing.**
 `git rev-list --left-right --count origin/main...main` returned `1	0` while the branch was cut from
 the remote base and needed nothing.
 
@@ -207,7 +207,7 @@ not a window to reason about.
 
 ## `gh` fails with a 403 when the wrong account is active
 
-**Verified 2026-08-07.** Three GitHub accounts are authenticated on this machine — `jacobdrees`,
+**7 August 2026.** Three GitHub accounts are authenticated on this machine — `jacobdrees`,
 `jacobreesdev` and `vepple-jr` — and only `jacobdrees` holds `admin`, `maintain` and `push` on
 `jacobrees-canoncore/CanonCore`.
 
@@ -301,7 +301,7 @@ repair rather than retry.
 
 ## An omitted `--workspace` resolved to a different workspace each half-day
 
-**2026-08-06.** With nothing touched in between, `orca linear` resolved to Sift in the morning and
+**6 August 2026.** With nothing touched in between, `orca linear` resolved to Sift in the morning and
 Waveger the same afternoon. Orca is connected to three workspaces (CanonCore, Sift, Waveger) and
 does **not** infer one from the current directory.
 
@@ -311,7 +311,7 @@ as "no matching issues" rather than "wrong workspace".
 
 ## One GitHub owner binds to one Linear workspace
 
-**2026-08-06.** Waveger could not be connected to Linear at all, failing with *"Make sure you
+**6 August 2026.** Waveger could not be connected to Linear at all, failing with *"Make sure you
 haven't connected another Linear account with this GitHub installation"*. Waveger and Sift were both
 under the personal `jacobdrees` account until that date; they were split into `jacobrees-waveger`
 and `jacobrees-sift`, one org per workspace.
@@ -348,14 +348,14 @@ Vercel's public reference documents neither spelling.
 
 ## Installing the Vercel GitHub App on a second org displaced nothing
 
-**Observed rather than looked up.** Installing on `jacobrees-canoncore` left the existing
+**10 August 2026, CAN-18. Observed rather than looked up.** Installing on `jacobrees-canoncore` left the existing
 `jacobrees-waveger` installation untouched, and Vercel's `/v1/integrations/git-namespaces` then
 returned both namespaces at once. Whatever the `gitOrgLimit=1` parameter in Vercel's import URL
 controls, it is not an account-level cap. Waveger was never at risk.
 
 ## The holding page was first deployed straight to production
 
-The static holding page was first deployed from a temporary directory with `vercel deploy --prod`.
+**Before 10 August 2026, superseded by CAN-22 on 11 August 2026.** The static holding page was first deployed from a temporary directory with `vercel deploy --prod`.
 That was a mistake: **any** push to `main` triggers a production build, and a build of a repository
 with no application produces a 404, so a documentation-only merge would have taken the site down.
 
@@ -366,7 +366,7 @@ directory, which is why nothing replaces that file. The **Hosting** rows in
 
 ## Both required contexts report on documentation-only pull requests
 
-Confirmed present and `SUCCESS` on the five most recent merged pull requests at the time —
+**12 August 2026, CAN-40.** Confirmed present and `SUCCESS` on the five most recent merged pull requests at the time —
 [#80](https://github.com/jacobrees-canoncore/CanonCore/pull/80),
 [#81](https://github.com/jacobrees-canoncore/CanonCore/pull/81),
 [#82](https://github.com/jacobrees-canoncore/CanonCore/pull/82),
@@ -383,7 +383,7 @@ required context that skipped them would block every documentation merge for eve
 
 ## Preview branching was switched off, so no preview ever got a branch
 
-**CAN-18 recorded that automated preview branching "is not exposed as a toggle on either dashboard".
+**12 August 2026, CAN-45.** **CAN-18 recorded that automated preview branching "is not exposed as a toggle on either dashboard".
 That is wrong, and being wrong about it is why no branch was ever created.**
 
 **Read from the Neon dashboard on 12 August 2026 by CAN-45, before any change:** the project's
@@ -553,7 +553,7 @@ other fails.
 
 ## A Vercel sensitive variable cannot be read back, by anyone
 
-`vercel env pull --environment=production` returns `TMDB_API_READ_ACCESS_TOKEN="[SENSITIVE]"`. That
+**10 August 2026, CAN-19.** `vercel env pull --environment=production` returns `TMDB_API_READ_ACCESS_TOKEN="[SENSITIVE]"`. That
 is documented behaviour rather than a CLI limitation: sensitive environment variables are ones
 *"whose values are non-readable once created"*, stored *"in an unreadable format"* ([sensitive
 environment

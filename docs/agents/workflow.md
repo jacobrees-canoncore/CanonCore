@@ -68,8 +68,9 @@ Neither survives contact with what the review actually does:
   ([incident](../incidents.md#a-review-of-a-staged-but-uncommitted-change-reads-an-empty-range)).
   Commit first and review against the branch point, or hand the review `git diff --cached
   <branch-point>` explicitly.
-- *A session does not review its own work* mistakes which context does the reviewing. The fresh eyes
-  are in sub-agents that never saw the implementing session's reasoning, whoever invokes them
+- *A session does not review its own work* — *"same context reviewing itself isn't review, it's
+  confirmation bias with a slash command"* — mistakes which context does the reviewing. The fresh
+  eyes are in sub-agents that never saw the implementing session's reasoning, whoever invokes them
   ([incident](../incidents.md#sub-agent-reviews-find-defects-for-the-session-that-invoked-them)).
 
 **What the implementing session keeps is the choice of what it hands them** — the range, the spec,
@@ -225,9 +226,24 @@ CAN-22 required; this one is ours.
 **All four run in one Actions job, in that order, so the first failure stops the rest.** That job is
 the single check a pull request reports and one of the two contexts `main`'s ruleset requires;
 [`docs/infrastructure.md`](../infrastructure.md) → *The ruleset* is the only document that names it,
-and `scripts/check-docs.mjs` fails the build if that name and `ci.yml` ever disagree. Requiring the
+and `scripts/check-docs.ts` fails the build if that name and `ci.yml` ever disagree. Requiring the
 three commands as three contexts would require names nothing emits, which is worse than requiring
 too little — a required context that never reports blocks every merge for ever.
+
+**A fifth step checks the documents against the sources they describe**, `node scripts/check-docs.ts`
+— the required contexts, the label roster, the variable roster, and every cross-document pointer.
+**Not all of it reaches CI, and the difference is not an oversight:**
+
+| Check | Where it gates | Why |
+| --- | --- | --- |
+| Job name, ruleset, links, pointers | CI | Local files, plus `gh` with the workflow's own token |
+| Variable roster vs `vercel env ls` | CI | The runner installs `vercel` and holds a `VERCEL_TOKEN` secret. An undocumented credential is how a roster goes stale, so this one is worth a secret |
+| Label roster vs the tracker | **Locally only** | `orca` drives a desktop app on Jacob's machine and cannot run on a runner |
+
+A check whose source is unreachable reports **SKIP with the reason** and does not fail the build: a
+transient outage must not block every merge, which is the same reasoning that keeps a
+never-reporting context out of the ruleset. **A skip is not a pass**, and the summary line says so.
+So run the script locally before landing — `/review-pr` does — and read the skips.
 
 **Cancellation is scoped to branches other than `main`.** Superseding a run is only safe where a
 later commit replaces the earlier one as the thing being judged, which is true on a branch and false
@@ -306,7 +322,7 @@ still land in one go.
 
 **Anything the tests structurally cannot see** goes here as it appears, and prefer making each one
 an executable check over leaving it as prose — a rule that lives only in prose is one nobody
-re-reads at the moment it is broken. `scripts/check-docs.mjs` is the first of those.
+re-reads at the moment it is broken. `scripts/check-docs.ts` is the first of those.
 
 ## After the merge
 

@@ -1,8 +1,17 @@
 {
   "name": "@canoncore/scripts",
+  "version": "0.0.0",
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "node --test"
+    "test": "node --test",
+    "lint": "eslint",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "^24",
+    "eslint": "^9",
+    "typescript": "^5",
+    "typescript-eslint": "^8"
   }
 }

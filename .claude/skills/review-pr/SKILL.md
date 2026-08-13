@@ -28,10 +28,8 @@ ran** — not whether a review happened. Ask rather than assume when this sessio
 
 ## Steps
 
-1. **Resolve the PR.** The argument if given, otherwise the current branch's. Get a `gh` account
-   with push access first — that is `jacobdrees`, the active one is often not it, and the failure is
-   a 403 that reads like a repo problem (`docs/incidents.md` → *`gh` fails with a 403 when the wrong
-   account is active*).
+1. **Resolve the PR.** The argument if given, otherwise the current branch's. Switch to the `gh`
+   account with push access first — `jacobdrees` (`docs/agents/workflow.md` → *The `gh` account*).
 
    ```bash
    gh auth status && gh auth switch --user jacobdrees
@@ -61,8 +59,9 @@ ran** — not whether a review happened. Ask rather than assume when this sessio
    cannot be told apart. Read `bucket` (`pass` / `fail` / `pending` / `skipping` / `cancel`), not the
    exit code: `gh pr checks` exits 8 whenever anything is pending, `--json` included, which is the
    normal state throughout the poll. Hence the `|| true` — without it the healthy path reads as a
-   failure under `set -e` or in a `&&` chain, and the wait aborts. **Do not pass `--required`**: it
-   errors while no required check has reported. References:
+   failure under `set -e` or in a `&&` chain, and the wait aborts. `--fail-fast` works only alongside
+   `--watch`, and `--interval` defaults to 10 seconds. **Do not pass `--required`**: it errors while
+   no required check has reported. References:
    [gh pr checks](https://cli.github.com/manual/gh_pr_checks),
    [cli/cli#9691](https://github.com/cli/cli/pull/9691),
    [cli/cli#7401](https://github.com/cli/cli/issues/7401),
@@ -151,6 +150,17 @@ ran** — not whether a review happened. Ask rather than assume when this sessio
    which blocks the merge **for ever** rather than until CI finishes — report it as a stop and fix
    the ruleset or the workflow. Do not wait for it.
 
+   ### Run the document check locally
+
+   ```bash
+   node scripts/check-docs.ts --verbose
+   ```
+
+   CI runs it too, but cannot reach every source: `orca` drives a desktop app and never runs on a
+   runner, so the label roster gates **here or nowhere**. **Read the skips** — a skip is not a pass,
+   and the summary says so. Treat a FAIL as red, like any other gate
+   (`docs/agents/workflow.md` → *The gates*).
+
    **Then re-read the head SHA.** If it moved while you waited, the result describes a commit that
    is not the one you are about to merge. Wait again on the new one, and carry the final SHA to
    step 6.
@@ -175,13 +185,10 @@ ran** — not whether a review happened. Ask rather than assume when this sessio
    gh pr edit <n> --body-file <path>
    ```
 
-   **A refusal here may not be GitHub's** — Claude Code's auto mode classifier blocks `gh` writes
-   sometimes, and it reads like a permissions problem, so `gh auth switch` gets reached for and
-   fixes nothing. A 403 naming the repository is step 1's problem; a refusal naming the classifier,
-   permissions or auto mode is the harness, and the `github` MCP performs the same operation over
-   the same credentials (`docs/incidents.md` → *The harness classifier refused `gh pr create`*).
-   **It applies to every `gh` write in this skill** — step 2's `gh run rerun` can hit it before this
-   line ever runs — which is why it is said once here rather than at each.
+   **A refusal naming the classifier, permissions or auto mode is the harness, not GitHub: use the
+   `github` MCP, do not switch accounts** (`docs/agents/workflow.md` → *The `gh` account*). **It
+   applies to every `gh` write in this skill** — step 2's `gh run rerun` can hit it before this line
+   ever runs — which is why it is said once here rather than at each.
 
 5. **Mark ready.** `gh pr ready`. Reversible with `gh pr ready --undo`.
 
@@ -311,9 +318,8 @@ ran** — not whether a review happened. Ask rather than assume when this sessio
    orca linear label remove CAN-<n> --label <the one it has> --workspace "$WS" --json
    ```
 
-   `--label` is singular and repeated. **Never `label set`**, which replaces the entire set and would
-   drop the category label too. A landed issue is left with no triage state role at all, on purpose
-   (`docs/agents/triage-labels.md` → *Landed issues carry no state role*).
+   `--label` is singular and repeated, and **never `label set`**. A landed issue is left with no
+   triage state role at all, on purpose (`docs/agents/triage-labels.md`, which owns both rules).
 
    The comment says what shipped and what to expect next, not a summary of the diff. The PR is the
    diff. It carries step 7's evidence, which is why it is written after that step.

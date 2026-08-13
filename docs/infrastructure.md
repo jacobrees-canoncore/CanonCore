@@ -112,7 +112,7 @@ cannot silently unprotect it.
 
 **The required contexts.** These names are the ones GitHub actually reports, read off merged pull
 requests rather than guessed. **This table is the only place in the documentation that names them**,
-and `scripts/check-docs.mjs` fails the build if it disagrees with `.github/workflows/ci.yml` or with
+and `scripts/check-docs.ts` fails the build if it disagrees with `.github/workflows/ci.yml` or with
 the live ruleset:
 
 | Context | Source | Where it comes from |
@@ -163,7 +163,7 @@ if two branches are ever routinely open at once.
 ## Environment variables
 
 **The complete roster.** Every variable this project holds anywhere, in one table.
-`scripts/check-docs.mjs` compares the Vercel rows against `vercel env ls` and fails when they
+`scripts/check-docs.ts` compares the Vercel rows against `vercel env ls` and fails when they
 disagree.
 
 *Read back from `vercel env ls --project canoncore` and `gh secret list` on 13 August 2026.*

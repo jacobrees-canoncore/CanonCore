@@ -79,7 +79,7 @@ second consumer exists. **Providers live in separate repositories**, never in `a
 [ADR-0007](docs/adr/0007-provider-contract.md) says why that separation has to be structural.
 
 **Working in the repo.** `pnpm install`, then `pnpm --filter @canoncore/web dev`. The four CI gates
-and the Playwright suite are in `docs/agents/workflow.md`; `node scripts/check-docs.mjs` checks these
+and the Playwright suite are in `docs/agents/workflow.md`; `node scripts/check-docs.ts` checks these
 documents against the live sources and runs in CI. Coding standards, and what overrides a reviewer's
 default heuristics: `CODING_STANDARDS.md`.
 

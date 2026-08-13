@@ -10,14 +10,20 @@ import {
   parseCiJobNames,
   parseVercelEnv,
   pointerResolves,
-} from './doc-checks.mjs'
+} from './doc-checks.ts'
 
 // `vercel env ls` as it actually prints: OSC 8 hyperlinks around each environment name, one row
 // per environment, trailing "3d ago" column. Captured from the real CLI on 13 August 2026.
-const envRow = (name, value, sensitivity, environments, age = '3d ago') =>
+const envRow = (
+  name: string,
+  value: string,
+  sensitivity: string,
+  environments: string[],
+  age = '3d ago',
+) =>
   ` ${name.padEnd(34)} ${value.padEnd(27)} ${sensitivity.padEnd(19)} ` +
   environments
-    .map((e) => `\x1b]8;;https://vercel.com/x/settings/environments/${e}\x07${e}\x1b]8;;\x07`)
+    .map((e: string) => `\x1b]8;;https://vercel.com/x/settings/environments/${e}\x07${e}\x1b]8;;\x07`)
     .join(', ') +
   `    ${age}`
 
@@ -31,8 +37,9 @@ test('a variable whose name is not all capitals is still read', () => {
     ].join('\n'),
   )
 
-  assert.ok(live.has('legacy_token'), 'the lowercase-named variable was dropped')
-  assert.deepEqual([...live.get('legacy_token').environments].sort(), ['Preview', 'Production'])
+  const entry = live.get('legacy_token')
+  assert.ok(entry, 'the lowercase-named variable was dropped')
+  assert.deepEqual([...entry.environments].sort(), ['Preview', 'Production'])
 })
 
 test('a variable set on Vercel but absent from the roster is reported', () => {
@@ -46,7 +53,7 @@ test('a variable set on Vercel but absent from the roster is reported', () => {
     ].join('\n'),
   )
 
-  assert.deepEqual(compareVariables(documented, live), [
+  assert.deepEqual(compareVariables(documented, live, 'the roster'), [
     'legacy_token is set on Vercel but missing from the roster',
   ])
 })
