@@ -654,8 +654,8 @@ account** and has not been done.
 
 The census run first found `canoncore-v3` held a **second, different key** — two distinct
 unaccounted keys, not one shared key with a fourth holder — and both probed **live** (HTTP 403,
-sending scope) minutes before deletion. Neither is readable from this account any longer; both
-remain live on whichever accounts own them.
+sending scope) minutes before deletion. Neither is readable from this account any longer. Both are
+now revoked, the second by elimination rather than observation — see CAN-80 below.
 
 `canoncore-rebuild` was treated as depending on nothing, on Jacob's instruction, and the deletions
 went ahead on that basis rather than on evidence.
@@ -664,11 +664,45 @@ went ahead on that basis rather than on evidence.
 dashboard sat on one project rather than five, and the route to closing it was the revocation rather
 than more project deletion.
 
-**13 August 2026, later the same day — CAN-80 ended it.** All three keys on the `jacobrees@me.com`
-account were deleted (`Waveger`, `Onboarding`, `canoncore-rebuild-control-plane`) along with its
-stale `send.canoncore.com` domain entry, and `RESEND_API_KEY` was removed from `waveger-archive` and
-`canoncore-rebuild`. CAN-80 reports the keys verified dead against the live API and the account
-holding zero keys and zero domains.
+**13 August 2026, later the same day — CAN-80 ended it.** Signed in as `jacobrees@me.com`, Resend
+team `jacobrees`. All three keys on that account were deleted along with its stale
+`send.canoncore.com` domain entry, and `RESEND_API_KEY` was removed from `waveger-archive` and
+`canoncore-rebuild`. Read from each key's dashboard page before deletion:
+
+| Key | Id | Permission | Domain | Created | Which project held it |
+| --- | --- | --- | --- | --- | --- |
+| `Waveger` | `fe38d058-525c-4cec-81e5-d2f0f2b1e129` | **Full access** | All domains | 23 January 2026 | `waveger-archive` |
+| `Onboarding` | `68b36760-44c5-4564-9b6a-310337df31aa` | Sending access | All domains | 28 December 2025 | `canoncore-legacy`, `canoncore-demo`, `canoncore-storybook` |
+| `canoncore-rebuild-control-plane` | `a0209865-95cb-44f8-82e2-a05e22ea1b50` | Sending access | `send.canoncore.com` | 29 July 2026 | `canoncore-rebuild` |
+
+**Each was tied to its project by a different route**, which is what closes the census above.
+`Waveger` by token, against the plaintext `vercel env pull` returned from `waveger-archive`.
+`Onboarding` by timestamp: its last use read `2026-08-10 15:20:34`, the exact second of the
+`GET /domains` probe in the first bullet of this entry, so the key those three projects shared was
+this one. `canoncore-rebuild-control-plane` by name and creation date against when the variable was
+added — the comparison CAN-41 said could not be made for that project, made without ever reading the
+Sensitive value.
+
+**`canoncore-v3`'s separate key is revoked too, but by elimination.** Its token went with the
+project and cannot be recovered, so it was never matched directly. It probed as sending scope, and
+every sending-scope key on this account is in the table above and now deleted. That reasoning holds
+only while there are exactly two Resend accounts, which is what the signup sweep above supports and
+nothing here proves outright.
+
+**Which account it is, is header-level.** The 28 December 2025 welcome carries `To:` and
+`Original-Recipient:` of `jacobrees@me.com`, sent 22:58:55 GMT — 84 seconds after that account's
+default `General` audience (22:57:13 UTC) and its `Onboarding` key (22:57:31 UTC) were created. One
+signup, one welcome, one account.
+
+**Verified dead rather than reported dead.** `Waveger` was deleted last so its plaintext could be
+turned against the live API afterwards: reads return `400 API key is invalid` and a real send
+attempt returns `401`. After each deletion the account's own API agreed with the dashboard, which is
+a check independent of the page doing the deleting, and it ended at zero keys and zero domains. The
+verification probes overwrote `Waveger`'s `last_used_at` first, so how long it had really sat idle
+is unrecoverable; its lifetime total was 5 uses.
+
+**No sign it was ever used against us.** The account's send log ends 3 August 2026 and every entry
+is that project's own test traffic to `.invalid` addresses, from `no-reply@send.canoncore.com`.
 
 **Independently confirmed here on 13 August 2026**, which is the half this account can see:
 `vercel env ls` on both projects returns no `RESEND_API_KEY`. `waveger-archive` now holds only
