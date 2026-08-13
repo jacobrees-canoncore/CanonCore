@@ -43,6 +43,7 @@ is what the rule was built on.
 - [Installing the Vercel GitHub App on a second org displaced nothing](#installing-the-vercel-github-app-on-a-second-org-displaced-nothing)
 - [The holding page was first deployed straight to production](#the-holding-page-was-first-deployed-straight-to-production)
 - [Both required contexts report on documentation-only pull requests](#both-required-contexts-report-on-documentation-only-pull-requests)
+- [A failing check reaches the phone, a recovering one may not](#a-failing-check-reaches-the-phone-a-recovering-one-may-not)
 
 **Database**
 - [Preview branching was switched off, so no preview ever got a branch](#preview-branching-was-switched-off-so-no-preview-ever-got-a-branch)
@@ -376,6 +377,42 @@ directory, which is why nothing replaces that file. The **Hosting** rows in
 That was the part actually in doubt. With **Include files outside the root directory** on, Vercel
 builds a change touching nothing under `apps/web`, so it reports on those pull requests too. A
 required context that skipped them would block every documentation merge for ever.
+
+---
+
+## A failing check reaches the phone, a recovering one may not
+
+**13 August 2026, CAN-66 Create the uptime monitoring account and its phone alert route.** The alert
+route was proved by inducing failures, not by reading the configuration back. A throwaway monitor
+`803731827` was pointed at `https://www.canoncore.com/uptime-alert-test-can-66`, which 404s, with
+push and e-mail both enabled. The production monitor was never touched, and the throwaway was
+deleted afterwards.
+
+- **Incident `346322792378836481`** — root cause `404 Not Found`, started **17:03:08 BST**, resolved
+  **17:06:03 BST** when the URL was flipped to a working one. Duration 2m55s. A push arrived on the
+  iPhone as it opened.
+- **Incident `346324252843848850`** — root cause `404 Not Found`, started **17:08:56 BST**. Push
+  confirmed arriving on the iPhone.
+- **The recovery at 17:06:03 was not seen on the phone.** Down alerts are two for two; the up event
+  is unconfirmed.
+
+**The silence on the up event is not a permissions problem.** The iOS app was signed into the same
+account — it lists the canoncore monitors — and iOS notification permission was granted. Both
+account-level and monitor-level push are set to *Up events, Down events*. Why the recovery was not
+observed is unexplained, and was not chased: the criterion CAN-66 exists to satisfy is learning that
+the site is **down**.
+
+**What this proves and does not.** A failing check reaches the phone. That a recovering one does is
+untested, so *"it went quiet, so it must be back"* is not a safe inference — confirm recovery in the
+dashboard.
+
+**A 404 is a worse test than it looks, and a better one here.** An erroneous HTTP status is
+*"instantly marked as down without verification"*, so this route exercises the fast path and says
+nothing about the four-request confirmation a non-responding host gets
+(`docs/infrastructure.md` → *Uptime monitoring: UptimeRobot*). It was chosen for exactly that: it
+fires in one check rather than four, and needs no outage of anything real. **The monitor page's
+Test Notification button does the same job without an incident**, and was only found after this
+test had run.
 
 ---
 
