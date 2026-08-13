@@ -6,7 +6,24 @@
       "Skill(claude-in-chrome)"
     ]
   },
+  "skillOverrides": {
+    "claude-in-chrome": "off"
+  },
   "enabledPlugins": {
+    "mattpocock-skills@claude-plugins-official": true,
     "resend@claude-plugins-official": true
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PROJECT_DIR}/.claude/hooks/require-linear-workspace.sh"
+          }
+        ]
+      }
+    ]
   }
 }

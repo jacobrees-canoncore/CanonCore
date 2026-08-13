@@ -493,6 +493,24 @@ resource rather than a wrong account. If a Vercel tool reports nothing, check wh
 before believing it: `vercel whoami` should say `jacobreesvercel`. The bundled `vercel` plugin MCP is
 a separate server from this one and is not necessarily on the same account.
 
+### Why three MCP servers are user scope
+
+`neon`, `sentry` and `next-devtools-mcp` are configured at user scope rather than in a committed
+`.mcp.json`. A committed file is tempting, since all three were installed for this project and the
+two remote entries carry no credential. But none of them is pinned to a CanonCore resource:
+`mcp.neon.tech` and `mcp.sentry.dev` serve whichever account Jacob signs in as, and
+`next-devtools-mcp` discovers whatever dev server is running. They are keyed to him rather than to
+this repo, which is the same test that puts `macos-mail-mcp` in user scope. Move them only if one
+gains repo-specific configuration, or if a second person ever needs this tooling reproducible.
+
+A second reason to hold the line while this is a solo repo: project-scoped servers normally prompt
+for approval, but `claude -p` runs, Agent SDK sessions and cloud sessions cannot show that prompt
+and load project-scoped servers without asking
+([MCP docs](https://code.claude.com/docs/en/mcp)).
+
+The `resend` MCP is the exception and is scoped to this project in `.claude/settings.json`, because
+it is pinned to this product's own Resend account and domain.
+
 ## Domains
 
 `canoncore.com` is registered at Namecheap on BasicDNS. **No Namecheap change was needed for the
