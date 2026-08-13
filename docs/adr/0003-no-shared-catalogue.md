@@ -37,5 +37,13 @@ same thing, held as an alias rather than a rewrite, undone by discarding it.
 - Duplicates are never cleaned up globally and the Anchor space slowly fragments. An escape exists
   if it ever matters: when enough people independently make the same merge, suggest it globally.
   Consensus-derived, still no moderators.
-- Overrides are per-person, so the shared layer is source data only and no one can damage anyone
-  else's view. The multi-tenant property falls out of the overlay rather than being added to it.
+- **The shared layer is Anchors, and nothing else.** Snapshots are per-user rows keyed on the
+  owner's record ([ADR-0004](0004-layered-overlay-for-sources-and-edits.md)'s `(record, source)`),
+  and overrides are per-person, so no one can damage anyone else's view — the multi-tenant property
+  falls out of the overlay rather than being added to it. An earlier draft of this bullet said "the
+  shared layer is source data only", which read as a shared snapshot table; settled the other way
+  on 13 August 2026 (CAN-73 Settle the Snapshot layer): deduplicating external data per Anchor was
+  rejected because it puts person-forks in a shared table, hardens erasure, and makes the
+  Anchor↔external-id mapping global truth, which this ADR's per-viewer merges forbid. The cost —
+  the same TMDB payloads stored once per importing user — is storage, not legality, since the
+  retention exception is project-wide.

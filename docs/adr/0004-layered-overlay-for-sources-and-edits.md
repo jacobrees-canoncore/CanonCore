@@ -41,9 +41,26 @@ merge model and serves a 301 before a final 404.
 delete.** Sonarr's `DeleteMany(existingEpisodes)` has no guard, so a provider returning a
 well-formed empty list wipes every local episode; there is a test pinning that behaviour.
 
+## The key is per-user, deliberately
+
+`(record, source)` hangs every snapshot off the owner's record, so snapshots are per-user rows and
+carry row-level security like everything else user-scoped — one uniform rule, one cross-tenant
+test shape ([ADR-0005](0005-stack.md)). Deduplicating external data into a shared per-Anchor table
+was considered and rejected (13 August 2026, CAN-73 Settle the Snapshot layer): see
+[ADR-0003](0003-no-shared-catalogue.md)'s consequences for the reasons.
+
 ## A person is a Source
 
 Forking someone else's public records creates a snapshot whose source is that person. Their later
 changes arrive as a new snapshot; yours are overrides. **Divergence is surfaced and never applied
 automatically.** Every platform that ships forking without an upstream path is asked for one
 forever and does not build it. This one gets it free, because it is the same machinery.
+
+**GDPR bounds "nothing is destroyed" here.** When the person behind a Source is erased
+([ADR-0008](0008-operations-and-undo.md)), fork-snapshots sourced from them are **anonymised, not
+kept whole and not fully deleted**: the attribution is severed to an opaque tombstone, their
+authored prose — Arguments — is deleted from the snapshot values, and factual fields (titles,
+runtimes, positions) remain, since facts stop being personal data once de-attributed. The forker
+keeps structure, facts and all of their own overrides; the person is gone. Settled 13 August 2026
+(CAN-73); CAN-30 GDPR export and erasure implements the job, CAN-9 Fork and divergence creates the
+rows it will one day act on.
