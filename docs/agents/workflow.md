@@ -18,6 +18,22 @@ rule belongs here, a step belongs in the skill.
 > nothing runs against it yet, so the deploy-order and migration rules below are policy written
 > ahead of the thing they govern.
 
+## Contents
+
+- [Why a PR at all, for one developer](#why-a-pr-at-all-for-one-developer)
+  - [The review runs once, and `/implement` is normally where](#the-review-runs-once-and-implement-is-normally-where)
+- [Branches](#branches)
+  - [Who creates it, and when](#who-creates-it-and-when)
+  - [The local `main` is permanently stale in a worktree](#the-local-main-is-permanently-stale-in-a-worktree)
+- [The `gh` account trap](#the-gh-account-trap)
+- [The other `gh` failure, which is not the account](#the-other-gh-failure-which-is-not-the-account)
+- [The slash command that silently did not load](#the-slash-command-that-silently-did-not-load)
+- [The loop](#the-loop)
+- [The gates](#the-gates)
+  - [What `main` refuses](#what-main-refuses)
+- [The merge reports failure after it has succeeded](#the-merge-reports-failure-after-it-has-succeeded)
+- [After the merge](#after-the-merge)
+
 ## Why a PR at all, for one developer
 
 There is nobody to review it, so the PR is not doing what a PR usually does. It earns its place

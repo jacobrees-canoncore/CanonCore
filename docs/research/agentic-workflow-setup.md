@@ -36,6 +36,33 @@ touch, this one defers.
 
 ---
 
+## Contents
+
+- [The answer in one paragraph](#the-answer-in-one-paragraph)
+- [Where the setup is already correct](#where-the-setup-is-already-correct)
+- [Ranked findings](#ranked-findings)
+  - [1. The workflow this repository documents cannot be run from this repository](#1-the-workflow-this-repository-documents-cannot-be-run-from-this-repository)
+  - [2. `CLAUDE.md` is 262 lines against a documented ceiling of 200](#2-claudemd-is-262-lines-against-a-documented-ceiling-of-200)
+  - [3. One absolute rule is enforced by the weakest available mechanism](#3-one-absolute-rule-is-enforced-by-the-weakest-available-mechanism)
+  - [4. The five installed plugins have never been measured, and the failure mode is silent](#4-the-five-installed-plugins-have-never-been-measured-and-the-failure-mode-is-silent)
+  - [5. Two pieces of load-bearing reasoning exist only in machine-local auto memory](#5-two-pieces-of-load-bearing-reasoning-exist-only-in-machine-local-auto-memory)
+  - [6. Half of the only deny rule in the repo is undocumented](#6-half-of-the-only-deny-rule-in-the-repo-is-undocumented)
+  - [7. The same instruction is written four times, one of them on every turn](#7-the-same-instruction-is-written-four-times-one-of-them-on-every-turn)
+  - [One command covers three of these](#one-command-covers-three-of-these)
+- [The wrapper skills: is wrapping another author's skill sound?](#the-wrapper-skills-is-wrapping-another-authors-skill-sound)
+  - [Should the personal skills be committed?](#should-the-personal-skills-be-committed)
+- [The features he is not using, and whether each earns its place here](#the-features-he-is-not-using-and-whether-each-earns-its-place-here)
+- [Where nothing needs doing, and why](#where-nothing-needs-doing-and-why)
+- [What a reader actually finds, in the order they find it](#what-a-reader-actually-finds-in-the-order-they-find-it)
+  - [The gap between those two paragraphs is the whole problem](#the-gap-between-those-two-paragraphs-is-the-whole-problem)
+- [What defensible current practice looks like, from the people publishing about it](#what-defensible-current-practice-looks-like-from-the-people-publishing-about-it)
+- [What the published evidence says, and how old it is](#what-the-published-evidence-says-and-how-old-it-is)
+- [Adoption and trust are moving in opposite directions, and both are real](#adoption-and-trust-are-moving-in-opposite-directions-and-both-are-real)
+- [On quality, the best single source contradicts itself](#on-quality-the-best-single-source-contradicts-itself)
+- [What hiring processes actually do about it](#what-hiring-processes-actually-do-about-it)
+- [So: asset or liability?](#so-asset-or-liability)
+- [Recommendation #4, tested against the evidence](#recommendation-4-tested-against-the-evidence)
+
 ## The answer in one paragraph
 
 **The enforcement layer is already in the right place, and that is the thing most setups get

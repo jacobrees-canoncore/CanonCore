@@ -2,6 +2,45 @@
 
 Provisioned by CAN-18, CAN-19 and CAN-20, all on 10 August 2026. Everything here is fact, not intent.
 
+## Contents
+
+- [The production URL is `https://www.canoncore.com`](#the-production-url-is-httpswwwcanoncorecom)
+- [Hosting](#hosting)
+- [The repository, and what `main` refuses](#the-repository-and-what-main-refuses)
+  - [Merge methods](#merge-methods)
+  - [The ruleset](#the-ruleset)
+  - [Why those two contexts, and only those](#why-those-two-contexts-and-only-those)
+- [Database](#database)
+  - [Roles](#roles)
+  - [Where the credentials live](#where-the-credentials-live)
+  - [Preview branching was off, and is now on](#preview-branching-was-off-and-is-now-on)
+  - [What a preview branch actually looks like](#what-a-preview-branch-actually-looks-like)
+- [External data source: TMDB](#external-data-source-tmdb)
+  - [The account](#the-account)
+  - [The credential](#the-credential)
+  - [What was verified, and how](#what-was-verified-and-how)
+  - [Regenerating the key does not revoke the old one promptly](#regenerating-the-key-does-not-revoke-the-old-one-promptly)
+  - [A sensitive variable cannot be read back, by anyone](#a-sensitive-variable-cannot-be-read-back-by-anyone)
+- [Agent tooling](#agent-tooling)
+  - [Why three MCP servers are user scope](#why-three-mcp-servers-are-user-scope)
+- [Domains](#domains)
+- [Transactional email: Resend](#transactional-email-resend)
+  - [The account](#the-account-1)
+  - [DNS](#dns)
+  - [What was removed, and why it mattered](#what-was-removed-and-why-it-mattered)
+  - [Where the orphaned key stands now](#where-the-orphaned-key-stands-now)
+  - [Where the credentials live](#where-the-credentials-live-1)
+  - [How delivery is checked](#how-delivery-is-checked)
+  - [What this commits us to](#what-this-commits-us-to)
+- [Reporting address](#reporting-address)
+- [Error reporting: Sentry](#error-reporting-sentry)
+  - [The account and the organisation](#the-account-and-the-organisation)
+  - [The region, and what choosing it cost](#the-region-and-what-choosing-it-cost)
+  - [The organisation this replaced](#the-organisation-this-replaced)
+  - [Where the credentials live](#where-the-credentials-live-2)
+  - [What was verified, and how](#what-was-verified-and-how-1)
+- [Holding page](#holding-page)
+
 ## The production URL is `https://www.canoncore.com`
 
 The apex `canoncore.com` serves a **301** to it. This is the URL that
