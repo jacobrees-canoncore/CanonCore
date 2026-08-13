@@ -188,6 +188,12 @@ purge**.
 not by whoever set it ([incident](incidents.md#a-vercel-sensitive-variable-cannot-be-read-back-by-anyone)).
 **If one is lost, reissue it at the source.** Each section below names where its source is.
 
+**What the application actually requires is declared in
+[`apps/web/src/env.ts`](../apps/web/src/env.ts), and `next build` refuses to run without it** —
+**CAN-49 Refuse to build without the environment variables the app needs**. That schema answers a
+different question from this table: the table is what is provisioned, the schema is what the code
+reads.
+
 > **No deployment has read any of these.** `apps/web` deploys but reads no environment variable, so
 > the first read still has not happened, and "production and preview builds receive it" remains a
 > platform guarantee rather than an observation. It falls to the first ticket that consumes a

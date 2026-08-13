@@ -219,7 +219,8 @@ and is not — pnpm passes words after the script name to that script as argumen
 ([pnpm run](https://pnpm.io/cli/run)). Use `pnpm --filter` to scope to one workspace while iterating.
 
 **The fourth is deliberately not one of the three.** `next build` fails on things the others cannot
-see — a server-only API reached from a client component, a page that throws during static generation
+see — a server-only API reached from a client component, a page that throws during static
+generation, an environment variable nobody set ([`apps/web/src/env.ts`](../../apps/web/src/env.ts))
 — and without it the first machine to find out is the one doing the deploy. The three are what
 CAN-22 required; this one is ours.
 
