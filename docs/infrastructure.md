@@ -363,17 +363,21 @@ divergence from the parent rather than another 30 MB, and it stays that way unti
 to it.
 
 **`parent-data` is not a setting, and cannot be switched off.** Decided 13 August 2026: a preview
-must not hold a clone of production rows. CAN-70 (*Close out the domain and integration loose ends
-only a human can reach*) went to flip the integration to schema-only branches and established that
+must not hold a clone of production rows. **CAN-70 Close out the domain and integration loose ends
+only a human can reach** went to flip the integration to schema-only branches and established that
 no such switch exists anywhere — not in Vercel (the store's Settings page, the installation
 settings, or the Update Project Connection dialog, whose whole surface is environments, the
 Preview/Production branch checkboxes and the variable prefix) and not in the Neon console (project
 Settings; Integrations → Vercel links straight back to Vercel). Both dashboards read on 13 August
-2026. Neon's schema-only branching is an `init_source: schema-only` option at branch-creation time
-only (Console, CLI or API, and Beta); the integration's webhook always creates `parent-data`
-branches. Unticking Preview would send previews back to sharing `main` — the state CAN-45 fixed —
-so the decision moves to **CAN-79 Previews clone production rows, and the integration has no switch
-to stop it**, which owns creating schema-only branches in CI instead.
+2026. Neon's schema-only branching is offered at branch-creation time only — the Console's **Schema
+only** option in the New branch dialog, `neon branch create --schema-only`, or the create-branch API
+with `init_source` set to `schema-only` — and it is Beta
+([Schema-only branches](https://neon.com/docs/guides/branching-schema-only)). No equivalent control
+appears in the integration's own configuration, and the preview branch examined in the section above
+reads `init_source: parent-data`. Unticking Preview would send previews back to sharing `main` — the
+state **CAN-45 Preview deployments do not appear to get their own Neon branch** fixed — so the
+decision moves to **CAN-79 Previews clone production rows, and the integration has no switch to stop
+it**, which owns creating schema-only branches in CI instead.
 
 Both readings above came from the `neon` MCP rather than the dashboard, which is what
 *Which tool owns what* in `CLAUDE.md` now points at for exactly this.
@@ -552,14 +556,15 @@ a record for it**, so anything assuming a hostname is already live — a preview
 subdomain, a future service — has to add its own. Why the cutover needed no change is not
 established by this observation and is no longer claimed here.
 
-**The `demo` CNAME was removed on 13 August 2026** by CAN-70 (*Close out the domain and integration
-loose ends only a human can reach*). `canoncore-demo`, the project it pointed at, was deleted earlier
+**The `demo` CNAME was removed on 13 August 2026** by **CAN-70 Close out the domain and integration
+loose ends only a human can reach**. `canoncore-demo`, the project it pointed at, was deleted earlier
 the same day, which left the record dangling at `bc3b9806163bfed9.vercel-dns-017.com.` with no Vercel
 project claiming the hostname — the classic setup for a subdomain takeover, since anyone who could
 claim that name at Vercel would serve under `demo.canoncore.com`. Verified gone from the
 authoritative nameserver the same day.
 
-**CAA is published, and says Let's Encrypt only.** Decided and added on 13 August 2026, CAN-70:
+**CAA is published, and says Let's Encrypt only.** Decided and added on 13 August 2026, **CAN-70
+Close out the domain and integration loose ends only a human can reach**:
 
 | Type | Host | Value |
 | --- | --- | --- |
@@ -568,29 +573,43 @@ authoritative nameserver the same day.
 Vercel issues certificates through Let's Encrypt and its documentation requires exactly this record
 where any CAA exists ([Troubleshooting domains](https://vercel.com/docs/domains/troubleshooting#missing-caa-records)),
 so the record constrains every other CA without touching the one doing the issuing. What happened to
-the CAA records CAN-18 recorded (`pki.goog`, `sectigo.com`) was never established — CAN-20's zone
-inventory already listed none — but they could not have been right for this stack: had they existed,
-certificate issuance for `www.canoncore.com` would have failed until `letsencrypt.org` was allowed.
-If Vercel ever changes CA, renewal fails visibly and this record is the fix.
+the CAA records **CAN-18 Provision the Vercel project, the Neon database and the production domain**
+recorded (`pki.goog`, `sectigo.com`) was never established — the zone inventory taken by **CAN-20 Set
+up a transactional email provider** already listed none — but they could not have been right for
+this stack: had they existed, certificate issuance for `www.canoncore.com` would have failed until
+`letsencrypt.org` was allowed. If Vercel ever changes CA, renewal fails visibly and this record is
+the fix.
 
 **The `google-site-verification` TXT at the apex is ours, and it stays.** The audit flagged it as a
-standing proof-of-control of unknown origin. Accounted for on 13 August 2026, CAN-70: it verifies
-the Search Console domain property `sc-domain:canoncore.com` on Jacob's `jacobreesnew@gmail.com`
-account, added 30 November 2025, method "Domain name provider" — which is DNS, the only method a
-domain property accepts, and the zone holds exactly one such token while the property still reads
-"Successfully verified", so the token is that property's. Removing it would unverify the property.
+standing proof-of-control of unknown origin. Accounted for on 13 August 2026, **CAN-70 Close out the
+domain and integration loose ends only a human can reach**: it verifies the Search Console domain
+property `sc-domain:canoncore.com` on Jacob's `jacobreesnew@gmail.com` account, added 30 November
+2025, method "Domain name provider". That method is a DNS record, and it is the only one a domain
+property accepts: Google lists the DNS record as "required only for Domain property (example.com)
+not URL-prefix properties", and confines file upload, HTML tag, Analytics and Tag Manager to
+URL-prefix properties
+([Verify your site ownership](https://support.google.com/webmasters/answer/9008080)). The zone
+holds exactly one such token while the property still reads "Successfully verified", so the token is
+that property's. Removing it would unverify the property.
 
-The two older projects were left in place, reachable on their own `.vercel.app` domains, rather than
-deleted:
+The two older projects were left in place at the cutover, reachable on their own `.vercel.app`
+domains rather than deleted:
 
-| Project | Was | Now |
-| --- | --- | --- |
-| `canoncore-legacy` | held `canoncore.com`, `www.canoncore.com`, and the name `canoncore` | `canoncore-v2.vercel.app` |
-| `canoncore-demo` | held `demo.canoncore.com` | `canoncore-demo.vercel.app` |
+| Project | Was | Then | Now |
+| --- | --- | --- | --- |
+| `canoncore-legacy` | held `canoncore.com`, `www.canoncore.com`, and the name `canoncore` | `canoncore-v2.vercel.app` | **deleted** |
+| `canoncore-demo` | held `demo.canoncore.com` | `canoncore-demo.vercel.app` | **deleted** |
+
+**Both were deleted on 13 August 2026, along with `canoncore-storybook` and `canoncore-v3`.**
+Verified against `vercel project ls` the same day: the account holds `canoncore`, `canoncore-rebuild`,
+`canoncore-v4`, `canoncore-v5`, `universora`, `waveger`, `waveger-archive`, `portfolio` and
+`minecraft`, and none of the four. That deletion is what makes the `demo` CNAME removal below a
+tidy-up of a dangling record rather than the release of a live host.
 
 `demo.canoncore.com` now returns 404. Releasing it mattered beyond tidiness: while it was live a
 stranger could reach the old product on the domain that serves v1, putting it in scope for the
-Online Safety Act obligations in CAN-21.
+Online Safety Act obligations in **CAN-21 Write the Online Safety Act documents and establish the
+reporting address**.
 
 ## Transactional email: Resend
 
@@ -657,13 +676,15 @@ Organizational Domain and needs no such record. That is the reason receiving is 
 
 **A human now reads the reports.** The audit's finding 8 was that `dmarc@mail.canoncore.com` is an
 inbox only the Resend API can read, and this file itself says an API-only inbox is not monitoring.
-Resolved on 13 August 2026 by CAN-70 (*Close out the domain and integration loose ends only a human
-can reach*): a second `rua` destination, `re+wgfzjdbnxfr@dmarc.postmarkapp.com`, is Postmark's free
-DMARC digest service, which processes the aggregate reports and emails a weekly human-readable
-summary to `jacobrees@icloud.com`. It is the RFC-compliant kind of external destination:
+Resolved on 13 August 2026 by **CAN-70 Close out the domain and integration loose ends only a human
+can reach**: a second `rua` destination, `re+wgfzjdbnxfr@dmarc.postmarkapp.com`, is Postmark's DMARC
+digest service, which will "process reports from major ISPs about your domain's DMARC alignment and
+turn them into beautiful, human-readable weekly email summaries, absolutely free"
+([DMARC Digests](https://dmarc.postmarkapp.com/)) — addressed here to `jacobrees@icloud.com`. It is
+the RFC-compliant kind of external destination:
 `canoncore.com._report._dmarc.dmarc.postmarkapp.com` resolves to `v=DMARC1;`, verified 13 August
-2026. No account or card sits behind it — the signup is email plus domain. The Resend destination
-stays as the raw archive; Postmark is the reader.
+2026. The signup asked for an email address and a domain and nothing else, so no account or card
+sits behind it. The Resend destination stays as the raw archive; Postmark is the reader.
 
 `p=none` is monitor-only and changes nothing about delivery. iCloud read the record as published and
 reported `pdomain=canoncore.com`, confirming the reporting address sits inside the Organizational
@@ -706,8 +727,9 @@ would have kept working against whatever domain the account verified next.
 `CanonCore V3` was created on the same day as the `canoncore.com` domain entry that CAN-20 deleted,
 which suggests it belonged to that setup. That is inference and was not investigated further.
 
-**CAN-20 left these alone on the theory that `canoncore-legacy` or `canoncore-demo` might be sending
-with one. They are not.** Those two projects and `canoncore-storybook` share a single identical
+**CAN-20 Set up a transactional email provider left these alone on the theory that
+`canoncore-legacy` or `canoncore-demo` might be sending with one. They are not.** Those two projects
+(both deleted on 13 August 2026, above) and `canoncore-storybook` shared a single identical
 `RESEND_API_KEY`, and it belongs to **a different Resend account**. Two independent observations, both
 from 10 August 2026:
 
@@ -724,8 +746,14 @@ below.
 
 > **That key is live, it is not ours to revoke, and the risk was accepted on 10 August 2026.**
 > [CAN-41](https://linear.app/jacobrees-canoncore/issue/CAN-41/account-for-the-resend-key-three-older-vercel-projects-still-carry-on)
-> was closed without acting on it: the owning account was never identified, no owner was told, and the
-> variable is still stored non-sensitive on all three projects.
+> *Account for the Resend key three older Vercel projects still carry, on an account we do not
+> control* was closed without acting on it: the owning account was never identified, no owner was
+> told, and the variable is still stored non-sensitive on all three projects.
+
+> **Both halves of that acceptance have since failed, on 13 August 2026.** The three projects it
+> describes no longer exist, and the account it calls unidentifiable is Jacob's own. Read what
+> follows as the reasoning of 10 August, preserved because the reopening conditions it names are
+> what fired; *Where the orphaned key stands now*, at the end of this section, is the current state.
 
 What the acceptance rests on:
 
@@ -751,21 +779,6 @@ What the acceptance rests on:
 to `jacobreesnew-7380's projects`; or `canoncore.com` is verified on a Resend account again, which
 would give a key that names it somewhere to send from.
 
-**The first condition fired on 13 August 2026: the owning account is identifiable, and it is
-Jacob's own.** CAN-70 (*Close out the domain and integration loose ends only a human can reach*)
-searched Mail.app and found exactly two "Welcome to Resend!" signup messages: 27 November 2025 to
-`jacobreesnew@gmail.com` and 28 December 2025 to `jacobrees@me.com`. The first is this account — its
-date matches the two `Onboarding` keys created 27 November 2025 in the revocation table above, its
-team slug `jacobreesnew` matches the quota alerts the mailbox holds, and the dashboard session
-confirms the signed-in email. That leaves the 28 December signup, `jacobrees@me.com`, as the other
-account — the same date the stray `canoncore` Neon store and the old Vercel-era resources were
-created. "Someone else's credential on someone else's account" is therefore wrong in the way that
-helps: Jacob can sign in to the `jacobrees@me.com` Resend account and revoke the orphaned key
-himself. That revocation has not been done yet and is the remaining step.
-
-Deleting the three projects, or removing `RESEND_API_KEY` from each, would end the exposure at this
-end. Neither was done, and nothing depends on those projects.
-
 A fourth project, `canoncore-rebuild`, also carries a `RESEND_API_KEY`. It is stored **Sensitive**, so
 Vercel returns `[SENSITIVE]` rather than the value and the comparison above cannot be repeated for it.
 Nothing rules out its holding one of the three. It was treated as depending on nothing, on Jacob's
@@ -777,6 +790,40 @@ found`, and this account's entire retained log was 28 entries from a single day.
 fits all three: the timestamp is kept on the key record and the underlying log rows are aged out.
 That is inference from the observations, not documented behaviour. Either way the dates are a floor
 on how long each key sat unused, not proof it was never used.
+
+### Where the orphaned key stands now
+
+Everything above this heading is the position as of 10 August 2026. Two things changed it on 13
+August, both on **CAN-70 Close out the domain and integration loose ends only a human can reach**.
+
+**The owning account is identifiable, and it is Jacob's own** — the first of the three reopening
+conditions named above. A Mail.app search found exactly two "Welcome to Resend!" signup messages: 27
+November 2025 to `jacobreesnew@gmail.com` and 28 December 2025 to `jacobrees@me.com`. The first is
+this account: its date matches the two `Onboarding` keys created 27 November 2025 in the revocation
+table above, its team slug `jacobreesnew` matches the quota alerts the mailbox holds, and the
+dashboard session confirms the signed-in email. That leaves the 28 December signup,
+`jacobrees@me.com`, as the other account. **"Someone else's credential on someone else's account" is
+therefore wrong in the way that helps**: Jacob can sign in and revoke the key himself. That
+revocation has not been done, and it is the one step that ends this rather than narrowing it. It is
+owned by **CAN-80 Revoke the orphaned Resend key on the jacobrees@me.com account**.
+
+**The remedy the acceptance declined was taken: four of the five projects were deleted the same
+day.** This is not a reopening condition — it is the step this section ended by saying nobody had
+taken ("deleting the three projects… would end the exposure at this end. Neither was done"). That
+sentence is now false, and this table replaces it. Read from `vercel project ls` and `vercel env ls`
+on 13 August 2026:
+
+| Project | Then | Now |
+| --- | --- | --- |
+| `canoncore-legacy`, `canoncore-demo`, `canoncore-storybook`, `canoncore-v3` | held `RESEND_API_KEY` non-sensitive | **deleted** |
+| `waveger-archive` | held it non-sensitive | **still does**, in Development, Preview and Production |
+| `canoncore-rebuild` | held it **Sensitive**, value unreadable | unchanged |
+
+So the exposure is **narrowed, not ended**. The plaintext copy readable from the dashboard now sits
+on one project, `waveger-archive`, rather than five, and the bullet above about `canoncore-legacy`
+and `canoncore-demo` serving their own `.vercel.app` domains is moot because neither exists. The key
+itself is still live, so the route to closing this is the revocation named above rather than more
+project deletion.
 
 ### Where the credentials live
 
