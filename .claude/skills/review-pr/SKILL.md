@@ -70,12 +70,15 @@ ran — not whether a review happened. Ask rather than assume when this session 
    a check-run whose work has finished and whose record never closed — the run reads
    `completed`/`success`, every step passed, and the check-run on that SHA still reads `in_progress`
    with a null `completed_at`, so `bucket` stays `pending` and the watch runs all the way to the
-   ceiling. Before concluding CI is slow, run the run-against-check-run cross-check in
-   `docs/agents/workflow.md` → *The gates*, which holds those two commands for the same reason it
-   holds the gate commands.
+   ceiling. Before concluding CI is slow, run the stuck-record cross-check in
+   `docs/agents/workflow.md` → *The gates*, which holds those commands for the same reason it
+   holds the gate commands. Run all three of them, the commit-**statuses** read included — that
+   section says why the check-runs read alone cannot see the required `Vercel` context.
 
    **If it reads stuck, the remedy is a fresh run, not a longer wait** — waiting cannot resolve it.
    `gh run rerun <run-id>` first; an empty commit pushed to the branch if that does not clear it.
+   When the stuck context is the `Vercel` status, skip the re-run and go straight to the empty
+   commit — `workflow.md` → *The gates* says why the re-run cannot reach it.
    **Do not reach for a rebase**, which is the reflex and is a no-op in a worktree whose `HEAD`
    already contains `origin/main`, so it produces no new SHA and no new run; `workflow.md` gives the
    one condition under which it is worth trying. Then start this step again on the SHA the fresh run
@@ -98,7 +101,7 @@ ran — not whether a review happened. Ask rather than assume when this session 
    because a deployment succeeded while carrying no tests at all. Confirm that every check the
    workflow files declare is present and passing — **read the job names out of `.github/workflows`**
    rather than assuming they are `test`, `typecheck` and `lint`. `workflow.md` defines the gates as
-   three pnpm commands; how those map onto job names is the workflow file's business, and a matrix
+   four pnpm commands; how those map onto job names is the workflow file's business, and a matrix
    or a single combined job would make the literals wrong.
 
    **`main`'s ruleset holds a *different* list, and it is the one the merge is judged against.** It
@@ -116,16 +119,12 @@ ran — not whether a review happened. Ask rather than assume when this session 
    which blocks the merge for ever rather than until CI finishes — so report it as a stop and fix
    the ruleset or the workflow, do not wait for it.
 
-3. **Confirm it works.** Vercel builds a preview deployment per pull request — read its URL from
-   the PR's checks or comments. Until the first deploy exists there is no preview, and that is a
-   "nothing to check" rather than a pass.
+3. **Confirm it works.** Read the preview deployment's URL from the PR's checks or comments.
+   Step 2 does not finish until the required `Vercel` context is green on the SHA, so by this
+   step the preview exists and has deployed — a URL that cannot be found means step 2 ended
+   somewhere it should not have, not a state to work around here.
 
-   **An empty read means "not yet", not "none".** Step 2's wait covers this whenever Vercel's own
-   check is among the ones it waited on. Where it is not, poll for the URL instead of concluding
-   from a single look that no preview exists. Reporting "no preview" while one is still building is
-   the same error as reporting "gates passed" when nothing ran.
-
-   Either way, **ask the user to confirm they have looked at the change working**, unless they
+   **Ask the user to confirm they have looked at the change working**, unless they
    have already said so. This is what a solo repo has instead of a reviewer, and an agent
    asserting that something looks right is not the same as a person seeing it.
 
@@ -136,12 +135,12 @@ ran — not whether a review happened. Ask rather than assume when this session 
    These are the PR's own boxes. The issue's acceptance criteria are a different list held to a
    stricter bar, and step 7 sets those.
 
-   `gh pr edit <n> --body-file <path>`. **This is the skill's first write to GitHub, so it is
-   where a refusal that is not GitHub's shows up first** — the auto mode classifier blocks `gh`
-   writes sometimes, and it reads like a permissions problem, so `gh auth switch` gets reached for
-   and fixes nothing. `docs/agents/workflow.md` → *The other `gh` failure, which is not the
-   account* tells that apart from the 403 and names the `github` MCP fallback. **It applies to
-   every step below as much as to this one**, which is why it is said here rather than at each.
+   `gh pr edit <n> --body-file <path>`. **A refusal here may not be GitHub's** — the auto mode
+   classifier blocks `gh` writes sometimes, and it reads like a permissions problem, so
+   `gh auth switch` gets reached for and fixes nothing. `docs/agents/workflow.md` → *The other
+   `gh` failure, which is not the account* tells that apart from the 403 and names the `github`
+   MCP fallback. **It applies to every `gh` write in this skill** — step 2's `gh run rerun` can
+   hit it before this line ever runs — which is why it is said once here rather than at each.
 
 5. **Mark ready.** `gh pr ready`. Reversible with `gh pr ready --undo`.
 
@@ -182,8 +181,7 @@ ran — not whether a review happened. Ask rather than assume when this session 
    **`--match-head-commit` is what makes step 2 binding.** Steps 3 to 5 sit between the check and
    the merge and one of them waits on a person, so a push landing in that window would otherwise be
    squashed into `main` having never been checked at all — the exact property step 2 exists to
-   guarantee. With the flag, GitHub refuses the merge instead. Omit it only if step 2 found no
-   checks to wait for, since then there is no verified SHA to match.
+   guarantee. With the flag, GitHub refuses the merge instead.
 
    **If the classifier refuses this one** (step 4 names the failure), `mcp__github__merge_pull_request`
    is the fallback — but it has no head-SHA parameter, so it cannot enforce the paragraph above.
@@ -191,16 +189,15 @@ ran — not whether a review happened. Ask rather than assume when this session 
    matches step 2's SHA. Say in the report that the merge went by that route and that the match was
    checked by hand rather than by GitHub.
 
-   If the merge is blocked by conflicts, rebase onto `main` and force-push with
-   `--force-with-lease`. Never merge `main` into the branch.
+   If the merge is blocked by conflicts, fetch and rebase onto `origin/main` — never the local
+   `main`; `docs/agents/workflow.md` → *Branches* says why that is the wrong base — and
+   force-push with `--force-with-lease`. Never merge `main` into the branch.
 
 7. **Verify what the ticket promised, in the deployed environment, and set its checkboxes.** The
    step that gets skipped. Check whatever the ticket actually claimed — a cron entry that
    registered, an environment variable set for production, a route that answers and still refuses
    without its secret. A green suite says the code is right. It says nothing about whether the
    platform is doing what the ticket said it would.
-
-   While nothing is deployed, say that this could not be done rather than omitting it.
 
    **Set the issue's acceptance-criteria checkboxes from what this step verified.** Work them one
    at a time: take a criterion, check that one, record its outcome, then move to the next.

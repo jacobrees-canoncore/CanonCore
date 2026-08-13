@@ -13,8 +13,10 @@ rule belongs here, a step belongs in the skill.
 > is **not** asserted here. Those are project settings, so [`docs/infrastructure.md`](../infrastructure.md)
 > is the only place they can be recorded, and it is the place to check them.
 >
-> What does **not** exist yet is a database, auth, or any migration step, so the deploy-order and
-> migration rules below are policy written ahead of the thing they govern.
+> What does **not** exist yet is auth, a schema, or any migration step. The database itself is
+> provisioned — [`docs/infrastructure.md`](../infrastructure.md) → *Database* records it — but
+> nothing runs against it yet, so the deploy-order and migration rules below are policy written
+> ahead of the thing they govern.
 
 ## Why a PR at all, for one developer
 
@@ -85,6 +87,14 @@ rebase or a review-driven edit after the fact puts you in the third case.
 
 The middle one is the quiet one: a review of an empty range **reports no findings**, which reads
 exactly like a clean review. That is why the claim to make names the command.
+
+**This rule reversed a Done ticket's deliverable, and this paragraph is the trace.** **CAN-63 The
+code review after /draft-pr reads as a repeat of the one /implement ran** shipped #85, which had
+`/draft-pr` end by saying the review coming next was *not* the one `/implement` ran. Five and a
+half hours later #87 — **CAN-40 Give main a ruleset that refuses an unchecked merge** — deleted
+that line and wrote this section in its place, on the two findings above: staging alone does not
+put the work in the review's range (committing first does), and the fresh eyes are in the
+sub-agents whoever invokes them. Neither ticket records the reversal, so it is recorded here.
 
 So the states mean: **draft** is "not yet checked against the gates", **ready** is "the gates are
 green and it works". Nobody is being signalled — the states are for you.
@@ -186,7 +196,8 @@ git merge-base --is-ancestor origin/main HEAD   # exit 0: HEAD already contains 
 `--is-ancestor` checks whether the first commit is an ancestor of the second and exits 0 if it
 is, 1 if it is not ([git merge-base](https://git-scm.com/docs/git-merge-base)). Exit 0, and there is
 nothing to rebase — a rebase onto `origin/main` is a no-op. Exit 1, and the branch really is on
-a stale base. `/draft-pr` step 5 makes exactly this distinction, and this is why it has to.
+a stale base. `/draft-pr` makes exactly this distinction before it pushes, and this is why it
+has to.
 
 **Two limits on that check**, and both matter because the step that uses it is the one guarding
 what goes into a PR. It answers the *behind* reading only: commits sitting on the local `main`
@@ -281,12 +292,16 @@ written down rather than remembered.
 ## The loop
 
 ```bash
-git checkout main && git pull --ff-only
-git checkout -b CAN-11-welcome-email-queue    # or an Orca worktree, above
+# create the branch first — Branches → *Who creates it, and when*, above, is the procedure
 # ...work, via /implement...
 /draft-pr                                     # push, open the draft, link Linear
 /review-pr                                    # gates, ready, squash-merge, close out Linear
 ```
+
+The branch step is a pointer rather than a command on purpose: `git checkout main && git pull`
+is the reflex opening and git refuses it in this layout, because `main` is permanently checked
+out at the project checkout (*The local `main` is permanently stale in a worktree*, above). The
+Branches section holds the forms that work.
 
 **No review step sits between those two**, because `/implement` already ran it — *The review runs
 once, and `/implement` is normally where* above says when that counts and when it does not.
@@ -299,14 +314,19 @@ section names, and pass the point the branch was cut from:
 
 Two different things answer to the name *code review* and it is worth keeping them apart:
 `mattpocock-skills:code-review` is the two-axis Standards/Spec review that takes a fixed
-point; the built-in `/code-review` takes an effort level, or `ultra <PR#>` for a cloud review
-of a GitHub PR. Either works on a branch; neither works before there is one.
+point; Claude Code's bundled `/code-review` is a bug hunt that takes an effort level, or
+`ultra <PR#>` for a cloud review of a GitHub PR. **In this repository the bare name reaches the
+first one**: `.claude/skills/code-review/` owns `/code-review` and forwards to the two-axis
+review, which leaves the bundled one unreachable here — its `references/rationale.md` says why.
+Either works on a branch; neither works before there is one.
 
 - **Squash-merge only.** One ticket, one branch, one commit on `main`. Since CAN-40 it is an
   enforcement rather than a rule: the repository offers no other merge method, and `main`'s
   ruleset requires a linear history — *What `main` refuses* below.
-- **Rebase to stay current**, never merge `main` in:
-  `git rebase main && git push --force-with-lease`.
+- **Rebase to stay current**, never merge `main` in — and rebase onto `origin/main`, never the
+  local `main`, which is permanently stale in this layout (*Branches*, above), so a rebase onto
+  it reuses the stale base and the conflict it was meant to clear survives:
+  `git fetch origin && git rebase origin/main && git push --force-with-lease`.
 - **Commit subjects are prose, not Conventional Commits.** `Send the welcome email from the queue
   instead of the request`, not `feat(email): send from queue`. Nothing enforces it — it is a chosen
   style: the subject says what changed about the product, the body says why. A single-commit
@@ -405,13 +425,25 @@ check-run on that SHA still read `in_progress` with `completed_at: null` six min
 null is what `gh pr checks` was reporting as `bucket: pending`, so a watch would have polled a check
 that had already passed and would never say so.
 
-Compare the run-level conclusion against the check-run's `completed_at` to tell them apart:
+Compare the run-level conclusion against the check-run's `completed_at` to tell them apart — and
+read the commit **statuses** as well, because check-runs are only half the contexts:
 
 ```bash
 gh run list --branch <branch> --limit 1 --json headSha,status,conclusion
 gh api 'repos/{owner}/{repo}/commits/<sha>/check-runs' \
   --jq '.check_runs[] | "\(.status)/\(.conclusion // "-")\t\(.completed_at // "NULL")\t\(.name)"'
+gh api 'repos/{owner}/{repo}/commits/<sha>/status' \
+  --jq '.statuses[] | "\(.state)\t\(.updated_at)\t\(.context)"'
 ```
+
+The `Vercel` context the ruleset requires is a commit *status*, not a check-run
+([`docs/infrastructure.md`](../infrastructure.md) → *The repository, and what `main` refuses*), so
+the context most likely to hang never appears in the check-runs read — the third command is the
+only one of the three that can see it. A status has no run record to compare against and no
+`completed_at` — its fields end at `updated_at`
+([commit statuses](https://docs.github.com/en/rest/commits/statuses)); the tell is a `state` still
+`pending` after the deployment it reports on has finished, which the `vercel` MCP or the
+dashboard answers.
 
 `--limit 1` returns the newest run on the branch, which need not be the run for the SHA you are
 waiting on, so `headSha` is selected there to be *checked* rather than displayed: if it does not
@@ -425,8 +457,10 @@ record never resolves by waiting at all.
 
 **What clears it is a fresh run, and a rebase is not reliably one.** Re-run the workflow first with
 `gh run rerun <run-id>`, which asks GitHub for a new check-run on the same commit and costs no
-history. If the record is still stuck after that, move the SHA instead: an empty commit
-(`git commit --allow-empty`) pushed to the branch, which the squash merge discards anyway. Reach for
+history. That reaches only the Actions contexts — a stuck `Vercel` *status* has no run to re-run,
+so for that one go straight to the next resort. If the record is still stuck, move the SHA: an
+empty commit (`git commit --allow-empty`) pushed to the branch, which the squash merge discards
+anyway and which asks Vercel for a fresh deployment as well as Actions for a fresh run. Reach for
 a rebase only when `git merge-base --is-ancestor origin/main HEAD` exits 1 — on exit 0, which is the
 ordinary case, *The local `main` is permanently stale in a worktree* above shows the rebase is a
 no-op, so it rewrites nothing, produces no new SHA and therefore triggers no new run. CAN-47's
@@ -460,9 +494,11 @@ it (`issue-tracker.md`). The trap that shaped it is still worth carrying: a requ
 never reports blocks every merge for ever rather than until CI finishes, so only require checks that
 run on every pull request.
 
-**A deployed preview works.** Vercel builds a preview deployment per pull request. The value of
-a preview is that it is a real environment rather than a smoke screen, so a preview must point at
-its own Neon branch rather than at production's data.
+**A deployed preview works.** That a preview deployment exists per pull request is a project
+setting, so the preamble above applies: [`docs/infrastructure.md`](../infrastructure.md) is where
+it is recorded, and the place to check it. The value of a preview is that it is a real environment
+rather than a smoke screen, so a preview must point at its own Neon branch rather than at
+production's data.
 
 **Everything the branch changes actually reaches production.** Now answerable, and the answer is
 that **a merge does not carry everything**. Vercel's build deploys the application code and nothing

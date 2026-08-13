@@ -179,36 +179,36 @@ policy and the reasoning; this is the procedure. `/review-pr` lands it afterward
 
 10. **Attach the PR to the issue**, if one was found:
 
-   ```bash
-   orca linear attach --current --url <pr-url> --title "PR link" --json
-   ```
+    ```bash
+    orca linear attach --current --url <pr-url> --title "PR link" --json
+    ```
 
-   Use `orca linear attach <id> --url … --workspace "$WS"` when the worktree is not linked.
-   This is deliberate belt and braces: `Fixes CAN-<n>` in the body relies on Linear's scanner
-   noticing, and an attachment does not.
+    Use `orca linear attach <id> --url … --workspace "$WS"` when the worktree is not linked.
+    This is deliberate belt and braces: `Fixes CAN-<n>` in the body relies on Linear's scanner
+    noticing, and an attachment does not.
 
-   On `linear_write_unconfirmed`, retry **once** with the pinned `--write-id` from the error's
-   own `nextSteps` (`docs/agents/issue-tracker.md`).
+    On `linear_write_unconfirmed`, retry **once** with the pinned `--write-id` from the error's
+    own `nextSteps` (`docs/agents/issue-tracker.md`).
 
-   Both this and step 9's `Fixes CAN-<n>` are sync triggers, so keep the issue's description out of
-   this skill entirely (`docs/agents/issue-tracker.md` → *A description write must not be bundled
-   with anything else*).
+    Both this and step 9's `Fixes CAN-<n>` are sync triggers, so keep the issue's description out
+    of this skill entirely (`docs/agents/issue-tracker.md` → *A description write must not be
+    bundled with anything else*).
 
 11. **Report the PR URL**, and say that `/review-pr` is what comes next. If you mention the checks
-   or the preview, be accurate about what queued them: **step 7's push did, not step 9's PR
-   creation.** Both the workflow and Vercel trigger on push, so they were already running before
-   the PR existed.
+    or the preview, be accurate about what queued them: **step 7's push did, not step 9's PR
+    creation.** Both the workflow and Vercel trigger on push, so they were already running before
+    the PR existed.
 
-   **Do not tell the user to run a code review that has already run.** `/implement` runs it, and
-   `docs/agents/workflow.md` → *The review runs once, and `/implement` is normally where* says that
-   is the review — asking for a second pass on the same range is the noise this line exists to
-   prevent. Say a review is needed only in the three cases that section names, and say which one
-   applies: `/implement` never ran, the diff its review read was empty or partial, or the branch
-   has gained commits it never saw. Ask rather than assume when you cannot tell from this session.
+    **Do not tell the user to run a code review that has already run.** `/implement` runs it, and
+    `docs/agents/workflow.md` → *The review runs once, and `/implement` is normally where* says that
+    is the review — asking for a second pass on the same range is the noise this line exists to
+    prevent. Say a review is needed only in the three cases that section names, and say which one
+    applies: `/implement` never ran, the diff its review read was empty or partial, or the branch
+    has gained commits it never saw. Ask rather than assume when you cannot tell from this session.
 
-   **Do not wait for the checks here either.** They were queued seconds ago, so waiting blocks for
-   a full run before anyone has read the diff, and any green seen now is stale the moment anything
-   changes the branch. `/review-pr` waits, and it waits because it merges.
+    **Do not wait for the checks here either.** They were queued seconds ago, so waiting blocks for
+    a full run before anyone has read the diff, and any green seen now is stale the moment anything
+    changes the branch. `/review-pr` waits, and it waits because it merges.
 
 ## Notes
 
