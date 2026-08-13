@@ -96,9 +96,8 @@ one. If content is a crime in progress, or someone is in immediate danger, **cal
 
 ## Accessibility
 
-We build this page and our reporting route to work with a keyboard alone and with a screen reader, and we
-test for it. Automated testing does not catch everything, so we do not claim the page is perfect for
-everyone.
+We are building this page and our reporting route to work with a keyboard alone and with a screen reader.
+We will not claim they are perfect for everyone, because no automated check finds everything.
 
 **Reporting does not depend on this page working for you.** The address above is an ordinary email address,
 so you can reach us with whatever you already use. If anything here gets in your way, tell us and we will

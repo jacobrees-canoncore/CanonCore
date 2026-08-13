@@ -12,7 +12,9 @@ identify the relevant Code of Practice, and give the date it takes effect.
 | Named person responsible | Jacob Rees |
 | Approved by | Jacob Rees — sole operator; see [`accountable-individual.md`](accountable-individual.md) |
 
-**Code of Practice:** Ofcom's *Illegal Content Codes of Practice for User-to-User Services* (ICU).
+**Codes of Practice:** Ofcom's *Illegal Content Codes of Practice for User-to-User Services* (ICU) **and**
+its *Protection of Children Codes of Practice for User-to-User Services* (PCU). Record-Keeping Guidance
+§4.2 requires each measure to identify the Code it comes from, and every row below does.
 **Applicability:** this service is **smaller** (well under 7 million monthly active UK users) and
 **low-risk** (low or negligible for all 18 kinds), per
 [`illegal-content-risk-assessment.md`](illegal-content-risk-assessment.md). It is **not** a large service
@@ -26,7 +28,7 @@ Codes (ICU)**, which apply to every regulated user-to-user service, and the **Pr
 Codes (PCU)**, which apply because the children's access assessment concludes the child user condition is
 met. Several measures pair across the two, and where they do the same implementation satisfies both.
 
-## What the `Effective` column means, and why most of it does not say today
+## What the `Effective` column means, and why most rows carry no date
 
 `s.23(3)` records measures **taken or in use**. A date against a measure that is not in use would make
 this record false, so the column carries one of three determinate values and never a placeholder:
@@ -111,7 +113,7 @@ than asserted.
 
 **Limb (b) post-dates the drafting** and is the one that had to be added. `s.10(3A)` and `s.10(3B)` were
 inserted by the Crime and Policing Act 2026 amendments in force 29 June 2026, after the terms were written
-on CAN-21. The provision now states the 48-hour deadline, that it runs **from receipt** rather than from
+on **CAN-21 Write the Online Safety Act documents and establish the reporting address**. The provision now states the 48-hour deadline, that it runs **from receipt** rather than from
 when the report is opened, the "same or substantially the same" limb, and the two `s.10(3B)` exceptions —
 that the provider considers the content is not intimate image content, or that the reporter is neither the
 subject nor acting on their behalf — as the only two grounds for refusing.
@@ -154,17 +156,19 @@ reader will otherwise wonder where they went. Twelve plus one plus three is the 
 | **PCU G1** | Terms of service: substance | [`../../content/legal/terms-of-service.md`](../../content/legal/terms-of-service.md) | Not in effect — CAN-32 |
 | **PCU G3** | Terms of service: clarity and accessibility | Same document | Not in effect — CAN-32 |
 
-**Listed by the tool but not applicable.** Section B of the Protection of Children Codes is **age
-assurance**, and all three entries below are age assurance measures. An earlier version of this register
-described B4 and B5 as measures about the technical feasibility of takedown, which is what the
-*applicability test* turns on, not what the measures *are*. Corrected here.
+**The three the tool listed but which do not apply.** Two of them, B1 and B4, are **age assurance**
+measures: Section B of the Protection of Children Codes is the age assurance section. An earlier version
+of this register described B4 as a measure about the technical feasibility of takedown, which is what its
+*applicability test* turns on, not what the measure *is*. Corrected here.
 
 | Ref | Measure | Why not |
 | --- | --- | --- |
 | **PCU B1** | Implementing an age assurance process | B1.1 applies to a service "that **uses** highly effective age assurance to identify which United Kingdom users of the service are child users for the purpose of targeting measures recommended in this Code at such users, their user accounts or their content feeds (whether because any of Recommendations B2 to B7 apply to the service or otherwise)". **This service uses none**, none of B2 to B7 applies, and no measure in this Code is targeted at child users here, so B1's own applicability test is not met. `s.12(5)` is why the service *needs* none — the terms prohibit all four kinds of primary priority content for all users — but that is the statutory escape from `s.12(4)`, and it is a different question from whether this Code measure applies |
 | **PCU B4** | Use of highly effective age assurance — services that do not prohibit primary priority content | B4.1 applies where (a) PCU B2 does not apply, **and** (b) either (i) one or more specific kinds of primary priority content are allowed on the service, or (ii) all kinds are prohibited but it is not currently technically feasible to take down all content the provider determines is in breach of its terms under PCU C1.3(a). Limb (a) is satisfied — B2 does not apply, since the principal purpose of the service is not hosting or disseminating primary priority content — but **both limbs of (b) fail**: the terms prohibit all four kinds for all users, and takedown is technically feasible |
 | **PCU G2** | Summarising the children's risk assessment in the terms | Category 1 services only. Not required of this service |
-| **PCU B5** | Use of highly effective age assurance — services that do not prohibit priority content | Not among the sixteen the tool returned. B5.1 applies where (a) PCU B3 does not apply, **and** (b) the service is at **medium or high risk of one or more specific kinds of priority content** and either that content is allowed or it is prohibited but takedown is not technically feasible. The children's risk assessment finds **low for all eight kinds** of priority content, so limb (b)'s threshold is never reached and its sub-limbs are never read. B3 does not apply either. B5 *is* referenced inside PCU C2.6(b)(i), C2.7(a) and C2.8(a) — but as a class of service ("a service to which Recommendation PCU B5 applies"), not as a measure about feasibility |
+
+That is the three, and the sixteen is closed. **PCU B5 below is deliberately outside the count**, because
+the tool never returned it.
 
 > **Two conditions hold PCU B4 out of scope, and both can be lost.** The first is the `s.12(5)`
 > prohibition on primary priority content, which also keeps PCU B1 and the whole age-assurance apparatus
@@ -174,10 +178,27 @@ described B4 and B5 as measures about the technical feasibility of takedown, whi
 > undeletable would bring highly effective age assurance into scope by that route alone, with the terms
 > unchanged.
 
-> **PCU B5 turns on a risk level, not on the terms.** It comes into scope if any kind of priority content
-> — abusive content, content inciting hatred, bullying, the three violent kinds, harmful substances,
+### PCU B5, which the tool did not return
+
+**B5 is not one of the sixteen** and is recorded anyway, because an earlier version of this register
+carried it as though it were, and described it as a measure about the technical feasibility of takedown.
+It is not. **PCU B5 is "use of highly effective age assurance — services that do not prohibit priority
+content"**, and B5.1 applies where (a) PCU B3 does not apply, **and** (b) the service is at **medium or
+high risk of one or more specific kinds of priority content** and either that content is allowed on the
+service or it is prohibited but takedown is not technically feasible.
+
+**It does not apply here, and limb (b) is why**: the children's risk assessment finds **low for all eight
+kinds** of priority content, so the threshold is never reached and the sub-limbs are never read. B3 does
+not apply either, so limb (a) is satisfied and does no work. B5 *is* referenced inside PCU C2.6(b)(i),
+C2.7(a) and C2.8(a), which is presumably how it reached this register in the first place — but there it
+names a **class of service** ("a service to which Recommendation PCU B5 applies"), not a rule about
+feasibility.
+
+> **B5 turns on a risk level, not on the terms.** It comes into scope if any kind of priority content —
+> abusive content, content inciting hatred, bullying, the three violent kinds, harmful substances,
 > dangerous stunts — is ever assessed at **medium or high** rather than low. That is a finding the
-> children's risk assessment can change at a review without anything about the product changing.
+> children's risk assessment can change at a review without anything about the product changing, and it is
+> a different lever from the `s.12(5)` terms prohibition, which answers primary priority content only.
 
 ## Sub-measures recorded explicitly
 
@@ -186,7 +207,7 @@ row. Ofcom's guidance asks for the measure to be described; these are the descri
 
 | Ref | What it requires | How it is met | Effective |
 | --- | --- | --- | --- |
-| **ICU D12.3** | The provider should nominate a responsible individual or a team to ensure such complaints are directed to an appropriate individual or team to be processed | **Jacob Rees**, the same person as ICU A2 and PCU A2. There is no team to route to, so the nomination and the processing are one person. Recorded in [`review-policy.md`](review-policy.md) → *Nominated responsible individual* | 13 August 2026 |
+| **ICU D12.3** | The provider should nominate a responsible individual or a team to ensure such complaints are directed to an appropriate individual or team to be processed | **Jacob Rees**, the same person as ICU A2 and PCU A2. Why a sole operator satisfies a measure written around routing: [`review-policy.md`](review-policy.md) → *Nominated responsible individual* | 13 August 2026 |
 | **ICU D2.3(e)** | The reporting and complaints process should be designed having regard to comprehensibility, "based on the likely reading age of the youngest individual permitted to use the service without the consent of a parent or guardian" | The youngest permitted user is **13**, set by the terms of service. [`../../content/legal/reporting-and-complaints.md`](../../content/legal/reporting-and-complaints.md) is written to that reading age: short sentences, no legal terminology, and every heading a question a reporter would ask. The minimum age is a product decision confirmed on CAN-44; if it moves, this obligation moves with it | Not in effect — CAN-44, CAN-32 |
 | **ICU G3.2(b) and (c)** | The terms should be "laid out and formatted in a way that helps United Kingdom users read and understand them", and "written to a reading age comprehensible for the youngest individual permitted to use the service" | Same reading age, 13, and the same drafting standard. G3.2(b) is met by the section structure: one heading per obligation, so a provision is locatable without reading the whole document, which is also what G3.2(a)(ii) asks. **Neither is asserted as tested** — no readability measurement has been run, and the claim is about how the document was drafted | Not in effect — CAN-32 |
 

@@ -14,10 +14,11 @@ Kept to satisfy `s.9(3)–(4)`, `s.23(6)`, `s.36(3)` and **ICU D12.4(b)**.
 | [Children's access assessment](childrens-access-assessment.md) | Not more than one year apart (`s.36(3)`); also before a relevant significant change, on evidence of reduced age assurance effectiveness, or on evidence of a significant increase in child users (`s.36(4)`) |
 | [Code measures register](code-measures-register.md) | Alongside the risk assessment |
 
-**Standing obligation, not a cycle.** If **non-designated content** is ever identified on the service,
-Ofcom must be notified at `nondesignatedcontent@ofcom.org.uk`. This is a duty specific to user-to-user
-services, it has no schedule, and the [children's risk assessment](childrens-risk-assessment.md) points
-here for it.
+**One standing obligation, which is not a cycle and so is easy to lose here.** If **non-designated
+content** is ever identified on the service, Ofcom must be notified. The duty, the address and Ofcom's
+own wording are in [`childrens-risk-assessment.md`](childrens-risk-assessment.md) → *Step 2*, which owns
+them; this line exists because that record points here for the obligation and, until 13 August 2026,
+found nothing.
 
 **Also triggered by Ofcom.** Where Ofcom makes a significant change to a Risk Profile relevant to this
 service, the risk assessment is reviewed. The operator subscribes to Ofcom's online safety email updates

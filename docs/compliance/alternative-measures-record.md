@@ -60,8 +60,10 @@ Four things carry the argument, and each is checkable:
 2. **No account and no sign-in.** `s.20(5)` affected persons are by definition not users, and a per-item
    control reachable only to signed-in users would serve them worse than the address does.
 3. **There is no volume for a per-item control to manage.** No upload, no messaging, no comments, no
-   search across other users' content. The corpus is small enough for the operator to read, which Ofcom
-   treats as load-bearing in its own low-risk worked examples.
+   search across other users' content. The corpus is small enough for the operator to read, and
+   reviewability is load-bearing in Ofcom's own worked low-risk example for CSAM — the citation is in
+   [`illegal-content-risk-assessment.md`](illegal-content-risk-assessment.md) → *Step 2*, under existing
+   controls, and is not repeated here.
 4. **Nothing about the address limits what can be reported.** A per-item control constrains a reporter to
    the item it is attached to; free-form contact does not, which is why D2.2(d) supporting information is
    satisfied without a field to type it into.
@@ -97,11 +99,13 @@ the importance of protecting users' right to freedom of expression within the la
 privacy. Both were considered before the alternative was chosen, and both point the same way here.
 
 **Freedom of expression.** The alternative is *less* restrictive of expression than the measure it
-replaces, which is unusual and worth stating plainly. A per-item report control puts a one-click
-takedown request on every piece of content, and Ofcom's own reasoning about over-reporting is that
-friction-free reporting at scale produces complaints that are not about illegality at all. Handling those
-costs a sole operator the time to review them, and the cheap resolution under pressure is to take content
-down rather than assess it. An address that requires a person to describe what is wrong raises the floor
+replaces, which is unusual and worth stating plainly. A per-item report control puts a one-click takedown
+request on every piece of content. **The reasoning that follows is the provider's own and is not
+attributed to Ofcom**, which is worth saying because the opposite claim would be convenient: the
+expectation is that a friction-free control produces reports that are not about illegality at all, that
+handling them costs a sole operator the time to review each one, and that the cheap resolution under
+pressure is to take content down rather than assess it. That is a prediction about this service, offered
+as the reason for the choice rather than as evidence for it. An address that requires a person to describe what is wrong raises the floor
 on a report without putting it out of reach, and every report still reaches a human who assesses it
 against the terms under ICU C1.3(b) rather than acting on the complaint alone. The appeal route (ICU D9,
 D10) restores content and lifts restrictions where a decision is reversed, so a wrong takedown is

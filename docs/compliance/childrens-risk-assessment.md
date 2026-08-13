@@ -117,13 +117,10 @@ tool, run as this service with the levels above, a user base below 700,000, term
 kinds of primary priority content, and no principal purpose of hosting harmful content. **Ofcom reference
 code `POCVMT95NIB`**, retained so the run can be resumed rather than repeated.
 
-> **The Step 2 levels are what keep PCU B5 out of scope, so a level change is an age-assurance change.**
-> PCU B5 (highly effective age assurance for services that do not prohibit priority content) applies where
-> a service is at **medium or high** risk of one or more kinds of priority content. Every one of the eight
-> kinds above is assessed **low**, so B5's applicability test is never reached. Raising any of them at a
-> future review brings B5 into scope by itself, with nothing about the product having changed and the
-> `s.12(5)` prohibition still in place — that prohibition answers primary priority content, not priority
-> content. The register records the same dependency against the B5 row.
+> **The Step 2 levels are what keep PCU B5 out of scope, so raising one is an age-assurance decision.**
+> Every one of the eight kinds of priority content above is assessed **low**, and that is the fact B5's
+> applicability test turns on. The measure, and what raising a level would cost, are in
+> [`code-measures-register.md`](code-measures-register.md) → *PCU B5, which the tool did not return*.
 
 ### Existing controls
 

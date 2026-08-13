@@ -88,13 +88,11 @@ credential lives: `docs/infrastructure.md` — read it before touching deploymen
 variables or the database connection, and note the items it flags as unverified.
 
 **The URL is deployed and deliberately not shared.** `docs/infrastructure.md` → *The URL-sharing gate*
-holds the rule and what opens it. **`docs/compliance/` holds the statutory records** — the two risk
-assessments, the children's access assessment, the Code measures register, the `s.23(4)` alternative
-measures record, the CSEA reporting procedure and the review policy. **Read them before changing anything
-they describe**, because several are false the moment the product gains a capability: user upload,
-messaging or comments, linkified free text, search across other users' content, a recommender, a
-marketplace, or publicly displayable artwork on an adult-flagged record. Each of those requires the
-assessment redone *before* it ships, and each is listed as such in the record it would break.
+holds the rule and what opens it. **`docs/compliance/` holds the statutory records**, and several stop
+being true the moment the product gains a capability — each one that would break an assessment is listed
+in `docs/compliance/illegal-content-risk-assessment.md` → *Step 4* and the same section of the children's
+assessment. **Read them before building anything they describe**: the assessment has to be redone
+*before* such a change ships, not after.
 
 ## Agent skills
 

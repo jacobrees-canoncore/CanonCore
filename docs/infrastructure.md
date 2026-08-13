@@ -52,7 +52,7 @@ that is deliberately as far as it goes.
 | Status | **Closed.** Not shared |
 | Opened by | [CAN-44 Make the Online Safety Act records live, and create the reporting address](https://linear.app/jacobrees-canoncore/issue/CAN-44), when every one of its criteria is met |
 | Also required | [CAN-32 Roles, takedown, and the Online Safety Act surfaces](https://linear.app/jacobrees-canoncore/issue/CAN-32) — the terms of service and the reporting route have to render before they can be relied on |
-| Recorded here since | 13 August 2026 (CAN-71) |
+| Recorded here since | 13 August 2026, by **CAN-71 Make the compliance records valid: dates, the alternative-measures record, and the PCU register** |
 
 **What it covers.** Telling anyone the address, linking it anywhere public, and anything that invites a
 stranger to visit. It does not cover the deployment itself, which has to exist for the records to be
@@ -61,15 +61,14 @@ completable and for the address to be testable.
 **Why it is a gate and not a preference.** The two things that make this a user-to-user service are
 accounts and public Visibility. Neither exists on `main`, so nobody but the operator can put content
 here, and most of the Code measures are recorded as not in effect for exactly that reason
-(`docs/compliance/code-measures-register.md` → *What the `Effective` column means, and why most of it does
-not say today*). The failure this prevents is content arriving before the measures do: a person posting to
+(`docs/compliance/code-measures-register.md` → *What the `Effective` column means*). The failure this prevents is content arriving before the measures do: a person posting to
 a service with no takedown, no published terms and no reporting address.
 
 **Where the gate lived before, and why it moved here.** It was an unticked box on
 [CAN-21 Write the Online Safety Act documents and establish the reporting address](https://linear.app/jacobrees-canoncore/issue/CAN-21),
 which is closed, and then one line of prose on CAN-44. The audit of 12 to 13 August 2026 found it existed
 nowhere in the repository, so an agent reading this repo had no way to know it applied
-(`docs/research/tracker-and-repository-audit.md` §6). It is a criterion on CAN-44 and a row here now,
+(`docs/research/tracker-and-repository-audit.md` §6). It is a criterion on that ticket and a row here now,
 which are the two places someone about to share the URL would actually be looking.
 
 **The compliance records themselves** are in [`docs/compliance/`](compliance/), and `CLAUDE.md` points at

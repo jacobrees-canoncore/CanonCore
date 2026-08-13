@@ -20,8 +20,9 @@ and is provided to Ofcom on request.
 > service becomes a Part 3 service. `www.canoncore.com` is already deployed, so the trigger date is at
 > latest the day the service first carries user-generated content, and possibly earlier. Dating now is the
 > conservative reading and costs nothing but an earlier review date. The decision is recorded in
-> `docs/research/tracker-and-repository-audit.md` §9; it inverted the rule CAN-44 originally carried,
-> which was to date the records immediately before sharing the URL.
+> `docs/research/tracker-and-repository-audit.md` §9; it inverted the rule **CAN-44 Make the Online Safety
+> Act records live, and create the reporting address** originally carried, which was to date the records
+> immediately before sharing the URL.
 
 Structure follows Ofcom's *Illegal content duties: record-keeping template*. Risk levels and reasoning
 follow the *Risk Assessment Guidance and Risk Profiles* **V2.0 (25 June 2026)**. The evidence and
@@ -160,7 +161,7 @@ there is content, so the gate that keeps content out until they exist is part of
 | No recommender or engagement ranking | Foreign interference, suicide and self-harm, hate | Removes amplification | Absence |
 | A corpus small enough for the operator to review | All | Ofcom treats reviewability as load-bearing; see its CSAM low-risk example | Absence, and reviewed at each risk-assessment review |
 | All shared content is public; no closed groups | CSEA, hate | Ofcom treats unreviewed closed groups as a high-risk factor; their absence reduces risk | Absence |
-| Admin takedown, recorded as an Operation with an audit entry | All | Enables the swift takedown in ICU C2 | **Not yet — CAN-32**. No `admin` role, no Visibility and no audit entry exist on `main`. The Code measures register records ICU C2 and PCU C2 as not in effect for the same reason |
+| Admin takedown, recorded as an Operation with an audit entry | All | Enables the swift takedown in ICU C2 | **Not yet — CAN-32 Roles, takedown, and the Online Safety Act surfaces**. No `admin` role, no Visibility and no audit entry exist on `main`. The Code measures register records ICU C2 and PCU C2 as not in effect for the same reason |
 
 ## Step 3 — Measures
 
