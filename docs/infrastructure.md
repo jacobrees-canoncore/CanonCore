@@ -362,6 +362,19 @@ from `main` (`init_source: parent-data`). So the marginal cost of an idle previe
 divergence from the parent rather than another 30 MB, and it stays that way until something writes
 to it.
 
+**`parent-data` is not a setting, and cannot be switched off.** Decided 13 August 2026: a preview
+must not hold a clone of production rows. CAN-70 (*Close out the domain and integration loose ends
+only a human can reach*) went to flip the integration to schema-only branches and established that
+no such switch exists anywhere — not in Vercel (the store's Settings page, the installation
+settings, or the Update Project Connection dialog, whose whole surface is environments, the
+Preview/Production branch checkboxes and the variable prefix) and not in the Neon console (project
+Settings; Integrations → Vercel links straight back to Vercel). Both dashboards read on 13 August
+2026. Neon's schema-only branching is an `init_source: schema-only` option at branch-creation time
+only (Console, CLI or API, and Beta); the integration's webhook always creates `parent-data`
+branches. Unticking Preview would send previews back to sharing `main` — the state CAN-45 fixed —
+so the decision moves to **CAN-79 Previews clone production rows, and the integration has no switch
+to stop it**, which owns creating schema-only branches in CI instead.
+
 Both readings above came from the `neon` MCP rather than the dashboard, which is what
 *Which tool owns what* in `CLAUDE.md` now points at for exactly this.
 
@@ -533,12 +546,39 @@ Hostnames reach Vercel through explicit per-host records instead, one per domain
 | --- | --- | --- |
 | A | `@` | `216.198.79.1` |
 | CNAME | `www` | `930a5c34adc350de.vercel-dns-017.com.` |
-| CNAME | `demo` | `bc3b9806163bfed9.vercel-dns-017.com.` |
 
 The correction matters in one direction only. **A new subdomain does not resolve until someone adds
 a record for it**, so anything assuming a hostname is already live — a preview alias, a sending
 subdomain, a future service — has to add its own. Why the cutover needed no change is not
 established by this observation and is no longer claimed here.
+
+**The `demo` CNAME was removed on 13 August 2026** by CAN-70 (*Close out the domain and integration
+loose ends only a human can reach*). `canoncore-demo`, the project it pointed at, was deleted earlier
+the same day, which left the record dangling at `bc3b9806163bfed9.vercel-dns-017.com.` with no Vercel
+project claiming the hostname — the classic setup for a subdomain takeover, since anyone who could
+claim that name at Vercel would serve under `demo.canoncore.com`. Verified gone from the
+authoritative nameserver the same day.
+
+**CAA is published, and says Let's Encrypt only.** Decided and added on 13 August 2026, CAN-70:
+
+| Type | Host | Value |
+| --- | --- | --- |
+| CAA | `@` | `0 issue "letsencrypt.org"` |
+
+Vercel issues certificates through Let's Encrypt and its documentation requires exactly this record
+where any CAA exists ([Troubleshooting domains](https://vercel.com/docs/domains/troubleshooting#missing-caa-records)),
+so the record constrains every other CA without touching the one doing the issuing. What happened to
+the CAA records CAN-18 recorded (`pki.goog`, `sectigo.com`) was never established — CAN-20's zone
+inventory already listed none — but they could not have been right for this stack: had they existed,
+certificate issuance for `www.canoncore.com` would have failed until `letsencrypt.org` was allowed.
+If Vercel ever changes CA, renewal fails visibly and this record is the fix.
+
+**The `google-site-verification` TXT at the apex is ours, and it stays.** The audit flagged it as a
+standing proof-of-control of unknown origin. Accounted for on 13 August 2026, CAN-70: it verifies
+the Search Console domain property `sc-domain:canoncore.com` on Jacob's `jacobreesnew@gmail.com`
+account, added 30 November 2025, method "Domain name provider" — which is DNS, the only method a
+domain property accepts, and the zone holds exactly one such token while the property still reads
+"Successfully verified", so the token is that property's. Removing it would unverify the property.
 
 The two older projects were left in place, reachable on their own `.vercel.app` domains, rather than
 deleted:
@@ -600,7 +640,7 @@ Five records at Namecheap. The first four are Resend's, taken from its Records t
 | `TXT` | `send.mail` | `v=spf1 include:amazonses.com ~all` | |
 | `MX` | `send.mail` | `feedback-smtp.eu-west-1.amazonses.com.` | 10 |
 | `MX` | `mail` | `inbound-smtp.eu-west-1.amazonaws.com.` | 10 |
-| `TXT` | `_dmarc` | `v=DMARC1; p=none; rua=mailto:dmarc@mail.canoncore.com;` | |
+| `TXT` | `_dmarc` | `v=DMARC1; p=none; rua=mailto:dmarc@mail.canoncore.com,mailto:re+wgfzjdbnxfr@dmarc.postmarkapp.com;` | |
 
 `send.mail` is the Return-Path: Resend defaults it to `send.<domain>`, which is why the sending
 domain is `mail.canoncore.com` and the bounce path is `send.mail.canoncore.com`. Do not make the
@@ -609,11 +649,21 @@ a subdomain that you also use to send email from"
 ([Custom MAIL FROM](https://docs.aws.amazon.com/ses/latest/dg/mail-from.html)), and the zone
 previously violated exactly that.
 
-**The DMARC reporting address must stay inside `canoncore.com`.** RFC 7489 §7.1 makes an external
-`rua` conditional on the destination domain publishing an authorising record, and a personal iCloud
-or Gmail address will never do so, so reports would be discarded in silence. `dmarc@mail.canoncore.com`
-is within the same Organizational Domain and needs no such record. That is the reason receiving is
-enabled at all.
+**The DMARC reporting address must stay inside `canoncore.com` — or be a destination that publishes
+the authorising record.** RFC 7489 §7.1 makes an external `rua` conditional on the destination
+domain publishing an authorising record, and a personal iCloud or Gmail address will never do so, so
+reports sent there would be discarded in silence. `dmarc@mail.canoncore.com` is within the same
+Organizational Domain and needs no such record. That is the reason receiving is enabled at all.
+
+**A human now reads the reports.** The audit's finding 8 was that `dmarc@mail.canoncore.com` is an
+inbox only the Resend API can read, and this file itself says an API-only inbox is not monitoring.
+Resolved on 13 August 2026 by CAN-70 (*Close out the domain and integration loose ends only a human
+can reach*): a second `rua` destination, `re+wgfzjdbnxfr@dmarc.postmarkapp.com`, is Postmark's free
+DMARC digest service, which processes the aggregate reports and emails a weekly human-readable
+summary to `jacobrees@icloud.com`. It is the RFC-compliant kind of external destination:
+`canoncore.com._report._dmarc.dmarc.postmarkapp.com` resolves to `v=DMARC1;`, verified 13 August
+2026. No account or card sits behind it — the signup is email plus domain. The Resend destination
+stays as the raw archive; Postmark is the reader.
 
 `p=none` is monitor-only and changes nothing about delivery. iCloud read the record as published and
 reported `pdomain=canoncore.com`, confirming the reporting address sits inside the Organizational
@@ -700,6 +750,18 @@ What the acceptance rests on:
 **What would reopen it.** Any of: the owning account becomes identifiable; anyone else gains access
 to `jacobreesnew-7380's projects`; or `canoncore.com` is verified on a Resend account again, which
 would give a key that names it somewhere to send from.
+
+**The first condition fired on 13 August 2026: the owning account is identifiable, and it is
+Jacob's own.** CAN-70 (*Close out the domain and integration loose ends only a human can reach*)
+searched Mail.app and found exactly two "Welcome to Resend!" signup messages: 27 November 2025 to
+`jacobreesnew@gmail.com` and 28 December 2025 to `jacobrees@me.com`. The first is this account — its
+date matches the two `Onboarding` keys created 27 November 2025 in the revocation table above, its
+team slug `jacobreesnew` matches the quota alerts the mailbox holds, and the dashboard session
+confirms the signed-in email. That leaves the 28 December signup, `jacobrees@me.com`, as the other
+account — the same date the stray `canoncore` Neon store and the old Vercel-era resources were
+created. "Someone else's credential on someone else's account" is therefore wrong in the way that
+helps: Jacob can sign in to the `jacobrees@me.com` Resend account and revoke the orphaned key
+himself. That revocation has not been done yet and is the remaining step.
 
 Deleting the three projects, or removing `RESEND_API_KEY` from each, would end the exposure at this
 end. Neither was done, and nothing depends on those projects.
