@@ -47,6 +47,25 @@ export function describeDisagreement(
   );
 }
 
+// Lines a failing CLI prints that say nothing about the failure: the harness's own plugin
+// markers, and the version banner every Vercel invocation opens with.
+const NOISE = [/^<[a-z-]+[^>]*\/?>$/i, /^[A-Z][\w.-]* CLI \d/];
+
+/**
+ * Why a command failed, in one line fit to show an operator.
+ *
+ * The first line of stderr is the obvious choice and the wrong one — it is routinely a banner
+ * or a marker, so a SKIP would report the tool's version where its reason should be, and a
+ * skip nobody can act on is barely better than a silent one.
+ */
+export function explainFailure(stderr: string): string {
+  const lines = stderr
+    .split("\n")
+    .map((l) => l.trim())
+    .filter((l) => l && !NOISE.some((n) => n.test(l)));
+  return lines.find((l) => /^(error|fatal)\b/i.test(l)) ?? lines[0] ?? "no output";
+}
+
 /** Rows of the first markdown table whose header row contains every column named. */
 function parseTable(markdown: string, ...columns: string[]): Record<string, string>[] {
   const lines = markdown.split("\n");

@@ -33,6 +33,7 @@ import {
   anchorsOf,
   compareVariables,
   describeDisagreement,
+  explainFailure,
   fail,
   findLinks,
   findPointers,
@@ -80,10 +81,8 @@ function source(cmd: string, args: string[], why: string): string {
       timeout: 60_000,
     });
   } catch (err) {
-    const detail = ((err as { stderr?: string }).stderr || (err as Error).message)
-      .trim()
-      .split("\n")[0];
-    return skip(`${why}: \`${cmd} ${args.join(" ")}\` — ${detail}`);
+    const stderr = (err as { stderr?: string }).stderr || (err as Error).message;
+    return skip(`${why}: \`${cmd} ${args.join(" ")}\` — ${explainFailure(stderr)}`);
   }
 }
 

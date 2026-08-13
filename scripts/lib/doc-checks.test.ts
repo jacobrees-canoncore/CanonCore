@@ -5,6 +5,7 @@ import {
   Skip,
   anchorsOf,
   compareVariables,
+  explainFailure,
   findLinks,
   findPointers,
   parseCiJobNames,
@@ -179,4 +180,28 @@ test('a pointer may shorten a heading, but may not name a different one', () => 
 
   assert.ok(pointerResolves('the review runs once', titles), 'a title prefix should resolve')
   assert.equal(pointerResolves('the review runs twice', titles), false)
+})
+
+// --- Why a source failed --------------------------------------------------------------------
+
+test('the reason for a skip is the error, not a version banner or a harness marker', () => {
+  // A SKIP exists to tell the operator what to fix. Taking stderr's first line gives them the
+  // CLI's version instead — observed against `vercel env ls` with an invalid token, where the
+  // real cause sat on the third line behind a plugin marker and a banner.
+  const stderr = [
+    '<claude-code-hint v="1" type="plugin" value="vercel@claude-plugins-official" />',
+    'Vercel CLI 58.7.1 (Node.js 24.19.0)',
+    'Error: You defined "--token", but its contents are invalid. Must not contain: "-"',
+    'Learn More: https://err.sh/vercel/invalid-token-value',
+  ].join('\n')
+
+  assert.equal(
+    explainFailure(stderr),
+    'Error: You defined "--token", but its contents are invalid. Must not contain: "-"',
+  )
+})
+
+test('a failure with no error line still explains itself', () => {
+  assert.equal(explainFailure('\n\nspawnSync git ENOENT\n'), 'spawnSync git ENOENT')
+  assert.equal(explainFailure('   '), 'no output')
 })
