@@ -462,8 +462,11 @@ move it to a pointer-reached document.
 ## What was actually done, 13 August 2026
 
 `CLAUDE.md` went from 275 lines to **204 loaded lines** — 213 on disk, less a nine-line block HTML
-comment, which Claude Code strips before the file enters context. The six blocks of MCP reasoning
-moved to `docs/agents/tooling.md`. That is four over the 200 target rather than under it: the
+comment. *"Block-level HTML comments (`<!-- maintainer notes -->`) in CLAUDE.md files are stripped
+before the content is injected into Claude's context"*
+([memory](https://code.claude.com/docs/en/memory)), and the whole 204 figure rests on that sentence.
+The five sections of tool reasoning moved to `docs/agents/tooling.md`, which also took two sections
+on working practice. That is four over the 200 target rather than under it: the
 `Engineering principles` section was restored to its original wording after the trim had rewrapped
 and shortened it, and those four lines are a deliberate trade against a heuristic that has no
 published evaluation behind it (see *Where the evidence does not support the popular claim*).
