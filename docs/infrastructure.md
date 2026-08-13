@@ -18,6 +18,7 @@ changes, it is evidence and does not belong here.
 ## Contents
 
 - [The production URL](#the-production-url)
+- [The URL-sharing gate](#the-url-sharing-gate)
 - [Hosting](#hosting)
 - [The repository, and what `main` refuses](#the-repository-and-what-main-refuses)
 - [Environment variables](#environment-variables)
@@ -39,6 +40,40 @@ This is the URL that **CAN-24 Sign in and sign out** (better-auth base URL and c
 Act documents** must bake in. `www` is canonical rather than the apex so the session cookie stays
 host-only; the reasoning and what will try to reopen it are
 [ADR-0010](adr/0010-canonical-host-www.md).
+
+## The URL-sharing gate
+
+**The public URL is not shared with anyone until the Online Safety Act records are live and the reporting
+address works.** Deployed is not shared: `www.canoncore.com` resolves today and serves a holding page, and
+that is deliberately as far as it goes.
+
+| | |
+| --- | --- |
+| Status | **Closed.** Not shared |
+| Opened by | [CAN-44 Make the Online Safety Act records live, and create the reporting address](https://linear.app/jacobrees-canoncore/issue/CAN-44), when every one of its criteria is met |
+| Also required | [CAN-32 Roles, takedown, and the Online Safety Act surfaces](https://linear.app/jacobrees-canoncore/issue/CAN-32) — the terms of service and the reporting route have to render before they can be relied on |
+| Recorded here since | 13 August 2026, by **CAN-71 Make the compliance records valid: dates, the alternative-measures record, and the PCU register** |
+
+**What it covers.** Telling anyone the address, linking it anywhere public, and anything that invites a
+stranger to visit. It does not cover the deployment itself, which has to exist for the records to be
+completable and for the address to be testable.
+
+**Why it is a gate and not a preference.** The two things that make this a user-to-user service are
+accounts and public Visibility. Neither exists on `main`, so nobody but the operator can put content
+here, and most of the Code measures are recorded as not in effect for exactly that reason
+(`docs/compliance/code-measures-register.md` → *What the `Effective` column means*). The failure
+this prevents is content arriving before the measures do: a person posting to
+a service with no takedown, no published terms and no reporting address.
+
+**Where the gate lived before, and why it moved here.** It was an unticked box on
+[CAN-21 Write the Online Safety Act documents and establish the reporting address](https://linear.app/jacobrees-canoncore/issue/CAN-21),
+which is closed, and then one line of prose on CAN-44. The audit of 12 to 13 August 2026 found it existed
+nowhere in the repository, so an agent reading this repo had no way to know it applied
+(`docs/research/tracker-and-repository-audit.md` §6). It is a criterion on that ticket and a row here now,
+which are the two places someone about to share the URL would actually be looking.
+
+**The compliance records themselves** are in [`docs/compliance/`](compliance/), and `CLAUDE.md` points at
+them.
 
 ## Hosting
 
@@ -467,6 +502,10 @@ and in a mailbox; the third needs application code.
 | Add the apex MX record and the forwarding rule at Namecheap | CAN-44 |
 | Send a test message and confirm it arrives, reading the destination mailbox with `macos-mail-mcp`. **A forward that silently fails is worse than no address**, because the published document promises a person that reports are read | CAN-44 |
 | Make the address available to the application as configuration rather than hard-coded, so the two public documents and the reporting route cannot drift apart | CAN-32 |
+
+**Until all three are done the URL is not shared** — see [The URL-sharing gate](#the-url-sharing-gate).
+An address a published document promises is read, which nobody has yet tested, is the specific failure
+that gate exists to prevent.
 
 **The reporting route itself is not finished by this address.** ICU D2.2(a) recommends a report
 control on each publicly visible record, which v1 does not ship; it is recorded as an alternative

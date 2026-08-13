@@ -87,6 +87,13 @@ default heuristics: `CODING_STANDARDS.md`.
 credential lives: `docs/infrastructure.md` — read it before touching deployment, environment
 variables or the database connection, and note the items it flags as unverified.
 
+**The URL is deployed and deliberately not shared.** `docs/infrastructure.md` → *The URL-sharing gate*
+holds the rule and what opens it. **`docs/compliance/` holds the statutory records**, and several stop
+being true the moment the product gains a capability — each one that would break an assessment is listed
+in `docs/compliance/illegal-content-risk-assessment.md` → *Step 4* and the same section of the children's
+assessment. **Read them before changing or building anything they describe** — editing the documents in
+`content/legal/` counts: the assessment has to be redone *before* such a change ships, not after.
+
 ## Agent skills
 
 - **Issue tracker.** Linear (team `CAN`), driven through `orca linear`, mirrored two-way to GitHub

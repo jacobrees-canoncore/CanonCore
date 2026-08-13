@@ -1,9 +1,17 @@
 # Terms of service
 
-**PUBLIC DOCUMENT.** Rendered by the application and reachable from the footer of every page, without
-signing in.
+**PUBLIC DOCUMENT**, and not yet published. When it is published it will be rendered by the application
+and reachable from the footer of every page, without signing in, which is built by
+[CAN-32 Roles, takedown, and the Online Safety Act surfaces](https://linear.app/jacobrees-canoncore/issue/CAN-32).
+`main` serves a holding page and has no footer and no `/legal` route, so this document is written and not
+yet reachable. Which Code measures that leaves not in effect is recorded in
+`docs/compliance/code-measures-register.md`.
 
-> **DRAFT.** Complete the items marked `[ ]` and remove this box before publishing.
+> **DRAFT.** Complete the items marked `[ ]` and remove this box before publishing. The dates and the
+> reporting address are filled by
+> [CAN-44 Make the Online Safety Act records live, and create the reporting address](https://linear.app/jacobrees-canoncore/issue/CAN-44),
+> and the privacy notice link by
+> [CAN-30 GDPR export and erasure](https://linear.app/jacobrees-canoncore/issue/CAN-30).
 
 Last updated: `[ ]`
 
@@ -79,19 +87,24 @@ publicly can be seen and reviewed; and anyone can report content to us without n
 quickly.** In practice we make the content private so that nobody else can see it, we keep a record of
 what we did and why, and we may suspend or remove the account that posted it.
 
-## Intimate images shared without consent
+### Intimate images shared without consent
+
+This is the one kind of report the law gives a deadline for, so it has its own rules and they are stricter
+than the ones above.
 
 If an intimate image of you, or of someone you are acting for, is on CanonCore, you can make an **intimate
 image content report**. The
 [Reporting and complaints](/legal/reporting-and-complaints) page tells you how, and what to include.
 
-**When we receive such a report we will take the content down as soon as we reasonably can, and no later
-than 48 hours.** We will also take down any other content we identify as the same, or substantially the
-same.
+**We will take the content down as soon as we reasonably can, and never more than 48 hours after your
+report reaches us.** We will also take down any other content we identify as the same, or substantially
+the same. The 48 hours runs from when your report arrives, not from when we open it.
 
 We may not take it down if we decide the content is not an intimate image, or that the person reporting it
-is not the subject of it and is not acting for the subject. If we decide that, we will tell you, and you
-can complain about the decision.
+is not the subject of it and is not acting for the subject. Those are the only two reasons we may refuse.
+If we decide that, we will tell you, and you can complain about the decision.
+
+**If you have made an intimate image report, we deal with your complaints ahead of everyone else's.**
 
 ## Automated tools
 
@@ -116,8 +129,9 @@ You can complain to us about any of these:
 - our use of automated tools, if we ever use any
 
 Full details of how to do each of these, what happens next, and how long we aim to take, are on the
-[Reporting and complaints](/legal/reporting-and-complaints) page. We apply these terms in the same way
-every time.
+[Reporting and complaints](/legal/reporting-and-complaints) page. **Complaints from someone who has made
+an intimate image content report go ahead of the queue**, which is the one exception to handling them in
+the order they arrive. We apply these terms in the same way every time.
 
 ## Your privacy, and where your data is held
 

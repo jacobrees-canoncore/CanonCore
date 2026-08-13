@@ -3,14 +3,24 @@
 **INTERNAL RECORD — NOT PUBLISHED.** Kept to satisfy `s.36(7)`, which requires a written record "in an
 easily understandable form" of every children's access assessment.
 
-> **DRAFT — complete the fields below.** The conclusion itself is settled: the child user condition is
-> **met**. The reasoning, and what it costs, are recorded in [The conclusion](#the-conclusion-and-what-it-costs).
+The conclusion is settled: the child user condition is **met**. The reasoning, and what it costs, are
+recorded in [The conclusion](#the-conclusion-and-what-it-costs).
 
 | | |
 | --- | --- |
 | Service name | CanonCore (`https://www.canoncore.com`) |
-| Completion date | `[ ]` |
-| Next assessment due | `[ ]` — at most 12 months after completion (`s.36(3)`) |
+| Completion date | 13 August 2026 |
+| Next assessment due | 13 August 2027 — at most 12 months after completion (`s.36(3)`) |
+| Completed by | Jacob Rees |
+| Named person responsible | Jacob Rees |
+| Approved by | Jacob Rees — sole operator; see [`accountable-individual.md`](accountable-individual.md) |
+
+> **Dated before launch, deliberately.** `s.36(1)` fixes the first assessment by reference to
+> [Schedule 3](https://www.legislation.gov.uk/ukpga/2023/50/schedule/3), and `s.37(5)(a)` then deems the
+> service likely to be accessed by children from that deadline whether or not an assessment was made. The
+> reasoning is the same as the [illegal content risk assessment](illegal-content-risk-assessment.md)'s and
+> is not repeated: the trigger date is at latest the day the service first carries user-generated content,
+> and dating now is the conservative reading.
 
 Structure follows Ofcom's *Children's access assessment: template*. Two stages, and that is the whole
 document.
