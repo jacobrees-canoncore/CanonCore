@@ -409,16 +409,17 @@ never watched. **Do not read silence as recovery** until an up alert has actuall
 **A 404 exercises the fast path only.** An erroneous HTTP status is marked down with no verification,
 so none of the four-request confirmation a non-responding host gets was tested
 (`docs/infrastructure.md` → *Uptime monitoring: UptimeRobot*). It was chosen for that: it fires on
-one check instead of four and needs no real outage. **The monitor page's Test Notification button
-does the same job without an incident**, and was only noticed after this test had run.
+one check instead of four and needs no real outage. **The monitor page has a Test Notification button**, which was
+only noticed after this test had run.
 
 **`HEAD` is served by the `GET` handler, though the guide says otherwise.** The free plan can only
 send `HEAD`, so this decides whether `/api/health` needs an export of its own. Next 16.3.0 lists
 `AUTOMATIC_ROUTE_METHODS = ['HEAD', 'OPTIONS']` and, where a module exports `GET` and no `HEAD`, sets
 `methods.HEAD = handlers.GET`
-(`node_modules/next/dist/server/route-modules/app-route/helpers/auto-implement-methods.js`). The
-prose shipped in the same package names only `OPTIONS` as automatic and says an unsupported method
-returns 405 (`node_modules/next/dist/docs/01-app/01-getting-started/15-route-handlers.md`), so a
+(`apps/web/node_modules/next/dist/server/route-modules/app-route/helpers/auto-implement-methods.js`).
+The prose shipped in the same package never says so: it names only `OPTIONS` as automatically
+implemented (`…/dist/docs/01-app/03-api-reference/03-file-conventions/route.md`) and states that an
+unsupported method returns 405 (`…/dist/docs/01-app/01-getting-started/15-route-handlers.md`), so a
 reader checking the guide alone concludes the opposite. **Check the implementation before adding a
 `HEAD` export to satisfy the monitor.**
 

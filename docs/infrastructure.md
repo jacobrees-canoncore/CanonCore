@@ -568,23 +568,25 @@ waiting to be told** builds `/api/health` and repoints this monitor at it.
 | Sign-in | Google. The same address as the Sentry account, which signs in through GitHub instead |
 | Plan | **Free 50**. No payment method, no billing info, **0 SMS/voice credits** |
 | Free-tier limits | 50 monitors, 5-minute interval, 3-month log retention, 1 status page |
-| Monitor | id `803731762`, `https://www.canoncore.com`, HTTP/S |
+| Monitor | id `803731762`, `https://www.canoncore.com`, HTTP/S, checked every 5 minutes |
 | The request | `HEAD`, follows redirections, IPv4 first, 30-second timeout, up on 2xx and 3xx |
 | Check location | One, auto-selected by UptimeRobot. Observed: North America |
 | Alert route | E-mail `jacobreesnew@gmail.com` **and iOS app push**, both set for up and down events |
+| Account timezone | GMT+1, so every timestamp in the dashboard, and in the incident below, reads as BST |
 
-*Settings read back 13 August 2026. **Only the down half of that alert route has been watched
-firing**, and on a throwaway monitor rather than this one
+*Settings read back 13 August 2026. **Only push, and only on a down event, has been watched
+firing** — no e-mail was observed at all, and the test ran on a throwaway monitor rather than this one
 ([incident](incidents.md#a-failing-check-reaches-the-phone-a-recovering-one-may-not)).*
 
 **Why UptimeRobot.** Better Stack's free plan reaches Slack and e-mail but not a phone, so meeting
-the phone criterion there would have cost a paid seat. Both free tiers, with their sources, are
+the phone criterion there would have cost a Responder seat
+([Better Stack pricing](https://betterstack.com/pricing), read 13 August 2026). Both free tiers, with their sources, are
 compared in
 [`docs/research/production-readiness-baseline.md`](research/production-readiness-baseline.md) →
 *Observability*, which also holds **Sentry Developer's single free uptime monitor**. That one stays
 unspent.
 
-**A blip cannot page you, unless it carries an HTTP status.** When nothing answers, UptimeRobot
+**A blip cannot page you, unless it answers with an error.** When nothing answers, UptimeRobot
 re-requests from the same location, then sends *"2 other requests in parallel from 2 random and
 remote locations"*, and marks the monitor down only if those fail too
 ([FAQ](https://uptimerobot.com/faq/), read 13 August 2026). **Anything answering with an erroneous
