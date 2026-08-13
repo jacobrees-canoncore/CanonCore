@@ -8,6 +8,26 @@ broadcast one, and it must appear in both without being duplicated.
 Examples throughout are drawn from Doctor Who's 2005 series onward, because that is the seed
 collection. Nothing in the language is specific to it.
 
+## Using these documents
+
+**Read this file and any relevant [`docs/adr/`](docs/adr/) before working in an area.** Both are
+populated. The layout is single-context: one `CONTEXT.md` and one `docs/adr/` at the repo root, and
+it stays that way until at least two packages have genuinely distinct vocabulary — the same word
+meaning different things in different packages is the signal, not merely having more than one
+package.
+
+**Use the glossary's vocabulary whenever your output names a domain concept** — an issue title, a
+refactor proposal, a hypothesis, a test name. Don't drift to the synonyms each `_Avoid_` list names.
+A concept that isn't here yet is a signal: either you're inventing language the project doesn't use
+(reconsider), or there's a real gap (note it for `/domain-modeling`).
+
+**If your output contradicts an ADR, surface it** rather than silently overriding:
+
+> _Contradicts ADR-0007 (provider contract) — but worth reopening because…_
+
+**[`docs/research/`](docs/research/) is not domain documentation.** It holds investigation output;
+its contents are findings, not decisions. Decisions belong in `docs/adr/`.
+
 ## Language
 
 Each `_Avoid_` list names words not to use **for that concept**. The same word used for a

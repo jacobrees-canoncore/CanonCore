@@ -1,23 +1,25 @@
-# Triage Labels
+# Triage labels
 
-The skills speak in terms of canonical triage roles. This file maps those roles to the actual
-label strings used in this repo's issue tracker (Linear, team `CAN` — see
-[issue-tracker.md](./issue-tracker.md)).
+The skills speak in terms of canonical triage roles. This file is the mapping from those roles to
+the label strings this repo's tracker actually holds, and it **owns every rule about applying them**
+— other documents point here rather than restating.
 
-## Category roles
+The tracker itself is [issue-tracker.md](./issue-tracker.md) (Linear, team `CAN`).
 
-Exactly one per triaged issue. These map onto labels Linear created by default, so they
-already exist.
+## The roster
+
+All eight exist on team `CAN`. `scripts/check-docs.ts` compares this table against
+`orca linear team labels` and fails when they disagree.
+
+**Category roles** — exactly one per triaged issue. These map onto labels Linear created by default.
 
 | Label in mattpocock/skills | Label in our tracker | Meaning                    |
 | -------------------------- | -------------------- | -------------------------- |
 | `bug`                      | `Bug`                | Something is broken        |
 | `enhancement`              | `Feature`            | New feature or improvement |
 
-## State roles
-
-Exactly one per triaged issue that is still waiting to be worked — see **Landed issues**
-below for the one case where none applies.
+**State roles** — exactly one per triaged issue that is still waiting to be worked. See *Landed
+issues* below for the one case where none applies.
 
 | Label in mattpocock/skills | Label in our tracker | Meaning                                  |
 | -------------------------- | -------------------- | ---------------------------------------- |
@@ -27,49 +29,43 @@ below for the one case where none applies.
 | `ready-for-human`          | `ready-for-human`    | Requires human implementation            |
 | `wontfix`                  | `wontfix`            | Will not be actioned                     |
 
-## The five state roles exist — created 8 August 2026
+**Unmapped:** Linear's `Improvement` has no canonical role, so `/triage` will neither apply nor
+interpret it. Use it by hand if you want.
 
-All five were created as **workspace-level** labels, so any future team in the CanonCore
-workspace inherits them. Team `CAN` therefore carries all eight: `Feature`, `Bug`,
-`Improvement`, plus the five above.
-
-Kept as a standing constraint, because it governs what an agent may attempt: **`orca linear`
-can add and remove labels on an issue but cannot *create* a label definition**, so applying one
-that does not exist fails. If a further label is ever needed, a human creates it in the Linear
-web UI first, using exact lowercase strings — Linear label matching is exact.
+The five state roles were created on 8 August 2026 as **workspace-level** labels, so any future team
+in the CanonCore workspace inherits them.
 
 ```bash
 orca linear team labels --team CAN --workspace ad2669ec-93a5-4ce1-97fa-c7d9247a1452 --json
 ```
 
+## Changing them
+
+- **Use `label add` / `label remove`. Never `label set`** — it replaces the entire label set and
+  would silently drop the category label. A state transition is therefore **two calls**.
+- **`--label` is singular and repeated**, not a list.
+- **Read the issue's labels before removing one.** It is `ready-for-agent` most of the time and
+  `ready-for-human` or `needs-info` often enough to matter, and removing a label the issue does not
+  carry leaves the real one in place.
+- **`orca linear` can add and remove labels but cannot *create* a label definition**, so applying
+  one that does not exist fails. A human creates it in the Linear web UI first, using exact
+  lowercase strings — Linear label matching is exact. That includes the `wayfinder:map` and
+  `wayfinder:<type>` labels, if `/wayfinder` is ever used.
+
 ## Landed issues carry no state role
 
-When a PR merges, remove whichever state role the issue carries and add nothing back, leaving
-only the category label. Correct, not an oversight.
+When a PR merges, remove whichever state role the issue carries and add nothing back, leaving only
+the category label. Correct, not an oversight.
 
-None of the five means "done". Triage routes work that has **not** been done — to a human, to
-an agent, back to the reporter, or to nowhere — and a merged ticket needs no routing. Leaving
-`ready-for-agent` on one is a standing invitation to pick up work that is already in
-production. Delivery progress lives in Linear's workflow state instead, which is the axis that
-has a `Done`.
+None of the five means "done". Triage routes work that has **not** been done — to a human, to an
+agent, back to the reporter, or to nowhere — and a merged ticket needs no routing. Leaving
+`ready-for-agent` on one is a standing invitation to pick up work that is already in production.
+Delivery progress lives in Linear's workflow state instead, which is the axis that has a `Done`.
 
-Read the issue's labels before removing one. It is `ready-for-agent` most of the time and
-`ready-for-human` or `needs-info` often enough to matter, and removing a label the issue does
-not carry leaves the real one in place.
+## Why triage state lives in labels, not workflow states
 
-## Notes
+`needs-info` and `ready-for-agent` have no workflow-state equivalent, and the workflow states are
+already carrying delivery progress. `needs-triage` looks like `Backlog` and `wontfix` looks like
+`Canceled`, but a ticket needs to be able to sit in `Todo` while labelled `ready-for-agent`.
 
-- Linear's `Improvement` label is **unmapped** — it has no canonical role, so `/triage` will
-  neither apply nor interpret it. Use it by hand if you want.
-- Triage state lives in **labels**, not workflow states. `needs-info` and `ready-for-agent`
-  have no workflow-state equivalent, and the workflow states are already carrying delivery
-  progress. `needs-triage` looks like `Backlog` and `wontfix` looks like `Canceled`, but a
-  ticket needs to be able to sit in `Todo` while labelled `ready-for-agent`.
-- Change labels with `label add` / `label remove`, never `label set` — it replaces the entire
-  set and would drop the category label. A state transition is two calls.
-- Labels sync two ways to GitHub Issues once the GitHub integration is wired, so a label
-  applied here shows up there and vice versa.
-- `wayfinder:map` and `wayfinder:<type>` labels, if `/wayfinder` is used, need creating the
-  same way.
-
-Edit the right-hand columns to match whatever vocabulary you actually use.
+Labels sync two ways to GitHub Issues, so a label applied here shows up there and vice versa.

@@ -7,9 +7,10 @@ and Vercel's plan pages — and six reviewed the landed work of every Done ticke
 covered all 64 issues. This file records what was found, what was already corrected during the
 audit, and what remains open.
 
-**Findings are not decisions** (`docs/agents/domain.md`). Where a finding contradicts an ADR, the
-ADR wins until amended — but several findings below are precisely that an ADR's stated reasoning
-does not survive contact with its primary source, which is grounds to amend, not to ignore.
+**Findings are not decisions** (`CONTEXT.md` → *Using these documents*). Where a finding
+contradicts an ADR, the ADR wins until amended — but several findings below are precisely that
+an ADR's stated reasoning does not survive contact with its primary source, which is grounds to
+amend, not to ignore.
 
 The pattern across all sixteen reports, stated once here rather than per section: **premises
 survive; specifics do not.** No ticket or ADR was found to be building the wrong thing. Many were
