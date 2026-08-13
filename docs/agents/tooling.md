@@ -1,11 +1,13 @@
-# Tooling
+# Tooling and working practice
 
-Why each tool owns the job it owns, and the traps that are not obvious from the tool list.
+Why each tool owns the job it owns, why the skill chain is shaped the way it is, and the traps in
+both that are not obvious from the tool list.
 
-`CLAUDE.md` → *Which tool owns what* carries the table and the operative rules; this file carries
-the reasoning under them. Nothing here is new policy. It was moved out of `CLAUDE.md` on 13 August
-2026 because that file is loaded on every request and this material is only needed when a tool
-choice is actually in question.
+`CLAUDE.md` carries the tool table, the chain diagram and the operative rules; this file carries the
+reasoning under them. Nothing here is new policy. It was moved out of `CLAUDE.md` on 13 August 2026
+because that file is loaded on every request and none of this is needed until a tool or a step in the
+chain is actually in question. Where `docs/agents/workflow.md` owns a topic, this file points at it
+rather than restating it.
 
 ## Contents
 
@@ -93,13 +95,9 @@ Small work can skip from the grill straight to `/implement`. `/wayfinder` replac
 the shape is still foggy — it resolves unknown *decisions* one at a time, where `to-spec` assumes you
 know what you are building and are slicing *how*.
 
-`/implement` runs `/code-review` itself and that is the review. It counts when the review **actually
-read the committed change**, which staging alone does not achieve: `<fixed-point>...HEAD` compares
-two commits and ignores the index, so with nothing committed that range is empty and a review of it
-reports no findings. Commit first and review against the branch point, or hand the review
-`git diff --cached` by hand. The fresh eyes are in the sub-agents `code-review` fans out to, not in
-whichever session invokes it. `docs/agents/workflow.md` → *The review runs once, and `/implement` is
-normally where* has the argument and the three cases where a review still has to run.
+`/implement` runs `/code-review` itself and that is the review. The argument, what makes a review
+count, and the three cases where one still has to run are owned by `docs/agents/workflow.md` →
+*The review runs once, and `/implement` is normally where*. It is not restated here.
 
 ## Run the grill and the implementation in separate sessions
 

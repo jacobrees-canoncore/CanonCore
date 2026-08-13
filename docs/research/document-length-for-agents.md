@@ -34,6 +34,7 @@ reproducible with `grep -o 'https\?://' FILE | wc -l` and `grep -c '^|' FILE`.
   - [`docs/infrastructure.md` — long and earning it, with one structural fault](#docsinfrastructuremd--long-and-earning-it-with-one-structural-fault)
   - [`docs/research/agentic-workflow-setup.md` and `docs/research/external-metadata-sources.md` — fine](#docsresearchagentic-workflow-setupmd-and-docsresearchexternal-metadata-sourcesmd--fine)
 - [Length here is a ratchet, and that matters more than any single measurement](#length-here-is-a-ratchet-and-that-matters-more-than-any-single-measurement)
+- [What was actually done, 13 August 2026](#what-was-actually-done-13-august-2026)
 - [What to do](#what-to-do)
 - [Unverified](#unverified)
 
@@ -343,7 +344,8 @@ regex-selector alternative. That is a gotcha no config confesses, which is preci
 should cache.
 
 **But length here is a symptom with a named cause.** The audit found *"Four files absorbed ten PRs in
-three days: `workflow.md` 341→588 lines"*, and CAN-76 enumerates roughly a dozen duplication
+three days: `workflow.md` 341→588 lines"*, and **[CAN-76](https://linear.app/jacobrees-canoncore/issue/CAN-76) Restructure the agent documents: policy, procedure and incidents get their own homes**
+enumerates roughly a dozen duplication
 families in it by name — poll-then-watch, the third check state, `--delete-branch`,
 never-`--admin`, refused-merge-is-a-stop, stale-local-main, review-runs-once, the `gh` account trap,
 the classifier fallback, never-`label set`, landed-issue-carries-no-role, the description-write race,
@@ -375,7 +377,8 @@ gap and what to assume until it does. It also records *why* the password compari
 digest. That is not padding; it is the difference between a register and a rumour.
 
 **Its fault is mixed register, not length.** It is simultaneously a current-state register and an
-archive of how each fact was established, and CAN-76 is explicit about the intended split:
+archive of how each fact was established, and **[CAN-76](https://linear.app/jacobrees-canoncore/issue/CAN-76) Restructure the agent documents: policy, procedure and incidents get their own homes**
+is explicit about the intended split:
 `infrastructure.md` should become *"the register alone — current provisioned state, one complete
 variable roster, verification dates — with evidence linked, not inlined."* That halves it without
 losing a single verified fact.
@@ -424,7 +427,8 @@ question. Line counts at each commit that touched the file, oldest first:
 | `docs/agents/workflow.md` | 161 (7 Aug 2026) | 624 (13 Aug 2026) | 3.9x in six days | 17 | **0** |
 | `CLAUDE.md` | 183 (9 Aug 2026) | 275 (13 Aug 2026) | 1.5x | 18 | **0** |
 
-**Across all 49 commits that have ever touched these three files, not one reduced any of them.**
+**Across every commit that has ever touched these three files, not one reduced any of them** — 49
+file-touches spread over 31 distinct commits, since a single commit often edits more than one.
 `infrastructure.md` is strictly increasing at every step; the other two are flat at worst. There is
 no compaction step anywhere in this process, so length is a one-way ratchet and the current number
 is simply wherever the ratchet has reached.
@@ -455,14 +459,29 @@ than by anyone remembering to be disciplined. On the same reasoning, a one-time 
 has a shelf life of about a week unless the cap becomes a standing rule: to add a line, remove one or
 move it to a pointer-reached document.
 
+## What was actually done, 13 August 2026
+
+`CLAUDE.md` went from 275 lines to **204 loaded lines** — 213 on disk, less a nine-line block HTML
+comment, which Claude Code strips before the file enters context. The six blocks of MCP reasoning
+moved to `docs/agents/tooling.md`. That is four over the 200 target rather than under it: the
+`Engineering principles` section was restored to its original wording after the trim had rewrapped
+and shortened it, and those four lines are a deliberate trade against a heuristic that has no
+published evaluation behind it (see *Where the evidence does not support the popular claim*).
+
+A table of contents was added to the five reference files over 100 lines. No content was removed from
+any of them. The recommendation below to trim below 200 therefore stands as **partially met**, and
+this note is the record of that rather than an amendment to it.
+
 ## What to do
 
 1. **Trim `CLAUDE.md` below 200 lines.** Run `/doctor` first for its proposal, then cut the two
    blocks named above. This is the only recommendation here backed by a published threshold, and it
    is the only file whose length is paid on every turn of every session.
-2. **Deduplicate `workflow.md` before shortening it**, per CAN-76's owning-module-plus-pointers
+2. **Deduplicate `workflow.md` before shortening it**, per **[CAN-76](https://linear.app/jacobrees-canoncore/issue/CAN-76) Restructure the agent documents: policy, procedure and incidents get their own homes**'s
+   owning-module-plus-pointers
    criterion. Do not set a word target for it; the target is one meaning in one place.
-3. **Split `infrastructure.md` into register and evidence**, also per CAN-76. Keep every fact.
+3. **Split `infrastructure.md` into register and evidence**, also per **[CAN-76](https://linear.app/jacobrees-canoncore/issue/CAN-76) Restructure the agent documents: policy, procedure and incidents get their own homes**.
+   Keep every fact.
 4. **Add a table of contents to each of the four long reference files** — `infrastructure.md`,
    `workflow.md` and the two research files. This is the cheapest change on the list, it is the only
    published guidance that applies to read-on-demand documents, and it guards against the partial

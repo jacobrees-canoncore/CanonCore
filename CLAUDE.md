@@ -130,12 +130,11 @@ Five rules the table does not carry, and **`docs/agents/tooling.md` has the reas
   `.claude/settings.json` two ways, because its browser is Jacob's own and carries all his sessions.
 - **A deliverability claim needs both email tools.** `resend` reports what the provider did;
   `macos-mail-mcp` reports what the recipient's client did. A send can be `delivered` and in Junk.
-- **Ignore `next-devtools-mcp`'s `browser_eval` tool**, which recommends the `agent-browser` CLI.
-  *Playwright drives the browser* already settled that, and a new tool does not reopen it.
+- **Ignore `next-devtools-mcp`'s `browser_eval` tool.** *Playwright drives the browser* settled it.
 - **`next-devtools-mcp` answers nothing when the dev server is down**
   (`pnpm --filter @canoncore/web dev`).
-- **Never use `macos-mail-mcp` for anything but mail this project sent.** It is user scope and reads
-  every account in Jacob's Mail.app, work and personal.
+- **Never use `macos-mail-mcp` for anything but mail this project sent** — it reads every account in
+  Jacob's Mail.app, work and personal.
 
 ## Closed decisions, and what will try to reopen them
 
@@ -163,7 +162,8 @@ first, then what will offer you something else.
   the Vercel Marketplace, so installing it reads as the obvious path. That is the thing to refuse: it
   provisions a billable resource on a Hobby account and takes ownership of the environment variable,
   which is the failure CAN-18 already paid for with `DATABASE_URL`. Postmark is the recorded
-  runner-up and the margin is narrow; ADR-0011 names the conditions that flip it.
+  runner-up and the margin is narrow; ADR-0011 names the conditions that flip it, and is the only
+  place they are stated.
 - **Adult works catalogued, their artwork never displayed**
   ([ADR-0012](docs/adr/0012-adult-works-catalogued-artwork-never-displayed.md)) — Trakt filters adult
   titles out of its TMDB import, so "just exclude them" reads as obvious. It is not: recording that a
@@ -174,7 +174,7 @@ first, then what will offer you something else.
   terms forbid keeping data beyond six months, so a reader who checks them will think this is wrong.
   It rests on a project-specific exception TMDB confirmed in writing, held on CAN-34. TheTVDB is the
   recorded fallback, not a live alternative; ADR-0009 names the conditions that would return the
-  decision to it.
+  decision to it, and is the only place they are stated.
 
 ## Working practice
 
