@@ -567,32 +567,38 @@ waiting to be told** builds `/api/health` and repoints this monitor at it.
 | Account | `jacobreesnew@gmail.com`, display name `Jacob Rees` |
 | Sign-in | Google. The same address as the Sentry account, which signs in through GitHub instead |
 | Plan | **Free 50**. No payment method, no billing info, **0 SMS/voice credits** |
-| Free-tier limits | 50 monitors, 300-second interval, 3-month log retention, 1 status page |
-| Monitor | id `803731762`, `https://www.canoncore.com`, HTTP/S, checked every 5 minutes |
+| Free-tier limits | 50 monitors, 5-minute interval, 3-month log retention, 1 status page |
+| Monitor | id `803731762`, `https://www.canoncore.com`, HTTP/S |
 | The request | `HEAD`, follows redirections, IPv4 first, 30-second timeout, up on 2xx and 3xx |
 | Check location | One, auto-selected by UptimeRobot. Observed: North America |
-| Alert route | E-mail `jacobreesnew@gmail.com` **and iOS app push**, both on up and down events |
-| Account timezone | GMT+1, so every timestamp in the dashboard reads as BST |
+| Alert route | E-mail `jacobreesnew@gmail.com` **and iOS app push**, both set for up and down events |
 
-*Verified 13 August 2026
-([incident](incidents.md#a-failing-check-reaches-the-phone-a-recovering-one-may-not)), by inducing
-two failures rather than by reading the settings back.*
+*Settings read back 13 August 2026. **Only the down half of that alert route has been watched
+firing**, and on a throwaway monitor rather than this one
+([incident](incidents.md#a-failing-check-reaches-the-phone-a-recovering-one-may-not)).*
 
-**Chosen over Better Stack because only one of the two alerts a phone for nothing.** Better Stack's
-free plan is *"Slack & e-mail alerts"*, and a phone route there needs a Responder seat at **$29–34
-per month**. Better Stack is otherwise the better free tier — it checks every 3 minutes against
-UptimeRobot's 5 — so the phone criterion is the whole of the reason. **Sentry Developer's single
-free uptime monitor is left unspent**, which CAN-66 asked for.
+**Why UptimeRobot.** Better Stack's free plan reaches Slack and e-mail but not a phone, so meeting
+the phone criterion there would have cost a paid seat. Both free tiers, with their sources, are
+compared in
+[`docs/research/production-readiness-baseline.md`](research/production-readiness-baseline.md) →
+*Observability*, which also holds **Sentry Developer's single free uptime monitor**. That one stays
+unspent.
 
-**A single blip cannot page you, unless it is an HTTP error.** When nothing responds, UptimeRobot
+**A blip cannot page you, unless it carries an HTTP status.** When nothing answers, UptimeRobot
 re-requests from the same location, then sends *"2 other requests in parallel from 2 random and
-remote locations"*, and marks the monitor down only if those fail too — four failed requests across
-three locations ([FAQ](https://uptimerobot.com/faq/), read 13 August 2026). **An erroneous HTTP
-status is exempt**: it is *"instantly marked as down without verification"*. The per-channel
-*Notification Repeat and Delay* that would close that gap is **disabled on Free 50**, and nothing
-free replaces it — the monitor's advanced settings carry no failure threshold, and account-level
-alert storm protection is paid as well. So the guarantee holds for the failure a dead deployment
-produces, and not for a health check that returns 500 once.
+remote locations"*, and marks the monitor down only if those fail too
+([FAQ](https://uptimerobot.com/faq/), read 13 August 2026). **Anything answering with an erroneous
+HTTP status skips all of it** and is *"instantly marked as down without verification"*. So the
+confirmation covers a host that has stopped answering, and not a deployment that answers with an
+error — and a deployment that is broken rather than gone usually still answers. The branch that
+recorded this watched a 404 page the phone on its first check.
+
+**That leaves the repeated-failure requirement met for one failure mode and not the other.** The
+per-channel *Notification Repeat and Delay* that would close the gap is **disabled on Free 50**, the
+monitor's advanced settings carry no failure threshold, and account-level alert storm protection is
+paid as well. Nothing free closes it here, so it is closed upstream instead: **CAN-56 Find out the
+site is down without waiting to be told** owns keeping `/api/health` from answering with an error
+status on one transient dependency blip, because a single 500 from it pages the phone unconfirmed.
 
 **There is no credential, and that is not an omission.** UptimeRobot polls this site; nothing here
 calls UptimeRobot. Both keys on *Integrations & API*, main and read-only, are **un-generated**, so
@@ -602,16 +608,13 @@ there is nothing to hold in Vercel and no row for one in the roster above.
 the production URL, which *The URL-sharing gate* above forbids while that gate is closed. The
 monitor reads *attached to no status page*, and stays that way until the gate opens.
 
-> **What CAN-56 inherits.** The free plan sends `HEAD` and **cannot be switched to `GET`**, which is
-> paid. Exporting `GET` from `/api/health` is still enough: Next.js binds `HEAD` to the `GET` handler
-> when a route module does not export its own
-> (`AUTOMATIC_ROUTE_METHODS` in `next/dist/server/route-modules/app-route/helpers/auto-implement-methods.js`,
-> Next 16.3.0). **The prose documentation does not say so** — it names only `OPTIONS` as
-> automatically implemented and says an unsupported method returns 405 — so this is a claim to check
-> against the implementation, not the guide. Up codes are fixed at 2xx and 3xx, also paid to change.
-> Repoint monitor `803731762` rather than adding a second one, so its uptime history stays
-> continuous, and use the monitor page's **Test Notification** button to re-check the alert route
-> without inducing an incident.
+> **What CAN-56 Find out the site is down without waiting to be told inherits.** The free plan sends
+> `HEAD` and cannot be switched to `GET`, and up codes are fixed at 2xx and 3xx; both are paid
+> settings. Exporting `GET` alone is still enough for the `HEAD` check to pass
+> ([incident](incidents.md#a-failing-check-reaches-the-phone-a-recovering-one-may-not)). Repoint
+> monitor `803731762` rather than adding a second one, so its uptime history stays continuous, and
+> re-check the alert route with the monitor page's **Test Notification** button rather than by
+> inducing an incident.
 
 ## Domains
 

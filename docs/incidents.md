@@ -383,36 +383,44 @@ required context that skipped them would block every documentation merge for eve
 ## A failing check reaches the phone, a recovering one may not
 
 **13 August 2026, CAN-66 Create the uptime monitoring account and its phone alert route.** The alert
-route was proved by inducing failures, not by reading the configuration back. A throwaway monitor
-`803731827` was pointed at `https://www.canoncore.com/uptime-alert-test-can-66`, which 404s, with
-push and e-mail both enabled. The production monitor was never touched, and the throwaway was
-deleted afterwards.
+route was proved by inducing failures rather than by reading the configuration back. A throwaway
+monitor `803731827` was pointed at `https://www.canoncore.com/uptime-alert-test-can-66`, which 404s,
+with push and e-mail enabled. Monitor `803731762` was never touched, and the throwaway was deleted
+at the end.
 
-- **Incident `346322792378836481`** — root cause `404 Not Found`, started **17:03:08 BST**, resolved
-  **17:06:03 BST** when the URL was flipped to a working one. Duration 2m55s. A push arrived on the
-  iPhone as it opened.
-- **Incident `346324252843848850`** — root cause `404 Not Found`, started **17:08:56 BST**. Push
-  confirmed arriving on the iPhone.
-- **The recovery at 17:06:03 was not seen on the phone.** Down alerts are two for two; the up event
-  is unconfirmed.
+- **Incident `346322792378836481`** — `404 Not Found`, started **17:03:08 BST**. A push arrived on
+  the iPhone. Recorded as resolved **17:06:03 BST**, duration 2m55s, *because the monitor's URL was
+  edited to a working one* — not because anything recovered.
+- **Incident `346324252843848850`** — `404 Not Found`, started **17:08:56 BST**, after the URL was
+  put back. A push arrived again. It has no end: the monitor was deleted while still down.
+- **No push was seen for the 17:06:03 recovery.**
 
-**The silence on the up event is not a permissions problem.** The iOS app was signed into the same
-account — it lists the canoncore monitors — and iOS notification permission was granted. Both
-account-level and monitor-level push are set to *Up events, Down events*. Why the recovery was not
-observed is unexplained, and was not chased: the criterion CAN-66 exists to satisfy is learning that
-the site is **down**.
+**That is not evidence that recovery alerts are broken, because the test was invalid for them.** The
+resolution came from editing the monitor rather than from the target recovering, and an edit-driven
+resolution is a plausible reason for UptimeRobot to send nothing at all. **The up path is untested,
+not failing.** What is ruled out is a configuration or permissions cause: the iOS app was signed into
+the same account — it lists the canoncore monitors — notification permission was granted, and push
+is set to *Up events, Down events* at both account and monitor level.
 
-**What this proves and does not.** A failing check reaches the phone. That a recovering one does is
-untested, so *"it went quiet, so it must be back"* is not a safe inference — confirm recovery in the
-dashboard.
+**What it supports, exactly.** A failing check reaches the phone, twice out of twice, **on a monitor
+other than the production one**. Monitor `803731762`'s own route is inferred from identical settings,
+never watched. **Do not read silence as recovery** until an up alert has actually been seen.
 
-**A 404 is a worse test than it looks, and a better one here.** An erroneous HTTP status is
-*"instantly marked as down without verification"*, so this route exercises the fast path and says
-nothing about the four-request confirmation a non-responding host gets
-(`docs/infrastructure.md` → *Uptime monitoring: UptimeRobot*). It was chosen for exactly that: it
-fires in one check rather than four, and needs no outage of anything real. **The monitor page's
-Test Notification button does the same job without an incident**, and was only found after this
-test had run.
+**A 404 exercises the fast path only.** An erroneous HTTP status is marked down with no verification,
+so none of the four-request confirmation a non-responding host gets was tested
+(`docs/infrastructure.md` → *Uptime monitoring: UptimeRobot*). It was chosen for that: it fires on
+one check instead of four and needs no real outage. **The monitor page's Test Notification button
+does the same job without an incident**, and was only noticed after this test had run.
+
+**`HEAD` is served by the `GET` handler, though the guide says otherwise.** The free plan can only
+send `HEAD`, so this decides whether `/api/health` needs an export of its own. Next 16.3.0 lists
+`AUTOMATIC_ROUTE_METHODS = ['HEAD', 'OPTIONS']` and, where a module exports `GET` and no `HEAD`, sets
+`methods.HEAD = handlers.GET`
+(`node_modules/next/dist/server/route-modules/app-route/helpers/auto-implement-methods.js`). The
+prose shipped in the same package names only `OPTIONS` as automatic and says an unsupported method
+returns 405 (`node_modules/next/dist/docs/01-app/01-getting-started/15-route-handlers.md`), so a
+reader checking the guide alone concludes the opposite. **Check the implementation before adding a
+`HEAD` export to satisfy the monitor.**
 
 ---
 
