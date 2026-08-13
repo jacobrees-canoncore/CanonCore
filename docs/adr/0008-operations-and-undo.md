@@ -31,6 +31,11 @@ holding personal data indefinitely cannot exist.
 - **Audit entries outlive it**, surviving erasure by scrubbing the payload while keeping the fact:
   what happened, when, and by what process. That is the proof of compliance, and it is a separate
   table.
+- **Erasure reaches into other users' forks, bounded.** Fork-snapshots whose Source is the erased
+  person are anonymised by the same job: attribution severed, their authored prose (Arguments)
+  deleted, factual fields kept — [ADR-0004](0004-layered-overlay-for-sources-and-edits.md) → *A
+  person is a Source* records the reasoning. Settled 13 August 2026, CAN-73 Settle the Snapshot
+  layer.
 
 ## Consequences
 
