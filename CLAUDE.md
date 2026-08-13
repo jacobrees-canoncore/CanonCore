@@ -2,13 +2,11 @@
 
 ## Name every ticket you cite
 
-Never write a bare ticket identifier. Every reference to a Linear issue carries its title as
-well as its number, in conversation, in commit messages, in pull request bodies and in these
-documents: **CAN-30 GDPR export and erasure**, never `CAN-30`.
-
-A bare number tells the reader nothing and forces a lookup to follow the sentence. With this
-repository at sixty-plus issues, several of which differ only in scope, the number alone is
-also easy to misread as a neighbouring ticket.
+Never write a bare ticket identifier. Every reference to a Linear issue carries its title as well as
+its number, in conversation, in commit messages, in pull request bodies and in these documents:
+**CAN-30 GDPR export and erasure**, never `CAN-30`. A bare number forces a lookup to follow the
+sentence, and with sixty-plus issues here, several differing only in scope, it is easy to misread as
+a neighbouring ticket.
 
 ## Prior repositories are off limits
 
@@ -25,27 +23,22 @@ Nothing in this repository is derived from them.
 
 ## Engineering principles
 
-- Do not preserve backward compatibility. Remove obsolete paths instead of
-  adding compatibility layers, fallbacks, or migrations. This is about what the
-  codebase carries *permanently*. It does not forbid a widening that exists for
-  one deploy interval and is narrowed in the next change — that is how a
-  narrowing change is made safe while old and new code are briefly live
-  together, and it is the opposite of a layer nobody removes.
-- Choose the simplest implementation that fully meets the current
-  requirements. Avoid speculative abstractions, configuration, and
-  indirection.
-- Grow the system in layers. Start from the smallest version that works end
-  to end, and add each new capability on top of a product that already
-  works. Never trade a working product for unfinished complexity.
-- Keep components modular and concerns clearly separated.
-- Prefer established, well-maintained libraries when they reduce overall
-  complexity or improve reliability. Do not reimplement common
-  functionality without a clear reason.
-- Lean on the dependencies already in the project before writing your own
-  implementation or adding packages. Do not assume a library lacks a
-  capability without checking its documentation and types.
-- Make architectural decisions for the long term. Do not accept a stopgap
-  that only works for now and is meant to be replaced later.
+- Do not preserve backward compatibility. Remove obsolete paths instead of adding compatibility
+  layers, fallbacks, or migrations. This is about what the codebase carries *permanently*. It does
+  not forbid a widening that exists for one deploy interval and is narrowed in the next change —
+  that is how a narrowing change is made safe while old and new code are briefly live together, and
+  it is the opposite of a layer nobody removes.
+- Choose the simplest implementation that fully meets the current requirements. Avoid speculative
+  abstractions, configuration, and indirection.
+- Grow the system in layers. Start from the smallest version that works end to end, and add each
+  new capability on top of a product that already works. Never trade a working product for
+  unfinished complexity.
+- Lean on the dependencies already in the project before writing your own implementation or adding
+  packages, and prefer established, well-maintained libraries over reimplementing common
+  functionality. Do not assume a library lacks a capability without checking its documentation and
+  types.
+- Make architectural decisions for the long term. Do not accept a stopgap that only works for now
+  and is meant to be replaced later.
 
 ## Stack
 
@@ -65,53 +58,37 @@ Settled by the grilling session of 8 August 2026. Rationale and rejected alterna
 | Mobile *(later)* | Expo, on `react-native-tvos` from its first commit |
 | TV *(later)* | Expo, Apple TV, separate app |
 
-**Layout.** One monorepo. `apps/` holds framework-specific applications, `packages/` holds shared
-TypeScript. Day one is `apps/web` and `packages/config` only — the workspace is real from the
-first commit, but no boundary is drawn before a second consumer exists.
-
-**Working in the repo.** `pnpm install`, then `pnpm --filter @canoncore/web dev`. The four CI
-gates and the Playwright suite are in `docs/agents/workflow.md`.
-
-**Providers live in separate repositories**, never in `apps/`. See
-[ADR-0007](docs/adr/0007-provider-contract.md) for why that separation has to be structural.
-
 **Three rules that are not negotiable** — the application database role without `BYPASSRLS`, a
 cross-tenant read test on every RLS-protected table, and session context via `SET LOCAL` inside an
 explicit transaction. [ADR-0005](docs/adr/0005-stack.md) states them and says why each one's
 failure is silent.
 
-**Production is `https://www.canoncore.com`**, apex 301s to it. What is actually provisioned — the
-Vercel project, the Neon database, the two Postgres roles and where each credential lives:
-`docs/infrastructure.md`. Read it before touching deployment, environment variables or the database
-connection, and note the items it flags as unverified.
+**Layout.** One monorepo. `apps/` holds framework-specific applications, `packages/` holds shared
+TypeScript. Day one is `apps/web` and `packages/config` only, and no boundary is drawn before a
+second consumer exists. **Providers live in separate repositories**, never in `apps/` —
+[ADR-0007](docs/adr/0007-provider-contract.md) says why that separation has to be structural.
 
-Coding standards and what overrides a reviewer's default heuristics: `CODING_STANDARDS.md`.
+**Working in the repo.** `pnpm install`, then `pnpm --filter @canoncore/web dev`. The four CI gates
+and the Playwright suite are in `docs/agents/workflow.md`.
+
+**Production is `https://www.canoncore.com`**, apex 301s to it. What is actually provisioned, and
+where each credential lives: `docs/infrastructure.md` — read it before touching deployment,
+environment variables or the database connection, and note the items it flags as unverified. Coding
+standards, and what overrides a reviewer's default heuristics: `CODING_STANDARDS.md`.
 
 ## Agent skills
 
-### Issue tracker
-
-Issues live in Linear (team `CAN`), driven through the `orca linear` CLI, mirrored two-way to
-GitHub Issues. Pass `--workspace ad2669ec-93a5-4ce1-97fa-c7d9247a1452` on **every** call: Orca is
-connected to three workspaces and picks the wrong one silently. See
-`docs/agents/issue-tracker.md`.
-
-### Triage labels
-
-The five canonical state roles verbatim, plus `bug`/`enhancement` mapping to Linear's existing
-`Bug`/`Feature`. All eight exist. Change them with `label add` and `label remove`. See
-`docs/agents/triage-labels.md`.
-
-### Domain docs
-
-Single-context: one `CONTEXT.md` and one `docs/adr/` at the repo root, both populated. See
-`docs/agents/domain.md`.
-
-### Branches and landing
-
-Trunk-based and solo: one `main`, a branch per ticket carrying its `CAN-n`, squash-merge to
-land. `docs/agents/workflow.md` names the gates, the preview environment and which artefacts a
-merge carries. Since CAN-22 those gates actually run, in GitHub Actions on every push.
+- **Issue tracker.** Linear (team `CAN`), driven through `orca linear`, mirrored two-way to GitHub
+  Issues. Pass `--workspace ad2669ec-93a5-4ce1-97fa-c7d9247a1452` on **every** call: Orca is
+  connected to three workspaces and picks the wrong one silently. `docs/agents/issue-tracker.md`.
+- **Triage labels.** The five canonical state roles verbatim, plus `bug`/`enhancement` mapping to
+  Linear's `Bug`/`Feature`. All eight exist. Change them with `label add` / `label remove`.
+  `docs/agents/triage-labels.md`.
+- **Domain docs.** Single-context: one `CONTEXT.md` and one `docs/adr/`, both populated.
+  `docs/agents/domain.md`.
+- **Branches and landing.** Trunk-based and solo: one `main`, a branch per ticket carrying its
+  `CAN-n`, squash-merge to land. `docs/agents/workflow.md` names the gates, the preview environment
+  and which artefacts a merge carries; since CAN-22 those gates run in GitHub Actions on every push.
 
 ## Which tool owns what
 
@@ -133,53 +110,24 @@ merge carries. Since CAN-22 those gates actually run, in GitHub Actions on every
 | Transactional email — sending, domains, API keys, delivery logs, inbound mail | **`resend` MCP** |
 | Whether a message actually arrived, and in which folder | **`macos-mail-mcp`**, Jacob's Mail.app |
 
-**Playwright drives the browser; chrome-devtools measures it.** `claude-in-chrome` is shut off in
-`.claude/settings.json` two ways, because its browser is Jacob's own and carries all of his
-sessions: its MCP tools by a `deny` rule, which is evaluated before allow and cannot be overridden
-by confirming a prompt, and its skill twice over — a `Skill(claude-in-chrome)` deny entry, whose
-matching is undocumented and so unverified, and `skillOverrides: "off"`, which is the documented
-mechanism and makes invoking it error ([settings docs](https://code.claude.com/docs/en/settings)).
-Playwright runs a separate profile, so when something needs a login, ask Jacob to sign in to *that*
-browser; the session then persists.
+Five rules the table does not carry, and **`docs/agents/tooling.md` has the reasoning under each**:
 
-**The two email tools are not interchangeable.** `resend` reports what the provider did with a
-message; `macos-mail-mcp` reports what the recipient's mail client did with it. A send can be
-`delivered` in Resend and sitting in Junk, so **a deliverability claim needs both**: send with
-`resend`, then read the folder with `macos-mail-mcp`. Which account to check, and the evidence from
-CAN-20, are in `docs/infrastructure.md`.
-
-**`next-devtools-mcp` inspects this app; the `vercel:*` skills teach the framework.** Its
-`nextjs_index` and `nextjs_call` tools talk to a *running* dev server, so they answer what this app
-does right now — its route list, its compile errors, its cache — and answer nothing at all when the
-server is down (`pnpm --filter @canoncore/web dev`). Its `nextjs_docs` tool is the one exception to
-the `vercel:*` row above: it reads the markdown Next ships inside `node_modules/next`, so it is exact
-to the 16.3.0 actually installed rather than to whatever version a skill was written against. Prefer
-it for a signature or an option, the `vercel:*` skills for a pattern. **Ignore its `browser_eval`
-tool**, which recommends the `agent-browser` CLI. *Playwright drives the browser* above already
-settled that, and a new tool offering to do it differently does not reopen it.
-
-**`neon` and `sentry` are both signed in.** Both authenticate over OAuth, and an unauthenticated
-server of this kind answers nothing at all — it exposes only its `authenticate` and
-`complete_authentication` tools until the sign-in is done (observed on **CAN-47 CLAUDE.md still
-defers three MCP installs that have happened**, 12 August 2026, when neither was). Sentry's was
-completed by **CAN-65 Create the Sentry account and issue its authentication token** on 13 August
-2026; the account, the organisation and what still does not report to it are
-`docs/infrastructure.md` → *Error reporting: Sentry*. Neon's control plane is the *only* thing that
-answers which branches exist, for the reasons `docs/infrastructure.md` → *Preview branching was off,
-and is now on* records.
-
-`resend` is scoped to this project in `.claude/settings.json`. **`macos-mail-mcp` is user scope and
-reads every account in Jacob's Mail.app**, work and personal, so it is his tool rather than this
-project's — never use it for anything but checking mail this project sent. Why `neon`, `sentry` and
-`next-devtools-mcp` are user scope rather than a committed `.mcp.json`: `docs/infrastructure.md` →
-*Why three MCP servers are user scope*.
+- **Playwright drives the browser; chrome-devtools measures it.** `claude-in-chrome` is denied in
+  `.claude/settings.json` two ways, because its browser is Jacob's own and carries all his sessions.
+- **A deliverability claim needs both email tools.** `resend` reports what the provider did;
+  `macos-mail-mcp` reports what the recipient's client did. A send can be `delivered` and in Junk.
+- **Ignore `next-devtools-mcp`'s `browser_eval` tool**, which recommends the `agent-browser` CLI.
+  *Playwright drives the browser* already settled that, and a new tool does not reopen it.
+- **`next-devtools-mcp` answers nothing when the dev server is down**
+  (`pnpm --filter @canoncore/web dev`).
+- **Never use `macos-mail-mcp` for anything but mail this project sent.** It is user scope and reads
+  every account in Jacob's Mail.app, work and personal.
 
 ## Closed decisions, and what will try to reopen them
 
-Installed skills, and general habit, default to options the ADRs deliberately rejected. Treat such
-a suggestion as a proposal to reopen a closed decision, not as advice.
-
-Each names the settled answer first, then what will offer you something else.
+Installed skills, and general habit, default to options the ADRs deliberately rejected. Treat such a
+suggestion as a proposal to reopen a closed decision, not as advice. Each names the settled answer
+first, then what will offer you something else.
 
 - **better-auth** ([ADR-0005](docs/adr/0005-stack.md)) — `vercel:auth` will offer Clerk, Descope
   or Auth0.
@@ -200,35 +148,38 @@ Each names the settled answer first, then what will offer you something else.
   ([ADR-0011](docs/adr/0011-transactional-email-resend.md)) — Resend is the *only* email provider on
   the Vercel Marketplace, so installing it reads as the obvious path. That is the thing to refuse: it
   provisions a billable resource on a Hobby account and takes ownership of the environment variable,
-  which is the failure CAN-18 already paid for with `DATABASE_URL`. Postmark is the recorded runner-up
-  and the margin is genuinely narrow; ADR-0011 names the conditions that flip it, and is the only
-  place they are stated.
+  which is the failure CAN-18 already paid for with `DATABASE_URL`. Postmark is the recorded
+  runner-up and the margin is narrow; ADR-0011 names the conditions that flip it.
 - **Adult works catalogued, their artwork never displayed**
   ([ADR-0012](docs/adr/0012-adult-works-catalogued-artwork-never-displayed.md)) — Trakt filters adult
-  titles out of its TMDB import, so "just exclude them" reads as the obvious path. It is not: recording
-  that a work exists is not carrying pornographic content, and the exposure is the poster. A per-account
-  "show adult content" toggle is the other tempting answer and is worse, because self-declaration is not
-  highly effective age assurance.
-- **TMDB as the general source** ([ADR-0009](docs/adr/0009-external-source-tmdb.md)) — its
-  published terms forbid keeping data beyond six months, so a reader who checks them will think
-  this is wrong. It rests on a project-specific exception TMDB confirmed in writing, held on CAN-34.
-  TheTVDB is the recorded fallback, not a live alternative; ADR-0009 names the conditions that would
-  return the decision to it, and is the only place they are stated.
+  titles out of its TMDB import, so "just exclude them" reads as obvious. It is not: recording that a
+  work exists is not carrying pornographic content, and the exposure is the poster. A per-account
+  "show adult content" toggle is worse, because self-declaration is not highly effective age
+  assurance.
+- **TMDB as the general source** ([ADR-0009](docs/adr/0009-external-source-tmdb.md)) — its published
+  terms forbid keeping data beyond six months, so a reader who checks them will think this is wrong.
+  It rests on a project-specific exception TMDB confirmed in writing, held on CAN-34. TheTVDB is the
+  recorded fallback, not a live alternative; ADR-0009 names the conditions that would return the
+  decision to it.
 
 ## Working practice
 
 Features run through the engineering skills in a fixed order. All of them are
-`disable-model-invocation` — **only the human can invoke them**, which is why they do not
-appear in the model's skill list:
+`disable-model-invocation` — **only the human can invoke them**, which is why they do not appear in
+the model's skill list:
 
 ```
-/grill-with-docs          interview to shared understanding; writes CONTEXT.md + ADRs
+/grill-with-docs   interview to shared understanding; writes CONTEXT.md + ADRs
    ↓
-/to-spec                  the conversation, synthesised into a spec on Linear
+/to-spec           the conversation, synthesised into a spec on Linear
    ↓
-/to-tickets               spec sliced into vertical tracer-bullet tickets
+/to-tickets        spec sliced into vertical tracer-bullet tickets
    ↓
-/implement                one ticket, TDD at the agreed seams; stops at the commit
+/implement         one ticket, TDD at the agreed seams; stops at the commit
+   ↓
+/draft-pr          push the branch, open the draft PR, link the ticket
+   ↓
+/review-pr         gates, ready, squash-merge, close out Linear
 ```
 
 **Branch off `main` before `/implement`** — nothing does it for you. `/implement` commits to
@@ -236,40 +187,13 @@ whatever branch is current, so on `main` it commits to `main`, and pushing `main
 production. `docs/agents/workflow.md` has the command and the recovery.
 
 **`/implement` runs `/code-review` itself, and that is the review — do not ask for a second one.**
-It counts when the review **actually read the committed change**, which staging alone does not
-achieve: `<fixed-point>...HEAD` compares two commits and ignores the index, so with nothing
-committed that range is empty and a review of it reports no findings. Commit first and review
-against the branch point, or hand the review `git diff --cached` by hand. The fresh eyes are in the
-sub-agents `code-review` fans out to, not in whichever session invokes it.
-`docs/agents/workflow.md` → *The review runs once, and `/implement` is normally where* has the
-argument and the three cases where a review still has to run: `/implement` never ran, the diff it
-read was empty or partial, or the branch moved after it.
+It counts only when the review actually read the *committed* change; staging alone does not achieve
+that. `docs/agents/workflow.md` → *The review runs once, and `/implement` is normally where* has the
+argument and the three cases where a review still has to run.
 
-Everything after `/implement` is this repo's own, and it is two more user-invoked skills:
+`/draft-pr` and `/review-pr` live in `.claude/skills/` and defer to `docs/agents/workflow.md` for
+policy. They are `disable-model-invocation` like the rest — `/review-pr` merges to production, which
+is not a thing to reach for unprompted.
 
-```
-/draft-pr                 push the branch, open the draft PR, link the ticket
-   ↓                      (/code-review here only in those three cases)
-/review-pr                gates, ready, squash-merge, close out Linear
-```
-
-Both live in `.claude/skills/` and defer to `docs/agents/workflow.md` for the policy. They are
-`disable-model-invocation` like the rest — `/review-pr` merges to production, which is not a
-thing to reach for unprompted.
-
-**The whole chain is declared, so a clone runs the same process.** `/grill-with-docs`, `/to-spec`
-and `/to-tickets` come from `mattpocock-skills`, enabled for this project in
-`.claude/settings.json`. `/implement` and `/code-review` are in `.claude/skills/` as well, each keeping
-its rationale in a `references/rationale.md` beside it rather than in the loaded body.
-Keep no copy of either in `~/.claude/skills/`: personal scope overrides project, so a personal copy
-wins silently and the two drift.
-
-Small work can skip from the grill straight to `/implement`. `/wayfinder` replaces `/to-spec`
-when the shape is still foggy — it resolves unknown *decisions* one at a time, where
-`to-spec` assumes you know what you are building and are slicing *how*.
-
-Run the grill and the implementation in separate sessions. The stated ceiling is roughly 140K
-tokens before the model degrades, and the enabled plugins spend ~5.3k of that before anything is
-typed — measured 13 August 2026 with `claude plugin details <name>`, of which `vercel` (~2,950) and
-`mattpocock-skills` (~1,620) are 86%. Re-measure rather than guessing; a plugin's skill listing also
-has a budget that silently drops descriptions when exceeded, and `/context` reports what survived.
+**Run the grill and the implementation in separate sessions.** Why, the plugin token costs, how the
+chain is declared, and when `/wayfinder` replaces `/to-spec`: `docs/agents/tooling.md`.
