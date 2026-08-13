@@ -15,6 +15,7 @@ identify the relevant Code of Practice, and give the date it takes effect.
 **Codes of Practice:** Ofcom's *Illegal Content Codes of Practice for User-to-User Services* (ICU) **and**
 its *Protection of Children Codes of Practice for User-to-User Services* (PCU). Record-Keeping Guidance
 §4.2 requires each measure to identify the Code it comes from, and every row below does.
+
 **Applicability:** this service is **smaller** (well under 7 million monthly active UK users) and
 **low-risk** (low or negligible for all 18 kinds), per
 [`illegal-content-risk-assessment.md`](illegal-content-risk-assessment.md). It is **not** a large service
@@ -113,7 +114,8 @@ than asserted.
 
 **Limb (b) post-dates the drafting** and is the one that had to be added. `s.10(3A)` and `s.10(3B)` were
 inserted by the Crime and Policing Act 2026 amendments in force 29 June 2026, after the terms were written
-on **CAN-21 Write the Online Safety Act documents and establish the reporting address**. The provision now states the 48-hour deadline, that it runs **from receipt** rather than from
+on **CAN-21 Write the Online Safety Act documents and establish the reporting address**. The
+provision now states the 48-hour deadline, that it runs **from receipt** rather than from
 when the report is opened, the "same or substantially the same" limb, and the two `s.10(3B)` exceptions —
 that the provider considers the content is not intimate image content, or that the reporter is neither the
 subject nor acting on their behalf — as the only two grounds for refusing.
@@ -167,22 +169,29 @@ of this register described B4 as a measure about the technical feasibility of ta
 | **PCU B4** | Use of highly effective age assurance — services that do not prohibit primary priority content | B4.1 applies where (a) PCU B2 does not apply, **and** (b) either (i) one or more specific kinds of primary priority content are allowed on the service, or (ii) all kinds are prohibited but it is not currently technically feasible to take down all content the provider determines is in breach of its terms under PCU C1.3(a). Limb (a) is satisfied — B2 does not apply, since the principal purpose of the service is not hosting or disseminating primary priority content — but **both limbs of (b) fail**: the terms prohibit all four kinds for all users, and takedown is technically feasible |
 | **PCU G2** | Summarising the children's risk assessment in the terms | Category 1 services only. Not required of this service |
 
-That is the three, and the sixteen is closed. **PCU B5 below is deliberately outside the count**, because
-the tool never returned it.
+That is the three, and the sixteen is closed. **PCU B5 below sits outside that count**, and the section
+says why. **The `Effective` column is absent from this table on purpose**: a measure that does not apply
+is not a measure taken, and `s.23(3)` asks for the date measures take effect, not a date against
+something that never starts.
 
 > **Two conditions hold PCU B4 out of scope, and both can be lost.** The first is the `s.12(5)`
-> prohibition on primary priority content, which also keeps PCU B1 and the whole age-assurance apparatus
-> out of scope; weakening it pulls age verification or age estimation into the build. The second is
-> quieter: **B4.1(b)(ii) applies where takedown is not technically feasible**, so B4 stays out of scope
+> prohibition on primary priority content in the terms, which is what makes B4.1(b)(i) false. The second
+> is quieter: **B4.1(b)(ii) applies where takedown is not technically feasible**, so B4 stays out of scope
 > only while takedown works. CAN-32 is what makes it work. A design that ever made some content
 > undeletable would bring highly effective age assurance into scope by that route alone, with the terms
 > unchanged.
+>
+> **B1 follows B4 rather than the terms.** B1 applies to a service that *uses* highly effective age
+> assurance, so it comes into scope only once something else has put age assurance into the build. Losing
+> either condition above is that something else.
 
 ### PCU B5, which the tool did not return
 
-**B5 is not one of the sixteen** and is recorded anyway, because an earlier version of this register
-carried it as though it were, and described it as a measure about the technical feasibility of takedown.
-It is not. **PCU B5 is "use of highly effective age assurance — services that do not prohibit priority
+**B5 is not among the sixteen recorded** and is kept here anyway, because this register previously
+described it as a measure about the technical feasibility of takedown. It is not. Whether the tool
+returned it and it was set aside, or never returned it, is not recoverable from what was written down;
+reference code `POCVMT95NIB` is retained so the run can be resumed rather than guessed at. **PCU B5
+is "use of highly effective age assurance — services that do not prohibit priority
 content"**, and B5.1 applies where (a) PCU B3 does not apply, **and** (b) the service is at **medium or
 high risk of one or more specific kinds of priority content** and either that content is allowed on the
 service or it is prohibited but takedown is not technically feasible.

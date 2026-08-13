@@ -93,7 +93,8 @@ disseminate any kind of content harmful to children.
 > `nondesignatedcontent@ofcom.org.uk`: "Where you provide a user-to-user service and you identify that
 > non-designated content is present on your service then you must notify Ofcom using the following email
 > address" ([Ofcom, *Protection of children duties under the Online Safety Act*](https://www.ofcom.org.uk/online-safety/protecting-children/protection-of-children-duties-under-the-online-safety-act)). This is a duty specific to user-to-user services and is easy to
-> miss. It is recorded in [`review-policy.md`](review-policy.md) as a standing obligation.
+> miss. [`review-policy.md`](review-policy.md) → *Review cycle* carries it as a standing obligation, with
+the address, so that a reader working through the review schedule meets it.
 
 **Overall: low for every kind of content harmful to children, and no non-designated content identified.**
 

@@ -61,7 +61,8 @@ completable and for the address to be testable.
 **Why it is a gate and not a preference.** The two things that make this a user-to-user service are
 accounts and public Visibility. Neither exists on `main`, so nobody but the operator can put content
 here, and most of the Code measures are recorded as not in effect for exactly that reason
-(`docs/compliance/code-measures-register.md` → *What the `Effective` column means*). The failure this prevents is content arriving before the measures do: a person posting to
+(`docs/compliance/code-measures-register.md` → *What the `Effective` column means*). The failure
+this prevents is content arriving before the measures do: a person posting to
 a service with no takedown, no published terms and no reporting address.
 
 **Where the gate lived before, and why it moved here.** It was an unticked box on

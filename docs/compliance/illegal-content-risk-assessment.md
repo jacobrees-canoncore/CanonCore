@@ -159,7 +159,7 @@ there is content, so the gate that keeps content out until they exist is part of
 | No marketplace, payments or advertising | Fraud, proceeds of crime, drugs, weapons, sexual exploitation, trafficking | Holds these at low rather than higher | Absence |
 | User free text not linkified | CSAM URLs, terrorism, drugs, weapons, fraud | Removes the hyperlinking risk factor entirely | **Not yet — CAN-27**, which carries it as an acceptance criterion and a test. There is no free text on `main` to render, so nothing is linkified today; what CAN-27 owns is that it stays that way |
 | No recommender or engagement ranking | Foreign interference, suicide and self-harm, hate | Removes amplification | Absence |
-| A corpus small enough for the operator to review | All | Ofcom treats reviewability as load-bearing; see its CSAM low-risk example | Absence, and reviewed at each risk-assessment review |
+| A corpus small enough for the operator to review | All | Reviewability in full, which is what makes reactive moderation adequate at this size. **The provider's own reasoning, not a position attributed to Ofcom** | Absence, and reviewed at each risk-assessment review |
 | All shared content is public; no closed groups | CSEA, hate | Ofcom treats unreviewed closed groups as a high-risk factor; their absence reduces risk | Absence |
 | Admin takedown, recorded as an Operation with an audit entry | All | Enables the swift takedown in ICU C2 | **Not yet — CAN-32 Roles, takedown, and the Online Safety Act surfaces**. No `admin` role, no Visibility and no audit entry exist on `main`. The Code measures register records ICU C2 and PCU C2 as not in effect for the same reason |
 
