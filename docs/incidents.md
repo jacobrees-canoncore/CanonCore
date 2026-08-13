@@ -654,8 +654,9 @@ account** and has not been done.
 
 The census run first found `canoncore-v3` held a **second, different key** — two distinct
 unaccounted keys, not one shared key with a fourth holder — and both probed **live** (HTTP 403,
-sending scope) minutes before deletion. Neither is readable from this account any longer. Both are
-now revoked, the second by elimination rather than observation — see CAN-80 below.
+sending scope) minutes before deletion. Neither is readable from this account any longer; both
+remain live on whichever accounts own them. *(Both were revoked hours later, the second only by
+elimination — CAN-80 below.)*
 
 `canoncore-rebuild` was treated as depending on nothing, on Jacob's instruction, and the deletions
 went ahead on that basis rather than on evidence.
@@ -667,7 +668,8 @@ than more project deletion.
 **13 August 2026, later the same day — CAN-80 ended it.** Signed in as `jacobrees@me.com`, Resend
 team `jacobrees`. All three keys on that account were deleted along with its stale
 `send.canoncore.com` domain entry, and `RESEND_API_KEY` was removed from `waveger-archive` and
-`canoncore-rebuild`. Read from each key's dashboard page before deletion:
+`canoncore-rebuild`. Read from each key's dashboard page before deletion; the last column lists the
+holders actually **matched**, not every project that may have carried the key:
 
 | Key | Id | Permission | Domain | Created | Which project held it |
 | --- | --- | --- | --- | --- | --- |
@@ -677,38 +679,53 @@ team `jacobrees`. All three keys on that account were deleted along with its sta
 
 **Each was tied to its project by a different route**, which is what closes the census above.
 `Waveger` by token, against the plaintext `vercel env pull` returned from `waveger-archive`.
-`Onboarding` by timestamp: its last use read `2026-08-10 15:20:34`, the exact second of the
+`Onboarding` by timestamp: its last use read `2026-08-10 15:20:34Z`, the exact second of the
 `GET /domains` probe in the first bullet of this entry, so the key those three projects shared was
 this one. `canoncore-rebuild-control-plane` by name and creation date against when the variable was
 added — the comparison CAN-41 said could not be made for that project, made without ever reading the
 Sensitive value.
 
-**`canoncore-v3`'s separate key is revoked too, but by elimination.** Its token went with the
-project and cannot be recovered, so it was never matched directly. It probed as sending scope, and
-every sending-scope key on this account is in the table above and now deleted. That reasoning holds
-only while there are exactly two Resend accounts, which is what the signup sweep above supports and
-nothing here proves outright.
+**`canoncore-v3`'s separate key is revoked too, but only by elimination.** Its token went with the
+project and cannot be recovered, so it was never matched. Follow the constraints and one candidate
+survives: it probed at sending scope, which rules out `Waveger`, and it was a *different* key from
+the shared one, which rules out `Onboarding` — leaving `canoncore-rebuild-control-plane`, which
+`canoncore-v3` would then have carried alongside `canoncore-rebuild`, exactly as `Onboarding` sat on
+three projects at once. That is a deduction, not an observation, and it rests on two things this
+entry cannot prove outright: that every sending-scope key on the `jacobrees@me.com` account is the
+two in the table, and that only two Resend accounts exist at all, which is as far as the signup
+sweep above reaches.
 
 **Which account it is, is header-level.** The 28 December 2025 welcome carries `To:` and
-`Original-Recipient:` of `jacobrees@me.com`, sent 22:58:55 GMT — 84 seconds after that account's
-default `General` audience (22:57:13 UTC) and its `Onboarding` key (22:57:31 UTC) were created. One
-signup, one welcome, one account.
+`Original-Recipient:` of `jacobrees@me.com`, sent `2025-12-28 22:58:55Z` — 84 seconds after that
+account's `Onboarding` key (`22:57:31Z`) and 102 after its default `General` audience (`22:57:13Z`).
+One signup, one welcome, one account.
 
 **Verified dead rather than reported dead.** `Waveger` was deleted last so its plaintext could be
 turned against the live API afterwards: reads return `400 API key is invalid` and a real send
 attempt returns `401`. After each deletion the account's own API agreed with the dashboard, which is
-a check independent of the page doing the deleting, and it ended at zero keys and zero domains. The
-verification probes overwrote `Waveger`'s `last_used_at` first, so how long it had really sat idle
-is unrecoverable; its lifetime total was 5 uses.
+a check independent of the page doing the deleting, and it ended at zero keys and zero domains.
 
-**No sign it was ever used against us.** The account's send log ends 3 August 2026 and every entry
-is that project's own test traffic to `.invalid` addresses, from `no-reply@send.canoncore.com`.
+**The verification cost the evidence.** Those probes ran before the key was deleted, so they
+overwrote `Waveger`'s `last_used_at` and drove its "Total uses" to 5 — which is exactly the number
+of authenticated calls CAN-80 made to it (`/domains`, `/api-keys`, `/emails`, `/audiences`,
+`/broadcasts`). Neither figure survives as evidence of anything the key did before 13 August 2026,
+and the key record is now deleted, so neither can be recovered.
+
+**Nothing in the send log shows use against us**, which is weaker than "it was never used". The most
+recent entry is 3 August 2026, from `no-reply@send.canoncore.com` to `.invalid` addresses, and every
+visible entry is that project's own test traffic. Read that against the retention finding in the
+entry above: on the other account the whole retained log was 28 entries from a single day, so a
+Resend log is a floor on what happened, not a record of it. Nothing was found; that is not the same
+as nothing being there.
 
 **Independently confirmed here on 13 August 2026**, which is the half this account can see:
 `vercel env ls` on both projects returns no `RESEND_API_KEY`. `waveger-archive` now holds only
 `SENTRY_*`, `VITE_*` and Supabase variables; `canoncore-rebuild` holds only `BETTER_AUTH_SECRET`,
-`DATABASE_URL` and `DATABASE_URL_UNPOOLED`. The revocation itself is on an account this project
-cannot read, so it rests on CAN-80's report rather than on an observation repeatable from here.
+`DATABASE_URL` and `DATABASE_URL_UNPOOLED`. The deletions themselves happened on an account this
+project cannot read, so *that* half rests on CAN-80's report. The death of the key does not: the
+plaintext came from `waveger-archive`, readable from this account, and it is that value CAN-80 put
+back to the API after deletion. Removing the variable ended the repeatability — the check stands as
+made on 13 August 2026 and cannot be run again.
 
 **Two of CAN-41's claims were wrong**, per CAN-80: it was two distinct keys rather than one shared
 key, and the `waveger-archive` one carried `full_access` against all domains rather than being a
