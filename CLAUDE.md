@@ -1,4 +1,13 @@
 # CanonCore
+<!--
+Loaded on every request. Target: under 200 lines (code.claude.com/docs/en/memory).
+To add a line, cut one, or put it in a pointer doc instead:
+  tool or process reasoning -> docs/agents/tooling.md
+  what is provisioned       -> docs/infrastructure.md
+  branches, gates, landing  -> docs/agents/workflow.md
+  a settled decision        -> docs/adr/
+Evidence: docs/research/document-length-for-agents.md
+-->
 
 ## Name every ticket you cite
 
