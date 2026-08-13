@@ -61,3 +61,26 @@ p {
 p.lead {
   color: var(--fg);
 }
+
+h2 {
+  margin: 0 0 0.75rem;
+  font-size: 1rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+li + li {
+  border-top: 1px solid var(--rule);
+}
+
+li {
+  padding: 0.6rem 0;
+}

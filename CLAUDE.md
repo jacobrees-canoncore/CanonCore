@@ -191,8 +191,8 @@ the model's skill list:
 ```
 
 **Branch off `main` before `/implement`** — nothing does it for you. `/implement` commits to
-whatever branch is current, so on `main` it commits to `main`, and pushing `main` deploys to
-production. `docs/agents/workflow.md` has the command and the recovery.
+whatever branch is current, so on `main` it commits to `main`, and pushing `main` migrates the
+production database and releases. `docs/agents/workflow.md` has the command and the recovery.
 
 **`/implement` runs `/code-review` itself, and that is the review — do not ask for a second one.**
 It counts only when the review read the *committed* change; staging alone does not achieve that.

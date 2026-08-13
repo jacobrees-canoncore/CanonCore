@@ -1,4 +1,5 @@
 import { createEnv } from "@t3-oss/env-nextjs";
+import * as z from "zod";
 
 /**
  * Every environment variable this application reads, and the only place it reads
@@ -10,10 +11,18 @@ import { createEnv } from "@t3-oss/env-nextjs";
  * (`docs/research/production-readiness-baseline.md`), so the record of that failure expires
  * before anybody reads it.
  *
- * **Both dictionaries are empty, and that is the current state rather than an oversight.** No
- * deployment reads a credential yet; `docs/infrastructure.md` → *Environment variables* holds
- * the roster and names the ticket that claims each one. The gate lands ahead of them so that
- * adding the first variable is one line here rather than one line plus this file.
+ * **Every variable here is optional, and that is deliberate rather than a weak schema.** Which
+ * database variables a deployment carries depends on which deployment it is: `DATABASE_URL` is
+ * production-only on purpose, and a preview's `NEON_PGHOST` is injected per deployment by Neon's
+ * webhook rather than held on the project. A schema demanding either of them unconditionally
+ * would fail every build in the environments that correctly lack it — including a preview's,
+ * which reports the required `Vercel` check, so it would block every merge.
+ *
+ * What is required is therefore a property of the combination, not of any one key, and
+ * [`src/db/database-url.ts`](db/database-url.ts) is where the combinations are named and
+ * refused. It runs when a request opens a connection rather than when the build runs, and its
+ * refusals are as loud; the roster and which environment carries what is
+ * `docs/infrastructure.md` → *Environment variables*.
  *
  * `client` is separate from `server` because the prefix rule is enforced by the client
  * dictionary's key type: an unprefixed key there fails to compile, and so does a
@@ -25,7 +34,24 @@ import { createEnv } from "@t3-oss/env-nextjs";
  * better, because a hatch that exists is one somebody eventually sets in CI.
  */
 export const env = createEnv({
-  server: {},
+  server: {
+    // Set by Vercel on every deployment and absent everywhere else, which is how
+    // `src/db/database-url.ts` tells a preview from production without being told twice.
+    VERCEL_ENV: z.enum(["production", "preview", "development"]).optional(),
+    // The application role's connection string. Production and local development; never a
+    // preview, which composes its own from the four below.
+    DATABASE_URL: z.string().min(1).optional(),
+    DATABASE_APP_USER: z.string().min(1).optional(),
+    DATABASE_APP_PASSWORD: z.string().min(1).optional(),
+    // Production's Neon host, in plain text, so that a preview has something to compare the
+    // host it resolved against. Not a credential: it opens nothing without the two above.
+    DATABASE_PRODUCTION_HOST: z.string().min(1).optional(),
+    // Injected into a preview deployment by Neon's integration, naming that deployment's own
+    // branch. Undeclared anywhere in Vercel's project settings, by design, which is why
+    // `vercel env pull` cannot show them and why a preview is the only place they exist.
+    NEON_PGHOST: z.string().min(1).optional(),
+    NEON_PGDATABASE: z.string().min(1).optional(),
+  },
   client: {},
   // Only client variables are destructured here. Next "stopped static analysis of server side
   // `process.env`" in 13.4.4, so the rest are read from it directly — the wording is

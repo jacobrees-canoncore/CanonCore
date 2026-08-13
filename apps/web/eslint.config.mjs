@@ -19,8 +19,12 @@ const eslintConfig = defineConfig([
     // in behind the schema. Scoped to what `next build` compiles — `playwright.config.ts`
     // and `e2e/` drive a *deployed* site and read `CI` and `CANONCORE_E2E_BASE_URL`, neither
     // of which is the application's to declare.
+    //
+    // A `*.test.ts` is on the same side of that line: `next build` never compiles one, and the
+    // variables a test reads are the runner's — which database to point at, whether this is CI —
+    // rather than variables any deployment carries. `src/db/rls.test.ts` is the case in point.
     files: ["src/**/*.{ts,tsx}", "next.config.ts"],
-    ignores: ["src/env.ts"],
+    ignores: ["src/env.ts", "src/**/*.test.{ts,tsx}"],
     rules: {
       "no-restricted-syntax": [
         "error",

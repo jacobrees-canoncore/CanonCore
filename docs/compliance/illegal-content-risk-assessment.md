@@ -161,15 +161,16 @@ there is content, so the gate that keeps content out until they exist is part of
 | No recommender or engagement ranking | Foreign interference, suicide and self-harm, hate | Removes amplification | Absence |
 | A corpus small enough for the operator to review | All | Reviewability in full, which is what makes reactive moderation adequate at this size. **The provider's own reasoning, not a position attributed to Ofcom** | Absence, and reviewed at each risk-assessment review |
 | All shared content is public; no closed groups | CSEA, hate | Ofcom treats unreviewed closed groups as a high-risk factor; their absence reduces risk | Absence |
-| Admin takedown, recorded as an Operation with an audit entry | All | Enables the swift takedown in ICU C2 | **Not yet — CAN-32 Roles, takedown, and the Online Safety Act surfaces**. No `admin` role, no Visibility and no audit entry exist on `main`. The Code measures register records ICU C2 and PCU C2 as not in effect for the same reason |
+| Admin takedown, recorded as an Operation with an audit entry | All | Enables the swift takedown in ICU C2 | **Not yet — CAN-32 Roles, takedown, and the Online Safety Act surfaces**. No `admin` role and no audit entry exist on `main`; `story` has carried a Visibility since CAN-23, but nothing can change one. The Code measures register records ICU C2 and PCU C2 as not in effect for the same reason |
 
 ## Step 3 — Measures
 
 The ICU measures binding a smaller, low-risk service are recorded separately in
 [`code-measures-register.md`](code-measures-register.md), each with its description, its Code reference
-and the date it takes effect. **Most are recorded there as not yet in effect**, because `main` serves a
-holding page: the register's own *What the `Effective` column means* section says which ticket each one
-waits on, and the URL-sharing gate is what keeps user content from arriving before they do.
+and the date it takes effect. **Most are recorded there as not yet in effect**, because `main` has no
+accounts and so no user-generated content: the register's own *What the `Effective` column means* section
+says which ticket each one waits on, and the URL-sharing gate is what keeps user content from arriving
+before they do.
 
 **One alternative measure is taken: ICU D2.2(a), a per-item report control, is not adopted at launch.**
 In its place the reporting route is published as an address reachable without an account.

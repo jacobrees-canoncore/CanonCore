@@ -40,8 +40,11 @@ this record false, so the column carries one of three determinate values and nev
 - **Not adopted** — a permissive measure declined on the record. There is no effective date for a measure
   not taken.
 
-**Why most rows read the second way.** `main` serves a holding page. There are no accounts, no records, no
-public content, no footer and no `/legal` route, so there is nothing to moderate, report or take down.
+**Why most rows read the second way.** There are no accounts, no footer and no `/legal` route, so there is
+nothing to moderate, report or take down. Since **CAN-23 One Story from Neon, behind row-level security**
+`main` does carry one record, and that record is public — but it is the operator's own, inserted by a
+migration, and nobody else can create one. What these rows wait on is *user-generated* content, and that
+arrives with accounts.
 Two tickets close the whole gap:
 [CAN-32 Roles, takedown, and the Online Safety Act surfaces](https://linear.app/jacobrees-canoncore/issue/CAN-32)
 builds the public surfaces, the roles and the takedown, and

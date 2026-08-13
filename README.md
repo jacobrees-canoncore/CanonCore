@@ -3,8 +3,8 @@
 A catalogue for a media collection where one Story legitimately belongs in more than one place at
 once.
 
-**Live at [www.canoncore.com](https://www.canoncore.com)** — currently a holding page. See
-[Status](#status) for what actually exists.
+**Live at [www.canoncore.com](https://www.canoncore.com)** — a holding page with one public Story
+under it. See [Status](#status) for what actually exists.
 
 ## The problem
 
@@ -31,10 +31,12 @@ and [orderings](docs/adr/0002-orderings-are-separate-from-containment.md).
 
 ## Status
 
-**A walking skeleton.** The holding page is deployed, CI gates run on every push, and the
-production host, database and email are provisioned. The catalogue itself is not built yet.
+**A walking skeleton, and it now goes all the way through.** One Story is stored in Neon behind
+row-level security and rendered on the public URL to an anonymous visitor; CI gates run on every
+push and the release migrates the database before it promotes production. The catalogue itself is
+not built yet — there is no way to sign in and no way to add a second Story.
 
-What that means concretely: roughly 200 lines of application code against twelve architecture
+What that means concretely: roughly 800 lines of application code against twelve architecture
 decision records and a domain model. The design work ran ahead of the implementation on purpose,
 and the ratio will correct itself as vertical slices land, not by adding more planning.
 

@@ -18,10 +18,11 @@ procedure changes when a command changes, and evidence only ever accumulates.
 cites the owner for the argument.** A one-line imperative is not the duplication this split exists
 to remove — a retold incident is.
 
-> **What exists.** CAN-22 built the walking skeleton, so `apps/web` exists and GitHub Actions runs
-> the checks below on every push. Auth, a schema and any migration step do **not** exist yet; the
-> database is provisioned but nothing runs against it, so the deploy-order rules here are policy
-> written ahead of the thing they govern.
+> **What exists.** CAN-22 built the walking skeleton and CAN-23 One Story from Neon, behind
+> row-level security connected it to the database, so `apps/web` exists, a `story` table exists
+> behind a policy, and GitHub Actions runs the checks below and then the release on every push to
+> `main`. Auth does **not** exist yet — **CAN-24 A signed-in and a signed-out path** brings it —
+> so the only session user any request sets is the anonymous one.
 >
 > Anything the Vercel project does with a push — production from `main`, a preview per pull request
 > — is a project setting, so [`docs/infrastructure.md`](../infrastructure.md) is the only place it
@@ -44,8 +45,10 @@ to remove — a retold incident is.
 There is nobody to review it, so the PR is not doing what a PR usually does. It earns its place on
 the deployment rather than the review:
 
-- **A branch is the gate before production.** On Vercel, pushing `main` deploys straight to
-  production, so the branch *is* the only gate there is.
+- **A branch is the gate before production.** A push to `main` releases: since CAN-23 the release
+  is the tail of the CI job rather than Vercel's own build, so the gates run first — but they run
+  on a commit that is already on `main`, and a red gate leaves `main` red rather than unreleased.
+  The branch is where a change can still be wrong for free.
 - **`main` refuses anything else.** Since CAN-40 its ruleset requires the checks by name, so a
   commit that has not been through them cannot land by any route.
 
@@ -104,9 +107,9 @@ CAN-11-welcome-email-queue  anything else
 
 **Create it before `/implement`, and off `main`.** No skill does this for you and it is the easiest
 step in the flow to skip, because nothing prompts for it. `/implement` says only *"Commit your work
-to the current branch"*, so on `main` it commits to `main` — and pushing `main` deploys to
-production with no gate in front of it. `/draft-pr` refuses to run there, but by then the commits
-already exist and you are recovering rather than opening a PR.
+to the current branch"*, so on `main` it commits to `main` — and pushing `main` migrates the
+production database and releases whatever passed. `/draft-pr` refuses to run there, but by then the
+commits already exist and you are recovering rather than opening a PR.
 
 ```bash
 git switch main && git pull                       # start from what production has
@@ -253,7 +256,17 @@ on `main`, where every push is its own release and a cancelled run is not a pass
 **One check is not optional, because its failure mode is silence: every row-level-security-protected
 table has a test asserting that a cross-tenant read returns zero rows.** A misconfigured RLS policy
 returns an empty result rather than an error, so it is indistinguishable from "no data" in the UI
-and cannot be caught by looking. No such table exists yet; the first arrives with CAN-23.
+and cannot be caught by looking. `story` is the first such table and
+[`apps/web/src/db/rls.test.ts`](../../apps/web/src/db/rls.test.ts) is the shape every later one
+copies; ADR-0005 rule 2 is what requires it.
+
+**Those tests need a real PostgreSQL, and `pnpm -r test` behaves differently depending on whether
+it has one.** In Actions the job runs a `postgres:17` service container and the suite always runs.
+Locally it runs only when `RLS_TEST_MIGRATOR_URL` and `RLS_TEST_APP_URL` are set, and skips
+otherwise — but **it fails outright rather than skipping when `CI` is set**, because a skipped
+cross-tenant read test reports exactly what a broken policy reports. To run them on a laptop, point
+those two at any PostgreSQL that has had [`apps/web/src/db/roles.sql`](../../apps/web/src/db/roles.sql)
+applied to it.
 
 **The Playwright suite is not one of the four.** It drives a *deployed* URL rather than a build, so
 there is nothing for it to talk to inside a CI job that has deployed nothing. Run it against
@@ -306,10 +319,19 @@ landing succeeds; the ruleset is what happens when the wait was skipped.
 
 ## What a merge carries
 
-**Vercel's build deploys the application code and nothing else.** Drizzle migrations do **not** run
-as part of it: they run as an explicit step in the Actions pipeline before the production deploy is
-promoted, so a schema change that fails stops the release rather than shipping code against a
-database that never moved. Any other out-of-band artefact — a scheduled job, a queue, a permission,
+**Drizzle migrations run in Actions, before the production deploy is promoted**, so a schema change
+that fails stops the release rather than shipping code against a database that never moved. Since
+CAN-23 that is enforced rather than intended: [`apps/web/vercel.json`](../../apps/web/vercel.json)
+turns Vercel's Git integration off for `main` alone, and the job migrates, then builds, then
+deploys. Nothing weaker would do — a push starts a Vercel build immediately, so leaving the
+integration on would mean a migration racing a deploy it cannot see.
+
+**Previews still deploy from Git and are not migrated.** A preview branch is a copy of Neon's
+`main` taken when the deployment starts, so it carries whatever schema `main` had *then*. A branch
+whose code reads a table its migration has not yet put on `main` will therefore 500 in preview and
+work in production, and the fix is the one below: land the widening first.
+
+Any other out-of-band artefact — a scheduled job, a queue, a permission,
 an environment variable — is hand-run and must be named in the PR body.
 
 Answer this for each new **kind** of artefact before the first change that needs it, not after, and
