@@ -3,15 +3,15 @@
 **INTERNAL RECORD — NOT PUBLISHED.** Ofcom is explicit that a provider is not expected to publish the
 name of the accountable individual, nor to notify it to Ofcom routinely (Volume 1 §5.101).
 
-> **DRAFT.** Complete the name and date.
-
-Recorded to satisfy **ICU A2**.
+Recorded to satisfy **ICU A2** and **PCU A2**, which name the same individual.
 
 | | |
 | --- | --- |
-| Accountable individual | `[ ]` |
-| Effective from | `[ ]` |
+| Accountable individual | **Jacob Rees** |
+| Effective from | 13 August 2026 |
+| Next review date | 13 August 2027 — and immediately if the person changes |
 | Accountable to | The most senior governance body, which for this service is the same individual |
+| Recorded by | Jacob Rees |
 
 ## What this means
 
@@ -40,4 +40,6 @@ Each is Ofcom's own position, not an interpretation:
 - [`illegal-content-risk-assessment.md`](illegal-content-risk-assessment.md) — the named person
   responsible for the assessment should be the same individual.
 - [`review-policy.md`](review-policy.md) — the same individual is the nominated responsible person for
-  ICU D12.
+  ICU D12.3, and for PCU D13.
+- [`code-measures-register.md`](code-measures-register.md) — the ICU A2 and PCU A2 rows, and the
+  sub-measure line for ICU D12.3.

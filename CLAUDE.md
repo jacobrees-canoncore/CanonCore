@@ -87,6 +87,15 @@ default heuristics: `CODING_STANDARDS.md`.
 credential lives: `docs/infrastructure.md` — read it before touching deployment, environment
 variables or the database connection, and note the items it flags as unverified.
 
+**The URL is deployed and deliberately not shared.** `docs/infrastructure.md` → *The URL-sharing gate*
+holds the rule and what opens it. **`docs/compliance/` holds the statutory records** — the two risk
+assessments, the children's access assessment, the Code measures register, the `s.23(4)` alternative
+measures record, the CSEA reporting procedure and the review policy. **Read them before changing anything
+they describe**, because several are false the moment the product gains a capability: user upload,
+messaging or comments, linkified free text, search across other users' content, a recommender, a
+marketplace, or publicly displayable artwork on an adult-flagged record. Each of those requires the
+assessment redone *before* it ships, and each is listed as such in the record it would break.
+
 ## Agent skills
 
 - **Issue tracker.** Linear (team `CAN`), driven through `orca linear`, mirrored two-way to GitHub

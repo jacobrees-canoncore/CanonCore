@@ -1,11 +1,16 @@
 # Reporting and complaints
 
-**PUBLIC DOCUMENT.** Rendered by the application and reachable from the footer of every page and from
-the public Ordering page, without signing in. See the ICU D2.2(a) gap in
-`docs/compliance/code-measures-register.md`: a per-item report control on every record is not shipped at
-launch.
+**PUBLIC DOCUMENT**, and not yet published. When it is published it will be rendered by the application
+and reachable from the footer of every page and from the public Ordering page, without signing in, which is
+built by
+[CAN-32 Roles, takedown, and the Online Safety Act surfaces](https://linear.app/jacobrees-canoncore/issue/CAN-32).
+`main` serves a holding page and has no footer and no `/legal` route, so nothing below is reachable by a
+member of the public yet. A per-item report control on every record is not shipped at launch either; that
+is recorded as an alternative measure in `docs/compliance/alternative-measures-record.md`.
 
-> **DRAFT.** Complete the items marked `[ ]` and remove this box before publishing.
+> **DRAFT.** Complete the items marked `[ ]` and remove this box before publishing. The dates and the
+> reporting address are filled by
+> [CAN-44 Make the Online Safety Act records live, and create the reporting address](https://linear.app/jacobrees-canoncore/issue/CAN-44).
 
 Last updated: `[ ]`
 
@@ -91,5 +96,10 @@ one. If content is a crime in progress, or someone is in immediate danger, **cal
 
 ## Accessibility
 
-This page and our reporting route work with a keyboard alone and with a screen reader. If you cannot use
-them for any reason, tell us at the address above and we will find another way.
+We build this page and our reporting route to work with a keyboard alone and with a screen reader, and we
+test for it. Automated testing does not catch everything, so we do not claim the page is perfect for
+everyone.
+
+**Reporting does not depend on this page working for you.** The address above is an ordinary email address,
+so you can reach us with whatever you already use. If anything here gets in your way, tell us and we will
+find another way.

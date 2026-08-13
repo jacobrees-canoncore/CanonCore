@@ -6,17 +6,15 @@ Required because the [children's access assessment](childrens-access-assessment.
 child user condition is **met**, which engages the `s.11` children's risk assessment duty, the `s.12`
 children's safety duties and Ofcom's *Protection of Children Codes of Practice*.
 
-> **DRAFT — not yet in force.** Complete every `[ ]` before this is a valid record.
-
 | | |
 | --- | --- |
 | Service name | CanonCore (`https://www.canoncore.com`) |
 | Service type | User-to-user service |
-| Completion date | `[ ]` — due within three months of the children's access assessment |
-| Next review date | `[ ]` — at least annually |
-| Completed by | `[ ]` |
-| Named person responsible | `[ ]` |
-| Approved by | `[ ]` |
+| Completion date | 13 August 2026 — the same day as the children's access assessment it follows from, well inside the three months `s.11` allows |
+| Next review date | 13 August 2027 — at least annually |
+| Completed by | Jacob Rees |
+| Named person responsible | Jacob Rees |
+| Approved by | Jacob Rees — sole operator; see [`accountable-individual.md`](accountable-individual.md) |
 
 Structure follows Ofcom's *Protection of children duties: record-keeping template* and the four-step
 process in the *Children's Risk Assessment Guidance and Children's Risk Profiles*.
@@ -41,11 +39,14 @@ Ofcom expects children in different age groups to be considered separately. The 
 age of 13 in its terms, so the relevant population is 13 to 17. Younger children are not permitted, though
 no age assurance enforces this, so the assessment does not assume their absence.
 
-> ⚠️ **The minimum age of 13 is not stated in any ticket or ADR.** It was introduced when the terms of
+> ⚠️ **The minimum age of 13 originates in no ticket or ADR.** It was introduced when the terms of
 > service were drafted, because ICU G3.2(c) requires the terms to be written to a reading age
 > comprehensible for the youngest permitted user, and that question has to have an answer. Thirteen is the
-> common default and matches most comparable services. **It is a product decision awaiting confirmation**,
-> and if it changes, the reading age of the terms and this section both change with it.
+> common default and matches most comparable services. **Confirming or changing it is a criterion on
+> [CAN-44 Make the Online Safety Act records live, and create the reporting address](https://linear.app/jacobrees-canoncore/issue/CAN-44)**,
+> so it is owned rather than merely pending. If it changes, the reading age of the terms, the ICU D2.3(e)
+> and ICU G3.2(c) lines in the [Code measures register](code-measures-register.md), and this section all
+> change with it.
 
 ## Step 2 — Risk of each kind of content harmful to children
 
@@ -115,6 +116,14 @@ The measure set was obtained from Ofcom's *Check how to comply with the protecti
 tool, run as this service with the levels above, a user base below 700,000, terms prohibiting all four
 kinds of primary priority content, and no principal purpose of hosting harmful content. **Ofcom reference
 code `POCVMT95NIB`**, retained so the run can be resumed rather than repeated.
+
+> **The Step 2 levels are what keep PCU B5 out of scope, so a level change is an age-assurance change.**
+> PCU B5 (highly effective age assurance for services that do not prohibit priority content) applies where
+> a service is at **medium or high** risk of one or more kinds of priority content. Every one of the eight
+> kinds above is assessed **low**, so B5's applicability test is never reached. Raising any of them at a
+> future review brings B5 into scope by itself, with nothing about the product having changed and the
+> `s.12(5)` prohibition still in place — that prohibition answers primary priority content, not priority
+> content. The register records the same dependency against the B5 row.
 
 ### Existing controls
 

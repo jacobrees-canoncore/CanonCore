@@ -14,6 +14,11 @@ Kept to satisfy `s.9(3)–(4)`, `s.23(6)`, `s.36(3)` and **ICU D12.4(b)**.
 | [Children's access assessment](childrens-access-assessment.md) | Not more than one year apart (`s.36(3)`); also before a relevant significant change, on evidence of reduced age assurance effectiveness, or on evidence of a significant increase in child users (`s.36(4)`) |
 | [Code measures register](code-measures-register.md) | Alongside the risk assessment |
 
+**Standing obligation, not a cycle.** If **non-designated content** is ever identified on the service,
+Ofcom must be notified at `nondesignatedcontent@ofcom.org.uk`. This is a duty specific to user-to-user
+services, it has no schedule, and the [children's risk assessment](childrens-risk-assessment.md) points
+here for it.
+
 **Also triggered by Ofcom.** Where Ofcom makes a significant change to a Risk Profile relevant to this
 service, the risk assessment is reviewed. The operator subscribes to Ofcom's online safety email updates
 so that such changes are noticed. Ofcom's own pages link superseded versions, so guidance is always
@@ -40,8 +45,11 @@ appropriate". Ofcom sets no numeric standard for a smaller low-risk service — 
 (C4, C5, D4) do not apply — so these are the provider's own determination and are recorded here to make
 them auditable.
 
-> **DRAFT — confirm these are ones you can actually meet.** A missed self-imposed target is worse
-> evidence than a slower one that is kept. They are deliberately unambitious for that reason.
+> **Confirmed as drafted, 13 August 2026.** These were reviewed against what a sole operator can hold to
+> on a corpus one person reads, and kept unchanged. They are deliberately unambitious, because a missed
+> self-imposed target is worse evidence than a slower one that is kept, and because they are already
+> published verbatim in the public reporting document — changing them changes what the public was told.
+> Only the first is statutory; the other three are the provider's own determination under ICU D12.4(b).
 
 | Complaint type | Target | Basis |
 | --- | --- | --- |
@@ -56,5 +64,11 @@ is good practice and is done where practicable, but it is deliberately not a com
 
 ## Nominated responsible individual
 
-For **ICU D12.3**, the nominated individual is the person recorded in
-[`accountable-individual.md`](accountable-individual.md).
+For **ICU D12.3**, and for **PCU D13**, the nominated individual is **Jacob Rees**, the person recorded in
+[`accountable-individual.md`](accountable-individual.md). Nominated 13 August 2026.
+
+D12.3 asks the provider to nominate "a responsible individual **or a team**" to ensure such complaints are
+directed to an appropriate individual or team to be processed. There is no team to route to here, so the
+nomination and the processing are the same person, and the routing step the measure contemplates does not
+exist rather than being skipped. The [Code measures register](code-measures-register.md) carries the same
+line against D12.3.

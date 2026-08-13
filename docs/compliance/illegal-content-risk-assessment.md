@@ -4,19 +4,24 @@
 duty (`s.10(9)`, ICU G2) that does not apply to this service. This document is kept to satisfy `s.23(2)`
 and is provided to Ofcom on request.
 
-> **DRAFT — not yet in force.** The fields below marked `[ ]` must be completed by the provider before
-> this is a valid record. It is not signed, dated or approved by anyone until they are.
-
 | | |
 | --- | --- |
 | Service name | CanonCore (`https://www.canoncore.com`) |
 | Service type | User-to-user service (`s.3(1)`). Not a search service |
-| Completion date | `[ ]` |
-| Next review date | `[ ]` — at most 12 months after completion (`s.9(3)`) |
+| Completion date | 13 August 2026 |
+| Next review date | 13 August 2027 — at most 12 months after completion (`s.9(3)`) |
 | Reason for review | First assessment, before launch |
-| Completed by | `[ ]` |
-| Named person responsible | `[ ]` |
-| Approved by | `[ ]` — sole operator; see `docs/compliance/accountable-individual.md` |
+| Completed by | Jacob Rees |
+| Named person responsible | Jacob Rees |
+| Approved by | Jacob Rees — sole operator; see [`accountable-individual.md`](accountable-individual.md) |
+
+> **Why this is dated before launch rather than at it.** `s.9(2)` fixes the first assessment by reference
+> to [Schedule 3](https://www.legislation.gov.uk/ukpga/2023/50/schedule/3): three months from the day the
+> service becomes a Part 3 service. `www.canoncore.com` is already deployed, so the trigger date is at
+> latest the day the service first carries user-generated content, and possibly earlier. Dating now is the
+> conservative reading and costs nothing but an earlier review date. The decision is recorded in
+> `docs/research/tracker-and-repository-audit.md` §9; it inverted the rule CAN-44 originally carried,
+> which was to date the records immediately before sharing the URL.
 
 Structure follows Ofcom's *Illegal content duties: record-keeping template*. Risk levels and reasoning
 follow the *Risk Assessment Guidance and Risk Profiles* **V2.0 (25 June 2026)**. The evidence and
@@ -61,8 +66,11 @@ of the findings below:
 - No marketplace, listings, payments or advertising.
 - No recommender system, no engagement ranking, no virality mechanics.
 - No search across other users' content.
-- **User free text is rendered as plain text and is not hyperlinked**, so a URL typed into an Argument is
-  not followable from the page.
+- **User free text renders as plain text and is never hyperlinked**, so a URL typed into an Argument is
+  not followable from the page. This is a design constraint owned by
+  [CAN-27 Orderings and Placements, and the imported broadcast Ordering](https://linear.app/jacobrees-canoncore/issue/CAN-27),
+  which carries it as an acceptance criterion and a test; it is not yet a property of shipped code,
+  because no free text ships yet.
 
 ## Step 1 — Risk Profiles and risk factors
 
@@ -136,48 +144,62 @@ no mechanism. Every negligible finding below rests on an absent mechanism, never
 
 ### Existing controls relied on
 
-Each of these is in place, or ships with the service, rather than being an intention:
+**Two kinds of control appear here, and the distinction is load-bearing.** Most are **absences** —
+mechanisms the service does not have — and an absence is true of `main` the moment it is written down.
+Two are **things that must be built**, and they are marked as such rather than asserted, because a
+control claimed but not shipped is worse evidence than one honestly deferred. Neither absence nor
+deferral changes a level below; the two built controls are what hold several *low* findings at low once
+there is content, so the gate that keeps content out until they exist is part of the control.
 
-| Control | What it mitigates | Effect on levels |
-| --- | --- | --- |
-| No image, video or file upload | CSAM imagery, extreme pornography, intimate image abuse, animal cruelty, cyberflashing | The basis of three negligible findings (2b, 7 and 18) |
-| No messaging, connections or comments | Grooming, controlling or coercive behaviour, harassment delivery, trafficking coordination | The basis of one negligible finding and a limiting factor on several low ones |
-| No marketplace, payments or advertising | Fraud, proceeds of crime, drugs, weapons, sexual exploitation, trafficking | Holds these at low rather than higher |
-| User free text not linkified | CSAM URLs, terrorism, drugs, weapons, fraud | Removes the hyperlinking risk factor entirely |
-| No recommender or engagement ranking | Foreign interference, suicide and self-harm, hate | Removes amplification |
-| A corpus small enough for the operator to review | All | Ofcom treats reviewability as load-bearing; see its CSAM low-risk example |
-| All shared content is public; no closed groups | CSEA, hate | Ofcom treats unreviewed closed groups as a high-risk factor; their absence reduces risk |
-| Admin takedown, recorded as an Operation with an audit entry | All | Enables the swift takedown in ICU C2 |
+| Control | What it mitigates | Effect on levels | Built? |
+| --- | --- | --- | --- |
+| No image, video or file upload | CSAM imagery, extreme pornography, intimate image abuse, animal cruelty, cyberflashing | The basis of three negligible findings (2b, 7 and 18) | Absence |
+| No messaging, connections or comments | Grooming, controlling or coercive behaviour, harassment delivery, trafficking coordination | The basis of one negligible finding and a limiting factor on several low ones | Absence |
+| No marketplace, payments or advertising | Fraud, proceeds of crime, drugs, weapons, sexual exploitation, trafficking | Holds these at low rather than higher | Absence |
+| User free text not linkified | CSAM URLs, terrorism, drugs, weapons, fraud | Removes the hyperlinking risk factor entirely | **Not yet — CAN-27**, which carries it as an acceptance criterion and a test. There is no free text on `main` to render, so nothing is linkified today; what CAN-27 owns is that it stays that way |
+| No recommender or engagement ranking | Foreign interference, suicide and self-harm, hate | Removes amplification | Absence |
+| A corpus small enough for the operator to review | All | Ofcom treats reviewability as load-bearing; see its CSAM low-risk example | Absence, and reviewed at each risk-assessment review |
+| All shared content is public; no closed groups | CSEA, hate | Ofcom treats unreviewed closed groups as a high-risk factor; their absence reduces risk | Absence |
+| Admin takedown, recorded as an Operation with an audit entry | All | Enables the swift takedown in ICU C2 | **Not yet — CAN-32**. No `admin` role, no Visibility and no audit entry exist on `main`. The Code measures register records ICU C2 and PCU C2 as not in effect for the same reason |
 
 ## Step 3 — Measures
 
-The 14 ICU measures binding a smaller, low-risk service are recorded separately in
+The ICU measures binding a smaller, low-risk service are recorded separately in
 [`code-measures-register.md`](code-measures-register.md), each with its description, its Code reference
-and the date it takes effect.
+and the date it takes effect. **Most are recorded there as not yet in effect**, because `main` serves a
+holding page: the register's own *What the `Effective` column means* section says which ticket each one
+waits on, and the URL-sharing gate is what keeps user content from arriving before they do.
 
-**One alternative measure is taken**, and it is recorded here because `s.23(3)` requires a written record
-of any measure taken in place of a Code measure, and Ofcom's record-keeping template has a Step 3 field
-for exactly that.
+**One alternative measure is taken: ICU D2.2(a), a per-item report control, is not adopted at launch.**
+In its place the reporting route is published as an address reachable without an account.
 
-**ICU D2.2(a) — a per-item report control — is not adopted at launch.** In its place, the reporting route
-is published as an address reachable without an account, linked from the footer of every page and from the
-public Ordering page. The `s.20(2)` duty is to operate systems and processes letting users and affected
-persons **easily report** content, and that is satisfied: a reporter is never more than one click from the
-address on the same page as the content, and needs no account to use it. The service has no upload, no
-messaging, and a corpus small enough for the operator to review, so the volume a per-item control exists to
-handle does not arise. **Building it is tracked as
-[CAN-43](https://linear.app/jacobrees-canoncore/issue/CAN-43)**, and this record is removed when it lands.
-If any of that justification stops holding — user numbers grow, upload or messaging is added — the
-alternative stops being defensible and CAN-43 becomes urgent.
+That record is [`alternative-measures-record.md`](alternative-measures-record.md), and it is a separate
+file rather than a paragraph here because it satisfies a **different duty**. `s.23(3)` — which this
+assessment and the register discharge — records measures *taken*. `s.23(4)` records the Code measures
+*not* taken, the alternatives, and how those alternatives amount to compliance; `s.23(5)` adds the
+`s.10(4)` and `s.12(8)` areas; and `s.49(5)` requires particular regard to freedom of expression and
+privacy whenever a provider complies otherwise than by a Code measure. None of that is a `s.23(3)` record,
+and an earlier version of this section cited `s.23(3)` for it, which was wrong.
 
 Otherwise every applicable Code measure is adopted, with one exception:
 **ICU D13 is not adopted.** D13 is permissive rather than mandatory — it allows a provider to decline
 manifestly unfounded complaints — and relying on it would require a written policy, a mis-identification
 monitoring process, an annual review and a change record. At this service's expected complaint volume
-that costs more than handling every complaint on its merits, which is what will be done.
+that costs more than handling every complaint on its merits, which is what will be done. **Declining a
+permission is not an alternative measure** and needs no `s.23(4)` record: there is no Code measure
+standing unmet in its place.
 
 **No proactive technology within `s.231` is used.** This is recorded positively so that ICU D11's trigger
-is documented as never firing, and it is stated in the terms of service as `s.10(7)` requires.
+is documented as never firing rather than merely unexercised.
+
+> **What the terms of service say about it is voluntary, and should not be read as compelled.** `s.10(7)`
+> requires terms giving information about "**any proactive technology used** by a service for the purpose
+> of compliance with a duty set out in subsections (2) to (3A)". A service that uses none owes nothing
+> under `s.10(7)`, and ICU D11 requires no terms-of-service provision at all — it is about what to do with
+> a complaint *about* proactive technology. The statement in the terms is published anyway, because a
+> stated absence is checkable by a reader and an unstated one is not, and because it is what makes the
+> commitment to say so if that ever changes meaningful. An earlier version of this section said the
+> statement was made "as `s.10(7)` requires", which was wrong.
 
 ## Step 4 — Review
 
@@ -195,8 +217,12 @@ Ofcom materially changes a relevant Risk Profile.
 - Adding direct messaging, comments, mentions or user connections — would reopen grooming and
   controlling or coercive behaviour.
 - **Linkifying user free text** — would switch on the hyperlinking risk factor and reopen CSAM URLs.
-  No ticket currently states that Arguments render as plain text, so **this constraint is unowned**: it
-  belongs on whichever ticket renders them, which is CAN-27 or CAN-28.
+  **This constraint is owned by
+  [CAN-27 Orderings and Placements, and the imported broadcast Ordering](https://linear.app/jacobrees-canoncore/issue/CAN-27)**,
+  which since 12 August 2026 carries both the prohibition ("no `dangerouslySetInnerHTML`, no markdown
+  renderer and no autolinking") and a test asserting that a URL typed into an Argument renders as text and
+  produces no anchor element. That test is what this finding rests on; an earlier version of this section
+  recorded the constraint as unowned.
 - Adding search across other users' content.
 - Adding a recommender, ranking or engagement signal.
 - Adding a marketplace, listings or payments.

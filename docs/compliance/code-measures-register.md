@@ -4,7 +4,13 @@
 Guidance* §4.2 requires a written record of **each measure** taken, which must describe the measure,
 identify the relevant Code of Practice, and give the date it takes effect.
 
-> **DRAFT.** The effective date is the launch date and is the same for every row. Complete it once.
+| | |
+| --- | --- |
+| Completion date | 13 August 2026 |
+| Next review date | 13 August 2027 — and alongside either risk assessment whenever that is reviewed |
+| Completed by | Jacob Rees |
+| Named person responsible | Jacob Rees |
+| Approved by | Jacob Rees — sole operator; see [`accountable-individual.md`](accountable-individual.md) |
 
 **Code of Practice:** Ofcom's *Illegal Content Codes of Practice for User-to-User Services* (ICU).
 **Applicability:** this service is **smaller** (well under 7 million monthly active UK users) and
@@ -20,24 +26,105 @@ Codes (ICU)**, which apply to every regulated user-to-user service, and the **Pr
 Codes (PCU)**, which apply because the children's access assessment concludes the child user condition is
 met. Several measures pair across the two, and where they do the same implementation satisfies both.
 
+## What the `Effective` column means, and why most of it does not say today
+
+`s.23(3)` records measures **taken or in use**. A date against a measure that is not in use would make
+this record false, so the column carries one of three determinate values and never a placeholder:
+
+- **A date** — the measure is in effect. Nothing further is needed for it to operate.
+- **Not in effect — CAN-n** — the measure needs a surface the application does not have. The ticket named
+  is the one that builds it, and the date is filled when it merges.
+- **Not adopted** — a permissive measure declined on the record. There is no effective date for a measure
+  not taken.
+
+**Why most rows read the second way.** `main` serves a holding page. There are no accounts, no records, no
+public content, no footer and no `/legal` route, so there is nothing to moderate, report or take down.
+Two tickets close the whole gap:
+[CAN-32 Roles, takedown, and the Online Safety Act surfaces](https://linear.app/jacobrees-canoncore/issue/CAN-32)
+builds the public surfaces, the roles and the takedown, and
+[CAN-44 Make the Online Safety Act records live, and create the reporting address](https://linear.app/jacobrees-canoncore/issue/CAN-44)
+creates the address.
+
+**This is not a compliance gap, because of the gate.** The service must carry no user-generated content
+until both have landed, and that is enforced as the URL-sharing gate in `docs/infrastructure.md` →
+*The URL-sharing gate*. A measure has nothing to bite on until there is content for it to bite on; what
+would be a gap is content arriving first.
+
 ## Illegal Content Codes (ICU)
 
 | Ref | Measure | How it is met | Effective |
 | --- | --- | --- | --- |
-| **ICU A2** | An individual accountable for the illegal content safety duties and the reporting and complaints duties | Recorded in [`accountable-individual.md`](accountable-individual.md). Sole operator, who is both the accountable individual and the only member of the senior governance body, as Ofcom expressly permits (Volume 1 §5.98) | `[ ]` |
-| **ICU C1** | Content moderation function to review and assess suspected illegal content | Content reported or otherwise noticed is reviewed by the operator. **The C1.3(b) route is used**: the terms of service prohibit illegal content by category, so content is assessed against the terms rather than by making a full `s.192` illegal content judgement | `[ ]` |
-| **ICU C2** | Content moderation function allowing swift takedown | An admin can set any public record's Visibility to private, which removes it from public view. Recorded as an Operation with an audit entry | `[ ]` |
-| **ICU D1** | Enabling complaints | A reporting route reachable **without an account**, covering all five limbs of "relevant complaints" and open to affected persons who are not users. Described in [`../../content/legal/reporting-and-complaints.md`](../../content/legal/reporting-and-complaints.md) | `[ ]` |
-| **ICU D2** | Complaints systems easy to find, access and use | Reporting route linked from the footer of every page and from the public Ordering page; minimal steps; a field for supporting information; keyboard-navigable and screen-reader-usable. **See the gap noted below** | `[ ]` |
-| **ICU D7** | Appropriate action on complaints about suspected illegal content | A complaint is treated as reason to suspect the content may be illegal and is reviewed under C1.3. Considered promptly; ICU C4 and C5 do not apply to this service | `[ ]` |
-| **ICU D9** | Appeals — determination | Appeals are determined promptly. This measure applies because the service is neither large nor multi-risk | `[ ]` |
-| **ICU D10** | Appeals — action following determination | Where a decision that content was illegal is reversed, the takedown is reversed and the position restored: Visibility is set back and any restriction lifted | `[ ]` |
-| **ICU D11** | Complaints about proactive technology | **No proactive technology within `s.231` is used**, recorded positively so the trigger is documented as never firing. Stated in the terms of service as `s.10(7)` requires. Revisit if automated filtering is ever added | `[ ]` |
-| **ICU D12** | All other relevant complaints | The operator is the nominated responsible individual. Timeframes determined as appropriate under D12.4(b) are recorded in [`review-policy.md`](review-policy.md) | `[ ]` |
-| **ICU D13** | Manifestly unfounded complaints | **Not adopted.** D13 is permissive, not mandatory. Relying on it would require a written policy, a mis-identification monitoring process, an annual review and a change record; at this service's complaint volume that costs more than handling every complaint on its merits | `[ ]` |
-| **ICU G1** | Terms of service: substance | [`../../content/legal/terms-of-service.md`](../../content/legal/terms-of-service.md) | `[ ]` |
-| **ICU G3** | Terms of service: clarity and accessibility | Same document: signposted to the general public without signing in, individually locatable by heading, and accessible to keyboard and screen-reader users | `[ ]` |
-| **ICU H1** | Removing accounts of proscribed organisations | The terms of service prohibit proscribed organisation content, which makes the H1.2(b) route available. On becoming aware, the operator applies the H1.6 inference test and removes the account. Reactive only — H1 imposes no scanning obligation, and H1.8 puts private records outside its sampling absent explicit consent | `[ ]` |
+| **ICU A2** | An individual accountable for the illegal content safety duties and the reporting and complaints duties | Recorded in [`accountable-individual.md`](accountable-individual.md). Sole operator, who is both the accountable individual and the only member of the senior governance body, as Ofcom expressly permits (Volume 1 §5.98) | 13 August 2026 |
+| **ICU C1** | Content moderation function to review and assess suspected illegal content | Content reported or otherwise noticed is reviewed by the operator. **The C1.3(b) route is used**: the terms of service prohibit illegal content by category, so content is assessed against the terms rather than by making a full `s.192` illegal content judgement — which needs those terms published | Not in effect — CAN-32 |
+| **ICU C2** | Content moderation function allowing swift takedown | An admin will be able to set any public record's Visibility to private, removing it from public view, recorded as an Operation with an audit entry. **No role, no Visibility and no audit entry exist on `main`** | Not in effect — CAN-32 |
+| **ICU D1** | Enabling complaints | A reporting route reachable **without an account**, covering all five limbs of "relevant complaints" and open to affected persons who are not users. Described in [`../../content/legal/reporting-and-complaints.md`](../../content/legal/reporting-and-complaints.md), which is written but not yet published or addressed | Not in effect — CAN-44 (address), CAN-32 (route) |
+| **ICU D2** | Complaints systems easy to find, access and use | Reporting route to be linked from the footer of every page and from the public Ordering page; minimal steps (D2.2(c)). **D2.2(d) supporting information is met by the address itself** — a reporter can include anything in a message, so no field is needed and none is built. **D2.2(a) is replaced by an alternative measure** — see below | Not in effect — CAN-44 (address), CAN-32 (route) |
+| **ICU D7** | Appropriate action on complaints about suspected illegal content | A complaint is treated as reason to suspect the content may be illegal and is reviewed under C1.3. Considered promptly; ICU C4 and C5 do not apply to this service | Not in effect — CAN-44, CAN-32 |
+| **ICU D9** | Appeals — determination | Appeals are determined promptly. This measure applies because the service is neither large nor multi-risk | Not in effect — CAN-32 |
+| **ICU D10** | Appeals — action following determination | Where a decision that content was illegal is reversed, the takedown is reversed and the position restored: Visibility is set back and any restriction lifted | Not in effect — CAN-32 |
+| **ICU D11** | Complaints about proactive technology | **No proactive technology within `s.231` is used**, so D11.2's trigger cannot fire: it requires proactive technology to have taken content down or restricted it. Recorded positively so the absence is auditable rather than assumed. Revisit if automated filtering is ever added | 13 August 2026 |
+| **ICU D12** | All other relevant complaints | The operator is the nominated responsible individual under D12.3 — nominated today, and recorded below. Timeframes determined as appropriate under D12.4(b) are in [`review-policy.md`](review-policy.md). **Handling** needs a route for a complaint to arrive by | Not in effect — CAN-44, CAN-32 |
+| **ICU D13** | Manifestly unfounded complaints | **Not adopted.** D13 is permissive, not mandatory. Relying on it would require a written policy, a mis-identification monitoring process, an annual review and a change record; at this service's complaint volume that costs more than handling every complaint on its merits | Not adopted |
+| **ICU G1** | Terms of service: substance | [`../../content/legal/terms-of-service.md`](../../content/legal/terms-of-service.md), which is written but is not rendered anywhere | Not in effect — CAN-32 |
+| **ICU G3** | Terms of service: clarity and accessibility | Same document: to be signposted to the general public without signing in (G3.2(a)(i)), individually locatable by heading (G3.2(a)(ii)), and usable by keyboard and screen reader (G3.2(d)). See the reading-age items below | Not in effect — CAN-32 |
+| **ICU H1** | Removing accounts of proscribed organisations | On becoming aware, the operator applies the H1.4 inference test and removes the account under H1.5. Reactive only — H1 imposes no scanning obligation, and H1.8 puts private records outside its sampling absent explicit consent. **H1.6's test does not fit this service** and H1.7 is the operative route — see below | Not in effect — CAN-32 |
+
+### ICU H1: which inference route can actually run
+
+H1.6 finds reasonable grounds where at least two of three things are true **of the user profile**: the
+username matches a proscribed organisation or a `s.3(6)` Terrorism Act 2000 alias; the profile image is
+proscribed organisation content; the profile bio or descriptive text is proscribed organisation content.
+
+**This service has no profile page, no profile image and no bio.** The illegal content risk assessment
+records "user profiles" as a risk factor on the thin basis of an author attribution on a public Ordering,
+and that attribution is the whole of the profile. So limbs (b) and (c) can never be true, at most one of
+the three can be satisfied, and **H1.6 cannot reach its two-of-three threshold**.
+
+**H1.7 is therefore the operative route**: reasonable grounds may also arise where a significant
+proportion of a reasonably sized sample of the regulated user-generated content recently generated on an
+account is proscribed organisation content. That is a route this service can actually run, because the
+corpus is small enough to read. It is recorded here so that nobody later reads the H1 row as promising a
+profile test that has nothing to test.
+
+**The terms of service prohibition is a choice, not a requirement.** H1 does not require the terms to
+prohibit proscribed organisation content. H1.2 defines "relevant content" as content the provider has
+determined either (a) *is* proscribed organisation content, or (b) is in breach of terms designed to
+prohibit it. Route (a) is available to every provider. Carrying the prohibition adds route (b), which is
+the cheaper determination to make and is why the terms carry it — not because the Code obliges it.
+
+### ICU G1: how the terms of service answer `s.10(5)`
+
+ICU G1 is "terms of service: substance", and the substance `s.10(5)` demands is specific. It requires
+provisions specifying how individuals are protected from illegal content, **addressing (a) each paragraph
+of `s.10(3)` — and, for `s.10(3)(a)`, separately addressing terrorism content, CSEA content and other
+priority illegal content — and (b) `s.10(3A)`**. The mapping is recorded so the claim is checkable rather
+than asserted.
+
+| `s.10(5)` limb | Answered by |
+| --- | --- |
+| (a) `s.10(3)(a)`, **terrorism content** separately | *How we protect people from illegal content* → *Terrorism content* |
+| (a) `s.10(3)(a)`, **CSEA content** separately | Same section → *Child sexual exploitation and abuse content* |
+| (a) `s.10(3)(a)`, **other priority illegal content** separately | Same section → *Other illegal content* |
+| (a) `s.10(3)(b)` — minimise the length of time illegal content is present | Same section, opening line: "We keep the time that illegal content is present on CanonCore as short as we can" |
+| (a) `s.10(3)(c)` — swift takedown on becoming aware | Same section → *Taking content down* |
+| **(b) `s.10(3A)`** — the intimate image duty | Same section → *Intimate images shared without consent* |
+
+**Limb (b) post-dates the drafting** and is the one that had to be added. `s.10(3A)` and `s.10(3B)` were
+inserted by the Crime and Policing Act 2026 amendments in force 29 June 2026, after the terms were written
+on CAN-21. The provision now states the 48-hour deadline, that it runs **from receipt** rather than from
+when the report is opened, the "same or substantially the same" limb, and the two `s.10(3B)` exceptions —
+that the provider considers the content is not intimate image content, or that the reporter is neither the
+subject nor acting on their behalf — as the only two grounds for refusing.
+
+**`s.21(2A)`**, the expedited complaints procedure for someone who has made an intimate image content
+report, is stated in both public documents. It is recorded here rather than as its own measure because no
+Code measure carries it; it is a statutory duty answered directly.
+
+**The report path itself is not built.** `s.20A(2)` intimate image content reports arrive by the published
+address like any other report, and
+[CAN-72 The intimate image report path, which s.20A already requires](https://linear.app/jacobrees-canoncore/issue/CAN-72)
+owns the dedicated path. The terms describe what happens on receipt, which is true of a report arriving by
+email.
 
 ## Protection of Children Codes (PCU)
 
@@ -53,52 +140,68 @@ reader will otherwise wonder where they went. Twelve plus one plus three is the 
 
 | Ref | Measure | How it is met | Effective |
 | --- | --- | --- | --- |
-| **PCU A2** | Individual accountable for the children's safety duties and the reporting and complaints duties | The same individual as ICU A2. See [`accountable-individual.md`](accountable-individual.md) | `[ ]` |
-| **PCU C1** | Content moderation function to review and assess suspected content harmful to children | The same function as ICU C1, extended to content harmful to children | `[ ]` |
-| **PCU C2** | Content moderation function allowing swift action | Admin sets Visibility to private. Takedown **is** technically feasible here, which is why PCU B4 and B5 do not apply | `[ ]` |
-| **PCU D1** | Enabling complaints | The same reporting route as ICU D1, reachable without an account | `[ ]` |
-| **PCU D2** | Easy to find, access and use complaints systems | As ICU D2: the footer of every page and the public Ordering page. **The same D2.2(a) gap applies** — see below | `[ ]` |
-| **PCU D7** | Appropriate action for complaints about content harmful to children | Considered promptly; the prioritisation and target measures do not apply to this service | `[ ]` |
-| **PCU D9** | Content appeals — determination (neither large nor multi-risk) | Determined promptly, per the timeframes in [`review-policy.md`](review-policy.md) | `[ ]` |
-| **PCU D10** | Content appeals — action following determination | Visibility restored and restrictions lifted where a decision is reversed | `[ ]` |
-| **PCU D12** | Age assessment appeals (neither large nor multi-risk) | **Never fires.** The service performs no age assessment, so there is no age assessment decision to appeal. Recorded positively rather than omitted | `[ ]` |
-| **PCU D13** | Complaints about non-compliance with certain duties | The operator is the nominated responsible individual | `[ ]` |
-| **PCU D14** | Exception: manifestly unfounded complaints | **Not adopted**, for the same reason as ICU D13: it is permissive, and its policy, annual review and record-keeping cost more than handling every complaint | `[ ]` |
-| **PCU G1** | Terms of service: substance | [`../../content/legal/terms-of-service.md`](../../content/legal/terms-of-service.md) | `[ ]` |
-| **PCU G3** | Terms of service: clarity and accessibility | Same document | `[ ]` |
+| **PCU A2** | Individual accountable for the children's safety duties and the reporting and complaints duties | The same individual as ICU A2. See [`accountable-individual.md`](accountable-individual.md) | 13 August 2026 |
+| **PCU C1** | Content moderation function to review and assess suspected content harmful to children | The same function as ICU C1, extended to content harmful to children | Not in effect — CAN-32 |
+| **PCU C2** | Content moderation function allowing swift action | Admin sets Visibility to private, which is a takedown under C2.3(a) rather than the C2.3(b) fallback. **Takedown being feasible is load-bearing** — see the note under the table | Not in effect — CAN-32 |
+| **PCU D1** | Enabling complaints | The same reporting route as ICU D1, reachable without an account | Not in effect — CAN-44 (address), CAN-32 (route) |
+| **PCU D2** | Easy to find, access and use complaints systems | As ICU D2. **PCU D2.2(a) is replaced by the same alternative measure** — see below | Not in effect — CAN-44 (address), CAN-32 (route) |
+| **PCU D7** | Appropriate action for complaints about content harmful to children | Considered promptly; the prioritisation and target measures do not apply to this service | Not in effect — CAN-44, CAN-32 |
+| **PCU D9** | Content appeals — determination (neither large nor multi-risk) | Determined promptly, per the timeframes in [`review-policy.md`](review-policy.md) | Not in effect — CAN-32 |
+| **PCU D10** | Content appeals — action following determination | Visibility restored and restrictions lifted where a decision is reversed | Not in effect — CAN-32 |
+| **PCU D12** | Age assessment appeals (neither large nor multi-risk) | **Never fires.** The service performs no age assessment, so there is no age assessment decision to appeal. Recorded positively rather than omitted | 13 August 2026 |
+| **PCU D13** | Complaints about non-compliance with certain duties | The operator is the nominated responsible individual, as for ICU D12 | Not in effect — CAN-44, CAN-32 |
+| **PCU D14** | Exception: manifestly unfounded complaints | **Not adopted**, for the same reason as ICU D13: it is permissive, and its policy, annual review and record-keeping cost more than handling every complaint | Not adopted |
+| **PCU G1** | Terms of service: substance | [`../../content/legal/terms-of-service.md`](../../content/legal/terms-of-service.md) | Not in effect — CAN-32 |
+| **PCU G3** | Terms of service: clarity and accessibility | Same document | Not in effect — CAN-32 |
 
-**Listed by the tool but not applicable:**
+**Listed by the tool but not applicable.** Section B of the Protection of Children Codes is **age
+assurance**, and all three entries below are age assurance measures. An earlier version of this register
+described B4 and B5 as measures about the technical feasibility of takedown, which is what the
+*applicability test* turns on, not what the measures *are*. Corrected here.
 
-| Ref | Why not |
-| --- | --- |
-| **PCU B1** | Principles of age assurance. Applies only where highly effective age assurance is used to identify child users. **This service uses none**, and does not need to: `s.12(5)` removes the requirement because the terms prohibit all four kinds of primary priority content for all users |
-| **PCU B4** | Applies where it is not currently technically feasible to take content down. Takedown is feasible here |
-| **PCU G2** | Category 1 services only. Summarising the children's risk assessment findings in the terms is not required of this service |
-| **PCU B5** | Not among the sixteen the tool returned — it is referenced inside PCU C2's text, as applying where takedown is not technically feasible. It is feasible here, so B5 does not apply either |
+| Ref | Measure | Why not |
+| --- | --- | --- |
+| **PCU B1** | Implementing an age assurance process | B1.1 applies to a service "that **uses** highly effective age assurance to identify which United Kingdom users of the service are child users for the purpose of targeting measures recommended in this Code at such users, their user accounts or their content feeds (whether because any of Recommendations B2 to B7 apply to the service or otherwise)". **This service uses none**, none of B2 to B7 applies, and no measure in this Code is targeted at child users here, so B1's own applicability test is not met. `s.12(5)` is why the service *needs* none — the terms prohibit all four kinds of primary priority content for all users — but that is the statutory escape from `s.12(4)`, and it is a different question from whether this Code measure applies |
+| **PCU B4** | Use of highly effective age assurance — services that do not prohibit primary priority content | B4.1 applies where (a) PCU B2 does not apply, **and** (b) either (i) one or more specific kinds of primary priority content are allowed on the service, or (ii) all kinds are prohibited but it is not currently technically feasible to take down all content the provider determines is in breach of its terms under PCU C1.3(a). Limb (a) is satisfied — B2 does not apply, since the principal purpose of the service is not hosting or disseminating primary priority content — but **both limbs of (b) fail**: the terms prohibit all four kinds for all users, and takedown is technically feasible |
+| **PCU G2** | Summarising the children's risk assessment in the terms | Category 1 services only. Not required of this service |
+| **PCU B5** | Use of highly effective age assurance — services that do not prohibit priority content | Not among the sixteen the tool returned. B5.1 applies where (a) PCU B3 does not apply, **and** (b) the service is at **medium or high risk of one or more specific kinds of priority content** and either that content is allowed or it is prohibited but takedown is not technically feasible. The children's risk assessment finds **low for all eight kinds** of priority content, so limb (b)'s threshold is never reached and its sub-limbs are never read. B3 does not apply either. B5 *is* referenced inside PCU C2.6(b)(i), C2.7(a) and C2.8(a) — but as a class of service ("a service to which Recommendation PCU B5 applies"), not as a measure about feasibility |
 
-> **The `s.12(5)` prohibition is doing real work.** It is what keeps PCU B1 and the whole age-assurance
-> apparatus out of scope. Weakening the primary priority content prohibition in the terms would pull age
-> verification or age estimation into the build.
+> **Two conditions hold PCU B4 out of scope, and both can be lost.** The first is the `s.12(5)`
+> prohibition on primary priority content, which also keeps PCU B1 and the whole age-assurance apparatus
+> out of scope; weakening it pulls age verification or age estimation into the build. The second is
+> quieter: **B4.1(b)(ii) applies where takedown is not technically feasible**, so B4 stays out of scope
+> only while takedown works. CAN-32 is what makes it work. A design that ever made some content
+> undeletable would bring highly effective age assurance into scope by that route alone, with the terms
+> unchanged.
 
-## ICU D2.2(a): recorded as an alternative measure
+> **PCU B5 turns on a risk level, not on the terms.** It comes into scope if any kind of priority content
+> — abusive content, content inciting hatred, bullying, the three violent kinds, harmful substances,
+> dangerous stunts — is ever assessed at **medium or high** rather than low. That is a finding the
+> children's risk assessment can change at a review without anything about the product changing.
 
-**ICU D2.2(a)** requires that "for relevant complaints regarding a specific piece of content, a
-**reporting function or tool is clearly accessible in relation to that content**" — a per-item report
-control, not only a published address.
+## Sub-measures recorded explicitly
 
-At launch, CAN-32 surfaces the reporting address from the footer and from the public Ordering page but
-defers the report form, the reports table and the administrator queue to a later increment. The address
-satisfies D2.2(b) for other kinds of complaint; **it does not fully satisfy D2.2(a)**.
+Three sub-measures are satisfied by a fact rather than by a feature, so they are easy to lose inside a
+row. Ofcom's guidance asks for the measure to be described; these are the descriptions.
 
-**This is an alternative measure, not an unexplained gap**, and the distinction matters: the Act permits a
-provider to take measures other than those a Code recommends, provided the alternative is recorded. The
-record and its justification are in
-[`illegal-content-risk-assessment.md`](illegal-content-risk-assessment.md) Step 3. In short: `s.20(2)`
-requires easy reporting, not a specific control, and the address is on the same public page as the content
-and needs no account.
+| Ref | What it requires | How it is met | Effective |
+| --- | --- | --- | --- |
+| **ICU D12.3** | The provider should nominate a responsible individual or a team to ensure such complaints are directed to an appropriate individual or team to be processed | **Jacob Rees**, the same person as ICU A2 and PCU A2. There is no team to route to, so the nomination and the processing are one person. Recorded in [`review-policy.md`](review-policy.md) → *Nominated responsible individual* | 13 August 2026 |
+| **ICU D2.3(e)** | The reporting and complaints process should be designed having regard to comprehensibility, "based on the likely reading age of the youngest individual permitted to use the service without the consent of a parent or guardian" | The youngest permitted user is **13**, set by the terms of service. [`../../content/legal/reporting-and-complaints.md`](../../content/legal/reporting-and-complaints.md) is written to that reading age: short sentences, no legal terminology, and every heading a question a reporter would ask. The minimum age is a product decision confirmed on CAN-44; if it moves, this obligation moves with it | Not in effect — CAN-44, CAN-32 |
+| **ICU G3.2(b) and (c)** | The terms should be "laid out and formatted in a way that helps United Kingdom users read and understand them", and "written to a reading age comprehensible for the youngest individual permitted to use the service" | Same reading age, 13, and the same drafting standard. G3.2(b) is met by the section structure: one heading per obligation, so a provision is locatable without reading the whole document, which is also what G3.2(a)(ii) asks. **Neither is asserted as tested** — no readability measurement has been run, and the claim is about how the document was drafted | Not in effect — CAN-32 |
 
-The same reasoning covers **PCU D2.2(a)**, which is the identical requirement under the children's codes.
+## The one alternative measure
 
-Building the per-item control is [CAN-43](https://linear.app/jacobrees-canoncore/issue/CAN-43), which is
-deliberately outside v1. **When it lands, both this section and the Step 3 alternative-measure record are
-deleted**, because the Code measure will then simply be adopted.
+**ICU D2.2(a) and PCU D2.2(a) — a per-item report control — are not adopted at launch.** In their place
+the reporting route is published as an address reachable without an account.
+
+That is an **alternative measure** under `s.23(4)`, not an unexplained gap, and `s.23(4)` is a different
+duty from the `s.23(3)` register above. The record is
+[`alternative-measures-record.md`](alternative-measures-record.md) → *`s.23(4)(c)` — how the alternative
+amounts to compliance*, which carries the measures not taken, the alternative, the compliance argument,
+the `s.23(5)` areas and the `s.49(5)` freedom-of-expression and privacy consideration.
+
+Building the per-item control is
+[CAN-43 Report form, reports table and an administrator queue](https://linear.app/jacobrees-canoncore/issue/CAN-43),
+which is deliberately outside v1. **When it lands, this section and that record are both deleted**,
+because the Code measure will then simply be adopted.
