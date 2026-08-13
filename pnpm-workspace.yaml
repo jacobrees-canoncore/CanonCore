@@ -1,6 +1,9 @@
 packages:
   - apps/*
   - packages/*
+  # Repo tooling rather than shared TypeScript, so it is its own member rather than a
+  # `packages/` entry. Being a member is what puts its tests in `pnpm -r test`.
+  - scripts
 
 # pnpm 11 refuses to run a dependency's install scripts until they are named
 # here, and writes a placeholder into this file when it meets one. `allowBuilds`
