@@ -945,6 +945,122 @@ each publicly visible record, which v1 does not ship; it is recorded as an alter
 > address exists "on `mail.canoncore.com`", when the decision moved it to the apex for the reason above.
 > CAN-44 carries the corrected version. Nothing here is owned by a closed ticket.
 
+## Error reporting: Sentry
+
+Provisioned by [CAN-65 Create the Sentry account and issue its authentication
+token](https://linear.app/jacobrees-canoncore/issue/CAN-65) on 13 August 2026.
+**Nothing reports to it yet** — no SDK is installed, and
+[CAN-51 Keep a record of server errors past the hour Vercel keeps them](https://linear.app/jacobrees-canoncore/issue/CAN-51)
+owns that. An empty Sentry is therefore not evidence of a healthy deploy.
+
+### The account and the organisation
+
+| | |
+| --- | --- |
+| Sentry user | `jacobreesnew@gmail.com`, id `4091868` |
+| Sign-in | GitHub `jacobdrees` (external id `164458901`), linked 13 August 2026 |
+| Organisation | `CanonCore`, slug `canoncore-cm`, id `4511903342592000` |
+| Data storage location | **United States**, region `https://us.sentry.io` |
+| Plan | Developer (`am3_f`), free. 5,000 errors/month, **30-day retention**, no payment source |
+| Project | `canoncore-web`, id `4511903344623616`, platform `javascript-nextjs`, team `canoncore` |
+| DSN | `https://0346bc8bccc47d3e58bd8b8a4b32771a@o4511903342592000.ingest.us.sentry.io/4511903344623616` |
+
+**The project is named for the workspace package it serves**, `@canoncore/web`, rather than for the
+organisation. `apps/mobile` and `apps/tv` are separate deployables when they arrive, so each gets its
+own project and its own DSN.
+
+**Two identities can sign in to this account, not one.** The GitHub link was added on top of a Google
+identity (`jacobreesnew@gmail.com`, external id `103535281297977628385`) that predates it, and both
+remain active — the user was created through Google on 29 November 2025. Both resolve to the same
+email, because that address is also the sole verified email on GitHub `jacobdrees`. Removing the
+Google identity is a one-click change at `/settings/account/identities/` and nothing here depends on
+it; it is left in place only because it was never asked to be removed.
+
+**The DSN is recorded here because it is not a secret.** Sentry's own position is that *"DSNs are safe
+to keep public because they only allow submission of new events and related event data; they do not
+allow read access to any information"*
+([DSN explainer](https://docs.sentry.io/concepts/key-terms/dsn-explainer/)). It is nonetheless stored
+Sensitive in Vercel, which the ticket asked for, and that has one consequence worth stating: **it
+cannot be read back from Vercel by anyone**, per *A sensitive variable cannot be read back, by anyone*
+above. This table is where it is recovered from.
+
+### The region, and what choosing it cost
+
+US rather than EU, chosen deliberately and **not changeable afterwards** — the only way to switch is a
+new organisation ([data storage
+location](https://docs.sentry.io/organization/data-storage-location/)).
+
+EU was the better answer for personal data, and it would have kept that data in Germany. **How much
+personal data an error event carries is not fixed, though, and is a decision for CAN-51 Keep a record
+of server errors past the hour Vercel keeps them rather than one this ticket made.**
+`sendDefaultPii` defaults to `false`, and only enabling it *"will enable automatic IP address
+collection on events"*
+([Next.js options](https://docs.sentry.io/platforms/javascript/guides/nextjs/configuration/options/),
+which also records that the option is deprecated in favour of `dataCollection` from v11). Whatever the
+SDK is configured to send, plus any user context the application attaches and anything personal that
+surfaces in a stack frame, is what the location below then applies to.
+
+Two things counted against the EU, both bearing directly on this ticket's own acceptance criteria:
+
+- **Org auth tokens created in EU organisations embed `sentry.io` as their region**, and `sentry-cli`
+  trusts the token's embedded region over `SENTRY_URL` or `--url`
+  ([getsentry/sentry#116550](https://github.com/getsentry/sentry/issues/116550)). Source-map upload is
+  exactly what the token here is for. That issue is closed, with no fix stated in the thread.
+- **The hosted MCP at `mcp.sentry.dev` documents no EU endpoint and no region setting at all** — it
+  publishes one base endpoint, `https://mcp.sentry.dev/mcp`, and scoping by organisation or project
+  slug ([mcp.sentry.dev](https://mcp.sentry.dev/), read 13 August 2026). The sign-in below is an
+  acceptance criterion, so an undocumented region was a risk to the ticket itself.
+
+Error data therefore leaves the UK and the EU, under Sentry's own processor terms. This file records
+that transfer rather than justifying it; if it ever needs justifying, that belongs in an ADR.
+
+> **The published terms do not mention this transfer, and something has to.**
+> `content/legal/terms-of-service.md` → *Your privacy, and where your data is held* discloses Resend's
+> US storage and gives its reason for doing so — *"We are telling you this here because it is easy to
+> assume otherwise"* — which applies to a second US transfer just as well as the first.
+> [CAN-81 Disclose Sentry's US error storage in the terms of
+> service](https://linear.app/jacobrees-canoncore/issue/CAN-81) owns it. It is not yet due: nothing
+> reports to Sentry, so nothing has been transferred, and the wording depends on what the SDK is
+> eventually configured to send.
+
+### The organisation this replaced
+
+A `CanonCore` organisation already existed on this account: slug `canoncore-6u`, created 29 November
+2025, **in the EU region**, holding a `javascript-nextjs` project with real events from 30 November
+2025 and an empty `javascript-react` project. It was deleted on 13 August 2026.
+
+**Its contents were never a factor.** It could not have been reused whatever it held, because its
+region was already fixed to the EU. Deletion is scheduled rather than immediate: Sentry's own
+confirmation screen says *"Restoration is available until the process begins. Once deletion begins,
+there's no recovering the data anymore"* (read on the organisation's settings page, 13 August 2026).
+The slug is not free meanwhile, which is why the new organisation is `canoncore-cm` rather than
+`canoncore`.
+
+### Where the credentials live
+
+| Secret | Location |
+| --- | --- |
+| `SENTRY_AUTH_TOKEN` | Vercel env, production and preview, **Sensitive** |
+| `SENTRY_DSN` | Vercel env, production and preview, **Sensitive**; also in the table above |
+
+The token is an **organisation auth token**, named `Vercel source map upload (CAN-65)`, id `1067151`,
+carrying the single scope `org:ci`. Its plaintext is shown once at creation and is now held only by
+Vercel. **If it is lost, reissue it at Sentry; it cannot be retrieved.**
+
+### What was verified, and how
+
+- **The token authenticates, and routes to the US.**
+  `GET /api/0/organizations/canoncore-cm/chunk-upload/` carrying it returned `200`, an upload URL of
+  `https://us.sentry.io`, and an `accept` list containing `release_files`, `artifact_bundles` and
+  `artifact_bundles_v2`. That is the endpoint `sentry-cli` uploads source maps through, so the scope is
+  confirmed by use rather than by its name, and the EU token defect above is confirmed absent.
+- **The `sentry` MCP OAuth sign-in is complete** against this account, so the server now exposes its
+  full toolset rather than only `authenticate` and `complete_authentication`. All four skill groups
+  were granted: *Inspect Issues & Events*, *Seer*, *Triage Issues* and *Manage Projects & Teams*. The
+  last two are write access, including creating projects and DSNs.
+- **No event has ever reached the `canoncore-web` project.** Its `firstEvent` is null, which is the
+  state **CAN-51 Keep a record of server errors past the hour Vercel keeps them** exists to change.
+
 ## Holding page
 
 `www.canoncore.com` serves `apps/web`, a Next.js application, and its one route renders the same

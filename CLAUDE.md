@@ -158,14 +158,15 @@ it for a signature or an option, the `vercel:*` skills for a pattern. **Ignore i
 tool**, which recommends the `agent-browser` CLI. *Playwright drives the browser* above already
 settled that, and a new tool offering to do it differently does not reopen it.
 
-**`neon` is signed in; `sentry` is not.** Both authenticate over OAuth, and an unauthenticated
-server of this kind exposes only its `authenticate` and `complete_authentication` tools, so the
-first call in a session is a sign-in rather than an answer (observed on **CAN-47 CLAUDE.md still
-defers three MCP installs that have happened**, 12 August 2026). **Nothing reports to Sentry yet**
-and no SDK is installed, so an empty Sentry is not evidence of a healthy deploy — **CAN-51 Keep a
-record of server errors past the hour Vercel keeps them** owns that. Neon's control plane is the
-*only* thing that answers which branches exist, for the reasons `docs/infrastructure.md` →
-*Preview branching was off, and is now on* records.
+**`neon` and `sentry` are both signed in.** Both authenticate over OAuth, and an unauthenticated
+server of this kind answers nothing at all — it exposes only its `authenticate` and
+`complete_authentication` tools until the sign-in is done (observed on **CAN-47 CLAUDE.md still
+defers three MCP installs that have happened**, 12 August 2026, when neither was). Sentry's was
+completed by **CAN-65 Create the Sentry account and issue its authentication token** on 13 August
+2026; the account, the organisation and what still does not report to it are
+`docs/infrastructure.md` → *Error reporting: Sentry*. Neon's control plane is the *only* thing that
+answers which branches exist, for the reasons `docs/infrastructure.md` → *Preview branching was off,
+and is now on* records.
 
 `resend` is scoped to this project in `.claude/settings.json`. **`macos-mail-mcp` is user scope and
 reads every account in Jacob's Mail.app**, work and personal, so it is his tool rather than this
