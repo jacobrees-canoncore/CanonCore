@@ -1,0 +1,814 @@
+# Incident record
+
+Each observation this project's rules rest on, written **once**, with the date, the identifiers and
+what it proved. Every rule that depends on one of these points here rather than retelling it.
+
+This file is an archive and is **meant to grow**. The registers it serves are not: `CLAUDE.md`,
+`docs/agents/workflow.md` and `docs/infrastructure.md` record current state and standing rules, and
+stay bounded because the evidence is here instead. That separation is the whole point — before
+13 August 2026 the two lived in the same files, so the bounded ones inherited the archive's growth
+(`docs/research/document-length-for-agents.md` has the measurements).
+
+**Adding an entry.** Give it a heading whose slug will not change, a bold date line, and the
+identifiers a reader would need to re-run the observation: commit SHAs, run ids, PR numbers, times
+with zones. Then make the rule that cites it a pointer. **Never correct an entry into agreement with
+a later state** — append a follow-up entry and cross-link the two, because the reasoning of the day
+is what the rule was built on.
+
+## Contents
+
+**Landing a change**
+- [A review of a staged-but-uncommitted change reads an empty range](#a-review-of-a-staged-but-uncommitted-change-reads-an-empty-range)
+- [Sub-agent reviews find defects for the session that invoked them](#sub-agent-reviews-find-defects-for-the-session-that-invoked-them)
+- [#87 reversed a Done ticket's deliverable five hours later](#87-reversed-a-done-tickets-deliverable-five-hours-later)
+- [A worktree branch reads *behind* while being in perfect shape](#a-worktree-branch-reads-behind-while-being-in-perfect-shape)
+- [`--delete-branch` fails after the merge has already succeeded](#--delete-branch-fails-after-the-merge-has-already-succeeded)
+- [A check-run finished and its record never closed](#a-check-run-finished-and-its-record-never-closed)
+- [Waveger: the build ran no migrations, and nobody knew](#waveger-the-build-ran-no-migrations-and-nobody-knew)
+
+**Tools and the harness**
+- [`gh` fails with a 403 when the wrong account is active](#gh-fails-with-a-403-when-the-wrong-account-is-active)
+- [The harness classifier refused `gh pr create`](#the-harness-classifier-refused-gh-pr-create)
+- [A slash command sent mid-message never loaded](#a-slash-command-sent-mid-message-never-loaded)
+- [An unauthenticated OAuth MCP server exposes only its sign-in tools](#an-unauthenticated-oauth-mcp-server-exposes-only-its-sign-in-tools)
+
+**The tracker**
+- [The Linear→GitHub sync reverted a description write](#the-lineargithub-sync-reverted-a-description-write)
+- [An omitted `--workspace` resolved to a different workspace each half-day](#an-omitted---workspace-resolved-to-a-different-workspace-each-half-day)
+- [One GitHub owner binds to one Linear workspace](#one-github-owner-binds-to-one-linear-workspace)
+
+**Hosting and the repository**
+- [Vercel Hobby refuses a private organisation-owned repo](#vercel-hobby-refuses-a-private-organisation-owned-repo)
+- [The API name for a project setting is not the dashboard name](#the-api-name-for-a-project-setting-is-not-the-dashboard-name)
+- [Installing the Vercel GitHub App on a second org displaced nothing](#installing-the-vercel-github-app-on-a-second-org-displaced-nothing)
+- [The holding page was first deployed straight to production](#the-holding-page-was-first-deployed-straight-to-production)
+- [Both required contexts report on documentation-only pull requests](#both-required-contexts-report-on-documentation-only-pull-requests)
+
+**Database**
+- [Preview branching was switched off, so no preview ever got a branch](#preview-branching-was-switched-off-so-no-preview-ever-got-a-branch)
+- [A preview branch inherits its parent's role passwords](#a-preview-branch-inherits-its-parents-role-passwords)
+- [What a preview branch looks like, and how long it outlives its PR](#what-a-preview-branch-looks-like-and-how-long-it-outlives-its-pr)
+- [`parent-data` cloning cannot be switched off in the integration](#parent-data-cloning-cannot-be-switched-off-in-the-integration)
+
+**Credentials**
+- [Regenerating a TMDB key does not revoke the old one promptly](#regenerating-a-tmdb-key-does-not-revoke-the-old-one-promptly)
+- [What the TMDB credential was checked against](#what-the-tmdb-credential-was-checked-against)
+- [A Vercel sensitive variable cannot be read back, by anyone](#a-vercel-sensitive-variable-cannot-be-read-back-by-anyone)
+- [Seven Resend DNS records published two unaccounted DKIM keys](#seven-resend-dns-records-published-two-unaccounted-dkim-keys)
+- [Three unscoped Resend API keys were revoked](#three-unscoped-resend-api-keys-were-revoked)
+- [The orphaned Resend key, and how it stopped being anonymous](#the-orphaned-resend-key-and-how-it-stopped-being-anonymous)
+- [What the Sentry token was checked against](#what-the-sentry-token-was-checked-against)
+
+**DNS**
+- [There is no wildcard record, and one was wrongly recorded](#there-is-no-wildcard-record-and-one-was-wrongly-recorded)
+- [The `demo` CNAME dangled at a deleted project](#the-demo-cname-dangled-at-a-deleted-project)
+- [The apex `google-site-verification` TXT is ours](#the-apex-google-site-verification-txt-is-ours)
+- [The delivered test message passed all three checks](#the-delivered-test-message-passed-all-three-checks)
+
+---
+
+# Landing a change
+
+## A review of a staged-but-uncommitted change reads an empty range
+
+**12 August 2026, on CAN-40 Give main a ruleset that refuses an unchecked merge.** Run against a
+scratch repository.
+
+`mattpocock-skills:code-review` reads `<fixed-point>...HEAD`, which compares two *commits*, so the
+index is not in it. With the work staged and nothing committed:
+
+```
+git diff $BASE...HEAD      # printed nothing
+git diff --cached $BASE    # printed the change
+```
+
+**What it proves.** Staging alone does not put a change in the review's range, and a review of an
+empty range reports no findings — which reads exactly like a clean review. So the question to ask of
+any review is *which diff command did it run*, never *did a review happen*.
+
+Two ways out, and the pack's own answer is the first: commit before reviewing and review against the
+branch point (*"Commit first, then review against the point you branched from"*, `implement.md`), or
+hand the review `git diff --cached <branch-point>` explicitly.
+
+## Sub-agent reviews find defects for the session that invoked them
+
+**Two observations, in both directions.**
+
+**CAN-48**, from a fresh session: parallel sub-agents found a defect the implementing session had
+missed, which became **CAN-63 The code review after /draft-pr reads as a repeat of the one
+/implement ran**. That is evidence about sub-agents, not about a second invocation — they would have
+found it from either caller.
+
+**12 August 2026, on CAN-40**, the other way round: sub-agents invoked *by the implementing session*
+caught two uncited claims, an exit-code trap, and the `git` error corrected in the entry above,
+which was that session's own.
+
+**What it proves.** `mattpocock-skills:code-review` fans work out to sub-agents that never saw the
+implementing session's reasoning, so the fresh eyes sit in the sub-agents rather than in the calling
+session. The residual risk is the *range* the caller hands them, which is checkable rather than a
+matter of trust.
+
+**This departs from the pack, and the departure should stay visible.** `implement.md` offers a
+fresh-session review as "a legitimate alternative", and `code-review.md` gives a different reason
+for the sub-agents (keeping the two axes out of each other's context). The claim here is that the
+isolation buys the fresh eyes as a side effect, whoever calls it.
+
+## #87 reversed a Done ticket's deliverable five hours later
+
+**Both on 12 August 2026.** **CAN-63 The code review after /draft-pr reads as a repeat of the one
+/implement ran** shipped [#85](https://github.com/jacobrees-canoncore/CanonCore/pull/85), which had
+`/draft-pr` end by saying the review coming next was *not* the one `/implement` ran. Five and a half
+hours later [#87](https://github.com/jacobrees-canoncore/CanonCore/pull/87) — **CAN-40 Give main a
+ruleset that refuses an unchecked merge** — deleted that line, on the two findings above.
+
+Neither ticket records the reversal, which is why it is recorded here.
+
+## A worktree branch reads *behind* while being in perfect shape
+
+**On CAN-46 PR skills say the skeleton is missing.**
+`git rev-list --left-right --count origin/main...main` returned `1	0` while the branch was cut from
+the remote base and needed nothing.
+
+**Why.** `main` stays checked out at the project checkout for as long as the project exists, and
+every ticket is worked from a worktree. Nothing a worktree does moves the local `main` ref: `git
+fetch` advances `origin/main` and leaves `main` alone, `git pull` pulls the ticket branch, and both
+`git branch -f main` and `git fetch origin main:main` are refused outright. So the local ref falls a
+commit further behind with every merge that lands.
+
+**What it proves.** A count taken against the local `main` answers a question nobody asked. Ask
+where `HEAD` sits instead: `git merge-base --is-ancestor origin/main HEAD` exits 0 when `HEAD`
+already contains `origin/main`, which makes a rebase onto it a no-op
+([git merge-base](https://git-scm.com/docs/git-merge-base)).
+
+## `--delete-branch` fails after the merge has already succeeded
+
+**10 August 2026, landing CAN-20 Set up a transactional email provider.**
+[PR #43](https://github.com/jacobrees-canoncore/CanonCore/pull/43) read `MERGED` and `origin/main`
+advanced to the squash commit; only the local cleanup failed and `gh` exited non-zero.
+
+**Why.** `--delete-branch` deletes "the local and remote branch after merge"
+([gh pr merge](https://cli.github.com/manual/gh_pr_merge)), and deleting the local branch means `gh`
+must check out the base first. It cannot: `main` is permanently checked out elsewhere, so git
+refuses with `fatal: 'main' is already used by worktree at …`. Making `-d` work under worktrees is an
+open request filed in 2021 ([cli/cli#3442](https://github.com/cli/cli/issues/3442)).
+
+**What it proves.** A false negative on the one step that cannot be undone. An agent reading the
+error can report a failed landing when production has already changed, or merge again — and nothing
+downstream re-checks, so the wrong conclusion is the one that survives. The merge command's exit
+code decides nothing; `gh pr view <n> --json state,mergedAt` does.
+
+## A check-run finished and its record never closed
+
+**12 August 2026, on CAN-47 CLAUDE.md still defers three MCP installs that have happened**, commit
+`715515b`.
+
+`gh run view 31618294656` read `completed`/`success`, and every step of its only job read `success`
+including `pnpm -r test`, `typecheck`, `lint`, `build` and `Complete job`. The check-run on that SHA
+still read `in_progress` with `completed_at: null` **six minutes later**, which `gh pr checks` was
+reporting as `bucket: pending`. A watch would have polled a check that had already passed and would
+never say so.
+
+**A third state, then**, distinct both from *CI has not registered yet* and from *CI failed*:
+registered, finished, never reported. The two live states want opposite remedies — a slow check
+wants more waiting, a stuck record never resolves by waiting at all.
+
+**What cleared it.** The rebase on that branch produced run `31619057832`, which finalised normally
+at 16:44:46Z. That worked because `main` genuinely had moved, which is a property of that moment
+rather than of the remedy: a rebase in a worktree whose `HEAD` already contains `origin/main`
+rewrites nothing and triggers no new run.
+
+**It is GitHub's record, not the pipeline.** One run of six was affected, on the same workflow, the
+same single job and the same `concurrency` block as the five that finalised normally — including
+`62ddfba`, eight minutes earlier on the same branch. Permanent configuration added to work around a
+one-off data inconsistency is what `CLAUDE.md`'s engineering principles rule out.
+
+**And the record back-fills itself.** `715515b`'s check-run now reads `completed/success` with
+`completed_at: 2026-08-12T16:35:44Z` — the moment the work finished, not the moment the record
+closed. Re-running the diagnosis afterwards returns a healthy record and makes a correct call look
+like a mistaken one, so the call has to be made during the wait and written down.
+
+## Waveger: the build ran no migrations, and nobody knew
+
+**A prior project, no date recorded.** Nothing in Waveger's build ran its migration command. That
+was true for months and was written down nowhere, until a migration landed whose safety turned out
+to depend on the day of the week.
+
+**What it proves.** A build applies some artefacts automatically and leaves others exactly as they
+were, and merging one of those deploys the code that depends on it while the thing itself stays
+behind. Answer *what does a merge carry* for each new **kind** of artefact before the first change
+that needs it.
+
+Its second half generalises: a change that only works in one deploy order is a change to rewrite,
+not a window to reason about.
+
+---
+
+# Tools and the harness
+
+## `gh` fails with a 403 when the wrong account is active
+
+**Verified 2026-08-07.** Three GitHub accounts are authenticated on this machine — `jacobdrees`,
+`jacobreesdev` and `vepple-jr` — and only `jacobdrees` holds `admin`, `maintain` and `push` on
+`jacobrees-canoncore/CanonCore`.
+
+**Which one is active moves on its own.** It was `jacobreesdev` at the start of the session that set
+this repository up and `jacobdrees` by the end of it, with nothing deliberately switched.
+
+`git push` works whatever is active, because it goes over SSH and the key decides. `gh` uses its own
+token, and fails with a 403 that reads like a problem with the repository. The remote is
+`git@github.com:jacobrees-canoncore/CanonCore.git` on purpose: the HTTPS URL fails with `Repository
+not found`, which reads like the repository is missing rather than like the credential lacking
+access to a private one.
+
+## The harness classifier refused `gh pr create`
+
+**10 August 2026.** `gh pr create` was blocked by Claude Code's auto mode classifier with the right
+account active and its token fine. `mcp__github__create_pull_request` opened
+[PR #43](https://github.com/jacobrees-canoncore/CanonCore/pull/43) for CAN-20 immediately
+afterwards, over the same credentials by a route the classifier does not block.
+
+**Telling it from the account trap above.** A 403 mentioning the repository is the account. A
+refusal naming the classifier, permissions or auto mode is the harness, and switching accounts fixes
+nothing.
+
+**The merge fallback is weaker than the command it replaces.** `mcp__github__merge_pull_request`
+exposes no head-SHA parameter — read its schema — even though the REST endpoint underneath accepts
+`sha` ([merge a pull request](https://docs.github.com/en/rest/pulls/pulls#merge-a-pull-request)). So
+it cannot enforce `--match-head-commit`, and re-reading the head SHA immediately before calling it
+narrows the window rather than closing it.
+
+This is a property of the harness and its settings, not of this repository, so it can change without
+warning in either direction. Recognise it; do not design around it.
+
+## A slash command sent mid-message never loaded
+
+**10 August 2026, on CAN-22.** `/implement` was sent as the tail of a message that opened with
+Orca's ticket-link preamble:
+
+```
+Linked Linear issue: CAN-22
+https://linear.app/jacobrees-canoncore/issue/CAN-22/... /implement
+```
+
+Nothing arrived — no `<command-name>` block, no skill body — and the session ran on the model's own
+judgement instead. In the same session `/draft-pr`, sent on its own, expanded normally with its
+whole body inlined.
+
+**No mechanism is claimed.** A missing `mattpocock-skills:` prefix is ruled out: a plugin skill's
+bare name works "unless another command already uses that name"
+([Extend Claude with skills](https://code.claude.com/docs/en/skills)), and nothing else used
+`implement`. Position is the remaining explanation, and it is inference from two observations.
+
+**The rule holds under every explanation: send a slash command as its own message.** The tell that
+it worked is that a loaded skill echoes its own instructions — without which a skill that did not
+load is indistinguishable from one that loaded and had nothing to say.
+
+## An unauthenticated OAuth MCP server exposes only its sign-in tools
+
+**12 August 2026, on CAN-47 CLAUDE.md still defers three MCP installs that have happened**, when
+neither `neon` nor `sentry` was signed in. A server of this kind answers nothing at all until the
+sign-in completes: it exposes `authenticate` and `complete_authentication` and no other tool.
+
+**What it proves.** An empty toolset is a sign-in state, not a broken server and not an absent
+capability. Sign-in state is per session and belongs in no document as standing fact.
+
+---
+
+# The tracker
+
+## The Linear→GitHub sync reverted a description write
+
+**10 August 2026, on CAN-36 while landing
+[#39](https://github.com/jacobrees-canoncore/CanonCore/pull/39).** GitHub issue #38 was updated at
+`13:18:18`, the `save-issue` landed at `13:18:20`, and the sync reverted all four acceptance
+criteria to unticked. It happened **twice on the same issue within four minutes**, each time seconds
+after an automation-driven change. CAN-34, written at a quiet moment in the same session,
+propagated fine.
+
+**Why.** Updates to an already-synced issue flow both ways ([Linear's GitHub
+docs](https://linear.app/docs/github)) and the last write wins; propagation takes a few seconds. A
+description write landing inside that window loses to the in-flight GitHub→Linear push, which
+carries GitHub's copy of the body. **The failure is silent** — nothing errors, nothing warns, and
+the issue looks as though the write was never made.
+
+**That is the GitHub→Linear direction; the reverse has not been caught losing a write here.**
+
+**What it proves.** An immediate re-read cannot tell *written* from *written and about to be
+overwritten*, because at that moment the two are the same read — which is how the single-attempt
+rule reported success on CAN-36 while the ticks were being reverted. Retrying the write is a race
+against a third party's scheduler; rewriting once, after a settled read has *shown* a revert, is
+repair rather than retry.
+
+## An omitted `--workspace` resolved to a different workspace each half-day
+
+**2026-08-06.** With nothing touched in between, `orca linear` resolved to Sift in the morning and
+Waveger the same afternoon. Orca is connected to three workspaces (CanonCore, Sift, Waveger) and
+does **not** infer one from the current directory.
+
+**The failure is silent and direction-dependent.** `list-issues` unscoped returns another
+workspace's issues, which at least looks wrong; `search` unscoped returns an empty list, which reads
+as "no matching issues" rather than "wrong workspace".
+
+## One GitHub owner binds to one Linear workspace
+
+**2026-08-06.** Waveger could not be connected to Linear at all, failing with *"Make sure you
+haven't connected another Linear account with this GitHub installation"*. Waveger and Sift were both
+under the personal `jacobdrees` account until that date; they were split into `jacobrees-waveger`
+and `jacobrees-sift`, one org per workspace.
+
+**What it proves.** A GitHub App installs once **per owner**, and one owner can bind to only one
+Linear workspace. A second GitHub *account* is not required, contrary to the common advice — one
+account administering several orgs is enough.
+
+---
+
+# Hosting and the repository
+
+## Vercel Hobby refuses a private organisation-owned repo
+
+**10 August 2026, CAN-18.** Creating the Vercel project against the private repository failed with
+`repo_owned_by_org`: *"The repository CanonCore is private and owned by an organisation, which is
+not supported on the Hobby plan."*
+
+That is an observed API response, not a documented policy; Vercel does not publish the restriction.
+The repository already carried an MIT licence, so making it public was chosen over upgrading to Pro.
+
+**It decides a second thing.** Rulesets and required status checks are free on **public**
+repositories under GitHub Free, which is what pays for the ruleset `main` has carried since CAN-40
+([about
+rulesets](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-rulesets/about-rulesets)).
+Going private would take the deployment *and* the ruleset.
+
+## The API name for a project setting is not the dashboard name
+
+**11 August 2026, CAN-22.** `PATCH /v9/projects/{id}` takes `sourceFilesOutsideRootDirectory`;
+`includeSourceFilesOutsideRootDirectory` — the dashboard's wording — is rejected with `should NOT
+have additional property`. Confirmed against the field name in the CLI's own cached OpenAPI spec.
+Vercel's public reference documents neither spelling.
+
+## Installing the Vercel GitHub App on a second org displaced nothing
+
+**Observed rather than looked up.** Installing on `jacobrees-canoncore` left the existing
+`jacobrees-waveger` installation untouched, and Vercel's `/v1/integrations/git-namespaces` then
+returned both namespaces at once. Whatever the `gitOrgLimit=1` parameter in Vercel's import URL
+controls, it is not an account-level cap. Waveger was never at risk.
+
+## The holding page was first deployed straight to production
+
+The static holding page was first deployed from a temporary directory with `vercel deploy --prod`.
+That was a mistake: **any** push to `main` triggers a production build, and a build of a repository
+with no application produces a 404, so a documentation-only merge would have taken the site down.
+
+The old root `vercel.json` set `outputDirectory` to `public` to keep the served surface to that one
+file. CAN-22 deleted both it and `public/index.html`; the Next.js preset now decides the output
+directory, which is why nothing replaces that file. The **Hosting** rows in
+`docs/infrastructure.md` are what now protect against the same shape.
+
+## Both required contexts report on documentation-only pull requests
+
+Confirmed present and `SUCCESS` on the five most recent merged pull requests at the time —
+[#80](https://github.com/jacobrees-canoncore/CanonCore/pull/80),
+[#81](https://github.com/jacobrees-canoncore/CanonCore/pull/81),
+[#82](https://github.com/jacobrees-canoncore/CanonCore/pull/82),
+[#85](https://github.com/jacobrees-canoncore/CanonCore/pull/85) and
+[#86](https://github.com/jacobrees-canoncore/CanonCore/pull/86) — all documentation-only.
+
+That was the part actually in doubt. With **Include files outside the root directory** on, Vercel
+builds a change touching nothing under `apps/web`, so it reports on those pull requests too. A
+required context that skipped them would block every documentation merge for ever.
+
+---
+
+# Database
+
+## Preview branching was switched off, so no preview ever got a branch
+
+**CAN-18 recorded that automated preview branching "is not exposed as a toggle on either dashboard".
+That is wrong, and being wrong about it is why no branch was ever created.**
+
+**Read from the Neon dashboard on 12 August 2026 by CAN-45, before any change:** the project's
+branch list showed **`1 / 5000 Branch`** and `main` alone, no parent, created two days earlier. The
+repository's first preview deployment
+([PR #59](https://github.com/jacobrees-canoncore/CanonCore/pull/59), commit `3d9eea9`) created no
+branch — so a preview composing its connection string from `NEON_PGHOST` would have reached
+production's host.
+
+**Where the control actually is:** Vercel → Integrations → Neon → the `canoncore` resource →
+Projects → the row's menu → *Update Project Connection*. The dialog is *Configure canoncore* and
+carries a **Create Database Branch For Deployment** control with `Preview` and `Production`
+checkboxes.
+
+**Half of the CAN-18 sentence holds: Neon's own dashboard genuinely has nothing.** Its Integrations
+page lists Vercel under *Added* and offers a single "Manage Neon subscription" button, which hands
+straight back to Vercel. Looking there and concluding the feature is absent is the easy mistake, and
+it is the one that was made.
+
+**The checkboxes are greyed out until `Require Active Resource Before Deploy` reads `Required`.** It
+is not absent, it is disabled behind a second setting, and a greyed-out control reads like an
+unavailable feature rather than an unmet prerequisite. Neon's [preview branching
+guide](https://neon.com/docs/guides/vercel-native-integration-previews) gives the same order.
+
+**Neither of CAN-22's two checks can detect this, before or after, and both must be retired.** They
+are the obvious things to reach for and both return the same answer whether branching is on or off:
+
+| CAN-22's check | Why it proves nothing |
+| --- | --- |
+| `NEON_PGHOST` in `vercel env pull`, preview against production | Branch variables are "injected via webhook at deployment time" and "cannot be accessed or viewed in your Vercel project's environment variable settings". `vercel env pull` reads project-level values, so it shows one static host for all three environments |
+| The preview build log, searched for Neon activity | **Completely silent.** The branch is created by the platform out of band, not by the build. The only line matching "branch" is the git clone |
+
+**Only Neon's branch list answers the question.** That is the check to repeat.
+
+## A preview branch inherits its parent's role passwords
+
+**12 August 2026, CAN-45.** Neon's `connection_uri` for `canoncore_app` was read on `main` and on
+the first preview branch and compared:
+
+| | `main` | the preview branch |
+| --- | --- | --- |
+| Role | `canoncore_app` | `canoncore_app` |
+| Password | 28 characters, SHA-256 `8606a49d65d8…` | **identical on both counts** |
+| Host | `ep-aged-moon-zaujrwy4-pooler.c-2.eu-west-2.aws.neon.tech` | `ep-misty-math-zamlwlio-pooler.c-2.eu-west-2.aws.neon.tech` |
+
+Same credential, different host — the shape the composed preview URL assumes. **So the recorded
+fallback (read the branch's own `NEON_DATABASE_URL` and swap only the credentials) buys nothing the
+composed URL does not already have, and should not be built.**
+
+The passwords were compared by digest on purpose: `DATABASE_APP_PASSWORD` is a Vercel *sensitive*
+variable and cannot be read back, and a password belongs in no commit or transcript. Anyone
+repeating this should do the same.
+
+**CAN-22 could not run this check** — there was no branch to connect to, for the reason in the entry
+above.
+
+## What a preview branch looks like, and how long it outlives its PR
+
+**12 August 2026, the first preview deployment after branching was switched on:**
+
+| | |
+| --- | --- |
+| Branch | `preview/jacobreesnew/can-45-preview-deployments-do-not-appear-to-get-their-own-neon` |
+| Id, parent | `br-restless-bread-za5ebaq1`, parent `main` |
+| Created by | **Vercel**, at 12:51:21 +01:00, two seconds before the build started |
+| Carries | `canoncore_app` and `canoncore_migrator`, both stamped created two days earlier, i.e. copied from `main` rather than issued fresh |
+
+The name is `preview/` plus the **git branch**, so it is one branch per git branch and not one per
+deployment: the second push to the same branch reused it.
+
+**A branch is created even when the build fails.** That one was created by the deployment that
+errored on `The specified Root Directory "apps/web" does not exist`, and survived to serve the
+successful build a minute later. **That error was not the Root Directory setting being wrong** — the
+branch being built simply predated CAN-22's merge and so did not contain that directory yet.
+Rebasing onto `main` fixed it. A stale branch, not a broken project.
+
+**Persistence, measured on CAN-47.** CAN-46's branch outlived everything that made it:
+
+| | |
+| --- | --- |
+| Branch | `preview/CAN-46-pr-skills-say-skeleton-missing`, `br-rapid-boat-zav226ha` |
+| Created by | Vercel, 12 August 2026 15:44:25Z |
+| Its PR | [#63](https://github.com/jacobrees-canoncore/CanonCore/pull/63), **merged 15:48:18Z**, three minutes later |
+| Its git branch | **deleted from `origin`** by that merge |
+| The Neon branch, 24 minutes after the merge | `current_state: ready`. Still there |
+
+Neon deletes a preview branch "when their corresponding Vercel deployments are removed", which
+"depends on Vercel's deployment retention policy, which retains preview deployments for 6 months by
+default", so branches "can persist long after a PR is closed" ([preview
+branching](https://neon.com/docs/guides/vercel-native-integration-previews)). Budget for one live
+branch per git branch that has ever had a preview, not per open PR.
+
+**What survives is the storage, not the compute.** That branch's compute suspended itself at
+15:49:30Z, five minutes after its last activity, and reads `current_state: idle` — an abandoned
+preview branch is not a running instance quietly billing. Its `logical_size` is 30941184 bytes
+against `main`'s 30892032, because that figure is the data it *can see*; `written_data_bytes: 0`,
+because it is copy-on-write from `main` (`init_source: parent-data`). The marginal cost is its
+divergence from the parent, until something writes to it.
+
+## `parent-data` cloning cannot be switched off in the integration
+
+**13 August 2026, CAN-70 Close out the domain and integration loose ends only a human can reach.**
+Decided the same day that a preview must not hold a clone of production rows; the attempt to flip
+the integration to schema-only branches established that no such switch exists anywhere.
+
+Not in Vercel — the store's Settings page, the installation settings, and the *Update Project
+Connection* dialog, whose whole surface is environments, the Preview/Production checkboxes and the
+variable prefix. Not in the Neon console — project Settings, and Integrations → Vercel links
+straight back to Vercel. Both dashboards read that day.
+
+Neon offers schema-only branching **at branch-creation time only** — the Console's **Schema only**
+option in the New branch dialog, `neon branch create --schema-only`, or the create-branch API with
+`init_source` set to `schema-only` — and it is Beta ([Schema-only
+branches](https://neon.com/docs/guides/branching-schema-only)). The preview branch examined above
+reads `init_source: parent-data`.
+
+Unticking Preview would send previews back to sharing `main`, the state CAN-45 fixed. So the
+decision moved to **CAN-79 Previews clone production rows, and the integration has no switch to stop
+it**, which owns creating schema-only branches in CI instead.
+
+---
+
+# Credentials
+
+## Regenerating a TMDB key does not revoke the old one promptly
+
+**10 August 2026.** The key was regenerated because the original had been pasted into a chat
+transcript. The warning at
+[`themoviedb.org/settings/api/regenerate`](https://www.themoviedb.org/settings/api/regenerate) reads
+*"This will disable your old API key and regenerate a new one. This action cannot be undone."*
+
+**It did not disable it.** The old key and the old bearer token both still returned 200 sixteen
+minutes after the regeneration completed — checked repeatedly throughout, and still answering at the
+last check, so sixteen minutes is a floor rather than a measurement.
+
+**What it proves.** TMDB revocation is eventual, so regenerating is **not** a way to burn a leaked
+credential quickly. A leaked TMDB key has to be assumed live for a window of unknown length.
+
+Regeneration costs nothing under the licence, which is why it was safe to do at all:
+[ADR-0009](adr/0009-external-source-tmdb.md) records the retention exception as surviving the key
+being disabled, expiring or terminated. Nothing already fetched depends on which key fetched it.
+
+**Do not read the token's `nbf` claim as an issue date.** It is `21 July 2025` on both the old token
+and the one that replaced it, so it dates the account's API registration and survives regeneration.
+
+## What the TMDB credential was checked against
+
+**10 August 2026, against the live API, from this worktree.** Every row was run **after** the
+regeneration above, against the credential now in Vercel — which matters because a `200` alone does
+not distinguish it from the key it replaced.
+
+| Request | Result |
+| --- | --- |
+| `GET /3/tv/121/episode_groups?api_key=…` | 200 |
+| the same with `Authorization: Bearer` and no query parameter | 200, and a byte-identical body |
+| the same with neither | 401 `{"status_code":7,"status_message":"Invalid API key…"}` |
+| `GET /4/list/1` with `Authorization: Bearer` | 200 |
+| `GET /4/list/1?api_key=…` | 200 |
+
+`tv/121` is Doctor Who, and it returned five episode groups typed 3, 4, 5, 5, 5 — so ADR-0009's
+"five groups, three of them story-arc" still described TMDB accurately on the day the key was
+issued.
+
+The last row is TMDB's "same level of access" showing through: the v3 query parameter is accepted by
+a v4 endpoint. Prefer the bearer anyway, for the single-process reason TMDB gives, not because the
+other fails.
+
+## A Vercel sensitive variable cannot be read back, by anyone
+
+`vercel env pull --environment=production` returns `TMDB_API_READ_ACCESS_TOKEN="[SENSITIVE]"`. That
+is documented behaviour rather than a CLI limitation: sensitive environment variables are ones
+*"whose values are non-readable once created"*, stored *"in an unreadable format"* ([sensitive
+environment
+variables](https://vercel.com/docs/environment-variables/sensitive-environment-variables)).
+
+**If one is lost, reissue it at the source; never try to retrieve it.**
+
+One consequence lands on **CAN-26 Import a series from TMDB**: sensitivity is *"only possible for
+environment variables in the production and preview environments"* (same page), so local work cannot
+`vercel env pull` this token and needs it written into `.env.local` by hand. `.gitignore` already
+covers that file.
+
+## Seven Resend DNS records published two unaccounted DKIM keys
+
+**10 August 2026, CAN-20.** The zone carried **seven** Resend records: two complete domain entries,
+one for `canoncore.com` and one for `send.canoncore.com`, with two distinct DKIM public keys. All
+seven were deleted and the `canoncore.com` domain entry was deleted from Resend.
+
+**This was not tidying.** A published DKIM public key is a standing authority to sign mail as that
+domain, and the only way to revoke it is to remove the record. The `canoncore.com` entry was
+confirmed to belong to this account; the `send.canoncore.com` entry **did not appear in the
+account's domain list at all**, so its private key was unaccounted for. Both are now revoked.
+Provenance was deliberately not investigated.
+
+## Three unscoped Resend API keys were revoked
+
+**10 August 2026, CAN-39.** They predated CAN-20 and their scope was written down nowhere.
+
+| Key | Id | Permission | Domain | Created | Idle since |
+| --- | --- | --- | --- | --- | --- |
+| `CanonCore V3` | `64ab6293-3d02-424a-9a79-54b7fb769b5d` | **Full access** | All domains | 20 March 2026 | ~April 2026 |
+| `Onboarding` | `16284ada-d2da-4258-83bf-13492a2412fb` | Sending access | All domains | 27 November 2025 | ~December 2025 |
+| `Onboarding` | `8e5e17c1-05bf-4ca8-824d-c03f07c5df94` | Sending access | All domains | 27 November 2025 | never used |
+
+Read from each key's dashboard page, which is the only place those facts exist:
+[`list-api-keys`](https://resend.com/docs/api-reference/api-keys/list-api-keys) returns `id`, `name`,
+`created_at` and `last_used_at`, and no field for permission, domain or token.
+
+`CanonCore V3` was the widest credential on the account, wider than either key CAN-20 issued for
+production. Resend defines `full_access` as "Can create, delete, get, and update any resource"
+against `sending_access`, which "Can only send emails" ([Create API
+key](https://resend.com/docs/api-reference/api-keys/create-api-key)). All three were **all
+domains**: the `domain_id` that would restrict a key to one domain is "only used when the
+`permission` is set to `sending_access`", and neither `Onboarding` key carried one. So none was
+confined to the `canoncore.com` entry, and each would have kept working against whatever domain the
+account verified next.
+
+`CanonCore V3` was created on the same day as the `canoncore.com` domain entry CAN-20 deleted, which
+suggests it belonged to that setup. Inference, not investigated further.
+
+**Read *idle since* as the last recorded use, not a lifetime total.** Each key's page reported
+"Total uses: 0 times" while the list carried a last-used date whose log entry returned `Log not
+found`, and the account's entire retained log was 28 entries from a single day. The reading that
+fits: the timestamp is kept on the key record and the log rows are aged out. That is inference, not
+documented behaviour. Either way the dates are a floor on how long each key sat unused, not proof it
+was never used.
+
+## The orphaned Resend key, and how it stopped being anonymous
+
+**10 August 2026 — the position CAN-41 accepted.** `canoncore-legacy`, `canoncore-demo` and
+`canoncore-storybook` shared a single identical `RESEND_API_KEY` belonging to **a different Resend
+account**. Two independent observations:
+
+- **It leaves no trace in this account's log.** A `GET /domains` carrying it, timed at 15:20:34Z,
+  produced no log entry, while the identical call one second later on this account's own key did.
+  The account logs 4xx responses, so a rejected-but-authenticated request would have appeared.
+- **Its token matches none of the three revoked keys.** Ordinarily impossible; available here only
+  because those projects stored the variable **non-sensitive**, so `vercel env pull` returned the
+  plaintext to compare against the masked prefix each key's dashboard page showed.
+
+**CAN-41 Account for the Resend key three older Vercel projects still carry, on an account we do not
+control** was closed without acting: the owning account was never identified, no owner was told, and
+the variable stayed non-sensitive on all three. The acceptance rested on the key not reaching this
+account's sending path (nothing publishes a DKIM key for `canoncore.com` since the entry above),
+nothing on `canoncore.com` reaching those projects, and the exposure being bounded by who can sign
+in to `jacobreesnew-7380's projects` — **a bound that was never enumerated, and was the whole of the
+argument.**
+
+**13 August 2026, CAN-70 — both halves of that acceptance failed.**
+
+**The owning account is Jacob's own.** A Mail.app search found exactly two "Welcome to Resend!"
+signup messages: 27 November 2025 to `jacobreesnew@gmail.com` and 28 December 2025 to
+`jacobrees@me.com`. The first is *this* account — its date matches the two `Onboarding` keys created
+27 November 2025 above, its team slug `jacobreesnew` matches the quota alerts in the mailbox, and
+the dashboard session confirms the signed-in email. That leaves `jacobrees@me.com` as the other.
+**"Someone else's credential on someone else's account" is wrong in the way that helps**: it can be
+revoked. That revocation is owned by **CAN-80 Revoke the orphaned Resend key on the jacobrees@me.com
+account** and has not been done.
+
+**Four of the five holders were deleted the same day**, read from `vercel project ls` and
+`vercel env ls`:
+
+| Project | Then | Now |
+| --- | --- | --- |
+| `canoncore-legacy`, `canoncore-demo`, `canoncore-storybook`, `canoncore-v3` | held `RESEND_API_KEY` non-sensitive | **deleted** |
+| `waveger-archive` | held it non-sensitive | **still does**, in Development, Preview and Production |
+| `canoncore-rebuild` | held it **Sensitive**, value unreadable | unchanged |
+
+The census run first found `canoncore-v3` held a **second, different key** — two distinct
+unaccounted keys, not one shared key with a fourth holder — and both probed **live** (HTTP 403,
+sending scope) minutes before deletion. Neither is readable from this account any longer; both
+remain live on whichever accounts own them.
+
+`canoncore-rebuild` was treated as depending on nothing, on Jacob's instruction, and the deletions
+went ahead on that basis rather than on evidence.
+
+**As of that afternoon the exposure was narrowed, not ended:** the plaintext copy readable from this
+dashboard sat on one project rather than five, and the route to closing it was the revocation rather
+than more project deletion.
+
+**13 August 2026, later the same day — CAN-80 ended it.** All three keys on the `jacobrees@me.com`
+account were deleted (`Waveger`, `Onboarding`, `canoncore-rebuild-control-plane`) along with its
+stale `send.canoncore.com` domain entry, and `RESEND_API_KEY` was removed from `waveger-archive` and
+`canoncore-rebuild`. CAN-80 reports the keys verified dead against the live API and the account
+holding zero keys and zero domains.
+
+**Independently confirmed here on 13 August 2026**, which is the half this account can see:
+`vercel env ls` on both projects returns no `RESEND_API_KEY`. `waveger-archive` now holds only
+`SENTRY_*`, `VITE_*` and Supabase variables; `canoncore-rebuild` holds only `BETTER_AUTH_SECRET`,
+`DATABASE_URL` and `DATABASE_URL_UNPOOLED`. The revocation itself is on an account this project
+cannot read, so it rests on CAN-80's report rather than on an observation repeatable from here.
+
+**Two of CAN-41's claims were wrong**, per CAN-80: it was two distinct keys rather than one shared
+key, and the `waveger-archive` one carried `full_access` against all domains rather than being a
+sending credential — so it was wider than the acceptance assumed. The `send.canoncore.com` domain
+entry that "did not appear in the account's domain list at all" in the entry above is also explained:
+it was on the other account all along.
+
+**The trap, if this is ever re-derived:** iCloud forwards `jacobrees@me.com` to
+`jacobreesnew@gmail.com`, so `me.com` mail sits in Gmail mailboxes. Mailbox location identifies the
+wrong account; only `To:` / `Original-Recipient:` headers separate them.
+
+## What the Sentry token was checked against
+
+**13 August 2026, CAN-65 Create the Sentry account and issue its authentication token.**
+
+- **The token authenticates, and routes to the US.**
+  `GET /api/0/organizations/canoncore-cm/chunk-upload/` carrying it returned `200`, an upload URL of
+  `https://us.sentry.io`, and an `accept` list containing `release_files`, `artifact_bundles` and
+  `artifact_bundles_v2`. That is the endpoint `sentry-cli` uploads source maps through, so the scope
+  is confirmed by use rather than by its name.
+- **No event has ever reached the `canoncore-web` project.** Its `firstEvent` is null, which is the
+  state **CAN-51 Keep a record of server errors past the hour Vercel keeps them** exists to change.
+
+**Why the region is US rather than EU, and what it cost.** EU was the better answer for personal
+data and would have kept it in Germany. Two things counted against it, both bearing on this ticket's
+own acceptance criteria:
+
+- **Org auth tokens created in EU organisations embed `sentry.io` as their region**, and
+  `sentry-cli` trusts the token's embedded region over `SENTRY_URL` or `--url`
+  ([getsentry/sentry#116550](https://github.com/getsentry/sentry/issues/116550)). Source-map upload
+  is exactly what this token is for. That issue is closed with no fix stated.
+- **The hosted MCP at `mcp.sentry.dev` documents no EU endpoint and no region setting at all** — one
+  base endpoint, `https://mcp.sentry.dev/mcp`, and scoping by organisation or project slug
+  ([mcp.sentry.dev](https://mcp.sentry.dev/), read 13 August 2026). The sign-in was an acceptance
+  criterion, so an undocumented region was a risk to the ticket itself.
+
+**How much personal data an error event carries is not fixed**, and is a decision for CAN-51 rather
+than one CAN-65 made. `sendDefaultPii` defaults to `false`, and only enabling it *"will enable
+automatic IP address collection on events"* ([Next.js
+options](https://docs.sentry.io/platforms/javascript/guides/nextjs/configuration/options/), which
+also records the option as deprecated in favour of `dataCollection` from v11).
+
+**The organisation this replaced.** A `CanonCore` organisation already existed on this account: slug
+`canoncore-6u`, created 29 November 2025, **in the EU region**, holding a `javascript-nextjs`
+project with real events from 30 November 2025 and an empty `javascript-react` project. Deleted 13
+August 2026. **Its contents were never a factor** — it could not have been reused whatever it held,
+because its region was already fixed to the EU. Deletion is scheduled rather than immediate
+(*"Restoration is available until the process begins"*, read on the settings page that day), and the
+slug is not free meanwhile, which is why the new organisation is `canoncore-cm`.
+
+**Two identities can sign in, not one.** The GitHub link was added on top of a Google identity
+(`jacobreesnew@gmail.com`, external id `103535281297977628385`) that predates it, and both remain
+active — the user was created through Google on 29 November 2025. Both resolve to the same email,
+because that address is also the sole verified email on GitHub `jacobdrees`. Removing the Google
+identity is a one-click change at `/settings/account/identities/`; it is left in place only because
+it was never asked to be removed.
+
+---
+
+# DNS
+
+## There is no wildcard record, and one was wrongly recorded
+
+**10 August 2026.** An earlier revision of `docs/infrastructure.md` recorded a wildcard `* ALIAS` to
+`cname.vercel-dns-017.com` and credited it for the domain cutover needing no DNS change. The zone
+contains no `*` record of any type. Read from the Namecheap dashboard and confirmed against the
+authoritative nameserver:
+
+```
+$ dig +short @dns1.registrar-servers.com randomprobe123.canoncore.com A
+$ dig +noall +comments @dns1.registrar-servers.com randomprobe123.canoncore.com A | grep status
+;; ->>HEADER<<- opcode: QUERY, status: NXDOMAIN, id: …
+```
+
+**The correction matters in one direction only. A new subdomain does not resolve until someone adds
+a record for it**, so anything assuming a hostname is already live — a preview alias, a sending
+subdomain, a future service — has to add its own. Why the cutover needed no change is not
+established by this observation and is no longer claimed.
+
+## The `demo` CNAME dangled at a deleted project
+
+**13 August 2026, CAN-70.** `canoncore-demo` was deleted earlier the same day, which left
+`demo.canoncore.com` pointing at `bc3b9806163bfed9.vercel-dns-017.com.` with no Vercel project
+claiming the hostname — the classic setup for a subdomain takeover, since anyone who could claim
+that name at Vercel would serve under `demo.canoncore.com`. The record was removed and verified gone
+from the authoritative nameserver the same day.
+
+**Releasing it mattered beyond tidiness**: while it was live a stranger could reach the old product
+on the domain that serves v1, putting it in scope for the Online Safety Act obligations in **CAN-21
+Write the Online Safety Act documents and establish the reporting address**. `demo.canoncore.com`
+now returns 404.
+
+**What happened to the CAA records CAN-18 recorded** (`pki.goog`, `sectigo.com`) was never
+established — the zone inventory taken by CAN-20 already listed none — but they could not have been
+right for this stack: had they existed, certificate issuance for `www.canoncore.com` would have
+failed until `letsencrypt.org` was allowed.
+
+## The apex `google-site-verification` TXT is ours
+
+**13 August 2026, CAN-70.** The audit flagged it as a standing proof-of-control of unknown origin.
+It verifies the Search Console domain property `sc-domain:canoncore.com` on Jacob's
+`jacobreesnew@gmail.com` account, added 30 November 2025, method "Domain name provider".
+
+That method is a DNS record, and it is the only one a domain property accepts: Google lists the DNS
+record as "required only for Domain property (example.com) not URL-prefix properties", and confines
+file upload, HTML tag, Analytics and Tag Manager to URL-prefix properties ([Verify your site
+ownership](https://support.google.com/webmasters/answer/9008080)). The zone holds exactly one such
+token while the property still reads "Successfully verified", so the token is that property's.
+**Removing it would unverify the property.**
+
+## The delivered test message passed all three checks
+
+**10 August 2026, CAN-20.** The test send from `noreply@mail.canoncore.com` was found in `INBOX` on
+the `jacobrees@me.com` account, which is the one carrying `jacobrees@icloud.com`. Headers as
+delivered:
+
+```
+Authentication-Results: dmarc.icloud.com;        dmarc=pass header.from=mail.canoncore.com
+Authentication-Results: dkim-verifier.icloud.com; dkim=pass header.d=mail.canoncore.com
+Authentication-Results: spf.icloud.com;           spf=pass  smtp.mailfrom=…@send.mail.canoncore.com
+Dkim-Signature: s=resend; d=mail.canoncore.com
+Return-Path:    <…@send.mail.canoncore.com>
+X-Dmarc-Info:   pass=pass; dmarc-policy=none; pdomain=canoncore.com
+X-Apple-Movetofolder: INBOX
+```
+
+All three pass and the DKIM signature is `d=mail.canoncore.com`, so alignment is on the sending
+domain rather than on Amazon's. `pdomain=canoncore.com` confirms the DMARC reporting address sits
+inside the Organizational Domain the RFC's test uses.
+
+The bounce and complaint paths **CAN-31 Send verification and reset emails** needs were proven the
+same day: sends to `bounced@resend.dev` and `complained@resend.dev` returned Resend statuses
+`bounced` and `complained`.
+
+**One thing worth knowing before DMARC is tightened:** `bimi=skipped reason="insufficient dmarc"`.
+BIMI needs a policy of `quarantine` or `reject`, so it is unavailable while the policy is `p=none`.
+A consequence of the policy choice, not a fault.

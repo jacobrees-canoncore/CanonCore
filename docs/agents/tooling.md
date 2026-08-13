@@ -5,8 +5,8 @@ both that are not obvious from the tool list.
 
 `CLAUDE.md` carries the tool table, the chain diagram and the operative rules; this file carries the
 reasoning under them. Nothing here is new policy. It was moved out of `CLAUDE.md` on 13 August 2026
-because that file is loaded on every request and none of this is needed until a tool or a step in the
-chain is actually in question. Where `docs/agents/workflow.md` owns a topic, this file points at it
+because that file is loaded on every request and none of this is needed until a tool or a step in
+the chain is actually in question. Where another document owns a topic, this file points at it
 rather than restating it.
 
 ## Contents
@@ -14,7 +14,7 @@ rather than restating it.
 - [Playwright drives the browser; chrome-devtools measures it](#playwright-drives-the-browser-chrome-devtools-measures-it)
 - [The two email tools are not interchangeable](#the-two-email-tools-are-not-interchangeable)
 - [`next-devtools-mcp` inspects this app; the `vercel:*` skills teach the framework](#next-devtools-mcp-inspects-this-app-the-vercel-skills-teach-the-framework)
-- [Both OAuth servers are signed in, and what an unauthenticated one answers](#both-oauth-servers-are-signed-in-and-what-an-unauthenticated-one-answers)
+- [What an unauthenticated OAuth server answers](#what-an-unauthenticated-oauth-server-answers)
 - [Which servers are project scope and which are user scope](#which-servers-are-project-scope-and-which-are-user-scope)
 - [The chain is declared, so a clone runs the same process](#the-chain-is-declared-so-a-clone-runs-the-same-process)
 - [Run the grill and the implementation in separate sessions](#run-the-grill-and-the-implementation-in-separate-sessions)
@@ -38,7 +38,7 @@ mail client did with it. A send can be `delivered` in Resend and sitting in Junk
 deliverability claim needs both**: send with `resend`, then read the folder with `macos-mail-mcp`.
 
 Which account to check, and the evidence from **CAN-20 Send from mail.canoncore.com and revoke the
-two DKIM keys**, are in `docs/infrastructure.md`.
+two DKIM keys**: `docs/infrastructure.md` → *How delivery is checked*.
 
 ## `next-devtools-mcp` inspects this app; the `vercel:*` skills teach the framework
 
@@ -46,58 +46,61 @@ Its `nextjs_index` and `nextjs_call` tools talk to a *running* dev server, so th
 app does right now — its route list, its compile errors, its cache — and answer nothing at all when
 the server is down (`pnpm --filter @canoncore/web dev`).
 
-Its `nextjs_docs` tool is the one exception to the `vercel:*` row in the table: it reads the markdown
-Next ships inside `node_modules/next`, so it is exact to the 16.3.0 actually installed rather than to
-whatever version a skill was written against. Prefer it for a signature or an option, the `vercel:*`
-skills for a pattern.
+Its `nextjs_docs` tool is the one exception to the `vercel:*` row in the table: it reads the
+markdown Next ships inside `node_modules/next`, so it is exact to the 16.3.0 actually installed
+rather than to whatever version a skill was written against. Prefer it for a signature or an option,
+the `vercel:*` skills for a pattern.
 
 **Ignore its `browser_eval` tool**, which recommends the `agent-browser` CLI. *Playwright drives the
-browser* above already settled that, and a new tool offering to do it differently does not reopen it.
+browser* above already settled that, and a new tool offering to do it differently does not reopen
+it.
 
-## Both OAuth servers are signed in, and what an unauthenticated one answers
+## What an unauthenticated OAuth server answers
 
-`neon` and `sentry` both authenticate over OAuth, and an unauthenticated server of this kind answers
-nothing at all — it exposes only its `authenticate` and `complete_authentication` tools until the
-sign-in is done. Observed on **CAN-47 CLAUDE.md still defers three MCP installs that have happened**,
-12 August 2026, when neither was signed in.
+`neon` and `sentry` both authenticate over OAuth. **A server of this kind that is not signed in
+answers nothing at all** — it exposes only its `authenticate` and `complete_authentication` tools
+until the sign-in is done
+([incident](../incidents.md#an-unauthenticated-oauth-mcp-server-exposes-only-its-sign-in-tools)).
 
-Sentry's sign-in was completed by **CAN-65 Create the Sentry account and issue its authentication
-token** on 13 August 2026; the account, the organisation and what still does not report to it are in
-`docs/infrastructure.md` → *Error reporting: Sentry*.
+**An empty toolset is a sign-in state, not a broken server and not an absent capability.** Sign in
+and retry before concluding anything else.
 
-Neon's control plane is the *only* thing that answers which branches exist, for the reasons
-`docs/infrastructure.md` → *Preview branching was off, and is now on* records.
+**Which servers are signed in right now is per-session state and is deliberately asserted nowhere.**
+It changes without a commit, so any document claiming it is wrong in the window between the state
+changing and someone noticing — which is what happened before 13 August 2026, when `CLAUDE.md`
+carried that claim and had it rewritten three times in two days. Ask the server.
 
-> This section states live authentication state, which changes. Treat `docs/infrastructure.md` as
-> the register and this as the explanation of what an unauthenticated server looks like.
+Neon's control plane is the *only* thing that answers which branches exist, for the reason
+`docs/infrastructure.md` → *Database* records.
 
 ## Which servers are project scope and which are user scope
 
 `resend` is scoped to this project in `.claude/settings.json`.
 
-**`macos-mail-mcp` is user scope and reads every account in Jacob's Mail.app**, work and personal, so
-it is his tool rather than this project's — never use it for anything but checking mail this project
-sent.
+**`macos-mail-mcp` is user scope and reads every account in Jacob's Mail.app**, work and personal,
+so it is his tool rather than this project's — never use it for anything but checking mail this
+project sent.
 
 Why `neon`, `sentry` and `next-devtools-mcp` are user scope rather than a committed `.mcp.json`:
-`docs/infrastructure.md` → *Why three MCP servers are user scope*.
+`docs/infrastructure.md` → *Agent tooling*.
 
 ## The chain is declared, so a clone runs the same process
 
 `/grill-with-docs`, `/to-spec` and `/to-tickets` come from `mattpocock-skills`, enabled for this
-project in `.claude/settings.json`. `/implement` and `/code-review` are in `.claude/skills/` as well,
-each keeping its rationale in a `references/rationale.md` beside it rather than in the loaded body.
+project in `.claude/settings.json`. `/implement` and `/code-review` are in `.claude/skills/` as
+well, each keeping its rationale in a `references/rationale.md` beside it rather than in the loaded
+body.
 
 **Keep no copy of either in `~/.claude/skills/`:** personal scope overrides project, so a personal
 copy wins silently and the two drift.
 
 Small work can skip from the grill straight to `/implement`. `/wayfinder` replaces `/to-spec` when
-the shape is still foggy — it resolves unknown *decisions* one at a time, where `to-spec` assumes you
-know what you are building and are slicing *how*.
+the shape is still foggy — it resolves unknown *decisions* one at a time, where `to-spec` assumes
+you know what you are building and are slicing *how*.
 
 `/implement` runs `/code-review` itself and that is the review. The argument, what makes a review
-count, and the three cases where one still has to run are owned by `docs/agents/workflow.md` →
-*The review runs once, and `/implement` is normally where*. It is not restated here.
+count, and the three cases where one still has to run are owned by `docs/agents/workflow.md` → *The
+review runs once, and `/implement` is normally where*. It is not restated here.
 
 ## Run the grill and the implementation in separate sessions
 
@@ -109,4 +112,5 @@ Re-measure rather than guessing; a plugin's skill listing also has a budget that
 descriptions when exceeded, and `/context` reports what survived.
 
 What a document's length actually costs, and the evidence behind the 200-line target on `CLAUDE.md`:
-`docs/research/document-length-for-agents.md`.
+`docs/research/document-length-for-agents.md`. What that evidence changed about the shape of these
+documents: `docs/incidents.md`, and the seam described at the top of `docs/agents/workflow.md`.

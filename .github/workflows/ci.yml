@@ -11,6 +11,11 @@ concurrency:
 
 jobs:
   check:
+    # This name IS the required status check context on `main`'s ruleset. Renaming it
+    # blocks every merge for ever ("Expected — Waiting for status to be reported") until
+    # the ruleset is updated too, so the two are changed together or not at all.
+    # `scripts/check-docs.mjs` fails the build if they ever disagree, which is also why
+    # the name is added to rather than replaced when a step joins the job.
     name: test, typecheck, lint, build
     runs-on: ubuntu-latest
     steps:
@@ -34,3 +39,12 @@ jobs:
       # client component, a page that throws during static generation — and
       # without it the first machine to find out is the deploy.
       - run: pnpm -r build
+
+      # Last, so a documentation drift never hides a broken build. Checks the documents
+      # against the sources they describe: the required contexts against this file and the
+      # ruleset, the label roster against the tracker, the variable roster against Vercel,
+      # and every cross-document pointer against the headings it names. The two checks whose
+      # CLI is not installed on the runner report SKIP and say so; the rest run.
+      - run: node scripts/check-docs.mjs --verbose
+        env:
+          GH_TOKEN: ${{ github.token }}

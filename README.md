@@ -85,7 +85,9 @@ Nothing here is derived from any earlier attempt at this product. It was built f
 | [`docs/adr/`](docs/adr/) | Twelve decisions, each naming its rejected alternatives and what would reverse it |
 | [`docs/research/`](docs/research/) | The evidence under the decisions, cited to the page that owns each claim |
 | [`docs/compliance/`](docs/compliance/) | Online Safety Act duties: risk assessments, reporting, review policy |
-| [`docs/infrastructure.md`](docs/infrastructure.md) | What is actually provisioned, and what is unverified |
+| [`docs/infrastructure.md`](docs/infrastructure.md) | The register: what is provisioned right now, and what is unverified |
+| [`docs/incidents.md`](docs/incidents.md) | Every observation the rules rest on, written once — dates, SHAs, run ids |
+| [`docs/agents/`](docs/agents/) | Standing policy for an agent working here: workflow, tracker, labels, tooling |
 | [`CODING_STANDARDS.md`](CODING_STANDARDS.md) | What overrides a reviewer's default heuristics |
 
 ## Licence
