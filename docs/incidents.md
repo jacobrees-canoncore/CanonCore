@@ -43,6 +43,7 @@ is what the rule was built on.
 - [Installing the Vercel GitHub App on a second org displaced nothing](#installing-the-vercel-github-app-on-a-second-org-displaced-nothing)
 - [The holding page was first deployed straight to production](#the-holding-page-was-first-deployed-straight-to-production)
 - [Both required contexts report on documentation-only pull requests](#both-required-contexts-report-on-documentation-only-pull-requests)
+- [A failing check reaches the phone, a recovering one may not](#a-failing-check-reaches-the-phone-a-recovering-one-may-not)
 
 **Database**
 - [Preview branching was switched off, so no preview ever got a branch](#preview-branching-was-switched-off-so-no-preview-ever-got-a-branch)
@@ -376,6 +377,51 @@ directory, which is why nothing replaces that file. The **Hosting** rows in
 That was the part actually in doubt. With **Include files outside the root directory** on, Vercel
 builds a change touching nothing under `apps/web`, so it reports on those pull requests too. A
 required context that skipped them would block every documentation merge for ever.
+
+---
+
+## A failing check reaches the phone, a recovering one may not
+
+**13 August 2026, CAN-66 Create the uptime monitoring account and its phone alert route.** The alert
+route was proved by inducing failures rather than by reading the configuration back. A throwaway
+monitor `803731827` was pointed at `https://www.canoncore.com/uptime-alert-test-can-66`, which 404s,
+with push and e-mail enabled. Monitor `803731762` was never touched, and the throwaway was deleted
+at the end.
+
+- **Incident `346322792378836481`** — `404 Not Found`, started **17:03:08 BST**. A push arrived on
+  the iPhone. Recorded as resolved **17:06:03 BST**, duration 2m55s, *because the monitor's URL was
+  edited to a working one* — not because anything recovered.
+- **Incident `346324252843848850`** — `404 Not Found`, started **17:08:56 BST**, after the URL was
+  put back. A push arrived again. It has no end: the monitor was deleted while still down.
+- **No push was seen for the 17:06:03 recovery.**
+
+**That is not evidence that recovery alerts are broken, because the test was invalid for them.** The
+resolution came from editing the monitor rather than from the target recovering, and an edit-driven
+resolution is a plausible reason for UptimeRobot to send nothing at all. **The up path is untested,
+not failing.** What is ruled out is a configuration or permissions cause: the iOS app was signed into
+the same account — it lists the canoncore monitors — notification permission was granted, and push
+is set to *Up events, Down events* at both account and monitor level.
+
+**What it supports, exactly.** A failing check reaches the phone, twice out of twice, **on a monitor
+other than the production one**. Monitor `803731762`'s own route is inferred from identical settings,
+never watched. **Do not read silence as recovery** until an up alert has actually been seen.
+
+**A 404 exercises the fast path only.** An erroneous HTTP status is marked down with no verification,
+so none of the four-request confirmation a non-responding host gets was tested
+(`docs/infrastructure.md` → *Uptime monitoring: UptimeRobot*). It was chosen for that: it fires on
+one check instead of four and needs no real outage. **The monitor page has a Test Notification button**, which was
+only noticed after this test had run.
+
+**`HEAD` is served by the `GET` handler, though the guide says otherwise.** The free plan can only
+send `HEAD`, so this decides whether `/api/health` needs an export of its own. Next 16.3.0 lists
+`AUTOMATIC_ROUTE_METHODS = ['HEAD', 'OPTIONS']` and, where a module exports `GET` and no `HEAD`, sets
+`methods.HEAD = handlers.GET`
+(`apps/web/node_modules/next/dist/server/route-modules/app-route/helpers/auto-implement-methods.js`).
+The prose shipped in the same package never says so: it names only `OPTIONS` as automatically
+implemented (`…/dist/docs/01-app/03-api-reference/03-file-conventions/route.md`) and states that an
+unsupported method returns 405 (`…/dist/docs/01-app/01-getting-started/15-route-handlers.md`), so a
+reader checking the guide alone concludes the opposite. **Check the implementation before adding a
+`HEAD` export to satisfy the monitor.**
 
 ---
 

@@ -27,6 +27,7 @@ changes, it is evidence and does not belong here.
 - [Transactional email: Resend](#transactional-email-resend)
 - [Reporting address](#reporting-address)
 - [Error reporting: Sentry](#error-reporting-sentry)
+- [Uptime monitoring: UptimeRobot](#uptime-monitoring-uptimerobot)
 - [Domains](#domains)
 - [Agent tooling](#agent-tooling)
 - [The served surface](#the-served-surface)
@@ -554,6 +555,68 @@ Sentry.**
 > Resend's US storage and gives its reason. **CAN-81 Disclose Sentry's US error storage in the terms
 > of service** owns it. Not yet due: nothing reports to Sentry, so nothing has been transferred, and
 > the wording depends on what the SDK is eventually configured to send.
+
+## Uptime monitoring: UptimeRobot
+
+Provisioned by **CAN-66 Create the uptime monitoring account and its phone alert route** on 13 August
+2026. **It polls the holding page, not a health check** — **CAN-56 Find out the site is down without
+waiting to be told** builds `/api/health` and repoints this monitor at it.
+
+| | |
+| --- | --- |
+| Account | `jacobreesnew@gmail.com`, display name `Jacob Rees` |
+| Sign-in | Google. The same address as the Sentry account, which signs in through GitHub instead |
+| Plan | **Free 50**. No payment method, no billing info, **0 SMS/voice credits** |
+| Free-tier limits | 50 monitors, 5-minute interval, 3-month log retention, 1 status page |
+| Monitor | id `803731762`, `https://www.canoncore.com`, HTTP/S, checked every 5 minutes |
+| The request | `HEAD`, follows redirections, IPv4 first, 30-second timeout, up on 2xx and 3xx |
+| Check location | One, auto-selected by UptimeRobot. Observed: North America |
+| Alert route | E-mail `jacobreesnew@gmail.com` **and iOS app push**, both set for up and down events |
+| Account timezone | GMT+1, so every timestamp in the dashboard, and in the incident below, reads as BST |
+
+*Settings read back 13 August 2026. **Only push, and only on a down event, has been watched
+firing** — no e-mail was observed at all, and the test ran on a throwaway monitor rather than this one
+([incident](incidents.md#a-failing-check-reaches-the-phone-a-recovering-one-may-not)).*
+
+**Why UptimeRobot.** Better Stack's free plan reaches Slack and e-mail but not a phone, so meeting
+the phone criterion there would have cost a Responder seat
+([Better Stack pricing](https://betterstack.com/pricing), read 13 August 2026). Both free tiers, with their sources, are
+compared in
+[`docs/research/production-readiness-baseline.md`](research/production-readiness-baseline.md) →
+*Observability*, which also holds **Sentry Developer's single free uptime monitor**. That one stays
+unspent.
+
+**A blip cannot page you, unless it answers with an error.** When nothing answers, UptimeRobot
+re-requests from the same location, then sends *"2 other requests in parallel from 2 random and
+remote locations"*, and marks the monitor down only if those fail too
+([FAQ](https://uptimerobot.com/faq/), read 13 August 2026). **Anything answering with an erroneous
+HTTP status skips all of it** and is *"instantly marked as down without verification"*. So the
+confirmation covers a host that has stopped answering, and not a deployment that answers with an
+error — and a deployment that is broken rather than gone usually still answers. The branch that
+recorded this watched a 404 page the phone on its first check.
+
+**That leaves the repeated-failure requirement met for one failure mode and not the other.** The
+per-channel *Notification Repeat and Delay* that would close the gap is **disabled on Free 50**, the
+monitor's advanced settings carry no failure threshold, and account-level alert storm protection is
+paid as well. Nothing free closes it here, so it is closed upstream instead: **CAN-56 Find out the
+site is down without waiting to be told** owns keeping `/api/health` from answering with an error
+status on one transient dependency blip, because a single 500 from it pages the phone unconfirmed.
+
+**There is no credential, and that is not an omission.** UptimeRobot polls this site; nothing here
+calls UptimeRobot. Both keys on *Integrations & API*, main and read-only, are **un-generated**, so
+there is nothing to hold in Vercel and no row for one in the roster above.
+
+**No status page exists, deliberately.** The free plan includes one, and publishing it would publish
+the production URL, which *The URL-sharing gate* above forbids while that gate is closed. The
+monitor reads *attached to no status page*, and stays that way until the gate opens.
+
+> **What CAN-56 Find out the site is down without waiting to be told inherits.** The free plan sends
+> `HEAD` and cannot be switched to `GET`, and up codes are fixed at 2xx and 3xx; both are paid
+> settings. Exporting `GET` alone is still enough for the `HEAD` check to pass
+> ([incident](incidents.md#a-failing-check-reaches-the-phone-a-recovering-one-may-not)). Repoint
+> monitor `803731762` rather than adding a second one, so its uptime history stays continuous, and
+> re-check the alert route with the monitor page's **Test Notification** button rather than by
+> inducing an incident.
 
 ## Domains
 
