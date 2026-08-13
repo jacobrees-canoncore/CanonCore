@@ -69,7 +69,7 @@ Settled by the grilling session of 8 August 2026. Rationale and rejected alterna
 TypeScript. Day one is `apps/web` and `packages/config` only — the workspace is real from the
 first commit, but no boundary is drawn before a second consumer exists.
 
-**Working in the repo.** `pnpm install`, then `pnpm --filter @canoncore/web dev`. The three CI
+**Working in the repo.** `pnpm install`, then `pnpm --filter @canoncore/web dev`. The four CI
 gates and the Playwright suite are in `docs/agents/workflow.md`.
 
 **Providers live in separate repositories**, never in `apps/`. See
