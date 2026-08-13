@@ -597,6 +597,54 @@ ignore, not by effort. Ticket creation is the decision walkthrough's job; this l
 
 ---
 
+## 9. Decisions taken on the findings — 13 August 2026
+
+The owner walked every finding in a four-round decision session the same day. Outcomes, so this
+file reads as a record rather than a to-do list:
+
+**Executed immediately, platform side.**
+- The four dead Vercel projects (`canoncore-legacy`, `canoncore-demo`, `canoncore-storybook`,
+  `canoncore-v3`) were **deleted**. The census run first found `canoncore-v3` held a **second,
+  different key** — two distinct unaccounted keys, not one shared key with a fourth holder — and
+  both probed **live** (HTTP 403, sending scope) minutes before deletion. Neither is readable from
+  this account any longer; both remain live on whichever accounts own them.
+- All sixteen `NEON_*` variables were **removed** from the `canoncore` project. Whether the
+  Marketplace integration re-writes them, and whether per-branch `NEON_PGHOST` injection still
+  reaches preview runtimes, is checked on the next preview (CAN-69 Record the credential purge).
+- **Vercel Authentication now covers preview deployments** (`ssoProtection: preview`, set via the
+  API after the MCP endpoint 500'd).
+
+**Decided, owned by new tickets.** CAN-69 (credential record + `NEON_` lint ban), CAN-70 (the
+human-only loose ends: schema-only preview branches, CAA, the `google-site-verification` TXT, the
+now-dangling `demo` CNAME, the DMARC reader, the Ofcom subscription), CAN-71 (compliance records:
+dates now rather than at launch, the s.23(4) record, the PCU register, the URL gate into the
+repo), CAN-72 (the s.20A intimate-image path, split into v1 from CAN-43), CAN-73 (the pre-CAN-23
+decision session: Snapshot layer, CI database seam, forked-Snapshot erasure — blocks CAN-23 and
+CAN-30), CAN-74 (ADR-0012 rewritten on Part 5 grounds), CAN-75 (the four missing ADRs and the
+glossary), CAN-76 (the document restructure, chosen over deferral), CAN-77 (the skills footguns,
+landing before CAN-76).
+
+**Settled by the owner — do not re-raise.**
+- **TMDB.** The correspondence held on CAN-34 and CAN-36 covers the export and the display,
+  discussed with TMDB at length; no further request goes out. §4's contrary reading of the
+  published terms stands as a finding only.
+- **tardis.wiki.** The provider lives in a separate repository that is deliberately not this
+  project's; the permission travels with whoever builds it, and this repo carries no obligation to
+  hold it.
+- **The `canoncore_app` password.** Scrub the digest from the doc without rotating (CAN-69),
+  accepting that git history retains it. Recorded as an accepted risk, not an oversight.
+- **The Schedule 3 clock.** Treated as running: the assessments are dated now (CAN-71), not
+  immediately before sharing the URL. CAN-44's instruction was inverted accordingly.
+
+Ticket-body corrections from §5 were applied directly the same day: CAN-6, 7, 11, 12, 15 gained
+dated correction sections; CAN-26, 27, 29, 30, 53 had criteria corrected in place; CAN-24 gained
+the CSEA revisit criterion; CAN-44 gained the URL-gate criterion and the CAN-30 carve-out. The
+closed tickets were reconciled: CAN-36's duplicated body repaired, CAN-18's satisfied box ticked
+against CAN-45, CAN-63 records its reversal by #87, CAN-21 maps where its unticked half went,
+CAN-41 records the deletion outcome and the census.
+
+---
+
 *Method note. Verification agents were instructed to report problems only and to name the primary
 source for every defect; review agents had read-only access and changed nothing. Where an agent's
 finding contradicted the project owner's knowledge (tardis.wiki permission), the owner's statement
