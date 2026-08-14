@@ -15,9 +15,8 @@ packages:
 # on. It declares `postinstall: node postinstall.js` and carries 22 optional
 # packages, one per platform, which is what that script is there to resolve.
 allowBuilds:
-  # `esbuild` reaches us through `drizzle-kit`, which bundles it to read
-  # `drizzle.config.ts`. Its `postinstall: node install.js` puts the platform binary where
-  # the JavaScript wrapper looks for it, and pnpm refuses the whole install while the script
-  # is unnamed here — so `drizzle-kit generate` never starts without this line.
+  # `esbuild` reaches us through `drizzle-kit`, which bundles it to read `drizzle.config.ts`.
+  # Its `postinstall: node install.js` is what puts the platform binary where the JavaScript
+  # wrapper looks for it, so without this line `drizzle-kit` has no binary to run.
   esbuild: true
   unrs-resolver: true

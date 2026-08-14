@@ -579,7 +579,8 @@ untouched, and `has_database_privilege('canoncore_app', 'neondb', 'CREATE')` sti
 
 ## A `SET LOCAL` custom setting reverts to the empty string, not to NULL
 
-**14 August 2026, CAN-23.** A test asserting that the session user does not outlive its transaction
+**14 August 2026, CAN-23 One Story from Neon, behind row-level security.** A test asserting that
+the session user does not outlive its transaction
 read `current_setting('canoncore.user_id', true)` after the `COMMIT` and expected NULL. It got `''`.
 
 `current_setting(..., true)` returns NULL only while the parameter has never been named in that

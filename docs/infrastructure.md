@@ -60,7 +60,7 @@ stranger to visit. It does not cover the deployment itself, which has to exist f
 completable and for the address to be testable.
 
 **Why it is a gate and not a preference.** The two things that make this a user-to-user service are
-accounts and public Visibility. **Since CAN-23 one of them exists** — `story` carries a Visibility
+accounts and public Visibility. **Since CAN-23 One Story from Neon, behind row-level security one of them exists** — `story` carries a Visibility
 and one row is public — and accounts do not, so nobody but the operator can put content here. That
 is what most of the Code measures are recorded as not in effect for
 (`docs/compliance/code-measures-register.md` → *What the `Effective` column means*). The failure
@@ -121,7 +121,8 @@ installing it displaced nothing
 
 ### `main` does not deploy from Git
 
-Since CAN-23, [`apps/web/vercel.json`](../apps/web/vercel.json) sets
+Since CAN-23 One Story from Neon, behind row-level security,
+[`apps/web/vercel.json`](../apps/web/vercel.json) sets
 `git.deploymentEnabled: { "main": false }`, and GitHub Actions builds and promotes production
 instead — migrations first, promotion after. Why the order has to be enforced rather than trusted
 is `docs/agents/workflow.md` → *What a merge carries*.
@@ -263,12 +264,12 @@ reads.
 > `DATABASE_APP_USER`, `DATABASE_APP_PASSWORD` and `DATABASE_PRODUCTION_HOST` are read at request
 > time by [`apps/web/src/db/database-url.ts`](../apps/web/src/db/database-url.ts). Every other row
 > is still a platform guarantee rather than an observation, waiting on the ticket that consumes it
-> — CAN-26 for TMDB.
+> — CAN-26 Import a series from TMDB, with the overlay behind it.
 >
 > **They are read at request time and not at build time, on purpose.** A schema demanding
 > `DATABASE_URL` of every build would refuse a preview's, which correctly has none, and a refused
-> preview build reports the required `Vercel` context red — so the CAN-49 gate would have blocked
-> every merge. `apps/web/src/env.ts` says the same thing next to the code.
+> preview build reports the required `Vercel` context red — so the gate CAN-49 Refuse to build without the
+> environment variables the app needs put there would have blocked every merge. `apps/web/src/env.ts` says the same thing next to the code.
 
 ## Database
 
@@ -311,7 +312,8 @@ Neon's `neondb_owner` has `rolbypassrls = true` and is therefore never the appli
 | `canoncore_app` | The application connects as this and nothing else | `false` |
 
 `canoncore_migrator` also holds **`CREATE` on the database `neondb`**, granted 14 August 2026 by
-CAN-23 and read back with `has_database_privilege`. That is the privilege to create a *schema*,
+CAN-23 One Story from Neon, behind row-level security and read back with
+`has_database_privilege`. That is the privilege to create a *schema*,
 and Drizzle's migrator needs it before it will read its own journal
 ([incident](incidents.md#drizzles-migrator-needs-create-on-the-database-before-it-reads-anything)).
 `canoncore_app` has neither that nor `CREATE` on `public`, which is unchanged.
@@ -725,10 +727,12 @@ because it is pinned to this product's own Resend account and domain.
 ## The served surface
 
 `www.canoncore.com` serves `apps/web`, a Next.js application, and its one route is rendered per
-request. CAN-22 deleted `public/index.html` and the root `vercel.json` that served it.
+request. CAN-22 A page on a public URL, deployed, with CI deleted `public/index.html` and the root
+`vercel.json` that served it.
 
 The page still says the product is being rebuilt, because it is, and that copy is unchanged since
-CAN-22. What CAN-23 added beneath it is **one public Story, read from Neon**: the row migration
+CAN-22. What CAN-23 One Story from Neon, behind row-level security added beneath it is **one public
+Story, read from Neon**: the row migration
 0002 inserts, fetched as the anonymous session user inside a transaction, filtered by the policy on
 `story` rather than by the query. That is the walking skeleton finished — a push reaches a public
 URL, and a row reaches a stranger — and it is why the route is no longer static.

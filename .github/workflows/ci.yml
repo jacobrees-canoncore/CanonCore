@@ -25,14 +25,9 @@ jobs:
     runs-on: ubuntu-latest
 
     services:
-      # The row-level security tests need a real PostgreSQL, because RLS is the database's
-      # behaviour and a stub of it would assert only what the stub was written to do. A
-      # container rather than a per-run Neon branch: RLS is vanilla PostgreSQL, so a container
-      # tests it hermetically and couples no push to an external control plane. ADR-0005 rule 2,
-      # settled by CAN-73 Settle the Snapshot layer, the CI database seam, and forked-Snapshot
-      # erasure before CAN-23.
-      #
-      # 17 because production is PostgreSQL 17.10, read from Neon on 14 August 2026.
+      # What the row-level security tests connect to. A container rather than a per-run Neon
+      # branch is ADR-0005 rule 2's own answer; 17 because production is PostgreSQL 17.10, read
+      # from Neon on 14 August 2026.
       postgres:
         image: postgres:17
         env:
@@ -67,9 +62,8 @@ jobs:
       # two to the `test` script as arguments and silently skips them — see
       # docs/agents/workflow.md.
       #
-      # The two URLs are what let `apps/web/src/db/rls.test.ts` run at all, and it fails
-      # outright rather than skipping if they are missing here: a skipped cross-tenant read
-      # test reports exactly what a broken policy reports.
+      # The two URLs are what let `apps/web/src/db/rls.test.ts` run at all. It fails rather
+      # than skips when they are missing here — docs/agents/workflow.md -> The gates says why.
       - run: pnpm -r test
         env:
           RLS_TEST_MIGRATOR_URL: postgresql://canoncore_migrator:canoncore_migrator@localhost:5432/canoncore_test
@@ -104,12 +98,9 @@ jobs:
 
       # --- The release. `main` only, and only once everything above is green. ---
       #
-      # Vercel does not deploy `main` itself: `apps/web/vercel.json` turns the Git integration
-      # off for that one branch, so this job owns the order. Nothing else can — a push starts a
-      # Vercel build immediately, and a migration racing a deploy is the failure
-      # docs/incidents.md -> Waveger: the build ran no migrations, and nobody knew describes.
-      # Previews are untouched and still deploy from Git, which is what keeps the `Vercel`
-      # required context reporting on every pull request.
+      # Migrate, then build, then promote. Why this job owns that order rather than Vercel, and
+      # why previews are deliberately left deploying from Git:
+      # docs/agents/workflow.md -> What a merge carries.
 
       - name: Apply Drizzle migrations
         if: github.ref == 'refs/heads/main'
@@ -117,10 +108,9 @@ jobs:
         env:
           MIGRATION_DATABASE_URL: ${{ secrets.MIGRATION_DATABASE_URL }}
 
-      # Built here rather than by Vercel, because a build on Vercel is a deploy on Vercel and
-      # the point of this ordering is that the migration went first. `--prebuilt` ships the
-      # output this step made; `--prod` is what assigns the production domain, so this line is
-      # the promotion and the migration above has already succeeded by the time it runs.
+      # `--prebuilt` deploys "existing build output from the .vercel/output directory"
+      # (https://vercel.com/docs/cli/deploy), so this promotes what the line above it built and
+      # never triggers a build of its own — which is what keeps the migration in front of it.
       #
       # The two ids are project identifiers, not credentials: `vercel project inspect canoncore`
       # prints the second, and docs/infrastructure.md -> Hosting records it.

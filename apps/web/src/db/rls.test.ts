@@ -1,28 +1,20 @@
 // @vitest-environment node
 //
-// The check `docs/agents/workflow.md` → *The gates* calls not optional, because its failure mode
-// is silence: a misconfigured policy returns an empty result rather than an error, so it is
-// indistinguishable from "no data" by looking at the page. Nothing but this file can see the
-// difference.
-//
-// It runs against a real PostgreSQL — a service container in CI, whichever one you point it at
-// locally — because row-level security is the database's behaviour and a stub of it would only
-// ever assert what the stub was written to do. Settled by CAN-73 Settle the Snapshot layer, the
-// CI database seam, and forked-Snapshot erasure before CAN-23; ADR-0005 rule 2 records it.
+// The cross-tenant read test ADR-0005 rule 2 requires, for the first table to have a policy.
+// Why it is not optional, and how to point it at a database on a laptop:
+// docs/agents/workflow.md -> The gates.
 import { fileURLToPath } from "node:url";
+import { sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { migrate } from "drizzle-orm/node-postgres/migrator";
-import { sql } from "drizzle-orm";
 import { Client } from "pg";
 import { afterAll, beforeAll, describe, expect, test, vi } from "vitest";
 
 const migratorUrl = process.env.RLS_TEST_MIGRATOR_URL;
 const applicationUrl = process.env.RLS_TEST_APP_URL;
 
-// A skip is not a pass. Locally these are optional, because not every machine has a PostgreSQL
-// with the two roles on it; in CI the workflow always sets them, so their absence means the
-// service container or its setup step broke, and that must fail rather than quietly skip the
-// one check whose whole point is that a failure looks like nothing.
+// A skip is not a pass, and in CI the workflow always sets these — so their absence there means
+// the service container or its setup step broke, and must fail rather than skip.
 if (process.env.CI && !(migratorUrl && applicationUrl)) {
   throw new Error(
     "RLS_TEST_MIGRATOR_URL and RLS_TEST_APP_URL are unset in CI. The cross-tenant read test " +
@@ -83,6 +75,21 @@ describe.skipIf(!migratorUrl || !applicationUrl)("row-level security on story", 
     });
   }
 
+  /**
+   * A transaction opened by hand, as the application role. Two cases below need one, because both
+   * are about what happens *without* the seam `withSession` provides — which is the one thing
+   * `withSession` cannot be used to test.
+   */
+  async function withRawSession<T>(run: (client: Client) => Promise<T>): Promise<T> {
+    const application = new Client({ connectionString: applicationUrl });
+    await application.connect();
+    try {
+      return await run(application);
+    } finally {
+      await application.end();
+    }
+  }
+
   // ADR-0005 rule 1. Neon's own `neondb_owner` has this attribute, so connecting as the wrong
   // role is a one-line tenant leak that every other test here would still pass.
   test("the application connects as a role that cannot bypass row-level security", async () => {
@@ -95,6 +102,22 @@ describe.skipIf(!migratorUrl || !applicationUrl)("row-level security on story", 
     });
 
     expect(role).toEqual({ name: "canoncore_app", bypasses: false });
+  });
+
+  // The half the assertion above cannot reach: `canoncore_migrator` has no BYPASSRLS and still
+  // sees every row, because it owns the tables. A deployment pointed at it would look healthy.
+  test("connecting as the role that owns the tables is refused before any read", async () => {
+    vi.stubEnv("DATABASE_URL", migratorUrl);
+    vi.stubEnv("DATABASE_APP_USER", "canoncore_app");
+    vi.resetModules();
+    const asMigrator = await import("./session");
+
+    await expect(asMigrator.withSession(asMigrator.anonymous, async () => "read")).rejects.toThrow(
+      /Connected as canoncore_migrator, not the application role canoncore_app/,
+    );
+
+    vi.stubEnv("DATABASE_URL", applicationUrl);
+    vi.stubEnv("DATABASE_APP_USER", undefined);
   });
 
   test("a reader sees their own Stories and every public one", async () => {
@@ -120,47 +143,37 @@ describe.skipIf(!migratorUrl || !applicationUrl)("row-level security on story", 
     expect(rows.map((row) => row.id)).toEqual([foundingStory.id]);
   });
 
-  // The case that catches a policy treating a missing setting as a wildcard. It cannot go
-  // through `withSession`, which always sets one — so it opens the transaction by hand, as the
-  // same role, and asks what a policy comparing against NULL lets through.
+  // The case that catches a policy treating a missing setting as a wildcard.
   test("a session that sets nothing at all reads no owned rows", async () => {
-    const application = new Client({ connectionString: applicationUrl });
-    await application.connect();
-    try {
+    const rows = await withRawSession(async (application) => {
       await application.query("begin");
       const { rows } = await application.query<{ id: string }>("select id from story");
       await application.query("commit");
+      return rows;
+    });
 
-      expect(rows.map((row) => row.id)).toEqual([foundingStory.id]);
-    } finally {
-      await application.end();
-    }
+    expect(rows.map((row) => row.id)).toEqual([foundingStory.id]);
   });
 
-  // ADR-0005 rule 3. `SET LOCAL` rather than `SET` is what keeps a pooled connection from
-  // handing one request's session user to the next, and the difference is invisible until it is
-  // a leak — a plain `SET` would still be in force on the second read below.
+  // ADR-0005 rule 3. `SET LOCAL` rather than `SET` is what keeps a pooled connection from handing
+  // one request's session user to the next, and the difference is invisible until it is a leak —
+  // a plain `SET` would still be in force on the second read.
   //
   // Asserted by reading through the policy rather than by reading the setting back, because what
-  // the setting reverts *to* is not NULL: once `set_config` has named a custom parameter in a
-  // session, PostgreSQL keeps it defined and the transaction's end restores its prior value,
-  // which is the empty string. That happens to be the anonymous session user, so the leak fails
-  // safe — but "fails safe" is a claim about rows, and rows are what this checks.
+  // the setting reverts *to* is not NULL: docs/incidents.md -> A SET LOCAL custom setting reverts
+  // to the empty string, not to NULL.
   test("the session user does not outlive the transaction that set it", async () => {
-    const application = new Client({ connectionString: applicationUrl });
-    await application.connect();
-    try {
+    const { inside, afterwards } = await withRawSession(async (application) => {
       await application.query("begin");
       await application.query("select set_config('canoncore.user_id', $1, true)", [ownedByA.owner]);
       const inside = await application.query<{ id: string }>("select id from story");
       await application.query("commit");
       const afterwards = await application.query<{ id: string }>("select id from story");
+      return { inside: inside.rows, afterwards: afterwards.rows };
+    });
 
-      expect(inside.rows.map((row) => row.id)).toContain(ownedByA.id);
-      expect(afterwards.rows.map((row) => row.id)).toEqual([foundingStory.id]);
-    } finally {
-      await application.end();
-    }
+    expect(inside.map((row) => row.id)).toContain(ownedByA.id);
+    expect(afterwards.map((row) => row.id)).toEqual([foundingStory.id]);
   });
 
   test("the page's own query returns the public Story to an anonymous reader", async () => {

@@ -18,8 +18,8 @@ procedure changes when a command changes, and evidence only ever accumulates.
 cites the owner for the argument.** A one-line imperative is not the duplication this split exists
 to remove — a retold incident is.
 
-> **What exists.** CAN-22 built the walking skeleton and CAN-23 One Story from Neon, behind
-> row-level security connected it to the database, so `apps/web` exists, a `story` table exists
+> **What exists.** CAN-22 A page on a public URL, deployed, with CI built the walking skeleton
+> and CAN-23 One Story from Neon, behind row-level security connected it to the database, so `apps/web` exists, a `story` table exists
 > behind a policy, and GitHub Actions runs the checks below and then the release on every push to
 > `main`. Auth does **not** exist yet — **CAN-24 A signed-in and a signed-out path** brings it —
 > so the only session user any request sets is the anonymous one.
@@ -45,8 +45,8 @@ to remove — a retold incident is.
 There is nobody to review it, so the PR is not doing what a PR usually does. It earns its place on
 the deployment rather than the review:
 
-- **A branch is the gate before production.** A push to `main` releases: since CAN-23 the release
-  is the tail of the CI job rather than Vercel's own build, so the gates run first — but they run
+- **A branch is the gate before production.** A push to `main` releases: since CAN-23 One Story from
+  Neon, behind row-level security the release is the tail of the CI job rather than Vercel's own build, so the gates run first — but they run
   on a commit that is already on `main`, and a red gate leaves `main` red rather than unreleased.
   The branch is where a change can still be wrong for free.
 - **`main` refuses anything else.** Since CAN-40 its ruleset requires the checks by name, so a
@@ -321,7 +321,7 @@ landing succeeds; the ruleset is what happens when the wait was skipped.
 
 **Drizzle migrations run in Actions, before the production deploy is promoted**, so a schema change
 that fails stops the release rather than shipping code against a database that never moved. Since
-CAN-23 that is enforced rather than intended: [`apps/web/vercel.json`](../../apps/web/vercel.json)
+CAN-23 One Story from Neon, behind row-level security that is enforced rather than intended: [`apps/web/vercel.json`](../../apps/web/vercel.json)
 turns Vercel's Git integration off for `main` alone, and the job migrates, then builds, then
 deploys. Nothing weaker would do — a push starts a Vercel build immediately, so leaving the
 integration on would mean a migration racing a deploy it cannot see.

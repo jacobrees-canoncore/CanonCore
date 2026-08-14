@@ -24,8 +24,9 @@ const currentSessionUser = sql.raw(`current_setting('${sessionUserSetting}', tru
  * The role the application connects as, and the only role this policy is granted to.
  *
  * `.existing()` because Neon provisions it, not us — `docs/infrastructure.md` → *Roles* is where
- * it and `canoncore_migrator` are recorded. `drizzle-kit` does not manage roles unless
- * `entities.roles` is turned on, so nothing here tries to create it.
+ * it and `canoncore_migrator` are recorded. Drizzle needs telling: *"By default, drizzle-kit does
+ * not manage roles"*, and `.existing()` marks one *"already present in your database"*
+ * (https://orm.drizzle.team/docs/rls), so nothing here tries to create it.
  */
 export const applicationRole = pgRole("canoncore_app").existing();
 
@@ -47,9 +48,9 @@ export const story = pgTable(
     visibility: visibility().notNull().default("private"),
   },
   (t) => [
-    // What makes the empty string safe as the anonymous session user (`session.ts`): with this
-    // constraint in place, no owner can ever equal it, so the anonymous path differs from a
-    // signed-in one by the value of one setting rather than by a code path.
+    // What makes the empty string usable as a session user matching nobody, which is what
+    // `session.ts` uses it for. No owner can equal it, so an anonymous reader matches the
+    // policy's public branch and nothing else.
     check("story_owner_id_not_blank", sql`length(${t.ownerId}) > 0`),
 
     // Defining a policy enables row-level security on the table, so there is no separate
