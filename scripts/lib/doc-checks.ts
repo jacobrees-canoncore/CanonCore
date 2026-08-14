@@ -289,10 +289,23 @@ export function compareVariables(
  * spaces yields two hyphens — which is why the spaces are replaced one at a time rather than
  * collapsed.
  *
- * `_` is the exception, spared here as a word character because GitHub spares it too. Stripping it
- * made this gate *require* an anchor GitHub will not resolve rather than merely miss a broken one
- * — CAN-82. Every other character it was stripped alongside is punctuation this regex already
- * drops, which is why nothing replaced that strip.
+ * GitHub slugs the *rendered* heading, where "any other whitespace or punctuation characters are
+ * removed" and "markup formatting is removed, leaving only the contents" [1]. This reads the raw
+ * line, so one pass does both jobs: backticks and emphasis markers go as punctuation here rather
+ * than as markup there, which lands in the same place.
+ *
+ * `_` is where that shortcut broke: it is neither punctuation nor markup, so GitHub keeps it. The
+ * heading `ERR_ACCESS_DENIED` in nodejs/node's `doc/api/errors.md` carries the anchor
+ * `#err_access_denied` [2]. Stripping it made this gate *require* an anchor GitHub will not resolve rather than merely
+ * miss a broken one: CAN-82 check-docs requires a heading anchor GitHub will not resolve, for any
+ * heading with an underscore. `\w` keeps `_`, so the strip needed nothing in its place.
+ *
+ * One divergence is left, and is latent rather than active: `\w` is ASCII where GitHub keeps any
+ * letter, so a heading with an accented letter would still be required to carry an anchor GitHub
+ * will not resolve. No heading in this repository has one.
+ *
+ * [1] https://docs.github.com/en/get-started/writing-on-github/getting-started-with-writing-and-formatting-on-github/basic-writing-and-formatting-syntax
+ * [2] https://github.com/nodejs/node/blob/9e23066b8af4d1661c30ebb9179fad86430d6503/doc/api/errors.md
  */
 export function anchorsOf(body: string): { anchors: Set<string>; titles: string[] } {
   const seen = new Map<string, number>();
