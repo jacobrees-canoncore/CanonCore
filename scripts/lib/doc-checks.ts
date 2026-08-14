@@ -288,6 +288,11 @@ export function compareVariables(
  * Punctuation is dropped and each remaining space becomes a hyphen, so an em dash surrounded by
  * spaces yields two hyphens — which is why the spaces are replaced one at a time rather than
  * collapsed.
+ *
+ * `_` is the exception, spared here as a word character because GitHub spares it too. Stripping it
+ * made this gate *require* an anchor GitHub will not resolve rather than merely miss a broken one
+ * — CAN-82. Every other character it was stripped alongside is punctuation this regex already
+ * drops, which is why nothing replaced that strip.
  */
 export function anchorsOf(body: string): { anchors: Set<string>; titles: string[] } {
   const seen = new Map<string, number>();
@@ -298,7 +303,6 @@ export function anchorsOf(body: string): { anchors: Set<string>; titles: string[
     const base = m[1]
       .trim()
       .toLowerCase()
-      .replace(/[`*_[\]()]/g, "")
       .replace(/[^\w\- ]/g, "")
       .replace(/ /g, "-");
     const n = seen.get(base) ?? 0;

@@ -136,6 +136,26 @@ test('backticks and punctuation are dropped from the slug', () => {
   assert.ok(anchors.has('--delete-branch-fails-after-the-merge-has-succeeded'))
 })
 
+// `_` is the one character in that class GitHub keeps, which made this worse than a missed broken
+// link: the only spelling that passed the gate was the one GitHub will not resolve. Checked against
+// GitHub's own rendering of `doc/api/errors.md` in nodejs/node, where the heading `ERR_ACCESS_DENIED`
+// carries the anchor `#err_access_denied` — the backticks around it dropped, the underscores kept.
+
+test('an underscore survives the slug, as GitHub keeps it', () => {
+  const { anchors } = anchorsOf('## `neondb_owner` cannot SET ROLE to another role')
+
+  assert.ok(anchors.has('neondb_owner-cannot-set-role-to-another-role'))
+})
+
+// The rest of that class GitHub does drop, so they stay out. Same source: GitHub renders the
+// heading `new Error(message[, options])` there as `#new-errormessage-options`.
+
+test('brackets, parentheses and asterisks are dropped from the slug', () => {
+  const { anchors } = anchorsOf('## `new Error(message[, options])` and an *emphasised* word')
+
+  assert.ok(anchors.has('new-errormessage-options-and-an-emphasised-word'))
+})
+
 test('repeated headings get GitHub -1 / -2 suffixes', () => {
   const { anchors } = anchorsOf(
     ['## The account', '## The account', '## The account'].join('\n\ntext\n\n'),
