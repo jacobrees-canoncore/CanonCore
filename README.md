@@ -36,7 +36,7 @@ row-level security and rendered on the public URL to an anonymous visitor; CI ga
 push and the release migrates the database before it promotes production. The catalogue itself is
 not built yet — there is no way to sign in and no way to add a second Story.
 
-What that means concretely: roughly 800 lines of application code against twelve architecture
+What that means concretely: roughly 800 lines of application code against thirteen architecture
 decision records and a domain model. The design work ran ahead of the implementation on purpose,
 and the ratio will correct itself as vertical slices land, not by adding more planning.
 
@@ -84,7 +84,7 @@ Nothing here is derived from any earlier attempt at this product. It was built f
 | Where | What |
 | --- | --- |
 | [`CONTEXT.md`](CONTEXT.md) | The domain vocabulary. Read this first |
-| [`docs/adr/`](docs/adr/) | Twelve decisions, each naming its rejected alternatives and what would reverse it |
+| [`docs/adr/`](docs/adr/) | Thirteen decisions, each naming its rejected alternatives and what would reverse it |
 | [`docs/research/`](docs/research/) | The evidence under the decisions, cited to the page that owns each claim |
 | [`docs/compliance/`](docs/compliance/) | Online Safety Act duties: risk assessments, reporting, review policy |
 | [`docs/infrastructure.md`](docs/infrastructure.md) | The register: what is provisioned right now, and what is unverified |
