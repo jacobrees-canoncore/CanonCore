@@ -288,8 +288,13 @@ gate worth having.
 depend on `eslint-plugin-jsx-a11y@^6.10.0` but enables **only five rules, all as `warn`, all about
 ARIA attribute validity**: `aria-props`, `aria-proptypes`, `aria-unsupported-elements`,
 `role-has-required-aria-props`, `role-supports-aria-props`. The plugin's own `recommended` config
-enables **29 rules as `error`**, including `alt-text`, `label-has-associated-control`,
-`click-events-have-key-events`, `anchor-is-valid`, `html-has-lang` and `iframe-has-title`. The
+enables **31 rules as `error`** — 34 are named and three (`anchor-ambiguous-text`,
+`control-has-associated-label`, `label-has-for`) are set to `off`, out of 39 rules shipped —
+including `alt-text`, `label-has-associated-control`, `click-events-have-key-events`,
+`anchor-is-valid`, `html-has-lang` and `iframe-has-title`. Counted from
+`eslint-plugin-jsx-a11y@6.10.2`; corrected from 29 by
+[frontend-design-scope.md](frontend-design-scope.md) →
+*Where both planned gates stop, and it is short of the design*. The
 Next.js ESLint documentation omits jsx-a11y from its stated plugin list entirely
 ([Next.js, ESLint](https://nextjs.org/docs/app/api-reference/config/eslint)). Note also that `next lint` was
 removed in Next 16 — the same page's version table records `v16.0.0`: "`next lint` and the `eslint`
@@ -298,13 +303,16 @@ next.config.js option were removed in favor of the ESLint CLI", with a codemod o
 **Enable `jsx-a11y` at `recommended` and `error` explicitly.** The default catches essentially
 nothing anyone cares about, and warns rather than fails.
 
-**Automated accessibility coverage is 57.38%, not 30%.** Deque, across 13,000+ pages and ~300,000
-issues, measured axe-core finding 57.38% of total issues, and explicitly rejects the common "16 of
-50 WCAG 2.1 AA criteria" framing as an "inaccurate definition", arguing that issue volume predicts
-remediation effort better than criteria count
-([Deque, coverage](https://www.deque.com/automated-accessibility-testing-coverage/)). The ~30%
-folklore is the by-criteria number. Both tools disclaim themselves: Playwright notes "many
-accessibility problems can only be discovered through manual testing"
+**Automated accessibility coverage is 57.38% by issue volume, and 16 of 50 criteria.** Deque, across
+13,000+ pages and ~300,000 issues, measured axe-core finding 57.38% of total issues. The same page
+confirms the by-criteria number rather than refuting it — "we found automated issues for 16 out of
+the 50 Success Criteria under WCAG 2.1 Level AA. This supports the 20 to 30% automated coverage
+claims that many experts claim today" — and disputes only what that number is taken to measure:
+"this definition does not accurately reflect the number of issues found in testing real web pages"
+([Deque, coverage](https://www.deque.com/automated-accessibility-testing-coverage/)). So the ~30%
+folklore is the by-criteria number, and it is Deque's own number; its argument is that issue volume
+predicts remediation effort better, not that the count is wrong. Both tools disclaim themselves:
+Playwright notes "many accessibility problems can only be discovered through manual testing"
 ([Playwright, accessibility testing](https://playwright.dev/docs/accessibility-testing)).
 
 **Vercel field data on Hobby.** Speed Insights: 1 project, 10,000 events/month, 7-day window; past
@@ -359,8 +367,8 @@ Gate, because each is deterministic and exact:
 
 | Gate | Asserts | Cost |
 | --- | --- | --- |
-| `jsx-a11y` at `recommended`, as `error` | 29 static a11y rules | ~0, folds into the lint job |
-| `@axe-core/playwright` with `wcag2a`/`wcag2aa`/`wcag21a`/`wcag21aa` tags, asserting zero violations | the 57.38% automation can find | 1–2 CI minutes, Playwright already runs |
+| `jsx-a11y` at `recommended`, as `error` | 31 static a11y rules | ~0, folds into the lint job |
+| `@axe-core/playwright` with `wcag2a`/`wcag2aa`/`wcag21a`/`wcag21aa`/`wcag22aa` tags, asserting zero violations | the 57.38% automation can find, plus `target-size` — the one rule any WCAG 2.2 tag reaches | 1–2 CI minutes, Playwright already runs |
 | A bundle-size budget as `error` | first-party JS bytes | seconds; the highest-signal performance gate |
 | `react-doctor` Action with `blocking: error`, `scope: changed`, gating `error-count` | React correctness, hooks, security lint on the diff | ~1 minute; pin the version |
 | LHCI with `numberOfRuns: 5`, `aggregationMethod: "pessimistic"`, `maxNumericValue` budgets on LCP and TBT | lab load metrics as absolute budgets | 4–8 CI minutes per PR |
