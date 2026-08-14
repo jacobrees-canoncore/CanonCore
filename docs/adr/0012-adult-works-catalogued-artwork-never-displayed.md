@@ -64,10 +64,11 @@ itself chooses to display.
 route.** It says content that is user-generated "does not cease to be such content in relation to the
 service when published or displayed on the service by means of … software or an automated tool or
 algorithm applied by the provider" — the mirror image of `s.79(2)`, and the reason rendering code cannot
-turn a user's content into ours. It bites only on content that was user-generated to begin with, and `s.55(3)`–`(4)` is where that is
-settled: content "generated directly on the service by a user of the service, or uploaded to or shared
-on the service by a user of the service", with an automated tool counted as a user only where it "is not
-controlled by or on behalf of the provider of the service" (`s.55(4)(b)`)
+turn a user's content into ours. It bites only on content that was user-generated to begin with, and
+`s.55(3)`–`(4)` is where that is settled: content "generated directly on the service by a user of the
+service, or uploaded to or shared on the service by a user of the service", with an automated tool
+counted as a user only where it "is not controlled by or on behalf of the provider of the service"
+(`s.55(4)(b)`)
 ([s.55](https://www.legislation.gov.uk/ukpga/2023/50/section/55),
 [s.236](https://www.legislation.gov.uk/ukpga/2023/50/section/236)). Our importer is ours, so nothing it
 fetches is user-generated content, and `s.236(7)` never engages. So the two artwork paths
