@@ -130,12 +130,19 @@ From Expo's TV guide, verbatim:
 > some of the projects are not configured to target TV.** This avoids possible conflicts between
 > the project dependencies, while still supporting mobile development fully on all the projects.
 
-**One TV app forces the `react-native` → `react-native-tvos` alias onto every Expo app in the
-repo.** Your web app, your phone app, everything. They will still build and work — the fork is a
-superset — but every app in the monorepo now depends on a one-maintainer fork of React Native
-core, and every app's upgrade cadence is coupled to that fork's release schedule. This is the
-single most concrete, most under-appreciated cost of "add tvOS to the monorepo", and it is stated
-by Expo, not inferred by me.
+**One TV app forces the `react-native` → `react-native-tvos` alias onto every *Expo* app in the
+repo.** Every phone app, and any later Expo target. **Not `apps/web`**: the rule's own scope is
+"more than one **Expo project** in a monorepo", and a Next.js app that never depends on
+`react-native` is not an Expo project and has no dependency to conflict. The root `resolutions` pin
+still reaches its lockfile; the alias does not reach an app that never imports the package. Note
+also that Expo says **should**, with a stated reason, rather than must.
+
+Within that scope the cost is real. The apps will still build and work — the fork is a superset —
+but every Expo app in the monorepo then depends on a one-maintainer fork of React Native core, and
+each one's upgrade cadence is coupled to that fork's release schedule. This is the single most
+concrete, most under-appreciated cost of "add tvOS to the monorepo", and it is stated by Expo, not
+inferred by me. The narrowing is [frontend-design-scope.md](frontend-design-scope.md) →
+*Web and native share three things*.
 
 ### 4.3 The mechanics of sharing
 
