@@ -9,9 +9,17 @@
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
+    "@types/mdast": "^4.0.4",
     "@types/node": "^24",
     "eslint": "^9",
     "typescript": "^5",
     "typescript-eslint": "^8"
+  },
+  "dependencies": {
+    "github-slugger": "^2.0.0",
+    "mdast-util-from-markdown": "^2.0.3",
+    "mdast-util-frontmatter": "^2.0.1",
+    "mdast-util-to-string": "^4.0.0",
+    "micromark-extension-frontmatter": "^2.0.0"
   }
 }

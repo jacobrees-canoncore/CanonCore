@@ -138,13 +138,20 @@ test('backticks and punctuation are dropped from the slug', () => {
   assert.ok(anchors.has('--delete-branch-fails-after-the-merge-has-succeeded'))
 })
 
-// The two halves of the class this used to strip wholesale. Why GitHub keeps the one and drops the
-// rest, with the sources: the note on `anchorsOf`.
+// `_` is the pair only a rendered heading can tell apart: markup in the one, content in the
+// other, and identical in the raw line. Why GitHub keeps the one and drops the other, with the
+// source: the note on `anchorsOf`.
 
 test('an underscore survives the slug, as GitHub keeps it', () => {
   const { anchors } = anchorsOf('## `neondb_owner` cannot SET ROLE to another role')
 
   assert.ok(anchors.has('neondb_owner-cannot-set-role-to-another-role'))
+})
+
+test('an emphasised word loses its underscores, which are markup rather than content', () => {
+  const { anchors } = anchorsOf('## An _emphasised_ word')
+
+  assert.ok(anchors.has('an-emphasised-word'))
 })
 
 test('brackets, parentheses and asterisks are dropped from the slug', () => {
@@ -153,12 +160,67 @@ test('brackets, parentheses and asterisks are dropped from the slug', () => {
   assert.ok(anchors.has('new-errormessage-options-and-an-emphasised-word'))
 })
 
+test('a non-ASCII letter survives the slug', () => {
+  const { anchors } = anchorsOf('## Débogage du système')
+
+  assert.ok(anchors.has('débogage-du-système'))
+})
+
+test('a link in a heading is slugged with its text, never its target', () => {
+  const { anchors } = anchorsOf('## See [the workflow](docs/agents/workflow.md) first')
+
+  assert.ok(anchors.has('see-the-workflow-first'))
+})
+
+// The same mistake one layer down, and the reason both `toString` options are off. Inline HTML and
+// an `alt` attribute are markup rather than contents, so GitHub slugs neither.
+
+test('inline HTML in a heading contributes what it wraps, not the tags', () => {
+  const { anchors } = anchorsOf('## Press <kbd>Ctrl</kbd> to stop')
+
+  assert.ok(anchors.has('press-ctrl-to-stop'))
+})
+
+test('an image in a heading contributes nothing, its alt text least of all', () => {
+  const { anchors } = anchorsOf('## ![logo](logo.png) The project')
+
+  assert.ok(anchors.has('-the-project'))
+})
+
 test('repeated headings get GitHub -1 / -2 suffixes', () => {
   const { anchors } = anchorsOf(
     ['## The account', '## The account', '## The account'].join('\n\ntext\n\n'),
   )
 
   assert.deepEqual([...anchors], ['the-account', 'the-account-1', 'the-account-2'])
+})
+
+// What is a heading at all. The first two were wrong in this repository's own documents before
+// CAN-87 check-docs slugs the raw heading, not the rendered one, so three kinds of heading get an
+// anchor GitHub will not resolve. The third never was: the `^#` line match ignored frontmatter
+// correctly, and it is the parser that would invent a heading there without its extension.
+
+test('a `#` comment inside a fenced code block is not a heading', () => {
+  const { anchors, titles } = anchorsOf(
+    ['# The loop', '', '```bash', '# create the branch first', '```'].join('\n'),
+  )
+
+  assert.deepEqual([...anchors], ['the-loop'])
+  assert.deepEqual(titles, ['the loop'])
+})
+
+test('a heading nested in a blockquote or a list item is still a heading', () => {
+  const { anchors } = anchorsOf(['> ### Quoted', '', '1. Item', '', '   ### Nested'].join('\n'))
+
+  assert.deepEqual([...anchors], ['quoted', 'nested'])
+})
+
+test('YAML frontmatter is not a heading, though its closing `---` would make one', () => {
+  const { anchors } = anchorsOf(
+    ['---', 'name: implement', 'description: does a thing', '---', '', '# The body'].join('\n'),
+  )
+
+  assert.deepEqual([...anchors], ['the-body'])
 })
 
 // --- Links ---------------------------------------------------------------------------------
