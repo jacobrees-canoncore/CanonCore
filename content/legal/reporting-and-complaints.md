@@ -8,18 +8,14 @@ built by
 member of the public yet. A per-item report control on every record is not shipped at launch either; that
 is recorded as an alternative measure in `docs/compliance/alternative-measures-record.md`.
 
-> **DRAFT.** Complete the items marked `[ ]` and remove this box before publishing. The dates and the
-> reporting address are filled by
-> [CAN-44 Make the Online Safety Act records live, and create the reporting address](https://linear.app/jacobrees-canoncore/issue/CAN-44).
-
-Last updated: `[ ]`
+Last updated: 14 August 2026
 
 **You do not need a CanonCore account to use this page, and you do not need to sign in.** You can report
 content whether or not it is about you.
 
 ## How to report something
 
-`[ ]` *Reporting address, once created: `report@canoncore.com`*
+Email us at **[report@canoncore.com](mailto:report@canoncore.com)**.
 
 Tell us:
 

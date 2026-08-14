@@ -7,13 +7,12 @@ and reachable from the footer of every page, without signing in, which is built 
 yet reachable. Which Code measures that leaves not in effect is recorded in
 `docs/compliance/code-measures-register.md`.
 
-> **DRAFT.** Complete the items marked `[ ]` and remove this box before publishing. The dates and the
-> reporting address are filled by
-> [CAN-44 Make the Online Safety Act records live, and create the reporting address](https://linear.app/jacobrees-canoncore/issue/CAN-44),
-> and the privacy notice link by
-> [CAN-30 GDPR export and erasure](https://linear.app/jacobrees-canoncore/issue/CAN-30).
+> **One item is outstanding**, marked `[ ]` below: the privacy notice link, owned by
+> [CAN-30 GDPR export and erasure](https://linear.app/jacobrees-canoncore/issue/CAN-30). Resolve it and
+> remove this box before publishing. The dates and the reporting address were filled by
+> [CAN-44 Make the Online Safety Act records live, and create the reporting address](https://linear.app/jacobrees-canoncore/issue/CAN-44).
 
-Last updated: `[ ]`
+Last updated: 14 August 2026
 
 CanonCore is a service for keeping a catalogue of stories, the versions of them you can watch or read,
 and orderings you write yourself. It is run by one person in the United Kingdom.
@@ -143,7 +142,7 @@ We send email using Resend. **Email logs and email metadata are stored in the Un
 country the email itself is sent from, and Resend uses 22 sub-processors to provide the service.**
 We are telling you this here because it is easy to assume otherwise.
 
-`[ ]` *Link the privacy notice here once it exists (CAN-30).*
+`[ ]` *Link the privacy notice here once it exists (CAN-30 GDPR export and erasure).*
 
 ## Changes to these terms
 
@@ -152,4 +151,4 @@ we handle reports, we will make that clear rather than changing it quietly.
 
 ## Contact
 
-`[ ]` `report@canoncore.com`
+Email us at **[report@canoncore.com](mailto:report@canoncore.com)**.
