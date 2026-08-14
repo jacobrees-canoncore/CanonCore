@@ -20,10 +20,14 @@ content "published or displayed on the service by the provider of the service", 
 content published or displayed "by means of … software or an automated tool or algorithm applied by the
 provider" ([s.79](https://www.legislation.gov.uk/ukpga/2023/50/section/79)).
 
-Ofcom treats the provider as whoever "has control over which content is published or displayed"
-(`s.226(8)`), and is "likely to consider a service provider to have exercised control over the
-pornographic content appearing on its service where it exercises **editorial control over the nature,
-selection or presentation** of the content"
+**We are the provider on either limb**, and the limb that applies here is not the one Ofcom's guidance
+quotes in passing: `s.226(8)` treats the provider of an internet service "other than a user-to-user
+service or a search service" as whoever controls which content is published or displayed, while for a
+user-to-user service it is whoever has control over who can use the site (`s.226(2)`–`(3)`, and the same
+guidance's footnote 12). CanonCore is the second. So the Part 5 question is not who the provider is but
+whether the provider published or displayed the content, and on that Ofcom is "likely to consider a
+service provider to have exercised control over the pornographic content appearing on its service where
+it exercises **editorial control over the nature, selection or presentation** of the content"
 ([*Guidance on highly effective age assurance and other Part 5 duties*](https://www.ofcom.org.uk/siteassets/resources/documents/consultations/category-1-10-weeks/statement-age-assurance-and-childrens-access/guidance-on-highly-effective-age-assurance-and-other-part-5-duties.pdf?v=388810),
 16 January 2025, ¶3.15). Choosing which image belongs to a record, and where it appears, is that.
 
@@ -35,10 +39,12 @@ on the service" (¶3.13).
 
 `s.80(2)` then sets exactly three conditions, and there is no fourth: regulated provider pornographic
 content is published or displayed on the service, the service is not exempt, and the service has links
-with the United Kingdom. The UK link is already settled on the `s.80(4)(b)` target-market limb, the same
-limb that puts this service inside Part 3 —
+with the United Kingdom. The UK link is settled by a fact already established rather than by a new one:
+`s.80(4)(b)` is Part 5's own target-market limb, worded identically to the `s.4(5)(b)` limb that puts
+this service inside Part 3, and
 [`docs/research/online-safety-act-obligations.md`](../research/online-safety-act-obligations.md) →
-*1. Scope*. There is no children's-access threshold and no size gate to fall below.
+*1. Scope* records that limb as satisfied. There is no children's-access threshold and no size gate to
+fall below.
 
 The duty that follows is `s.81(2)`: ensure "by the use of age verification or age estimation (or both),
 that children are not normally able to encounter" the content, by means "highly effective at correctly
@@ -52,6 +58,21 @@ to prevent children encountering primary priority content survives it. It is als
 about content users post, and `s.79(7)` puts user-generated content outside Part 5 altogether. The
 prohibition in the terms is real and load-bearing where it applies. It cannot reach an image the service
 itself chooses to display.
+
+**The counter is `s.236(7)`, and it separates the two ways artwork can arrive rather than defeating the
+route.** It says content that is user-generated "does not cease to be such content in relation to the
+service when published or displayed on the service by means of … software or an automated tool or
+algorithm applied by the provider" — the mirror image of `s.79(2)`, and the reason rendering code cannot
+turn a user's content into ours. It bites only on content that was user-generated to begin with, which
+`s.55(3)` defines as content "generated directly on the service by a user" or "uploaded to or shared on
+the service by a user"
+([s.55](https://www.legislation.gov.uk/ukpga/2023/50/section/55),
+[s.236](https://www.legislation.gov.uk/ukpga/2023/50/section/236)). Nobody generates or uploads a TMDB
+poster; our importer fetches it. So the two artwork paths
+[CAN-13 Artwork: uploads, rights and takedown](https://linear.app/jacobrees-canoncore/issue/CAN-13)
+covers land in different Parts: an image a user uploads stays user-generated content under `s.236(7)`,
+in Part 3, where the prohibition in the terms and `s.12(5)` answer it; an image we import is provider
+content under `s.79(2)`, in Part 5, where they do not.
 
 **The duty has bound since 17 January 2025**, not 25 July 2025. `s.81` was commenced on that date by
 regulation 2(1)(a) of
@@ -98,11 +119,11 @@ says it directly, twice, once in each Part:
   image among those is qualified as one "which is not itself pornographic content"
   ([s.61](https://www.legislation.gov.uk/ukpga/2023/50/section/61)).
 
-A record here is a title, a year, a runtime and a `part of` edge. Both carve-outs are drafted the same
-way: text is out, **and every image the drafting lets in alongside it is qualified as one that is not
-itself pornographic content**. That qualification is the entire exposure, and it names the one thing this
-product would ever attach to the text. The carve-outs do not merely permit the artwork rule — they
-identify it.
+A record here is a title, a year, a runtime and a `part of` edge. **Neither carve-out admits an arbitrary
+image.** Beside the text they allow a GIF, or other identifying content, expressly qualified as one
+"which is not itself pornographic content", and otherwise only an emoji or symbol. A poster is none of
+those, so attaching one to a record is precisely what forfeits the carve-out. They do not merely permit
+the artwork rule — they identify it.
 
 ## Blurring is not a remedy, and neither is hotlinking
 
@@ -124,19 +145,28 @@ like a compromise and is not one.
 
 The rule runs on one flag, so the flag's shape is part of the decision.
 
-- It is carried on the **movie** object, the **TV series** object and the **person** object. It is
-  **absent from season and episode details**, so an episode's adult status has to be derived through
-  `part of` from its series
-  ([CAN-26 Import a series from TMDB, with the overlay behind it](https://linear.app/jacobrees-canoncore/issue/CAN-26)).
-- It is **absent from `discover/tv` results**: `include_adult` filters such a query, but the flag cannot
-  be read back off the rows it returns.
+- It is carried on the **movie**, **TV series** and **person** objects
+  ([movie](https://developer.themoviedb.org/reference/movie-details),
+  [TV series](https://developer.themoviedb.org/reference/tv-series-details) and
+  [person details](https://developer.themoviedb.org/reference/person-details)), and is **absent from
+  season and episode details**, where it appears only on the nested person objects
+  ([TV season details](https://developer.themoviedb.org/reference/tv-season-details)). An episode's adult
+  status therefore has to be derived through `part of` from its series, which is what
+  [CAN-26 Import a series from TMDB, with the overlay behind it](https://linear.app/jacobrees-canoncore/issue/CAN-26)
+  carries it onto the Snapshot for.
+- It is **absent from `discover/tv` results** ([discover TV](https://developer.themoviedb.org/reference/discover-tv)):
+  `include_adult` filters such a query, but the flag is not on the rows it returns and cannot be read back.
 - By [TMDB's contribution bible](https://www.themoviedb.org/bible/movie) it means **hardcore pornography
-  specifically** — a full-length film needs "a minimum of two hardcore scenes", a short film one.
-  **18+ erotic titles are deliberately not flagged**; the bible names *Fifty Shades of Grey* and
-  *Nymphomaniac*, and puts them under a separate "softcore" flag which **is not exposed in the API**.
+  specifically**: full-length movies "are set to `adult:true` if they have a minimum of two hardcore
+  scenes in their original version", short films on one. **18+ erotic titles are deliberately outside
+  it** — the bible names *Fifty Shades of Grey* and *Nymphomaniac* as films that "should not be flagged
+  as adult movies", and names the same two again as films that should **not** be classified softcore
+  either. `softcore` is in any case a contribution-side flag, "the correct flag to set for 18+ erotic
+  movies and TV shows", which **the API does not expose at all**.
 
 **So the flag under-covers, and this ADR says so rather than assuming otherwise.** A title can be plainly
-adult-oriented, carry a poster designed to arouse, and still be `adult: false`. The rule is a
+adult-oriented, carry a poster designed to arouse, and still be `adult: false` — and for the titles the
+bible puts in neither bucket, the API carries no signal at all. The rule is a
 proportionate measure on the best signal the source publishes, not a guarantee. Two things bound the
 residual: `display_permitted` is a per-image decision the public renderer refuses to override, so a
 manual `false` is always available; and whether such a poster is pornographic content at all is the same
@@ -156,12 +186,11 @@ effective at correctly determining whether or not a particular user is a child",
 that; nor would it satisfy `s.12(4)` on the Part 3 side. Part 5 offers no route a user setting could
 satisfy at all.
 
-**Playback changes nothing.** [ADR-0006](0006-no-playback-hand-off-to-media-servers.md) records that
-CanonCore "never holds or serves bytes" and that Location is "deliberately not a path the product can
-open, browse or resolve". A hand-off tells a server the person already runs to play something on their
-own device; nothing is published or displayed here, which is the Part 5 test. `CONTEXT.md` adds that a
-Fork copies titles, runtimes, Placements and Arguments but **not** Ownership, Location or Progress, so
-the records binding a person to actual media cannot become another user's content.
+**Playback changes nothing**, for reasons [ADR-0006](0006-no-playback-hand-off-to-media-servers.md) owns
+rather than having them restated here. A hand-off tells a server the person already runs to play
+something on their own device, so nothing is published or displayed on this service — which is the whole
+of the Part 5 test. `CONTEXT.md` does the same job for Fork, which copies no Ownership, Location or
+Progress.
 
 ## Consequences
 
@@ -183,4 +212,5 @@ the records binding a person to actual media cannot become another user's conten
 - **Making adult artwork publicly displayable brings `s.81` into scope** — highly effective age
   assurance, the `s.81(4)` written record and the `s.81(5)` public statement — and invalidates the
   children's risk assessment, which lists it as a change requiring reassessment before it ships.
-- v1 is unaffected either way: CAN-26 imports no artwork at all, and CAN-13 is out of scope for v1.
+- v1 is unaffected either way: CAN-26 Import a series from TMDB, with the overlay behind it imports no
+  artwork at all, and CAN-13 Artwork: uploads, rights and takedown is out of scope for v1.

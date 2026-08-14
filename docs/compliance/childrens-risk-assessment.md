@@ -11,7 +11,7 @@ children's safety duties and Ofcom's *Protection of Children Codes of Practice*.
 | Service name | CanonCore (`https://www.canoncore.com`) |
 | Service type | User-to-user service |
 | Completion date | 13 August 2026 — the same day as the children's access assessment it follows from, well inside the three months `s.11` allows |
-| Revised | 14 August 2026 — the Part 5 correction carried by [CAN-74 Rewrite ADR-0012 on Part 5 grounds](https://linear.app/jacobrees-canoncore/issue/CAN-74). No level or finding changed; the artwork constraint that holds the pornographic content finding is re-grounded in `s.81` rather than `s.12(5)` |
+| Revised | 14 August 2026 — the Part 5 correction carried by [CAN-74 Rewrite ADR-0012 on Part 5 grounds](https://linear.app/jacobrees-canoncore/issue/CAN-74). No level or finding changed; the artwork constraint that holds the pornographic content finding is re-grounded in `s.81` rather than `s.12(5)`. The [terms of service](../../content/legal/terms-of-service.md) were amended in the same change, adding that a catalogue record of a work is not that work's content. That mirrors `s.61(6)` and prohibits nothing less than before, so it is not the weakening Step 4 lists as requiring reassessment — but the assessment was revised alongside it rather than after it |
 | Next review date | 13 August 2027 — at least annually |
 | Completed by | Jacob Rees |
 | Named person responsible | Jacob Rees |
@@ -153,21 +153,15 @@ The catalogue is deliberately unbounded: any work may be recorded, including por
 TMDB carries and marks with an `adult` flag. This was considered directly rather than avoided, because
 the alternative reading would be that recording an adult film's existence is itself pornographic content.
 
-**It is not, and the statute says so rather than leaving it to inference.** `s.61(6)` takes content
-consisting only of text out of primary priority content that is harmful to children
-([s.61](https://www.legislation.gov.uk/ukpga/2023/50/section/61)), and a record here is a title, a year,
-a runtime and a `part of` edge. Any image the carve-out lets in alongside the text is qualified as one
-that is not itself pornographic content, which is exactly where artwork enters and why the constraint
-below is the whole of the exposure.
+**It is not, and the statute says so rather than leaving it to inference**: `s.61(6)` takes text-only
+content out of pornographic content as primary priority content
+([s.61](https://www.legislation.gov.uk/ukpga/2023/50/section/61)), and a record here is text. ADR-0012
+carries the drafting, and why the images that carve-out does not admit are the whole of the exposure.
 
-**Nothing about playback changes that**, and the three facts that keep it so are recorded where they
-are owned rather than repeated here: no bytes are ever held or served, media server integration is a
-hand-off to a server the person already runs, and a Fork copies titles, runtimes, Placements and
-Arguments but never Ownership, Location or Progress.
-[ADR-0006](../adr/0006-no-playback-hand-off-to-media-servers.md) and
-[ADR-0012](../adr/0012-adult-works-catalogued-artwork-never-displayed.md) → *The alternatives* carry
-them, `CONTEXT.md` carries the Fork rule, and the functionality this service deliberately lacks is set
-out once in the [illegal content risk assessment](illegal-content-risk-assessment.md).
+**Nothing about playback or forking changes that**, for reasons owned by
+[ADR-0006](../adr/0006-no-playback-hand-off-to-media-servers.md) and `CONTEXT.md` rather than repeated
+here — as with the functionality this service has and deliberately lacks, which the
+[illegal content risk assessment](illegal-content-risk-assessment.md) sets out once for both records.
 
 ### The one real exposure: artwork
 
