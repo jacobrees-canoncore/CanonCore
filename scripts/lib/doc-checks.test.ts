@@ -121,8 +121,10 @@ test('a named job reports its name, and the workflow and step names are not jobs
 })
 
 // --- Anchors -------------------------------------------------------------------------------
-// Both cases below were live bugs while CAN-76 was being written: the first made every pointer
-// into a heading with an em dash look broken, the second made directory links look missing.
+// The em dash case here and the directory-link case under Links were both live bugs, found while
+// writing CAN-76 Restructure the agent documents: policy, procedure and incidents get their own
+// homes. The first made every pointer into a heading with an em dash look broken; the second made
+// directory links look missing.
 
 test('an em dash in a heading yields two hyphens, as GitHub does', () => {
   const { anchors } = anchorsOf('## `CLAUDE.md` — over the only limit that applies to it')
@@ -134,6 +136,21 @@ test('backticks and punctuation are dropped from the slug', () => {
   const { anchors } = anchorsOf('## `--delete-branch` fails after the merge has succeeded')
 
   assert.ok(anchors.has('--delete-branch-fails-after-the-merge-has-succeeded'))
+})
+
+// The two halves of the class this used to strip wholesale. Why GitHub keeps the one and drops the
+// rest, with the sources: the note on `anchorsOf`.
+
+test('an underscore survives the slug, as GitHub keeps it', () => {
+  const { anchors } = anchorsOf('## `neondb_owner` cannot SET ROLE to another role')
+
+  assert.ok(anchors.has('neondb_owner-cannot-set-role-to-another-role'))
+})
+
+test('brackets, parentheses and asterisks are dropped from the slug', () => {
+  const { anchors } = anchorsOf('## `new Error(message[, options])` and an *emphasised* word')
+
+  assert.ok(anchors.has('new-errormessage-options-and-an-emphasised-word'))
 })
 
 test('repeated headings get GitHub -1 / -2 suffixes', () => {

@@ -288,6 +288,31 @@ export function compareVariables(
  * Punctuation is dropped and each remaining space becomes a hyphen, so an em dash surrounded by
  * spaces yields two hyphens — which is why the spaces are replaced one at a time rather than
  * collapsed.
+ *
+ * GitHub slugs the *rendered* heading: "any other whitespace or punctuation characters are
+ * removed" and "markup formatting is removed, leaving only the contents" [1]. It reads the raw
+ * line here, an approximation that holds wherever deleting the markup and deleting the
+ * punctuation come to the same text — backticks and `*` emphasis among them.
+ *
+ * `_` is where it used to invert the answer. Where `_` survives rendering as content rather than
+ * acting as emphasis GitHub keeps it, so `ERR_ACCESS_DENIED` in nodejs/node's `doc/api/errors.md`
+ * anchors as `#err_access_denied` [2]. Stripping it demanded that anchor without its underscores,
+ * which GitHub will not resolve: the gate required a broken link rather than merely missing one.
+ * That is CAN-82 check-docs requires a heading anchor GitHub will not resolve, for any heading
+ * with an underscore, and `\w` keeps `_`, so nothing replaced the strip.
+ *
+ * Three headings it still slugs wrongly, none of them in this repository. Two are in [1]'s own
+ * worked example: `## This'll be a _Helpful_ Section About the Greek Letter Θ!` anchors as
+ * `#thisll-be-a-helpful-section-about-the-greek-letter-Θ`.
+ *
+ * - `_emphasis_`, whose underscores are markup and go. This one is the cost of the fix above
+ *   rather than something it left standing — the strip used to get it right. Separating it from
+ *   `snake_case` needs the rendered text, which is the whole of what this lacks.
+ * - A non-ASCII letter, which `\w` drops and GitHub keeps.
+ * - A [link](target), whose target is slugged with its text, since only the contents survive [1].
+ *
+ * [1] https://docs.github.com/en/get-started/writing-on-github/getting-started-with-writing-and-formatting-on-github/basic-writing-and-formatting-syntax
+ * [2] https://github.com/nodejs/node/blob/9e23066b8af4d1661c30ebb9179fad86430d6503/doc/api/errors.md
  */
 export function anchorsOf(body: string): { anchors: Set<string>; titles: string[] } {
   const seen = new Map<string, number>();
@@ -298,7 +323,6 @@ export function anchorsOf(body: string): { anchors: Set<string>; titles: string[
     const base = m[1]
       .trim()
       .toLowerCase()
-      .replace(/[`*_[\]()]/g, "")
       .replace(/[^\w\- ]/g, "")
       .replace(/ /g, "-");
     const n = seen.get(base) ?? 0;
