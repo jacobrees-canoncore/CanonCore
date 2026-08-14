@@ -311,7 +311,10 @@ claims that many experts claim today" — and disputes only what that number is 
 "this definition does not accurately reflect the number of issues found in testing real web pages"
 ([Deque, coverage](https://www.deque.com/automated-accessibility-testing-coverage/)). So the ~30%
 folklore is the by-criteria number, and it is Deque's own number; its argument is that issue volume
-predicts remediation effort better, not that the count is wrong. Both tools disclaim themselves:
+predicts remediation effort better, not that the count is wrong. That page is read in full, and what
+each criterion costs in manual issues is tabulated, by
+[frontend-design-scope.md](frontend-design-scope.md) → *Where both planned gates stop*. Both tools
+disclaim themselves:
 Playwright notes "many accessibility problems can only be discovered through manual testing"
 ([Playwright, accessibility testing](https://playwright.dev/docs/accessibility-testing)).
 
@@ -469,8 +472,13 @@ each gap as an oversight.
   conventional-commit prefixes; skip the machinery. Revisit if `packages/` ever publishes.
 - **Storybook.** Its value is organisational, a shared artefact between designers and engineers, and
   its cost is a permanent second rendering environment that drifts from the app. Revisit only when
-  `packages/ui` is real and consumed by both `apps/web` and the later Expo apps — which is the
-  genuine second consumer [ADR-0005](../adr/0005-stack.md) already anticipates.
+  `packages/ui` is real and consumed by two apps rendering to the same primitives. This entry used to
+  call that "the genuine second consumer [ADR-0005](../adr/0005-stack.md) already anticipates", which
+  it does not: ADR-0005 → *Repo shape* names `packages/domain` and `packages/api-client` and says
+  nothing about shared UI, and a later Expo app would not consume `apps/web`'s components anyway.
+  Evidence, and why the corrected trigger is phone-and-TV inside one Expo project rather than
+  web-and-native, is [frontend-design-scope.md](frontend-design-scope.md) →
+  *Web and native share three things*; recording it is ADR-0013's job, not this file's.
 - **Hosted visual regression (Chromatic, Percy).** Billed per snapshot to solve a review-coordination
   problem a solo developer does not have. Playwright's `toHaveScreenshot()` is already available at
   zero marginal cost when a design is stable enough to be worth snapshotting.

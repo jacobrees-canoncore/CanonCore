@@ -45,7 +45,9 @@ could only be reached second-hand are marked **unverified**.
 **Three tickets, not two**, plus two corrections that belong in the ADR that CAN-50 Record the
 styling decision, which CAN-22 made by default is already writing, rather than in the tracker. The
 two drafts are wrong in both directions: one piece too few on the `apps/web` side, one piece too
-many on the `packages/ui` side.
+many on the `packages/ui` side. Below, the drafts keep their own names — **Design A** for the
+`apps/web` one, **Design B** for the `packages/ui` one — and Design A is what becomes Designs 1 and 2
+in the table.
 
 | | What it is | Trigger | Section below |
 | --- | --- | --- | --- |
@@ -93,10 +95,11 @@ a palette, a measure and a focus style for `apps/web` moves no code anywhere.
 **`packages/ui` is named in no ADR.** ADR-0005 anticipates exactly two extractions and neither is
 UI. The only place `packages/ui` appears in this repository is
 [`production-readiness-baseline.md`](production-readiness-baseline.md) → *Rejected, with reasons*,
-which revisits Storybook "when `packages/ui` is real and consumed by both `apps/web` and the later
-Expo apps — which is the genuine second consumer ADR-0005 already anticipates". That last clause is
+which revisited Storybook "when `packages/ui` is real and consumed by both `apps/web` and the later
+Expo apps — which is the genuine second consumer ADR-0005 already anticipates". That last clause was
 an over-reading of its own citation: ADR-0005 anticipates `packages/domain` and `packages/api-client`
-and says nothing about shared UI at all.
+and says nothing about shared UI at all. **The false attribution was removed when this file landed**;
+the trigger that replaces it is recorded there as ADR-0013's, per *Rejected, with reasons* below.
 
 **The thing a later app would inherit is not the thing the rule governs.** The evidence in the next
 two sections is that components do not cross from a Next.js App Router app to an Expo app, and that
@@ -187,12 +190,14 @@ over the `accessibilityRole` prop" ([RN, accessibility](https://reactnative.dev/
 Label strings and role names port; the semantics they buy do not.
 
 **And Expo's monorepo rule is narrower than
-[`platform-reach.md`](platform-reach.md) → *4.2 The TV monorepo tax* reads it as being.** The wording is
+[`platform-reach.md`](platform-reach.md) → *4.2 The TV monorepo tax* read it as being.** The wording is
 "If you have more than one **Expo project** in a monorepo… then all of them **should** be modified to
 use the React Native TV package" — `should`, with a stated reason, and scoped to Expo projects. A
 Next.js app that never depends on `react-native` is not an Expo project and has no `react-native`
 dependency to conflict. The root `resolutions` pin still reaches `apps/web`'s lockfile; the alias
-does not reach an app that never imports the package.
+does not reach an app that never imports the package. That section said "your web app, your phone
+app, everything"; **it was narrowed when this file landed**, and the cost it names is real within the
+scope Expo actually gives it.
 
 **So Design B should not be filed.** There is no second consumer for a shared component package, and
 the one that ADR-0005 does anticipate — an Expo app — would not consume web components if it existed.
@@ -257,8 +262,8 @@ style system ever arrives, along with the fact that only one of thirteen types w
 
 ## Reading is the surface, and it is plain text by statute
 
-Every Placement carries an Argument, so the primary surface is long-form prose interleaved with a
-sequence. Two constraints shape it, and neither is in either draft ticket.
+Every Placement carries an Argument, so the primary surface is long-form prose interleaved with the
+Placements of an Ordering. Two constraints shape it, and neither is in either draft ticket.
 
 **The prose is plain text, and making it richer is a compliance change rather than a design change.**
 [CAN-27 Orderings and Placements, and the imported broadcast Ordering](https://linear.app/jacobrees-canoncore/issue/CAN-27)
