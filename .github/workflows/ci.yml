@@ -16,8 +16,31 @@ jobs:
     # the ruleset is updated too, so the two are changed together or not at all.
     # `scripts/check-docs.ts` fails the build if they ever disagree, which is also why
     # the name is added to rather than replaced when a step joins the job.
+    #
+    # The release steps at the end are in this job rather than a job of their own, and the
+    # name is unchanged for them, because they never run on a pull request: a job that
+    # cannot report on a pull request cannot be a required context, and this repository's
+    # documented model is one job, one context. docs/infrastructure.md -> The ruleset.
     name: test, typecheck, lint, build
     runs-on: ubuntu-latest
+
+    services:
+      # What the row-level security tests connect to. A container rather than a per-run Neon
+      # branch is ADR-0005 rule 2's own answer; 17 because production is PostgreSQL 17.10, read
+      # from Neon on 14 August 2026.
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: canoncore_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
     steps:
       - uses: actions/checkout@v7
       - uses: pnpm/action-setup@v6
@@ -27,10 +50,24 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
 
+      # The container starts with one superuser and no application roles, so the two the tests
+      # connect as have to be made. Neon provisions them in production; this file is how a
+      # PostgreSQL with no Neon behind it ends up with the same two and the same privileges.
+      - name: Create the application and migration roles
+        run: psql "$SUPERUSER_URL" -f apps/web/src/db/roles.sql
+        env:
+          SUPERUSER_URL: postgresql://postgres:postgres@localhost:5432/canoncore_test
+
       # Three commands, not one. `pnpm -r test typecheck lint` passes the last
       # two to the `test` script as arguments and silently skips them — see
       # docs/agents/workflow.md.
+      #
+      # The two URLs are what let `apps/web/src/db/rls.test.ts` run at all. It fails rather
+      # than skips when they are missing here — docs/agents/workflow.md -> The gates says why.
       - run: pnpm -r test
+        env:
+          RLS_TEST_MIGRATOR_URL: postgresql://canoncore_migrator:canoncore_migrator@localhost:5432/canoncore_test
+          RLS_TEST_APP_URL: postgresql://canoncore_app:canoncore_app@localhost:5432/canoncore_test
       - run: pnpm -r typecheck
       - run: pnpm -r lint
 
@@ -40,12 +77,13 @@ jobs:
       # without it the first machine to find out is the deploy.
       - run: pnpm -r build
 
-      # The documents, checked against the sources they describe. Last, so that a drift in
-      # prose is never the first thing to fail while the build is broken.
+      # The documents, checked against the sources they describe. Last of the gates, so that a
+      # drift in prose is never the first thing to fail while the build is broken.
       #
       # `vercel` is installed and given a token so the variable roster genuinely gates: an
       # undocumented credential is how a roster goes stale, and that is the roster with
-      # security weight. Without the secret the check reports SKIP and says so.
+      # security weight. Without the secret the check reports SKIP and says so. The release
+      # steps below use the same installation.
       #
       # `orca` is a local desktop CLI and cannot run on a runner, so the label roster is a
       # local gate — docs/agents/workflow.md -> The gates records which checks reach which.
@@ -57,3 +95,32 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+
+      # --- The release. `main` only, and only once everything above is green. ---
+      #
+      # Migrate, then build, then promote. Why this job owns that order rather than Vercel, and
+      # why previews are deliberately left deploying from Git:
+      # docs/agents/workflow.md -> What a merge carries.
+
+      - name: Apply Drizzle migrations
+        if: github.ref == 'refs/heads/main'
+        run: pnpm --filter @canoncore/web db:migrate
+        env:
+          MIGRATION_DATABASE_URL: ${{ secrets.MIGRATION_DATABASE_URL }}
+
+      # `--prebuilt` deploys "existing build output from the .vercel/output directory"
+      # (https://vercel.com/docs/cli/deploy), so this promotes what the line above it built and
+      # never triggers a build of its own — which is what keeps the migration in front of it.
+      #
+      # The two ids are project identifiers, not credentials: `vercel project inspect canoncore`
+      # prints the second, and docs/infrastructure.md -> Hosting records it.
+      - name: Build and promote the production deployment
+        if: github.ref == 'refs/heads/main'
+        run: |
+          vercel pull --yes --environment=production --token="$VERCEL_TOKEN"
+          vercel build --prod --token="$VERCEL_TOKEN"
+          vercel deploy --prebuilt --prod --token="$VERCEL_TOKEN"
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: team_fM6JucuEULAiTuHY5TM5h3TP
+          VERCEL_PROJECT_ID: prj_BMzP9Dq7Qx3Eev8WwsvVoH5khnaU

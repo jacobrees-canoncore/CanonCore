@@ -60,11 +60,16 @@ stranger to visit. It does not cover the deployment itself, which has to exist f
 completable and for the address to be testable.
 
 **Why it is a gate and not a preference.** The two things that make this a user-to-user service are
-accounts and public Visibility. Neither exists on `main`, so nobody but the operator can put content
-here, and most of the Code measures are recorded as not in effect for exactly that reason
+accounts and public Visibility. **Since CAN-23 One Story from Neon, behind row-level security one of them exists** — `story` carries a Visibility
+and one row is public — and accounts do not, so nobody but the operator can put content here. That
+is what most of the Code measures are recorded as not in effect for
 (`docs/compliance/code-measures-register.md` → *What the `Effective` column means*). The failure
 this prevents is content arriving before the measures do: a person posting to
 a service with no takedown, no published terms and no reporting address.
+
+**The gate does not move when the second one lands, it tightens.** Accounts arrive with
+**CAN-24 A signed-in and a signed-out path**, and that is the change after which the sentence above
+stops holding.
 
 **Where the gate lived before, and why it moved here.** It was an unticked box on
 [CAN-21 Write the Online Safety Act documents and establish the reporting address](https://linear.app/jacobrees-canoncore/issue/CAN-21),
@@ -113,6 +118,23 @@ public service carrying a terms of service, so the plan is worth revisiting befo
 The Vercel GitHub App is installed on `jacobrees-canoncore`, scoped to this one repository, and
 installing it displaced nothing
 ([incident](incidents.md#installing-the-vercel-github-app-on-a-second-org-displaced-nothing)).
+
+### `main` does not deploy from Git
+
+Since CAN-23 One Story from Neon, behind row-level security,
+[`apps/web/vercel.json`](../apps/web/vercel.json) sets
+`git.deploymentEnabled: { "main": false }`, and GitHub Actions builds and promotes production
+instead — migrations first, promotion after. Why the order has to be enforced rather than trusted
+is `docs/agents/workflow.md` → *What a merge carries*.
+
+**Unlike the settings above, this one is in the repository**, which is the reason it was done this
+way rather than by unticking auto-assignment of the production domain in the project. The file is
+read from the Root Directory, confirmed on 14 August 2026 by putting a header in it and finding
+that header in `.vercel/output/config.json` after `vercel build`.
+
+**Previews are untouched and still deploy from Git.** That is not incidental: the `Vercel` required
+context comes from the GitHub App, so a change that stopped previews deploying would stop every
+pull request reporting it and block every merge.
 
 ## The repository, and what `main` refuses
 
@@ -191,8 +213,8 @@ which solo, with one branch open at a time, is paid on every landing to guard a 
 people. What loose gives up is named in the same table: *"Status checks may fail after you merge
 your branch if there are incompatible changes with the base branch"* ([Available rules for
 rulesets](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-rulesets/available-rules-for-rulesets#require-status-checks-to-pass-before-merging)).
-Here that means a green pull request can still break `main`, and pushing `main` deploys to
-production. CI is `on: push`, so the merge commit is tested too, and `docs/agents/workflow.md` →
+Here that means a green pull request can still break `main`, and a push to `main` releases if the
+job that follows it is green. CI is `on: push`, so the merge commit is tested too, and `docs/agents/workflow.md` →
 *After the merge* is the step that looks. Turn strict on if a second person starts landing work, or
 if two branches are ever routinely open at once.
 
@@ -202,13 +224,14 @@ if two branches are ever routinely open at once.
 `scripts/check-docs.ts` compares the Vercel rows against `vercel env ls` and fails when they
 disagree.
 
-*Read back from `vercel env ls --project canoncore` and `gh secret list` on 13 August 2026.*
+*Read back from `vercel env ls --project canoncore` and `gh secret list` on 14 August 2026.*
 
 | Variable | Holder | Environments | Sensitivity | What it is |
 | --- | --- | --- | --- | --- |
 | `DATABASE_URL` | Vercel | Production | Sensitive | The application role's connection string. Production only, on purpose: a static string must not be what a preview uses |
 | `DATABASE_APP_USER` | Vercel | Production, Preview, Development | Non-sensitive | The application role name, for a preview to compose its own URL |
 | `DATABASE_APP_PASSWORD` | Vercel | Production, Preview | Sensitive | Its password. Inherited unchanged by every preview branch |
+| `DATABASE_PRODUCTION_HOST` | Vercel | Production, Preview | Non-sensitive | Production's Neon host, so that a preview can assert the host it resolved is not that one. **Non-sensitive deliberately**: a value nobody can read back is a value nobody can catch going stale, and a stale one makes the preview's assertion vacuous |
 | `TMDB_API_READ_ACCESS_TOKEN` | Vercel | Production, Preview | Sensitive | TMDB bearer token, scope `api_read` |
 | `RESEND_API_KEY` | Vercel | Production, Preview | Sensitive | Two distinct keys under one name, one per environment |
 | `EMAIL_FROM` | Vercel | Production, Preview | Sensitive | `CanonCore <noreply@mail.canoncore.com>` |
@@ -220,6 +243,12 @@ disagree.
 August 2026. Whether the integration re-writes them is checked by **CAN-69 Record the credential
 purge**.
 
+**The application does read two of them, and they still belong in no row here.** A preview
+composes its connection string from `NEON_PGHOST` and `NEON_PGDATABASE`, which Neon injects into
+that one deployment by webhook. They are not project-level variables, `vercel env ls` cannot show
+them, and a project-level one would be the bug — see *How a preview reaches its own database*
+below.
+
 **A Sensitive variable cannot be read back, by anyone** — not by the CLI, not from the dashboard,
 not by whoever set it ([incident](incidents.md#a-vercel-sensitive-variable-cannot-be-read-back-by-anyone)).
 **If one is lost, reissue it at the source.** Each section below names where its source is.
@@ -230,10 +259,17 @@ not by whoever set it ([incident](incidents.md#a-vercel-sensitive-variable-canno
 different question from this table: the table is what is provisioned, the schema is what the code
 reads.
 
-> **No deployment has read any of these.** `apps/web` deploys but reads no environment variable, so
-> the first read still has not happened, and "production and preview builds receive it" remains a
-> platform guarantee rather than an observation. It falls to the first ticket that consumes a
-> credential — CAN-23 for the database, CAN-26 for TMDB.
+> **The database rows are read; the rest are not.** Since **CAN-23 One Story from Neon, behind
+> row-level security** a deployment opens a connection, so `DATABASE_URL`,
+> `DATABASE_APP_USER`, `DATABASE_APP_PASSWORD` and `DATABASE_PRODUCTION_HOST` are read at request
+> time by [`apps/web/src/db/database-url.ts`](../apps/web/src/db/database-url.ts). Every other row
+> is still a platform guarantee rather than an observation, waiting on the ticket that consumes it
+> — CAN-26 Import a series from TMDB, with the overlay behind it.
+>
+> **They are read at request time and not at build time, on purpose.** A schema demanding
+> `DATABASE_URL` of every build would refuse a preview's, which correctly has none, and a refused
+> preview build reports the required `Vercel` context red — so the gate CAN-49 Refuse to build without the
+> environment variables the app needs put there would have blocked every merge. `apps/web/src/env.ts` says the same thing next to the code.
 
 ## Database
 
@@ -275,6 +311,23 @@ Neon's `neondb_owner` has `rolbypassrls = true` and is therefore never the appli
 | `canoncore_migrator` | Owns every table it creates. Runs migrations | `false` |
 | `canoncore_app` | The application connects as this and nothing else | `false` |
 
+### Schema
+
+`public.story`, `public.visibility` and `drizzle.__drizzle_migrations`, every one of them owned by
+`canoncore_migrator`, with row-level security on `story` and one public row in it. Applied to
+Neon's `main` on **14 August 2026**, by hand and deliberately ahead of the merge: a preview branch
+is a copy of `main` taken when its deployment starts, so the schema has to be there before the code
+that reads it deploys anywhere. That is the widening in `docs/agents/workflow.md` → *What a merge
+carries*, and the release step re-runs the same migrations at merge, where Drizzle's journal makes
+them a no-op.
+
+`canoncore_migrator` also holds **`CREATE` on the database `neondb`**, granted 14 August 2026 by
+CAN-23 One Story from Neon, behind row-level security and read back with
+`has_database_privilege`. That is the privilege to create a *schema*,
+and Drizzle's migrator needs it before it will read its own journal
+([incident](incidents.md#drizzles-migrator-needs-create-on-the-database-before-it-reads-anything)).
+`canoncore_app` has neither that nor `CREATE` on `public`, which is unchanged.
+
 Both verified against `pg_roles` rather than assumed, and proven end to end: the application role
 sees zero rows through a table with RLS enabled and no policy, and cannot create tables
 (`permission denied for schema public`). Table ownership sits with the migration role on purpose:
@@ -293,13 +346,22 @@ a preview at production:
 | Half | Standing |
 | --- | --- |
 | A branch exists, with `canoncore_app` usable on it, at a host that is not production's | **Observed** ([incident](incidents.md#a-preview-branch-inherits-its-parents-role-passwords)) |
-| The branch's `NEON_PGHOST` reaches the preview's runtime, in place of the static project-level value | **Cited, not observed.** Neon states the branch variables are "injected via webhook at deployment time, overriding preview environment variables for this deployment only" ([preview branching](https://neon.com/docs/guides/vercel-native-integration-previews)) |
+| The branch's `NEON_PGHOST` reaches the preview's runtime, in place of the static project-level value | **Cited, and now asserted rather than assumed.** Neon states the branch variables are "injected via webhook at deployment time, overriding preview environment variables for this deployment only" ([preview branching](https://neon.com/docs/guides/vercel-native-integration-previews)) |
 
-> **No preview runtime has yet reported the host it resolved.** It cannot be checked from outside a
-> running deployment: the injected values never appear in `vercel env pull`, by design. **CAN-23** is
-> the first code to connect to Postgres and is where it gets confirmed — **treat the composed URL as
-> sound in design and unproven in execution** until then, and have CAN-23 assert the host it
-> connected to rather than assume it.
+> **A preview now reports the host it resolved, and refuses to serve if it is the wrong one.** It
+> cannot be checked from outside a running deployment — the injected values never appear in
+> `vercel env pull`, by design — so **CAN-23 One Story from Neon, behind row-level security** put the
+> check inside one:
+> [`apps/web/src/db/database-url.ts`](../apps/web/src/db/database-url.ts) composes the string,
+> logs the host, and throws if a preview has reached production's Neon compute. It compares
+> computes rather than hostnames, because one Neon compute answers to a pooled name and an
+> unpooled one and a preview reaching production by the second is still production.
+> `DATABASE_PRODUCTION_HOST` is what it compares against, and production asserts the same value
+> from the other side so that a stale one cannot pass unnoticed.
+>
+> **The evidence is a runtime log line**, `[canoncore] database host … (VERCEL_ENV=…)`, read with
+> `vercel logs`. Until a preview has been read that way the mechanism is asserted rather than
+> observed; the assertion failing is loud, which is the difference from before.
 
 **This departs from CAN-18 as written.** That ticket asked for the application role's connection
 string as a Vercel variable for production **and preview**. Taken literally it is unsatisfiable: a
@@ -674,14 +736,19 @@ because it is pinned to this product's own Resend account and domain.
 
 ## The served surface
 
-`www.canoncore.com` serves `apps/web`, a Next.js application, and its one route renders the same
-copy the static holding page carried. CAN-22 deleted `public/index.html` and the root `vercel.json`
-that served it.
+`www.canoncore.com` serves `apps/web`, a Next.js application, and its one route is rendered per
+request. CAN-22 A page on a public URL, deployed, with CI deleted `public/index.html` and the root
+`vercel.json` that served it.
 
-The page still says the product is being rebuilt, because it is. What changed at CAN-22 is the
-mechanism, not the message: the point of the walking skeleton is to prove the path from a push to a
-public URL, and holding the copy lets a stranger's view of production stay honest while that path is
-replaced underneath it.
+The page still says the product is being rebuilt, because it is, and that copy is unchanged since
+CAN-22. What CAN-23 One Story from Neon, behind row-level security added beneath it is **one public
+Story, read from Neon**: the row migration
+0002 inserts, fetched as the anonymous session user inside a transaction, filtered by the policy on
+`story` rather than by the query. That is the walking skeleton finished — a push reaches a public
+URL, and a row reaches a stranger — and it is why the route is no longer static.
+
+Nothing else about a stranger's view changed. There is still nothing to sign in to and no way for
+anyone but the operator to put a row here.
 
 The **Hosting** settings above are what protects against how that page was first deployed
 ([incident](incidents.md#the-holding-page-was-first-deployed-straight-to-production)).

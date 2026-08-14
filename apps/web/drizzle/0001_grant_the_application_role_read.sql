@@ -1,0 +1,12 @@
+-- Row-level security narrows what a role may read; it grants nothing. Without this the
+-- application role is refused the table outright, which is a loud error rather than the silent
+-- empty result a broken policy gives, but it is still a refusal.
+--
+-- SELECT only, and no INSERT, UPDATE or DELETE: nothing in this release writes a Story, and a
+-- privilege that exists is one a policy has to be written for.
+--
+-- `canoncore_migrator` needs no grant here — it owns the table, and an owner bypasses row-level
+-- security ("Table owners normally bypass row security as well",
+-- https://www.postgresql.org/docs/current/ddl-rowsecurity.html), which is exactly why table
+-- ownership sits with the migration role and not with the application's.
+GRANT SELECT ON TABLE "story" TO "canoncore_app";

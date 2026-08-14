@@ -50,6 +50,9 @@ is what the rule was built on.
 - [A preview branch inherits its parent's role passwords](#a-preview-branch-inherits-its-parents-role-passwords)
 - [What a preview branch looks like, and how long it outlives its PR](#what-a-preview-branch-looks-like-and-how-long-it-outlives-its-pr)
 - [`parent-data` cloning cannot be switched off in the integration](#parent-data-cloning-cannot-be-switched-off-in-the-integration)
+- [Drizzle's migrator needs `CREATE` on the database before it reads anything](#drizzles-migrator-needs-create-on-the-database-before-it-reads-anything)
+- [A `SET LOCAL` custom setting reverts to the empty string, not to NULL](#a-set-local-custom-setting-reverts-to-the-empty-string-not-to-null)
+- [The Neon owner cannot `SET ROLE` to either application role without granting itself the option](#the-neon-owner-cannot-set-role-to-either-application-role-without-granting-itself-the-option)
 
 **Credentials**
 - [Regenerating a TMDB key does not revoke the old one promptly](#regenerating-a-tmdb-key-does-not-revoke-the-old-one-promptly)
@@ -549,6 +552,83 @@ reads `init_source: parent-data`.
 Unticking Preview would send previews back to sharing `main`, the state CAN-45 fixed. So the
 decision moved to **CAN-79 Previews clone production rows, and the integration has no switch to stop
 it**, which owns creating schema-only branches in CI instead.
+
+## Drizzle's migrator needs `CREATE` on the database before it reads anything
+
+**14 August 2026, CAN-23 One Story from Neon, behind row-level security.** The first migration this
+project ever ran failed against a PostgreSQL 17 where `canoncore_migrator` held `USAGE, CREATE` on
+schema `public` and nothing on the database — which is exactly how Neon had it, read the same day:
+`neondb`'s `datacl` gave the role `c` (CONNECT) alone.
+
+`drizzle-kit migrate` **exited 1 and printed no reason**, stopping after `[⣷] applying
+migrations...`. The same migration through `drizzle-orm/node-postgres/migrator` in-process gave the
+message the CLI swallowed: `permission denied for database`. The cause is in
+`drizzle-orm/pg-core/dialect.js`, whose `migrate` issues
+`CREATE SCHEMA IF NOT EXISTS "drizzle"` **before** reading its journal, and PostgreSQL checks the
+privilege before the `IF NOT EXISTS`.
+
+**Two things this settles.** The privilege is not optional and pointing the journal at `public`
+instead does not avoid it — `CREATE SCHEMA IF NOT EXISTS public` is refused for the same reason. And
+the release step does fail the build rather than passing silently, which is the half that matters
+given [Waveger](#waveger-the-build-ran-no-migrations-and-nobody-knew); what it does not do is say
+why, so a migration step that exits 1 with no message is this, until proven otherwise.
+
+Fixed by granting `CREATE ON DATABASE neondb TO canoncore_migrator` — recorded in
+`docs/infrastructure.md` → *Roles*, and reproduced for throwaway databases by
+`apps/web/src/db/roles.sql`. It widens the role that already owns every table; `canoncore_app` is
+untouched, and `has_database_privilege('canoncore_app', 'neondb', 'CREATE')` still reads false.
+
+## The Neon owner cannot `SET ROLE` to either application role without granting itself the option
+
+**14 August 2026, CAN-23 One Story from Neon, behind row-level security.** Applying the first
+migration to Neon's `main` needed the objects to end up owned by `canoncore_migrator`, and the
+`neon` MCP connects as `neondb_owner`. `SET ROLE canoncore_migrator` was refused —
+`permission denied to set role "canoncore_migrator"` — **after `pg_has_role(current_user,
+'canoncore_migrator', 'MEMBER')` had returned true**. Those two disagree by design: PostgreSQL 16
+split a membership into ADMIN, INHERIT and SET options, and *"a role can only `SET ROLE` to another
+role if it has the `SET` option on the membership"*
+([`GRANT`](https://www.postgresql.org/docs/current/sql-grant.html)). `pg_has_role` with `MEMBER`
+does not answer that question, so **it is the wrong thing to check before assuming `SET ROLE` will
+work.**
+
+`pg_auth_members` is. Read that day, both memberships were granted by `cloud_admin` with
+`admin_option: true`, `inherit_option: false`, `set_option: false` — so `neondb_owner` was already
+entitled to give itself the option, which is what makes doing it a use of an existing entitlement
+rather than an escalation:
+
+```sql
+GRANT canoncore_migrator TO neondb_owner WITH SET TRUE;
+-- ... SET ROLE canoncore_migrator, then the work ...
+REVOKE canoncore_migrator FROM neondb_owner GRANTED BY neondb_owner;
+```
+
+**Revoke `GRANTED BY` yourself, not plainly.** The `GRANT` adds a *second* `pg_auth_members` row
+with `grantor: neondb_owner` and leaves Neon's `cloud_admin` row untouched, so the qualified revoke
+removes exactly what was added. Both memberships were read back afterwards and matched their
+original state.
+
+The same restriction governs `ALTER TABLE … OWNER TO`, so there is no way round it by creating the
+objects as `neondb_owner` and reassigning them: that also requires being able to `SET ROLE` to the
+new owner.
+
+## A `SET LOCAL` custom setting reverts to the empty string, not to NULL
+
+**14 August 2026, CAN-23 One Story from Neon, behind row-level security.** A test asserting that
+the session user does not outlive its transaction
+read `current_setting('canoncore.user_id', true)` after the `COMMIT` and expected NULL. It got `''`.
+
+`current_setting(..., true)` returns NULL only while the parameter has never been named in that
+session. `set_config('canoncore.user_id', 'user-a', true)` defines it, and the end of the
+transaction restores the value it had before — which for a custom parameter first defined inside
+that transaction is the empty string.
+
+**Why it does not matter, and why it was still worth finding.** The empty string is this project's
+anonymous session user, so a connection handed back to the pool reverts to *anonymous* rather than
+to *unset*, and both read no owned rows: the policy compares against `owner_id`, and `story`'s
+`story_owner_id_not_blank` constraint means no owner is ever `''`. The lesson is about the
+assertion, not the behaviour — asserting on the setting tests PostgreSQL's bookkeeping, and
+asserting on the rows tests the thing the rule is about. `apps/web/src/db/rls.test.ts` does the
+second.
 
 ---
 
