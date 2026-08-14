@@ -158,10 +158,9 @@ answer first, then what will offer you something else.
   table, a "master" catalogue or an edit-approval queue all reintroduce the shared catalogue this avoids.
 - **`www.canoncore.com` canonical, apex 301ing to it** ([ADR-0010](docs/adr/0010-canonical-host-www.md))
   — `vercel:auth` and most better-auth examples suggest a `Domain`-scoped cookie, or the apex itself.
-- **Resend for transactional email, the Marketplace integration declined**
-  ([ADR-0011](docs/adr/0011-transactional-email-resend.md)) — the *only* email provider on the Vercel
-  Marketplace, so installing it reads as obvious. Refuse: it provisions a billable resource on a Hobby
-  account and takes ownership of the environment variable.
+- **Resend for transactional email, the Marketplace integration declined** ([ADR-0011](docs/adr/0011-transactional-email-resend.md))
+  — the *only* email provider on the Vercel Marketplace, so installing it reads as obvious. Refuse: it
+  provisions a billable resource on a Hobby account and takes ownership of the environment variable.
 - **Adult works catalogued, their artwork never displayed**
   ([ADR-0012](docs/adr/0012-adult-works-catalogued-artwork-never-displayed.md)) — Trakt filters adult
   titles out of its TMDB import, so "just exclude them" reads as obvious. It is not: recording that a
@@ -169,6 +168,8 @@ answer first, then what will offer you something else.
 - **TMDB as the general source** ([ADR-0009](docs/adr/0009-external-source-tmdb.md)) — its published
   terms forbid keeping data past six months, so a reader who checks will think this wrong. It rests on a
   written exception TMDB gave this project, held on CAN-34 Attach TMDB's written retention approval.
+- **Hand-written CSS, no framework and no component library** ([ADR-0013](docs/adr/0013-hand-written-css-no-framework.md))
+  — `vercel:shadcn` and `vercel:next-forge` both propose one, and Next's own CSS page recommends Tailwind twice.
 
 ## Working practice
 

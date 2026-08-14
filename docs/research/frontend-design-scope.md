@@ -55,7 +55,12 @@ in the table.
 | **Design 2** | How an Ordering reads — information architecture and interface copy | CAN-27 Orderings and Placements, and the imported broadcast Ordering, and CAN-28 Author an Ordering by hand, have landed | *Laying out an Ordering* |
 | **Design 3** | The accessibility conformance neither planned gate can reach | Design 1 and Design 2 have landed | *Where both planned gates stop* |
 | ~~Design B~~ | `packages/ui`, reusable primitives, Storybook | **Do not file.** Its trigger is not reachable and its content is largely a mirage | *Web and native share three things* |
-| ~~Design tokens~~ | A DTCG token file | **Do not file yet.** One acceptance criterion on Design 1, one paragraph in ADR-0013 | *Tokens are separable* |
+| ~~Design tokens~~ | A DTCG token file | **Do not file yet.** One acceptance criterion on Design 1, one paragraph in [ADR-0013](../adr/0013-hand-written-css-no-framework.md) | *Tokens are separable* |
+
+**ADR-0013 has since been written**, under CAN-50 Record the styling decision, which CAN-22 made by
+default. Every "belongs in ADR-0013" below is discharged there rather than outstanding; the
+reasoning stays here, and the decision is
+[`0013-hand-written-css-no-framework.md`](../adr/0013-hand-written-css-no-framework.md).
 
 ## The answer in one paragraph
 

@@ -519,3 +519,8 @@ hand-written CSS with custom properties and a `prefers-color-scheme` dark varian
 no component library. That is very likely the right answer under this repository's principles, and
 it is the one significant stack choice with no ADR behind it. Record it before something
 relitigates it; the `vercel:shadcn` and `vercel:next-forge` skills both propose otherwise.
+
+**Recorded on 14 August 2026** as
+[ADR-0013](../adr/0013-hand-written-css-no-framework.md), under CAN-50 Record the styling decision,
+which CAN-22 made by default. The rejected alternatives are there, along with a third thing that will
+try to reopen it and that neither this file nor the ticket named: Next.js's own CSS documentation.
