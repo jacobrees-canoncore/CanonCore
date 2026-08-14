@@ -51,8 +51,8 @@ that is deliberately as far as it goes.
 | | |
 | --- | --- |
 | Status | **Closed.** Not shared |
-| Opened by | [CAN-44 Make the Online Safety Act records live, and create the reporting address](https://linear.app/jacobrees-canoncore/issue/CAN-44), when every one of its criteria is met |
-| Also required | [CAN-32 Roles, takedown, and the Online Safety Act surfaces](https://linear.app/jacobrees-canoncore/issue/CAN-32) — the terms of service and the reporting route have to render before they can be relied on |
+| Was opened by | [CAN-44 Make the Online Safety Act records live, and create the reporting address](https://linear.app/jacobrees-canoncore/issue/CAN-44) — **met on 14 August 2026**: the records are dated, the address exists and a test message was seen arriving in it |
+| Still required | [CAN-32 Roles, takedown, and the Online Safety Act surfaces](https://linear.app/jacobrees-canoncore/issue/CAN-32) — the terms of service and the reporting route have to render before they can be relied on. **This is the only thing now holding the gate shut** |
 | Recorded here since | 13 August 2026, by **CAN-71 Make the compliance records valid: dates, the alternative-measures record, and the PCU register** |
 
 **What it covers.** Telling anyone the address, linking it anywhere public, and anything that invites a
@@ -503,15 +503,38 @@ is in ADR-0011.
 
 ### DNS for mail
 
-Five records at Namecheap. The first four are Resend's, from its Records tab; the fifth is ours.
+Eight records at Namecheap, serving **two unrelated mail systems on one zone**. Resend sends and
+receives on the `mail` and `send.mail` subdomains; Namecheap Private Email holds the reporting
+mailbox on the apex. They are listed together because the failure mode is editing one set and
+destroying the other — see *The Mail Settings dropdown is a trap* below.
 
-| Type | Host | Value | Priority |
-| --- | --- | --- | --- |
-| `TXT` | `resend._domainkey.mail` | `p=MIGfMA0GCSqGSIb3…ku66YzQIDAQAB` | |
-| `TXT` | `send.mail` | `v=spf1 include:amazonses.com ~all` | |
-| `MX` | `send.mail` | `feedback-smtp.eu-west-1.amazonses.com.` | 10 |
-| `MX` | `mail` | `inbound-smtp.eu-west-1.amazonaws.com.` | 10 |
-| `TXT` | `_dmarc` | `v=DMARC1; p=none; rua=mailto:dmarc@mail.canoncore.com,mailto:re+wgfzjdbnxfr@dmarc.postmarkapp.com;` | |
+| Type | Host | Value | Priority | Owner |
+| --- | --- | --- | --- | --- |
+| `TXT` | `resend._domainkey.mail` | `p=MIGfMA0GCSqGSIb3…ku66YzQIDAQAB` | | Resend |
+| `TXT` | `send.mail` | `v=spf1 include:amazonses.com ~all` | | Resend |
+| `MX` | `send.mail` | `feedback-smtp.eu-west-1.amazonses.com.` | 10 | Resend |
+| `MX` | `mail` | `inbound-smtp.eu-west-1.amazonaws.com.` | 10 | Resend |
+| `TXT` | `_dmarc` | `v=DMARC1; p=none; rua=mailto:dmarc@mail.canoncore.com,mailto:re+wgfzjdbnxfr@dmarc.postmarkapp.com;` | | ours |
+| `MX` | `@` | `mx1.privateemail.com.` | 10 | Private Email |
+| `MX` | `@` | `mx2.privateemail.com.` | 10 | Private Email |
+| `TXT` | `@` | `v=spf1 include:spf.privateemail.com ~all` | | Private Email |
+
+The apex rows were added by **CAN-44 Make the Online Safety Act records live, and create the
+reporting address** on 14 August 2026, by hand, with Mail Settings left on **Custom MX**.
+
+> **The Mail Settings dropdown is a trap.** Namecheap's Advanced DNS page has a *Mail Settings*
+> selector whose options are mutually exclusive — `Custom MX`, `Email Forwarding`, `Private Email`,
+> `Gmail`, `MXE Record`, `No Email Service`. **Selecting anything other than `Custom MX` replaces the
+> entire MX table**, so both Resend rows vanish. CAN-44 verified this against the live zone by
+> selecting `Email Forwarding` and then `Private Email` and watching the table empty each time,
+> reverting without saving both times. Namecheap's own guidance is to stay on `Custom MX` and add the
+> records by hand "if you want to use multiple email services or to add MX records to a subdomain"
+> ([Private Email DNS records](https://www.namecheap.com/support/knowledgebase/article.aspx/1338/2176/how-to-set-up-namecheap-private-email-dns-records-for-domains-on-namecheap-basicpremium-nameservers/)),
+> which is exactly this zone. **Never touch that dropdown.**
+>
+> The same article lists an optional `mail` **CNAME** to `privateemail.com` for webmail convenience.
+> **Do not add it.** A CNAME cannot coexist with other records at the same name, and `mail` already
+> carries Resend's inbound `MX`.
 
 `send.mail` is the Return-Path: Resend defaults it to `send.<domain>`. **Do not make the Return-Path
 a name you also send from** — AWS, whose MAIL FROM machinery this is, says it "shouldn't be a
@@ -551,19 +574,27 @@ message can be `delivered` and sitting in Junk, so **a deliverability claim need
 receivers. CAN-20 was proven this way
 ([incident](incidents.md#the-delivered-test-message-passed-all-three-checks)).
 
+**`report@canoncore.com` is readable the same way**, as the `Canoncore` account in Mail.app — the
+Private Email mailbox added by CAN-44 over IMAP. It is a second reference recipient, and the one to
+use whenever the question is whether the *reporting* route works rather than whether product mail
+lands.
+
 Mail sent to `*@mail.canoncore.com` needs no such check, because receiving is enabled and the
 `resend` MCP reads that mailbox directly.
 
 ## Reporting address
 
-Decided by CAN-21, which wrote the documents; **created by CAN-44**, which is where the remaining
-steps live now that CAN-21 is closed.
+Decided by CAN-21, which wrote the documents; **created by CAN-44** on 14 August 2026.
 
 | | |
 | --- | --- |
 | Address | `report@canoncore.com` |
-| Mechanism | Namecheap free email forwarding on the apex, forwarding to Jacob's iCloud |
-| Status | **Not created.** No MX record for the apex exists yet |
+| Mechanism | A **Namecheap Private Email mailbox** on the apex, read in Jacob's Mail.app over IMAP |
+| Status | **Live.** Created 14 August 2026 and proved by a test message, below |
+| Subscription | Private Email **Launch**, one mailbox, 5 GB, 10 aliases. Order 211112248, subscription 4332833 |
+| Cost | Free for the first month, then **£11.03/year**, auto-renew on. First charge 14 September 2026 |
+| Mailbox password | Not recorded here. Jacob's password manager; set at creation, never displayed by Namecheap afterwards |
+| Webmail | `https://privateemail.com`, if Mail.app is unavailable |
 
 The Online Safety Act requires a reporting route that works for people who have no account and are
 not users at all (`s.20(5)` affected persons), and the Codes require it to be easy to find and use.
@@ -573,30 +604,47 @@ What that needs is in
 **It is on the apex, not on `mail.canoncore.com`** — a change from CAN-21's wording, which assumed
 the Resend inbound domain. Resend receives at `*@mail.canoncore.com`, but that mailbox is readable
 only through the API, and **an inbox only an API can read is not "monitored by a human"**. The duty
-is that reports reach a person. This does not disturb the Resend setup: `mail.canoncore.com` and
-`send.mail.canoncore.com` keep their own MX records, the apex currently has none, and adding one for
-forwarding affects receiving only.
+is that reports reach a person. It does not disturb the Resend setup: `mail.canoncore.com` and
+`send.mail.canoncore.com` keep their own records, and the apex had none until CAN-44 added the three
+in *DNS for mail* above.
 
-**Outstanding, with the ticket that owns each.** The first two are acts on someone else's dashboard
-and in a mailbox; the third needs application code.
+**It is a real mailbox, not a forward** — a change from CAN-21's plan, which assumed Namecheap's free
+email forwarding. That turned out to be unusable here: free forwarding is only available with Mail
+Settings set to `Email Forwarding`, and that setting destroys the Resend MX records (*The Mail
+Settings dropdown is a trap*, above). A paid Private Email mailbox needs no such setting, and it is
+the better answer anyway — **there is no forwarding hop to fail silently**, which is the failure the
+published document's promise could not survive. It is read in Mail.app alongside Jacob's other
+accounts, which is what makes "monitored by a human" true rather than aspirational.
+
+**Still outstanding, and who owns it.**
 
 | | Owner |
 | --- | --- |
-| Add the apex MX record and the forwarding rule at Namecheap | CAN-44 |
-| Send a test message and confirm it arrives, reading the destination mailbox with `macos-mail-mcp`. **A forward that silently fails is worse than no address**, because the published document promises a person that reports are read | CAN-44 |
 | Make the address available to the application as configuration rather than hard-coded, so the two public documents and the reporting route cannot drift apart | CAN-32 |
 
-**Until all three are done the URL is not shared** — see [The URL-sharing gate](#the-url-sharing-gate).
-An address a published document promises is read, which nobody has yet tested, is the specific failure
-that gate exists to prevent.
+**The URL is still not shared**, because CAN-32 has not shipped — see
+[The URL-sharing gate](#the-url-sharing-gate). CAN-44's half of that gate is met: the address exists
+and a test message was seen arriving in the mailbox, which is the specific failure the gate exists to
+prevent.
+
+**The test that proved it, 14 August 2026.** Both halves, because neither alone is evidence:
+
+| | |
+| --- | --- |
+| Sent | `can44@mail.canoncore.com` → `report@canoncore.com`, via the `resend` MCP |
+| Resend id | `7e60e852-0efd-476b-a8a0-2b3a02b4a350`, status `delivered` |
+| Message id | `<010201a000258a09-72b2af67-3f32-4789-9e71-5035d66f3256-000000@eu-west-1.amazonses.com>` |
+| Arrived | `INBOX` of the `Canoncore` account in Mail.app, read with `macos-mail-mcp`, 13:01 local |
+| Not | Junk. That is the half a provider's `delivered` cannot tell you |
 
 **The reporting route itself is not finished by this address.** ICU D2.2(a) recommends a report
 control on each publicly visible record, which v1 does not ship; it is recorded as an alternative
 measure in the code-measures register and built by CAN-43, deliberately outside v1.
 
 > **CAN-21 closed with this unticked, and its wording was already out of date** — its criterion said
-> the address exists "on `mail.canoncore.com`". CAN-44 carries the corrected version. Nothing here
-> is owned by a closed ticket.
+> the address exists "on `mail.canoncore.com`", and CAN-44's own criterion then said Namecheap free
+> forwarding on the apex "does not disturb Resend". Both were wrong, and each was corrected by the
+> ticket that came after it. Nothing here is owned by a closed ticket.
 
 ## Error reporting: Sentry
 

@@ -42,9 +42,11 @@ by [CAN-32 Roles, takedown, and the Online Safety Act surfaces](https://linear.a
 from the footer of every page and from the public Ordering page, with the address itself created by
 [CAN-44 Make the Online Safety Act records live, and create the reporting address](https://linear.app/jacobrees-canoncore/issue/CAN-44).
 
-**Neither has shipped.** Until both do, the service carries no user-generated content and no public
-records, so there is nothing to report and the alternative is not yet load-bearing. It becomes so at the
-moment the URL is shared, which is the gate in `docs/infrastructure.md` → *The URL-sharing gate*.
+**The address has shipped; the surfaces have not.** CAN-44 created `report@canoncore.com` on
+14 August 2026 and proved a message arrives in a mailbox a person reads. Until CAN-32 renders the
+document, the service carries no user-generated content and no public records, so there is nothing to
+report and the alternative is not yet load-bearing. It becomes so at the moment the URL is shared,
+which is the gate in `docs/infrastructure.md` → *The URL-sharing gate*.
 
 ## `s.23(4)(c)` — how the alternative amounts to compliance
 

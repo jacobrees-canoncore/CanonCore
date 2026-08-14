@@ -40,14 +40,23 @@ Ofcom expects children in different age groups to be considered separately. The 
 age of 13 in its terms, so the relevant population is 13 to 17. Younger children are not permitted, though
 no age assurance enforces this, so the assessment does not assume their absence.
 
-> ⚠️ **The minimum age of 13 originates in no ticket or ADR.** It was introduced when the terms of
-> service were drafted, because ICU G3.2(c) requires the terms to be written to a reading age
-> comprehensible for the youngest permitted user, and that question has to have an answer. Thirteen is the
-> common default and matches most comparable services. **Confirming or changing it is a criterion on
-> [CAN-44 Make the Online Safety Act records live, and create the reporting address](https://linear.app/jacobrees-canoncore/issue/CAN-44)**,
-> so it is owned rather than merely pending. If it changes, the reading age of the terms, the ICU D2.3(e)
-> and ICU G3.2(c) lines in the [Code measures register](code-measures-register.md), and this section all
-> change with it.
+> **The minimum age of 13 was confirmed on 14 August 2026** by
+> [CAN-44 Make the Online Safety Act records live, and create the reporting address](https://linear.app/jacobrees-canoncore/issue/CAN-44),
+> which carried it as a criterion. It had originated in no ticket or ADR: it was introduced when the terms
+> of service were drafted, because ICU G3.2(c) requires the terms to be written to a reading age
+> comprehensible for the youngest permitted user, and that question has to have an answer.
+>
+> **Why 13, rather than lower or higher.** Section 9 of the Data Protection Act 2018 sets 13 as the age at
+> which a child in the United Kingdom may consent to an information society service without a parent, so
+> anything lower would oblige this service to build parental-consent machinery it has no other reason to
+> have. Anything higher would not be enforced, because no age assurance is deployed, and it would raise the
+> drafting target of the terms above the reading age of the 13 to 17 population this assessment expects to
+> arrive, weakening ICU D2.3(e) and ICU G3.2(c) rather than strengthening them.
+>
+> If it ever changes, the reading age of the terms, the ICU D2.3(e) and ICU G3.2(c) lines in the
+> [Code measures register](code-measures-register.md), and this section all change with it. Lowering it
+> below 13 also requires this assessment to be redone before the change ships, which
+> [Step 4](#step-4--review) records.
 
 ## Step 2 — Risk of each kind of content harmful to children
 
