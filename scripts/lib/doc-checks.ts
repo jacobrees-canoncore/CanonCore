@@ -305,14 +305,18 @@ export function compareVariables(
  * of heading get an anchor GitHub will not resolve. Deleting characters from the raw line
  * approximated rendering, and where the approximation broke, the check did not miss a broken
  * anchor — it *required* one, because the only spelling that satisfied it was the spelling GitHub
- * will not resolve.
+ * will not resolve. No strip closes that class, which is why the fix is a parser and not a better
+ * regex: `_Helpful_` and `neondb_owner` differ only in what rendering does to them, since GitHub
+ * drops the first pair as markup and keeps the second as content, which is why `ERR_ACCESS_DENIED`
+ * in nodejs/node's `doc/api/errors.md` anchors as `#err_access_denied` [3]. Any rule written about
+ * `_` alone gets one of the two wrong, and CAN-82 check-docs requires a heading anchor GitHub will
+ * not resolve, for any heading with an underscore took that trade deliberately. There is now
+ * nothing to trade.
  *
- * No strip closes that class, which is why the fix is a parser and not a better regex. `_Helpful_`
- * and `neondb_owner` differ only in what rendering does to them: GitHub drops the first pair as
- * markup and keeps the second as content, which is why `ERR_ACCESS_DENIED` in nodejs/node's
- * `doc/api/errors.md` anchors as `#err_access_denied` [3]. Any rule written about `_` alone gets
- * one of the two wrong, and CAN-82 check-docs requires a heading anchor GitHub will not resolve,
- * for any heading with an underscore took that trade deliberately. There is now nothing to trade.
+ * Both `toString` options are off because both defaults treat markup as contents, which is the same
+ * mistake one layer down: `includeHtml` would put a literal `<kbd>` into the slug where GitHub puts
+ * only what the element wraps, and `includeImageAlt` would slug an `alt` attribute, which is not
+ * contents at all.
  *
  * The parser also settles what counts as a heading, which the `^#` line match it replaced could
  * only guess at: a `#` comment inside a fenced code block is not one (six were being read as
@@ -337,7 +341,7 @@ export function anchorsOf(body: string): { anchors: Set<string>; titles: string[
   const anchors = new Set<string>();
   const titles: string[] = [];
   for (const heading of headings(parseMarkdown(body).children)) {
-    const text = toString(heading);
+    const text = toString(heading, { includeHtml: false, includeImageAlt: false });
     titles.push(norm(text));
     anchors.add(slugger.slug(text));
   }

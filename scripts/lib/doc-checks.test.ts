@@ -172,6 +172,21 @@ test('a link in a heading is slugged with its text, never its target', () => {
   assert.ok(anchors.has('see-the-workflow-first'))
 })
 
+// The same mistake one layer down, and the reason both `toString` options are off. Inline HTML and
+// an `alt` attribute are markup rather than contents, so GitHub slugs neither.
+
+test('inline HTML in a heading contributes what it wraps, not the tags', () => {
+  const { anchors } = anchorsOf('## Press <kbd>Ctrl</kbd> to stop')
+
+  assert.ok(anchors.has('press-ctrl-to-stop'))
+})
+
+test('an image in a heading contributes nothing, its alt text least of all', () => {
+  const { anchors } = anchorsOf('## ![logo](logo.png) The project')
+
+  assert.ok(anchors.has('-the-project'))
+})
+
 test('repeated headings get GitHub -1 / -2 suffixes', () => {
   const { anchors } = anchorsOf(
     ['## The account', '## The account', '## The account'].join('\n\ntext\n\n'),
@@ -180,9 +195,10 @@ test('repeated headings get GitHub -1 / -2 suffixes', () => {
   assert.deepEqual([...anchors], ['the-account', 'the-account-1', 'the-account-2'])
 })
 
-// What is a heading at all. Each of the three was wrong before CAN-87 check-docs slugs the raw
-// heading, not the rendered one, so three kinds of heading get an anchor GitHub will not resolve,
-// and the first two were wrong in this repository's own documents.
+// What is a heading at all. The first two were wrong in this repository's own documents before
+// CAN-87 check-docs slugs the raw heading, not the rendered one, so three kinds of heading get an
+// anchor GitHub will not resolve. The third never was: the `^#` line match ignored frontmatter
+// correctly, and it is the parser that would invent a heading there without its extension.
 
 test('a `#` comment inside a fenced code block is not a heading', () => {
   const { anchors, titles } = anchorsOf(
