@@ -52,6 +52,12 @@ we will remove the account.
 only to accounts held by children. It covers pornographic content, and content that encourages, promotes
 or gives instructions for suicide, self-harm or eating disorders.
 
+**Keeping a catalogue record of a film or a programme is not posting that film's content.** A record here
+is text: a title, a year, a runtime, and where you think the work belongs in an ordering. That stays true
+when the work itself is pornographic, and such works may be recorded. What CanonCore does not do is show
+their artwork. Where our source marks a work as adult, its poster and every other image for it are never
+displayed on CanonCore, to anyone.
+
 ## How we protect people from illegal content
 
 We keep the time that illegal content is present on CanonCore as short as we can. Because the risks are

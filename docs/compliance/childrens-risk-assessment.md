@@ -11,6 +11,7 @@ children's safety duties and Ofcom's *Protection of Children Codes of Practice*.
 | Service name | CanonCore (`https://www.canoncore.com`) |
 | Service type | User-to-user service |
 | Completion date | 13 August 2026 — the same day as the children's access assessment it follows from, well inside the three months `s.11` allows |
+| Revised | 14 August 2026 — the Part 5 correction carried by [CAN-74 Rewrite ADR-0012 on Part 5 grounds](https://linear.app/jacobrees-canoncore/issue/CAN-74). No level or finding changed; the artwork constraint that holds the pornographic content finding is re-grounded in `s.81` rather than `s.12(5)` |
 | Next review date | 13 August 2027 — at least annually |
 | Completed by | Jacob Rees |
 | Named person responsible | Jacob Rees |
@@ -108,6 +109,14 @@ priority content for all users**, which is what the [terms of service](../../con
 do. That prohibition is therefore load-bearing and must not be weakened or removed without reopening this
 assessment and provisioning age assurance.
 
+> **`s.12(5)` disapplies `s.12(4)` and nothing else, and it is a Part 3 provision about what users post.**
+> It says nothing about content the service itself publishes, which is governed by Part 5 and where no
+> equivalent exception exists. That distinction is what the artwork constraint below carries, and it is
+> worked through in
+> [ADR-0012](../adr/0012-adult-works-catalogued-artwork-never-displayed.md) → *The poster is provider
+> content*. Both must hold: this section keeps `s.12(4)` out, the artwork constraint keeps `s.81` out,
+> and neither substitutes for the other.
+
 ### Measures
 
 The *Protection of Children Codes of Practice* (PCU) measures are recorded in
@@ -135,54 +144,61 @@ two that matter most for children specifically:
 
 ## Adult works in the catalogue, and why they do not change the finding
 
-> The decision itself is [ADR-0012](../adr/0012-adult-works-catalogued-artwork-never-displayed.md).
-> This section records how it bears on the assessment.
+> **The decision, and the whole of the legal argument behind it, is
+> [ADR-0012](../adr/0012-adult-works-catalogued-artwork-never-displayed.md).** It is not restated here.
+> This section records only what this assessment needs: the finding it supports, and the single
+> constraint that finding depends on.
 
 The catalogue is deliberately unbounded: any work may be recorded, including pornographic films, which
 TMDB carries and marks with an `adult` flag. This was considered directly rather than avoided, because
 the alternative reading would be that recording an adult film's existence is itself pornographic content.
 
-**It is not.** `s.236(1)` defines "pornographic content" as "content of such a nature that it is
-reasonable to assume that it was produced solely or principally for the purpose of sexual arousal"
-([s.236](https://www.legislation.gov.uk/ukpga/2023/50/section/236)). A title, a year, a runtime and a `part of` edge are not that. Recording that a
-pornographic film exists is not hosting pornography, which is why a catalogue can carry the record
-without carrying the content.
+**It is not, and the statute says so rather than leaving it to inference.** `s.61(6)` takes content
+consisting only of text out of primary priority content that is harmful to children
+([s.61](https://www.legislation.gov.uk/ukpga/2023/50/section/61)), and a record here is a title, a year,
+a runtime and a `part of` edge. Any image the carve-out lets in alongside the text is qualified as one
+that is not itself pornographic content, which is exactly where artwork enters and why the constraint
+below is the whole of the exposure.
 
-**Three structural facts keep it that way**, and all three predate this assessment:
-
-1. **No bytes, ever.** [ADR-0006](../adr/0006-no-playback-hand-off-to-media-servers.md) records that
-   CanonCore "never holds or serves bytes" and that Location is "deliberately not a path the product can
-   open, browse or resolve". Media is never stored, transcoded or streamed here.
-2. **Playback is a hand-off, not a stream.** When media server integration lands (CAN-6), CanonCore tells
-   a Plex or Jellyfin server the person already runs to play something on their own device, and receives
-   progress back, without touching a byte. The pornography, if any, exists on their server and never on
-   this service.
-3. **Ownership, Location and Progress are never shared.** Fork is out of scope for v1, and when it does
-   land it copies titles, runtimes, Placements and
-   Arguments; it explicitly does not copy Ownership, Location, Progress or private notes
-   (`CONTEXT.md`). So the records that bind a person to actual media are structurally incapable of
-   becoming another user's content.
+**Nothing about playback changes that**, and the three facts that keep it so are recorded where they
+are owned rather than repeated here: no bytes are ever held or served, media server integration is a
+hand-off to a server the person already runs, and a Fork copies titles, runtimes, Placements and
+Arguments but never Ownership, Location or Progress.
+[ADR-0006](../adr/0006-no-playback-hand-off-to-media-servers.md) and
+[ADR-0012](../adr/0012-adult-works-catalogued-artwork-never-displayed.md) → *The alternatives* carry
+them, `CONTEXT.md` carries the Fork rule, and the functionality this service deliberately lacks is set
+out once in the [illegal content risk assessment](illegal-content-risk-assessment.md).
 
 ### The one real exposure: artwork
 
-**The only thing CanonCore would ever display that could itself be pornographic content is a poster.**
+**The only thing CanonCore would ever display that could itself be pornographic content is a poster** —
+and unlike everything else on a record, it would be published by the service rather than posted by a
+user. ADR-0012 works through what follows: a poster fetched from TMDB and rendered by this service is
+provider content under `s.79(2)`, which routes it to **Part 5**, where `s.81` requires highly effective
+age assurance and **no terms-of-service exception exists**. The prohibition that answers `s.12(4)` above
+does not reach it. ADR-0012 also records that whether a poster is pornographic content at all is
+unresolved, and why the constraint is the safe course under either answer.
 
-This is closed by a mechanism CAN-13 already builds for licensing reasons: every image is a row carrying
-its type, source and licence, and a **`display_permitted` flag the public renderer refuses to override**.
+This is closed by a mechanism CAN-13 Artwork: uploads, rights and takedown already builds for licensing
+reasons: every image is a row carrying its type, source and licence, and a **`display_permitted` flag the
+public renderer refuses to override**.
 
 **Artwork for adult-flagged records must carry `display_permitted = false`.** That single constraint is
-what holds the pornographic content finding above at low, and what keeps highly effective age assurance
-out of scope under `s.12(5)`.
+what holds the pornographic content finding above at low, and what keeps the `s.81` duty out of scope.
+ADR-0012 records the flag's known blind spot — TMDB flags hardcore pornography only, and 18+ erotic
+titles are deliberately not flagged — and why the rule stands anyway.
 
 Two acceptance criteria follow, in tickets rather than here:
 
-- **CAN-26** must carry TMDB's `adult` flag through onto the Snapshot, so the renderer has something to
-  decide on. Records themselves are imported normally and are not filtered out.
-- **CAN-13** must set `display_permitted = false` for artwork on adult-flagged records, and the public
-  renderer must refuse to override it.
+- **[CAN-26 Import a series from TMDB, with the overlay behind it](https://linear.app/jacobrees-canoncore/issue/CAN-26)**
+  must carry TMDB's `adult` flag through onto the Snapshot, so the renderer has something to decide on.
+  Records themselves are imported normally and are not filtered out.
+- **[CAN-13 Artwork: uploads, rights and takedown](https://linear.app/jacobrees-canoncore/issue/CAN-13)**
+  must set `display_permitted = false` for artwork on adult-flagged records, and the public renderer must
+  refuse to override it.
 
 **If adult artwork ever becomes publicly displayable, this assessment is wrong and must be redone**, and
-`s.12(4)` age assurance comes into scope with it.
+the `s.81` Part 5 duty comes into scope with it.
 
 ## Step 4 — Review
 
@@ -196,7 +212,8 @@ illegal content assessment:
   `s.12(4)` age assurance requirement.
 - Adding a recommender, ranking or engagement signal of any kind.
 - **Making artwork on adult-flagged records publicly displayable**, which is the single change that would
-  bring age assurance into scope.
+  bring highly effective age assurance into scope — by `s.81` on the provider side, which the terms of
+  service cannot answer (ADR-0012).
 - Storing or serving media bytes, or streaming through CanonCore rather than handing off, either of which
   would reverse ADR-0006 and reopen this assessment entirely.
 - Lowering the minimum age below 13.
