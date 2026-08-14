@@ -15,7 +15,7 @@ content whether or not it is about you.
 
 ## How to report something
 
-**Email us at [report@canoncore.com](mailto:report@canoncore.com).**
+Email us at **[report@canoncore.com](mailto:report@canoncore.com)**.
 
 Tell us:
 

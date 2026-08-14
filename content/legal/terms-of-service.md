@@ -142,7 +142,7 @@ We send email using Resend. **Email logs and email metadata are stored in the Un
 country the email itself is sent from, and Resend uses 22 sub-processors to provide the service.**
 We are telling you this here because it is easy to assume otherwise.
 
-`[ ]` *Link the privacy notice here once it exists (CAN-30).*
+`[ ]` *Link the privacy notice here once it exists (CAN-30 GDPR export and erasure).*
 
 ## Changes to these terms
 

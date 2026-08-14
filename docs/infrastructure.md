@@ -51,8 +51,9 @@ that is deliberately as far as it goes.
 | | |
 | --- | --- |
 | Status | **Closed.** Not shared |
-| Was opened by | [CAN-44 Make the Online Safety Act records live, and create the reporting address](https://linear.app/jacobrees-canoncore/issue/CAN-44) — **met on 14 August 2026**: the records are dated, the address exists and a test message was seen arriving in it |
-| Still required | [CAN-32 Roles, takedown, and the Online Safety Act surfaces](https://linear.app/jacobrees-canoncore/issue/CAN-32) — the terms of service and the reporting route have to render before they can be relied on. **This is the only thing now holding the gate shut** |
+| Condition met | [CAN-44 Make the Online Safety Act records live, and create the reporting address](https://linear.app/jacobrees-canoncore/issue/CAN-44), on **14 August 2026**: the records are dated, the address exists and a test message was seen arriving in it |
+| Condition outstanding | [CAN-32 Roles, takedown, and the Online Safety Act surfaces](https://linear.app/jacobrees-canoncore/issue/CAN-32) — the terms of service and the reporting route have to render before they can be relied on |
+| Condition outstanding | [CAN-30 GDPR export and erasure](https://linear.app/jacobrees-canoncore/issue/CAN-30) — the terms of service still carry an unresolved privacy-notice placeholder, and they should not be published with it standing |
 | Recorded here since | 13 August 2026, by **CAN-71 Make the compliance records valid: dates, the alternative-measures record, and the PCU register** |
 
 **What it covers.** Telling anyone the address, linking it anywhere public, and anything that invites a
@@ -525,8 +526,8 @@ reporting address** on 14 August 2026, by hand, with Mail Settings left on **Cus
 > **The Mail Settings dropdown is a trap.** Namecheap's Advanced DNS page has a *Mail Settings*
 > selector whose options are mutually exclusive — `Custom MX`, `Email Forwarding`, `Private Email`,
 > `Gmail`, `MXE Record`, `No Email Service`. **Selecting anything other than `Custom MX` replaces the
-> entire MX table**, so both Resend rows vanish. CAN-44 verified this against the live zone by
-> selecting `Email Forwarding` and then `Private Email` and watching the table empty each time,
+> entire MX table**, so both Resend rows vanish. That was verified against the live zone on 14 August
+> 2026 by selecting `Email Forwarding`, then `Private Email`, and watching the table empty each time —
 > reverting without saving both times. Namecheap's own guidance is to stay on `Custom MX` and add the
 > records by hand "if you want to use multiple email services or to add MX records to a subdomain"
 > ([Private Email DNS records](https://www.namecheap.com/support/knowledgebase/article.aspx/1338/2176/how-to-set-up-namecheap-private-email-dns-records-for-domains-on-namecheap-basicpremium-nameservers/)),
@@ -575,7 +576,7 @@ receivers. CAN-20 was proven this way
 ([incident](incidents.md#the-delivered-test-message-passed-all-three-checks)).
 
 **`report@canoncore.com` is readable the same way**, as the `Canoncore` account in Mail.app — the
-Private Email mailbox added by CAN-44 over IMAP. It is a second reference recipient, and the one to
+Private Email mailbox added over IMAP on 14 August 2026. It is a second reference recipient, and the one to
 use whenever the question is whether the *reporting* route works rather than whether product mail
 lands.
 
@@ -584,7 +585,9 @@ Mail sent to `*@mail.canoncore.com` needs no such check, because receiving is en
 
 ## Reporting address
 
-Decided by CAN-21, which wrote the documents; **created by CAN-44** on 14 August 2026.
+Decided by **CAN-21 Write the Online Safety Act documents and establish the reporting address**,
+which wrote the documents; created on 14 August 2026 by **CAN-44 Make the Online Safety Act records
+live, and create the reporting address**.
 
 | | |
 | --- | --- |
@@ -605,27 +608,26 @@ What that needs is in
 the Resend inbound domain. Resend receives at `*@mail.canoncore.com`, but that mailbox is readable
 only through the API, and **an inbox only an API can read is not "monitored by a human"**. The duty
 is that reports reach a person. It does not disturb the Resend setup: `mail.canoncore.com` and
-`send.mail.canoncore.com` keep their own records, and the apex had none until CAN-44 added the three
-in *DNS for mail* above.
+`send.mail.canoncore.com` keep their own records, and the apex had none until the three apex rows in
+*DNS for mail* above were added.
 
-**It is a real mailbox, not a forward** — a change from CAN-21's plan, which assumed Namecheap's free
-email forwarding. That turned out to be unusable here: free forwarding is only available with Mail
+**It is a real mailbox, not a forward** — a change from the original plan, which assumed Namecheap's
+free email forwarding. That turned out to be unusable here: free forwarding is only available with Mail
 Settings set to `Email Forwarding`, and that setting destroys the Resend MX records (*The Mail
 Settings dropdown is a trap*, above). A paid Private Email mailbox needs no such setting, and it is
 the better answer anyway — **there is no forwarding hop to fail silently**, which is the failure the
 published document's promise could not survive. It is read in Mail.app alongside Jacob's other
 accounts, which is what makes "monitored by a human" true rather than aspirational.
 
-**Still outstanding, and who owns it.**
+**One thing is still outstanding**, and
+[CAN-32 Roles, takedown, and the Online Safety Act surfaces](https://linear.app/jacobrees-canoncore/issue/CAN-32)
+owns it: making the address available to the application as configuration rather than hard-coded, so
+that the two public documents and the reporting route cannot drift apart.
 
-| | Owner |
-| --- | --- |
-| Make the address available to the application as configuration rather than hard-coded, so the two public documents and the reporting route cannot drift apart | CAN-32 |
-
-**The URL is still not shared**, because CAN-32 has not shipped — see
-[The URL-sharing gate](#the-url-sharing-gate). CAN-44's half of that gate is met: the address exists
-and a test message was seen arriving in the mailbox, which is the specific failure the gate exists to
-prevent.
+**The URL is still not shared**, because those surfaces have not shipped — see
+[The URL-sharing gate](#the-url-sharing-gate). The half of that gate this address answers for is met:
+it exists, and a test message was seen arriving in the mailbox, which is the specific failure the gate
+exists to prevent.
 
 **The test that proved it, 14 August 2026.** Both halves, because neither alone is evidence:
 
@@ -642,8 +644,8 @@ control on each publicly visible record, which v1 does not ship; it is recorded 
 measure in the code-measures register and built by CAN-43, deliberately outside v1.
 
 > **CAN-21 closed with this unticked, and its wording was already out of date** — its criterion said
-> the address exists "on `mail.canoncore.com`", and CAN-44's own criterion then said Namecheap free
-> forwarding on the apex "does not disturb Resend". Both were wrong, and each was corrected by the
+> the address exists "on `mail.canoncore.com`", and the criterion that replaced it then said Namecheap
+> free forwarding on the apex "does not disturb Resend". Both were wrong, and each was corrected by the
 > ticket that came after it. Nothing here is owned by a closed ticket.
 
 ## Error reporting: Sentry
