@@ -532,8 +532,8 @@ Collected so the gap list is one place rather than scattered above.
   open decision nobody has taken.
 - **Six hundred entries with no filter**, per *Laying out an Ordering* above.
 - **The design deadline is inside v1, not after it.** [`docs/infrastructure.md`](../infrastructure.md)
-  → *The URL-sharing gate* lists its two outstanding conditions as CAN-32 Roles, takedown, and the
-  Online Safety Act surfaces and CAN-30 GDPR export and erasure, both v1 tickets. The first
+  → *The URL-sharing gate* lists gate one's two outstanding conditions as CAN-32 Roles, takedown, and
+  the Online Safety Act surfaces and CAN-30 GDPR export and erasure, both v1 tickets. The first
   stranger arrives when they land, and sees whatever design exists then.
 - **The token requirement with a v1 trigger**, per *Tokens are separable* above.
 - **The WCAG 2.2 AA criteria no planned gate can see**, per the section above.

@@ -44,9 +44,24 @@ host-only; the reasoning and what will try to reopen it are
 
 ## The URL-sharing gate
 
-**The public URL is not shared with anyone until the Online Safety Act records are live and the reporting
-address works.** Deployed is not shared: `www.canoncore.com` resolves today and serves a holding page, and
-that is deliberately as far as it goes.
+**The public URL is not shared with anyone until both gates below are open.** Deployed is not shared:
+`www.canoncore.com` resolves today and serves a holding page, and that is deliberately as far as it goes.
+
+**There are two of them, and they test different things.** *Lawfulness* asks whether sharing the address
+would be legal. *Readiness* asks whether what a stranger finds on the other end is worth the visit, and
+whether it will still be there next week. Only the first was ever written down, so it was being read as
+though it did both jobs. They open on different conditions and neither one implies the other.
+
+**What sharing covers.** Telling anyone the address, linking it anywhere public, and anything that invites a
+stranger to visit. It does not cover the deployment itself, which has to exist for the records to be
+completable and for the address to be testable.
+
+**Every compliance record that cites *The URL-sharing gate* means gate one.** Nothing in `docs/compliance/`
+turns on readiness; readiness has no statutory content.
+
+### Gate one: lawfulness
+
+**The Online Safety Act records must be live and the reporting address must work.**
 
 | | |
 | --- | --- |
@@ -56,10 +71,6 @@ that is deliberately as far as it goes.
 | Condition outstanding | [CAN-30 GDPR export and erasure](https://linear.app/jacobrees-canoncore/issue/CAN-30) — the terms of service still carry an unresolved privacy-notice placeholder, and they should not be published with it standing |
 | Recorded here since | 13 August 2026, by **CAN-71 Make the compliance records valid: dates, the alternative-measures record, and the PCU register** |
 
-**What it covers.** Telling anyone the address, linking it anywhere public, and anything that invites a
-stranger to visit. It does not cover the deployment itself, which has to exist for the records to be
-completable and for the address to be testable.
-
 **Why it is a gate and not a preference.** The two things that make this a user-to-user service are
 accounts and public Visibility. **Since CAN-23 One Story from Neon, behind row-level security one of them exists** — `story` carries a Visibility
 and one row is public — and accounts do not, so nobody but the operator can put content here. That
@@ -68,11 +79,11 @@ is what most of the Code measures are recorded as not in effect for
 this prevents is content arriving before the measures do: a person posting to
 a service with no takedown, no published terms and no reporting address.
 
-**The gate does not move when the second one lands, it tightens.** Accounts arrive with
+**When accounts land this gate tightens, it does not move.** They arrive with
 **CAN-24 A signed-in and a signed-out path**, and that is the change after which the sentence above
 stops holding.
 
-**Where the gate lived before, and why it moved here.** It was an unticked box on
+**Where this gate lived before, and why it moved here.** It was an unticked box on
 [CAN-21 Write the Online Safety Act documents and establish the reporting address](https://linear.app/jacobrees-canoncore/issue/CAN-21),
 which is closed, and then one line of prose on CAN-44. The audit of 12 to 13 August 2026 found it existed
 nowhere in the repository, so an agent reading this repo had no way to know it applied
@@ -81,6 +92,28 @@ which are the two places someone about to share the URL would actually be lookin
 
 **The compliance records themselves** are in [`docs/compliance/`](compliance/), and `CLAUDE.md` points at
 them.
+
+### Gate two: readiness
+
+**Being allowed to share the URL is not the same as it being worth sharing.** A stranger who finds a service
+that has gone quiet for a month, or that ships a megabyte of JavaScript to render a list, does not come
+back, and the first visit is the only one most of them make.
+
+| | |
+| --- | --- |
+| Status | **Closed.** Not shared |
+| Condition outstanding | [CAN-59 Decide whether the Hobby plan can carry a public service](https://linear.app/jacobrees-canoncore/issue/CAN-59) — the plan is contractually non-commercial, and the decision is recorded as an ADR either way |
+| Condition outstanding | [CAN-60 Gate the front end on bytes, budgets and React lint](https://linear.app/jacobrees-canoncore/issue/CAN-60) — the front-end quality gates, once there is a stable application to measure |
+| Condition outstanding | [CAN-61 Keep the codebase and its dependencies from silting up](https://linear.app/jacobrees-canoncore/issue/CAN-61) — the two hygiene tools whose value scales with codebase age |
+| Condition outstanding | **An explicit acceptance of Vercel Hobby's 30-day outage risk.** Exceeding an included limit takes the feature offline until 30 days have passed, and Hobby has neither a spend cap nor a configurable usage alert ([Hobby plan](https://vercel.com/docs/plans/hobby)). No ticket owns the acceptance: **CAN-59 Decide whether the Hobby plan can carry a public service** is where the reasoning lands, and deciding to stay on Hobby is not the same as having accepted this |
+| Recorded here since | 14 August 2026, by **CAN-93 Record the three bands, the two gates and the Later queue convention** |
+
+**Design is deliberately not a condition**, and that is a decision rather than an omission. A stranger reads
+an undesigned site the way they read a wiki, which is exactly what **CAN-17 v1: the walking skeleton in
+production, then the founding case** asks of them in its definition of done. **CAN-89 Give the product a
+visual identity and a reading surface** lands before the URL is shared anyway, because it sits in `v1` —
+that is v1's scope rather than a condition here, and this gate would open without it.
+`docs/agents/issue-tracker.md` → *The three bands* holds why it is banded there.
 
 ## Hosting
 
@@ -625,7 +658,7 @@ owns it: making the address available to the application as configuration rather
 that the two public documents and the reporting route cannot drift apart.
 
 **The URL is still not shared**, because those surfaces have not shipped — see
-[The URL-sharing gate](#the-url-sharing-gate). The half of that gate this address answers for is met:
+[The URL-sharing gate](#the-url-sharing-gate). The half of *gate one* this address answers for is met:
 it exists, and a test message was seen arriving in the mailbox, which is the specific failure the gate
 exists to prevent.
 
@@ -739,8 +772,8 @@ calls UptimeRobot. Both keys on *Integrations & API*, main and read-only, are **
 there is nothing to hold in Vercel and no row for one in the roster above.
 
 **No status page exists, deliberately.** The free plan includes one, and publishing it would publish
-the production URL, which *The URL-sharing gate* above forbids while that gate is closed. The
-monitor reads *attached to no status page*, and stays that way until the gate opens.
+the production URL, which *The URL-sharing gate* above forbids while either gate is closed. The
+monitor reads *attached to no status page*, and stays that way until both open.
 
 > **What CAN-56 Find out the site is down without waiting to be told inherits.** The free plan sends
 > `HEAD` and cannot be switched to `GET`, and up codes are fixed at 2xx and 3xx; both are paid
