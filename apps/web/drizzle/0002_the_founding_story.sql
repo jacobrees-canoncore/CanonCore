@@ -6,10 +6,9 @@
 -- has it is a no-op, and so that a test can name the row it expects.
 --
 -- `owner_id` is a placeholder, not a user id. Nobody has an account yet, so there is no id to
--- use; CAN-24 A signed-in and a signed-out path is where owners become real, and it can
--- reassign this row or leave it as the
--- operator's. What matters here is only that it is some owner and that the row is public, which
--- together are what make the policy's two branches both reachable.
+-- use; CAN-24 A signed-in and a signed-out path is where owners become real, and it can reassign
+-- this row or leave it as the operator's. What matters here is only that it is some owner and
+-- that the row is public, which together are what make the policy's two branches reachable.
 INSERT INTO "story" ("id", "title", "owner_id", "visibility")
 VALUES (
   '00000000-0000-4000-8000-000000000001',

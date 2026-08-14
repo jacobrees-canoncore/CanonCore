@@ -52,6 +52,7 @@ is what the rule was built on.
 - [`parent-data` cloning cannot be switched off in the integration](#parent-data-cloning-cannot-be-switched-off-in-the-integration)
 - [Drizzle's migrator needs `CREATE` on the database before it reads anything](#drizzles-migrator-needs-create-on-the-database-before-it-reads-anything)
 - [A `SET LOCAL` custom setting reverts to the empty string, not to NULL](#a-set-local-custom-setting-reverts-to-the-empty-string-not-to-null)
+- [The Neon owner cannot `SET ROLE` to either application role without granting itself the option](#the-neon-owner-cannot-set-role-to-either-application-role-without-granting-itself-the-option)
 
 **Credentials**
 - [Regenerating a TMDB key does not revoke the old one promptly](#regenerating-a-tmdb-key-does-not-revoke-the-old-one-promptly)
@@ -576,6 +577,39 @@ Fixed by granting `CREATE ON DATABASE neondb TO canoncore_migrator` — recorded
 `docs/infrastructure.md` → *Roles*, and reproduced for throwaway databases by
 `apps/web/src/db/roles.sql`. It widens the role that already owns every table; `canoncore_app` is
 untouched, and `has_database_privilege('canoncore_app', 'neondb', 'CREATE')` still reads false.
+
+## The Neon owner cannot `SET ROLE` to either application role without granting itself the option
+
+**14 August 2026, CAN-23 One Story from Neon, behind row-level security.** Applying the first
+migration to Neon's `main` needed the objects to end up owned by `canoncore_migrator`, and the
+`neon` MCP connects as `neondb_owner`. `SET ROLE canoncore_migrator` was refused —
+`permission denied to set role "canoncore_migrator"` — **after `pg_has_role(current_user,
+'canoncore_migrator', 'MEMBER')` had returned true**. Those two disagree by design: PostgreSQL 16
+split a membership into ADMIN, INHERIT and SET options, and *"a role can only `SET ROLE` to another
+role if it has the `SET` option on the membership"*
+([`GRANT`](https://www.postgresql.org/docs/current/sql-grant.html)). `pg_has_role` with `MEMBER`
+does not answer that question, so **it is the wrong thing to check before assuming `SET ROLE` will
+work.**
+
+`pg_auth_members` is. Read that day, both memberships were granted by `cloud_admin` with
+`admin_option: true`, `inherit_option: false`, `set_option: false` — so `neondb_owner` was already
+entitled to give itself the option, which is what makes doing it a use of an existing entitlement
+rather than an escalation:
+
+```sql
+GRANT canoncore_migrator TO neondb_owner WITH SET TRUE;
+-- ... SET ROLE canoncore_migrator, then the work ...
+REVOKE canoncore_migrator FROM neondb_owner GRANTED BY neondb_owner;
+```
+
+**Revoke `GRANTED BY` yourself, not plainly.** The `GRANT` adds a *second* `pg_auth_members` row
+with `grantor: neondb_owner` and leaves Neon's `cloud_admin` row untouched, so the qualified revoke
+removes exactly what was added. Both memberships were read back afterwards and matched their
+original state.
+
+The same restriction governs `ALTER TABLE … OWNER TO`, so there is no way round it by creating the
+objects as `neondb_owner` and reassigning them: that also requires being able to `SET ROLE` to the
+new owner.
 
 ## A `SET LOCAL` custom setting reverts to the empty string, not to NULL
 

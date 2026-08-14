@@ -311,6 +311,16 @@ Neon's `neondb_owner` has `rolbypassrls = true` and is therefore never the appli
 | `canoncore_migrator` | Owns every table it creates. Runs migrations | `false` |
 | `canoncore_app` | The application connects as this and nothing else | `false` |
 
+### Schema
+
+`public.story`, `public.visibility` and `drizzle.__drizzle_migrations`, every one of them owned by
+`canoncore_migrator`, with row-level security on `story` and one public row in it. Applied to
+Neon's `main` on **14 August 2026**, by hand and deliberately ahead of the merge: a preview branch
+is a copy of `main` taken when its deployment starts, so the schema has to be there before the code
+that reads it deploys anywhere. That is the widening in `docs/agents/workflow.md` → *What a merge
+carries*, and the release step re-runs the same migrations at merge, where Drizzle's journal makes
+them a no-op.
+
 `canoncore_migrator` also holds **`CREATE` on the database `neondb`**, granted 14 August 2026 by
 CAN-23 One Story from Neon, behind row-level security and read back with
 `has_database_privilege`. That is the privilege to create a *schema*,
