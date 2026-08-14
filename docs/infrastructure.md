@@ -228,7 +228,7 @@ disagree.
 
 | Variable | Holder | Environments | Sensitivity | What it is |
 | --- | --- | --- | --- | --- |
-| `DATABASE_URL` | Vercel | Production | Sensitive | The application role's connection string. Production only, on purpose: a static string must not be what a preview uses |
+| `DATABASE_URL` | Vercel | Production | Sensitive | The application role's connection string, which has to ask for `sslmode=verify-full`. Production only, on purpose: a static string must not be what a preview uses |
 | `DATABASE_APP_USER` | Vercel | Production, Preview, Development | Non-sensitive | The application role name, for a preview to compose its own URL |
 | `DATABASE_APP_PASSWORD` | Vercel | Production, Preview | Sensitive | Its password. Inherited unchanged by every preview branch |
 | `DATABASE_PRODUCTION_HOST` | Vercel | Production, Preview | Non-sensitive | Production's Neon host, so that a preview can assert the host it resolved is not that one. **Non-sensitive deliberately**: a value nobody can read back is a value nobody can catch going stale, and a stale one makes the preview's assertion vacuous |
@@ -237,7 +237,7 @@ disagree.
 | `EMAIL_FROM` | Vercel | Production, Preview | Sensitive | `CanonCore <noreply@mail.canoncore.com>` |
 | `SENTRY_DSN` | Vercel | Production, Preview | Sensitive | Also recorded under *Error reporting* below, since a DSN is not a secret |
 | `SENTRY_AUTH_TOKEN` | Vercel | Production, Preview | Sensitive | Organisation auth token, scope `org:ci`, for source-map upload |
-| `MIGRATION_DATABASE_URL` | GitHub Actions secret | — | — | The migration role's connection string. Not in Vercel: migrations run in Actions, not in the build |
+| `MIGRATION_DATABASE_URL` | GitHub Actions secret | — | — | The migration role's connection string, which has to ask for `sslmode=verify-full`. Not in Vercel: migrations run in Actions, not in the build |
 
 **No `NEON_*` variables.** All sixteen the Marketplace integration had written were removed on 13
 August 2026. Whether the integration re-writes them is checked by **CAN-69 Record the credential
@@ -375,6 +375,26 @@ integration has no switch to stop it** owns the fix
 ([incident](incidents.md#parent-data-cloning-cannot-be-switched-off-in-the-integration)). Budget one
 live Neon branch per git branch that has ever had a preview, not per open PR
 ([incident](incidents.md#what-a-preview-branch-looks-like-and-how-long-it-outlives-its-pr)).
+
+### The SSL mode every connection asks for
+
+**`sslmode=verify-full`** — encrypted, *and* the server certificate checked against the host it was
+reached at. All three of this project's connection strings ask for it: a preview composes its own,
+`DATABASE_URL` carries production's, `MIGRATION_DATABASE_URL` carries the migration role's.
+
+The spelling is the point rather than the behaviour. `pg` 8 honours `require` the same way and `pg`
+9 will not, so all three said `require` until 14 August 2026, when **CAN-84 A preview's composed
+sslmode=require silently stops verifying certificates under pg 9** changed them
+([incident](incidents.md#a-sensitive-variable-named-its-ssl-mode-in-a-deprecation-warning), which
+holds what was observed and what it was checked against).
+
+**Reissue either variable with `verify-full`, because Neon will not hand it to you that way.** Both
+are write-only — one a Vercel Sensitive variable, one a GitHub Actions secret — so a `require`
+pasted back is invisible from that moment on, and **nothing in the repository checks it**. That is
+deliberate: a request-time refusal would put an outage behind a value no gate can read, over a
+string `pg` 8 still honours. The one signal is negative and expires — `pg-connection-string` emits
+a SECURITY WARNING into the runtime log for as long as a string says `require`, and nothing at all
+once it says `verify-full`.
 
 ## External data source: TMDB
 

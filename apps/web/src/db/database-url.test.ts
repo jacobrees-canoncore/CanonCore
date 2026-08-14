@@ -10,7 +10,7 @@ const branchHost = "ep-branch-pooler.c-2.eu-west-2.aws.neon.tech";
 
 const production = {
   VERCEL_ENV: "production",
-  DATABASE_URL: `postgresql://canoncore_app:secret@${productionHost}/neondb?sslmode=require`,
+  DATABASE_URL: `postgresql://canoncore_app:secret@${productionHost}/neondb?sslmode=verify-full`,
   DATABASE_PRODUCTION_HOST: productionHost,
 } as const;
 
@@ -50,7 +50,7 @@ test("production is what proves DATABASE_PRODUCTION_HOST is still production's h
 
 test("a preview composes its own branch host with the application role's credentials", () => {
   expect(resolveDatabaseConnection(preview)).toEqual({
-    url: `postgresql://canoncore_app:secret@${branchHost}/neondb?sslmode=require`,
+    url: `postgresql://canoncore_app:secret@${branchHost}/neondb?sslmode=verify-full`,
     host: branchHost,
   });
 });
