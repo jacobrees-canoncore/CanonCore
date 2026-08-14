@@ -5,6 +5,7 @@
 // what their output means, and is what `doc-checks.test.ts` exercises.
 
 import GithubSlugger from "github-slugger";
+import type { Heading, Nodes } from "mdast";
 import { fromMarkdown } from "mdast-util-from-markdown";
 import { frontmatterFromMarkdown } from "mdast-util-frontmatter";
 import { toString } from "mdast-util-to-string";
@@ -294,17 +295,24 @@ export function compareVariables(
  *
  * GitHub slugs the *rendered* heading: "markup formatting is removed, leaving only the contents",
  * and "any other whitespace or punctuation characters are removed" [1]. So this renders first and
- * slugs second, leaving each half to the library that owns it. Those are the only runtime
- * dependencies `scripts` has, and what bought them is CAN-87 check-docs slugs the raw heading, not
- * the rendered one, so three kinds of heading get an anchor GitHub will not resolve. Deleting
- * characters from the raw line approximated rendering, and where the approximation broke the check
- * did not miss a broken anchor — it *required* one, because the only spelling that satisfied it was
- * the spelling GitHub will not resolve.
+ * slugs second, leaving each half to a library — `mdast-util-to-string` for what a heading renders
+ * to, and `github-slugger`, whose "overall goal … is to emulate the way GitHub handles generating
+ * markdown heading anchors as close as possible" [2]. That last is a third party's claim of parity
+ * rather than GitHub's own code, and it is the residual risk here; it is a far smaller one than
+ * what it replaced.
  *
- * No strip closes that class, which is why the fix is a parser and not a better regex: `_Helpful_`
- * and `neondb_owner` differ only in what rendering does to them, so any rule about `_` gets one of
- * the two wrong. CAN-82 check-docs requires a heading anchor GitHub will not resolve, for any
- * heading with an underscore took that trade deliberately; there is now nothing to trade.
+ * What it replaced is CAN-87 check-docs slugs the raw heading, not the rendered one, so three kinds
+ * of heading get an anchor GitHub will not resolve. Deleting characters from the raw line
+ * approximated rendering, and where the approximation broke, the check did not miss a broken
+ * anchor — it *required* one, because the only spelling that satisfied it was the spelling GitHub
+ * will not resolve.
+ *
+ * No strip closes that class, which is why the fix is a parser and not a better regex. `_Helpful_`
+ * and `neondb_owner` differ only in what rendering does to them: GitHub drops the first pair as
+ * markup and keeps the second as content, which is why `ERR_ACCESS_DENIED` in nodejs/node's
+ * `doc/api/errors.md` anchors as `#err_access_denied` [3]. Any rule written about `_` alone gets
+ * one of the two wrong, and CAN-82 check-docs requires a heading anchor GitHub will not resolve,
+ * for any heading with an underscore took that trade deliberately. There is now nothing to trade.
  *
  * The parser also settles what counts as a heading, which the `^#` line match it replaced could
  * only guess at: a `#` comment inside a fenced code block is not one (six were being read as
@@ -315,7 +323,14 @@ export function compareVariables(
  * The slugger is per document rather than per heading because tracking the `-1`/`-2` suffix GitHub
  * gives a repeated heading is exactly what the instance is for.
  *
+ * `titles` is rendered; the pointer it is compared against is not, since `findPointers` still takes
+ * its section name from raw prose. So a pointer written `→ *An _emphasised_ word*` would not
+ * resolve against the heading it names. None exists, and that failure is the loud direction — the
+ * check calls the pointer broken rather than quietly accepting it — so it is recorded, not fixed.
+ *
  * [1] https://docs.github.com/en/get-started/writing-on-github/getting-started-with-writing-and-formatting-on-github/basic-writing-and-formatting-syntax
+ * [2] https://github.com/Flet/github-slugger#readme
+ * [3] https://github.com/nodejs/node/blob/9e23066b8af4d1661c30ebb9179fad86430d6503/doc/api/errors.md
  */
 export function anchorsOf(body: string): { anchors: Set<string>; titles: string[] } {
   const slugger = new GithubSlugger();
@@ -335,11 +350,9 @@ const parseMarkdown = (body: string) =>
     mdastExtensions: [frontmatterFromMarkdown()],
   });
 
-type MarkdownNode = { type: string; children?: MarkdownNode[] };
-
 /** Every heading in document order, including any nested in a blockquote or a list item. */
-const headings = (nodes: MarkdownNode[]): MarkdownNode[] =>
-  nodes.flatMap((n) => (n.type === "heading" ? [n] : n.children ? headings(n.children) : []));
+const headings = (nodes: readonly Nodes[]): Heading[] =>
+  nodes.flatMap((n) => (n.type === "heading" ? [n] : "children" in n ? headings(n.children) : []));
 
 type DocumentLink = {
   link: string
