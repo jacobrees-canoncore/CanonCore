@@ -4,6 +4,12 @@
 // seam — the CLI owns reading files and running `gh`, `orca` and `vercel`; this module owns
 // what their output means, and is what `doc-checks.test.ts` exercises.
 
+import GithubSlugger from "github-slugger";
+import { fromMarkdown } from "mdast-util-from-markdown";
+import { frontmatterFromMarkdown } from "mdast-util-frontmatter";
+import { toString } from "mdast-util-to-string";
+import { frontmatter } from "micromark-extension-frontmatter";
+
 /** Thrown when a source cannot be reached. The CLI reports these as SKIP rather than FAIL. */
 export class Skip extends Error {}
 
@@ -285,52 +291,55 @@ export function compareVariables(
 
 /**
  * GitHub's heading slugs for a document, plus the normalised titles a prose pointer can name.
- * Punctuation is dropped and each remaining space becomes a hyphen, so an em dash surrounded by
- * spaces yields two hyphens — which is why the spaces are replaced one at a time rather than
- * collapsed.
  *
- * GitHub slugs the *rendered* heading: "any other whitespace or punctuation characters are
- * removed" and "markup formatting is removed, leaving only the contents" [1]. It reads the raw
- * line here, an approximation that holds wherever deleting the markup and deleting the
- * punctuation come to the same text — backticks and `*` emphasis among them.
+ * GitHub slugs the *rendered* heading: "markup formatting is removed, leaving only the contents",
+ * and "any other whitespace or punctuation characters are removed" [1]. So this renders first and
+ * slugs second, leaving each half to the library that owns it. Those are the only runtime
+ * dependencies `scripts` has, and what bought them is CAN-87 check-docs slugs the raw heading, not
+ * the rendered one, so three kinds of heading get an anchor GitHub will not resolve. Deleting
+ * characters from the raw line approximated rendering, and where the approximation broke the check
+ * did not miss a broken anchor — it *required* one, because the only spelling that satisfied it was
+ * the spelling GitHub will not resolve.
  *
- * `_` is where it used to invert the answer. Where `_` survives rendering as content rather than
- * acting as emphasis GitHub keeps it, so `ERR_ACCESS_DENIED` in nodejs/node's `doc/api/errors.md`
- * anchors as `#err_access_denied` [2]. Stripping it demanded that anchor without its underscores,
- * which GitHub will not resolve: the gate required a broken link rather than merely missing one.
- * That is CAN-82 check-docs requires a heading anchor GitHub will not resolve, for any heading
- * with an underscore, and `\w` keeps `_`, so nothing replaced the strip.
+ * No strip closes that class, which is why the fix is a parser and not a better regex: `_Helpful_`
+ * and `neondb_owner` differ only in what rendering does to them, so any rule about `_` gets one of
+ * the two wrong. CAN-82 check-docs requires a heading anchor GitHub will not resolve, for any
+ * heading with an underscore took that trade deliberately; there is now nothing to trade.
  *
- * Three headings it still slugs wrongly, none of them in this repository. Two are in [1]'s own
- * worked example: `## This'll be a _Helpful_ Section About the Greek Letter Θ!` anchors as
- * `#thisll-be-a-helpful-section-about-the-greek-letter-Θ`.
+ * The parser also settles what counts as a heading, which the `^#` line match it replaced could
+ * only guess at: a `#` comment inside a fenced code block is not one (six were being read as
+ * headings here, each a title a `file → *Section*` pointer could falsely resolve against), a
+ * heading inside a blockquote is, and YAML frontmatter is frontmatter rather than the setext
+ * heading its closing `---` makes of it without that extension.
  *
- * - `_emphasis_`, whose underscores are markup and go. This one is the cost of the fix above
- *   rather than something it left standing — the strip used to get it right. Separating it from
- *   `snake_case` needs the rendered text, which is the whole of what this lacks.
- * - A non-ASCII letter, which `\w` drops and GitHub keeps.
- * - A [link](target), whose target is slugged with its text, since only the contents survive [1].
+ * The slugger is per document rather than per heading because tracking the `-1`/`-2` suffix GitHub
+ * gives a repeated heading is exactly what the instance is for.
  *
  * [1] https://docs.github.com/en/get-started/writing-on-github/getting-started-with-writing-and-formatting-on-github/basic-writing-and-formatting-syntax
- * [2] https://github.com/nodejs/node/blob/9e23066b8af4d1661c30ebb9179fad86430d6503/doc/api/errors.md
  */
 export function anchorsOf(body: string): { anchors: Set<string>; titles: string[] } {
-  const seen = new Map<string, number>();
+  const slugger = new GithubSlugger();
   const anchors = new Set<string>();
   const titles: string[] = [];
-  for (const m of body.matchAll(/^#{1,6}\s+(.+?)\s*$/gm)) {
-    titles.push(norm(m[1]));
-    const base = m[1]
-      .trim()
-      .toLowerCase()
-      .replace(/[^\w\- ]/g, "")
-      .replace(/ /g, "-");
-    const n = seen.get(base) ?? 0;
-    seen.set(base, n + 1);
-    anchors.add(n === 0 ? base : `${base}-${n}`);
+  for (const heading of headings(parseMarkdown(body).children)) {
+    const text = toString(heading);
+    titles.push(norm(text));
+    anchors.add(slugger.slug(text));
   }
   return { anchors, titles };
 }
+
+const parseMarkdown = (body: string) =>
+  fromMarkdown(body, {
+    extensions: [frontmatter()],
+    mdastExtensions: [frontmatterFromMarkdown()],
+  });
+
+type MarkdownNode = { type: string; children?: MarkdownNode[] };
+
+/** Every heading in document order, including any nested in a blockquote or a list item. */
+const headings = (nodes: MarkdownNode[]): MarkdownNode[] =>
+  nodes.flatMap((n) => (n.type === "heading" ? [n] : n.children ? headings(n.children) : []));
 
 type DocumentLink = {
   link: string
