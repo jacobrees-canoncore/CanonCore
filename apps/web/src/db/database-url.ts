@@ -8,7 +8,7 @@
  * `docs/infrastructure.md` → *How a preview reaches its own database* records as cited but never
  * observed.
  *
- * Pure, and separate from the pool in `client.ts`, so every branch below is reachable from a
+ * Pure, and separate from the pool in `session.ts`, so every branch below is reachable from a
  * test without a database.
  */
 
@@ -88,8 +88,17 @@ export function resolveDatabaseConnection(environment: DatabaseEnvironment): Dat
       );
     }
 
+    // `verify-full` rather than `require`, which means the same thing today and will not for
+    // ever: `pg` 8 treats `prefer`, `require` and `verify-ca` as aliases for `verify-full`, while
+    // `pg` 9 gives those three libpq's own meanings, "which have weaker security guarantees"
+    // (`pg-connection-string` 2.14.0's deprecation warning). libpq's `require` is encrypted with
+    // the certificate unchecked (https://www.postgresql.org/docs/current/libpq-ssl.html), so this
+    // string would quietly stop verifying at an upgrade — CAN-84 A preview's composed
+    // sslmode=require silently stops verifying certificates under pg 9. The two variables holding
+    // the other connection strings say the same thing: docs/infrastructure.md -> The SSL mode
+    // every connection asks for.
     const credentials = `${encodeURIComponent(user)}:${encodeURIComponent(password)}`;
-    return { url: `postgresql://${credentials}@${host}/${database}?sslmode=require`, host };
+    return { url: `postgresql://${credentials}@${host}/${database}?sslmode=verify-full`, host };
   }
 
   const url = required(environment, "DATABASE_URL");

@@ -58,6 +58,7 @@ is what the rule was built on.
 - [Regenerating a TMDB key does not revoke the old one promptly](#regenerating-a-tmdb-key-does-not-revoke-the-old-one-promptly)
 - [What the TMDB credential was checked against](#what-the-tmdb-credential-was-checked-against)
 - [A Vercel sensitive variable cannot be read back, by anyone](#a-vercel-sensitive-variable-cannot-be-read-back-by-anyone)
+- [A sensitive variable named its SSL mode in a deprecation warning](#a-sensitive-variable-named-its-ssl-mode-in-a-deprecation-warning)
 - [Seven Resend DNS records published two unaccounted DKIM keys](#seven-resend-dns-records-published-two-unaccounted-dkim-keys)
 - [Three unscoped Resend API keys were revoked](#three-unscoped-resend-api-keys-were-revoked)
 - [The orphaned Resend key, and how it stopped being anonymous](#the-orphaned-resend-key-and-how-it-stopped-being-anonymous)
@@ -691,6 +692,50 @@ One consequence lands on **CAN-26 Import a series from TMDB**: sensitivity is *"
 environment variables in the production and preview environments"* (same page), so local work cannot
 `vercel env pull` this token and needs it written into `.env.local` by hand. `.gitignore` already
 covers that file.
+
+## A sensitive variable named its SSL mode in a deprecation warning
+
+**14 August 2026, CAN-84 A preview's composed sslmode=require silently stops verifying certificates
+under pg 9.** `DATABASE_URL` is Sensitive and so cannot be read back
+([above](#a-vercel-sensitive-variable-cannot-be-read-back-by-anyone)) — and production's runtime log
+said what it asked for anyway. `pg-connection-string` 2.14.0 interpolates the mode it parsed into
+the remedy it suggests, so this line, on `dpl_2dc2DW7jggtpBbZPDTDFoxHMbwXr` at 09:22:07 and
+09:23:14 UTC, is production quoting its own connection string back:
+
+```
+- If you want libpq compatibility now, use 'uselibpqcompat=true&sslmode=require'
+```
+
+**All three of the project's connection strings said `require`, and Neon is why.** Asked that day
+for `canoncore_app` and for `canoncore_migrator` on branch `br-morning-pine-zaakux5b`, its API
+returned the same tail for both:
+
+```
+…@ep-aged-moon-zaujrwy4-pooler.c-2.eu-west-2.aws.neon.tech/neondb?channel_binding=require&sslmode=require
+```
+
+The preview's string is composed in the repository. `DATABASE_URL` and the
+`MIGRATION_DATABASE_URL` Actions secret were reissued from those two, with `sslmode` changed and
+nothing else.
+
+**Changing it changed nothing, which is why no window was needed.** Each of these was checked
+against `ep-aged-moon-zaujrwy4-pooler` before either variable was written:
+
+- `new pg.Client({ connectionString }).connectionParameters.ssl` is `{}` for `require` and for
+  `verify-full` alike, and only `require` emits the warning above.
+- `verify-full` connects as both roles: as `canoncore_app`, with `rolbypassrls` false and one
+  `story` row visible, and as `canoncore_migrator`. `require` was checked as `canoncore_app`
+  only, being the spelling both variables already held.
+- `drizzle-kit migrate` reports *"Using 'pg' driver for database querying"*, so the migration path
+  is this workspace's own `pg` 8.23.0 rather than a second driver with its own reading of the mode.
+  Run against production's branch with `verify-full`, it applied nothing: all three journal entries
+  were already recorded in `drizzle.__drizzle_migrations`.
+
+`pg` 9 is where the two spellings diverge, and by then nothing warns at all.
+
+**The general point is not about SSL.** A value nobody can read back is not a value nobody can
+learn. A library that quotes its own input into a diagnostic publishes part of that input to
+whatever reads the log, and the next one to do it may be quoting a secret rather than a setting.
 
 ## Seven Resend DNS records published two unaccounted DKIM keys
 
