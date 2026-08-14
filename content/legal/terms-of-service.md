@@ -56,9 +56,6 @@ or gives instructions for suicide, self-harm or eating disorders.
 is text: a title, a year, a runtime, and where you think the work belongs in an ordering. That stays true
 when the work itself is pornographic, and such works may be recorded.
 
-Their artwork is a different matter, and we do not show it. CanonCore displays no artwork at all today,
-and it does not display artwork for a pornographic work, to anyone.
-
 ## How we protect people from illegal content
 
 We keep the time that illegal content is present on CanonCore as short as we can. Because the risks are

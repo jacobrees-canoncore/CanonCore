@@ -20,12 +20,13 @@ content "published or displayed on the service by the provider of the service", 
 content published or displayed "by means of … software or an automated tool or algorithm applied by the
 provider" ([s.79](https://www.legislation.gov.uk/ukpga/2023/50/section/79)).
 
-**We are the provider on either limb**, and the limb that applies here is not the one Ofcom's guidance
-quotes in passing: `s.226(8)` treats the provider of an internet service "other than a user-to-user
-service or a search service" as whoever controls which content is published or displayed, while for a
-user-to-user service it is whoever has control over who can use the site (`s.226(2)`–`(3)`, and the same
-guidance's footnote 12). CanonCore is the second. So the Part 5 question is not who the provider is but
-whether the provider published or displayed the content, and on that Ofcom is "likely to consider a
+**We are the provider, on the limb that reaches a user-to-user service.** Ofcom's guidance quotes
+`s.226(8)` — control over which content is published or displayed — but that subsection is written for
+"an internet service, other than a user-to-user service or a search service", and the same guidance's
+footnote 12 says so: for a user-to-user service the provider is "the entity or individual with control
+over who can use the site (section 226(2) and (3))". CanonCore is a user-to-user service, so that is the
+definition, and it is plainly met. The Part 5 question is therefore not who the provider is but whether
+the provider published or displayed the content, and on that Ofcom is "likely to consider a
 service provider to have exercised control over the pornographic content appearing on its service where
 it exercises **editorial control over the nature, selection or presentation** of the content"
 ([*Guidance on highly effective age assurance and other Part 5 duties*](https://www.ofcom.org.uk/siteassets/resources/documents/consultations/category-1-10-weeks/statement-age-assurance-and-childrens-access/guidance-on-highly-effective-age-assurance-and-other-part-5-duties.pdf?v=388810),
@@ -63,16 +64,18 @@ itself chooses to display.
 route.** It says content that is user-generated "does not cease to be such content in relation to the
 service when published or displayed on the service by means of … software or an automated tool or
 algorithm applied by the provider" — the mirror image of `s.79(2)`, and the reason rendering code cannot
-turn a user's content into ours. It bites only on content that was user-generated to begin with, which
-`s.55(3)` defines as content "generated directly on the service by a user" or "uploaded to or shared on
-the service by a user"
+turn a user's content into ours. It bites only on content that was user-generated to begin with, and `s.55(3)`–`(4)` is where that is
+settled: content "generated directly on the service by a user of the service, or uploaded to or shared
+on the service by a user of the service", with an automated tool counted as a user only where it "is not
+controlled by or on behalf of the provider of the service" (`s.55(4)(b)`)
 ([s.55](https://www.legislation.gov.uk/ukpga/2023/50/section/55),
-[s.236](https://www.legislation.gov.uk/ukpga/2023/50/section/236)). Nobody generates or uploads a TMDB
-poster; our importer fetches it. So the two artwork paths
+[s.236](https://www.legislation.gov.uk/ukpga/2023/50/section/236)). Our importer is ours, so nothing it
+fetches is user-generated content, and `s.236(7)` never engages. So the two artwork paths
 [CAN-13 Artwork: uploads, rights and takedown](https://linear.app/jacobrees-canoncore/issue/CAN-13)
 covers land in different Parts: an image a user uploads stays user-generated content under `s.236(7)`,
-in Part 3, where the prohibition in the terms and `s.12(5)` answer it; an image we import is provider
-content under `s.79(2)`, in Part 5, where they do not.
+in Part 3, where the prohibition in the terms and `s.12(5)` remove the `s.12(4)` age assurance
+requirement and leave the `s.12(3)(a)` duty standing; an image we import is provider content under
+`s.79(2)`, in Part 5, where they remove nothing.
 
 **The duty has bound since 17 January 2025**, not 25 July 2025. `s.81` was commenced on that date by
 regulation 2(1)(a) of
@@ -115,8 +118,9 @@ says it directly, twice, once in each Part:
   emoji or other symbol, or (iii) a combination" of those.
 - **`s.61(6)`** does the same on the Part 3 side: `s.61(2)` makes pornographic content primary priority
   content "other than content within subsection (6)", and subsection (6) is content that "consists only
-  of text", or only of text accompanied by identifying content, a GIF, an emoji or a symbol — where any
-  image among those is qualified as one "which is not itself pornographic content"
+  of text", or only of text accompanied by text-only identifying content, "other identifying content
+  which is not itself pornographic content", "a GIF which is not itself pornographic content", or "an
+  emoji or other symbol"
   ([s.61](https://www.legislation.gov.uk/ukpga/2023/50/section/61)).
 
 A record here is a title, a year, a runtime and a `part of` edge. **Neither carve-out admits an arbitrary

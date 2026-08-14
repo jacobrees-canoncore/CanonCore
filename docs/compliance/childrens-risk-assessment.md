@@ -11,7 +11,7 @@ children's safety duties and Ofcom's *Protection of Children Codes of Practice*.
 | Service name | CanonCore (`https://www.canoncore.com`) |
 | Service type | User-to-user service |
 | Completion date | 13 August 2026 — the same day as the children's access assessment it follows from, well inside the three months `s.11` allows |
-| Revised | 14 August 2026 — the Part 5 correction carried by [CAN-74 Rewrite ADR-0012 on Part 5 grounds](https://linear.app/jacobrees-canoncore/issue/CAN-74). No level or finding changed; the artwork constraint that holds the pornographic content finding is re-grounded in `s.81` rather than `s.12(5)`. The [terms of service](../../content/legal/terms-of-service.md) were amended in the same change, adding that a catalogue record of a work is not that work's content. That mirrors `s.61(6)` and prohibits nothing less than before, so it is not the weakening Step 4 lists as requiring reassessment — but the assessment was revised alongside it rather than after it |
+| Revised | 14 August 2026 — the Part 5 correction carried by [CAN-74 Rewrite ADR-0012 on Part 5 grounds](https://linear.app/jacobrees-canoncore/issue/CAN-74). No level or finding changed; the artwork constraint that holds the pornographic content finding is re-grounded in `s.81` rather than `s.12(5)`. The terms of service were amended in the same change, and Step 4 records what and why |
 | Next review date | 13 August 2027 — at least annually |
 | Completed by | Jacob Rees |
 | Named person responsible | Jacob Rees |
@@ -211,3 +211,13 @@ illegal content assessment:
 - Storing or serving media bytes, or streaming through CanonCore rather than handing off, either of which
   would reverse ADR-0006 and reopen this assessment entirely.
 - Lowering the minimum age below 13.
+
+> **The terms of service amendment of 14 August 2026, and why it is not the first item above.** The
+> terms gained a statement that keeping a catalogue record of a film or a programme is not posting that
+> film's content. It permits nothing `s.61(6)` had not already placed outside primary priority content,
+> and is narrower than `s.61(6)`, which also admits identifying content, a GIF, an emoji or a symbol
+> alongside the text. The prohibition therefore still covers every kind of primary priority content for
+> all users, and `s.12(5)` still applies. The two other records that turn on that prohibition were
+> checked against the amendment and needed no change:
+> [`childrens-access-assessment.md`](childrens-access-assessment.md) → *The conclusion* and
+> [`code-measures-register.md`](code-measures-register.md) → *Protection of Children Codes*.
