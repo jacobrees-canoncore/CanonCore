@@ -157,6 +157,40 @@ Discover these live rather than trusting this list:
 orca linear team states --team CAN --workspace ad2669ec-93a5-4ce1-97fa-c7d9247a1452 --json
 ```
 
+## The three bands
+
+Every open issue sits in one of three Linear **projects** under one initiative; a handful of closed ones
+carry none. The project is the band, the band carries the sequencing, and there is no roadmap document
+anywhere else.
+
+| Band | What it holds |
+| --- | --- |
+| `v1` | [CAN-17 v1: the walking skeleton in production, then the founding case](https://linear.app/jacobrees-canoncore/issue/CAN-17) and everything it needs. **v1 ends public**: it is finished when the URL is shared, not when the code runs |
+| `Readiness` | What has to be true before a stranger is invited, and operational work that should not interrupt v1. Which of it actually holds the URL back is `docs/infrastructure.md` → *The URL-sharing gate*, not this band's membership |
+| `Later` | Everything after the URL is shared, held as an ordered queue — below |
+
+**One placement that reads as a mistake and is not.** CAN-89 Give the product a visual identity and a
+reading surface sits in `v1`, while CAN-90 Decide how an Ordering reads, and what the interface calls its
+parts and CAN-91 Check the accessibility conformance neither planned gate can reach sit in `Later`.
+The first is banded there because its deadline is the URL-sharing gate and CAN-57 Make a public Ordering
+discoverable and shareable needs what it produces; the other two do not have to exist before a stranger
+arrives.
+
+### `Later` is a work queue, not a dependency graph
+
+`Later` is one chain: each ticket is `blocked-by` the one before it, head to tail. **Most of those links
+are a chosen order rather than a real dependency**, and **Linear renders the two identically**. So a
+`blocked-by` inside `Later` is not evidence that the work cannot start; read both tickets before believing
+it. That is the exception to *Wayfinding operations* below, where a blocker does mean blocked.
+
+**The cross-band rule is what keeps the edge count honest: draw an edge from `Later` into `v1` only where
+a specific named `v1` ticket is the prerequisite, never for "v1 must exist" in general.** Without it every
+`Later` ticket would edge into `v1` and the graph would say nothing.
+
+**Which links are which is live state, so it is recorded in Linear, not here.** The `Later` project
+description names the structural links, the sequencing ones and every cross-band edge, and is rewritten
+whenever the queue is reordered.
+
 ## When a skill says "publish to the issue tracker"
 
 Create a Linear issue on team `CAN` with `orca linear create`.

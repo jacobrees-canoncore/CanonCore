@@ -7,8 +7,8 @@ To add a line, cut one, or put it in a pointer doc instead. The seam is change c
   what happened, and when   -> docs/incidents.md         (evidence: only ever accumulates)
   what is provisioned now   -> docs/infrastructure.md    (register: bounded by the estate)
   a settled decision        -> docs/adr/
-Per-session state (sign-ins, which account is active) is asserted nowhere. Ask the tool.
-Evidence: docs/research/document-length-for-agents.md
+Per-session state (sign-ins, which account is active) is asserted nowhere; ask the tool.
+Evidence for the target: docs/research/document-length-for-agents.md
 -->
 
 ## Name every ticket you cite
@@ -88,17 +88,19 @@ credential lives: `docs/infrastructure.md` — read it before touching deploymen
 variables or the database connection, and note the items it flags as unverified.
 
 **The URL is deployed and deliberately not shared.** `docs/infrastructure.md` → *The URL-sharing gate*
-holds the rule and what opens it. **`docs/compliance/` holds the statutory records**, and several stop
-being true the moment the product gains a capability — each one that would break an assessment is listed
-in `docs/compliance/illegal-content-risk-assessment.md` → *Step 4* and the same section of the children's
-assessment. **Read them before changing or building anything they describe** — editing the documents in
-`content/legal/` counts: the assessment has to be redone *before* such a change ships, not after.
+holds both gates, lawfulness and readiness, and what opens each. **`docs/compliance/` holds the statutory
+records**, and several stop being true the moment the product gains a capability — each one that would
+break an assessment is listed in `docs/compliance/illegal-content-risk-assessment.md` → *Step 4* and the
+same section of the children's assessment. **Read them before changing or building anything they
+describe** — editing the documents in `content/legal/` counts: the assessment has to be redone *before*
+such a change ships, not after.
 
 ## Agent skills
 
-- **Issue tracker.** Linear (team `CAN`), driven through `orca linear`, mirrored two-way to GitHub
-  Issues. Pass `--workspace ad2669ec-93a5-4ce1-97fa-c7d9247a1452` on **every** call: Orca is
-  connected to three workspaces and picks the wrong one silently. `docs/agents/issue-tracker.md`.
+- **Issue tracker.** Linear (team `CAN`), driven through `orca linear`. Pass `--workspace
+  ad2669ec-93a5-4ce1-97fa-c7d9247a1452` on **every** call: Orca is connected to three workspaces and
+  picks the wrong one silently. Open issues sit in three bands (`v1`, `Readiness`, `Later`); a `Later`
+  `blocked-by` is usually a chosen order, not a real dependency. `docs/agents/issue-tracker.md`.
 - **Triage labels.** The five canonical state roles verbatim, plus `bug`/`enhancement` mapping to
   Linear's `Bug`/`Feature`. `label add` / `label remove`, never `label set`.
   `docs/agents/triage-labels.md`.
@@ -150,36 +152,28 @@ answer first, then what will offer you something else.
 - **Drizzle** (ADR-0005) — habit will offer Prisma.
 - **Plain pnpm workspaces, no orchestrator** (ADR-0005) — `vercel:next-forge` installs a `@repo/*`
   Turborepo layout. `vercel:turbopack` is unrelated and fine: Turbopack is Next's bundler.
-- **Hand off playback to a media server**
-  ([ADR-0006](docs/adr/0006-no-playback-hand-off-to-media-servers.md)) — anything offering storage,
-  uploads, transcoding or a player is proposing that we hold bytes.
-- **Anchors carrying no metadata** ([ADR-0003](docs/adr/0003-no-shared-catalogue.md)) — a canonical
-  records table, a "master" catalogue or an edit-approval queue all reintroduce the shared
-  catalogue this avoids.
-- **`www.canoncore.com` as the canonical host, apex 301ing to it**
-  ([ADR-0010](docs/adr/0010-canonical-host-www.md)) — `vercel:auth` and most better-auth examples
-  will suggest a `Domain`-scoped cookie or serving from the apex. Either one reopens this.
-- **Resend for transactional email, with the Marketplace integration declined**
-  ([ADR-0011](docs/adr/0011-transactional-email-resend.md)) — Resend is the *only* email provider on
-  the Vercel Marketplace, so installing it reads as the obvious path. That is the thing to refuse: it
-  provisions a billable resource on a Hobby account and takes ownership of the environment variable,
-  the failure CAN-18 already paid for with `DATABASE_URL`. Postmark is the recorded runner-up and the
-  margin is narrow; ADR-0011 alone names the conditions that flip it.
+- **Hand off playback to a media server** ([ADR-0006](docs/adr/0006-no-playback-hand-off-to-media-servers.md))
+  — anything offering storage, uploads, transcoding or a player is proposing that we hold bytes.
+- **Anchors carrying no metadata** ([ADR-0003](docs/adr/0003-no-shared-catalogue.md)) — a canonical records
+  table, a "master" catalogue or an edit-approval queue all reintroduce the shared catalogue this avoids.
+- **`www.canoncore.com` canonical, apex 301ing to it** ([ADR-0010](docs/adr/0010-canonical-host-www.md))
+  — `vercel:auth` and most better-auth examples suggest a `Domain`-scoped cookie, or the apex itself.
+- **Resend for transactional email, the Marketplace integration declined**
+  ([ADR-0011](docs/adr/0011-transactional-email-resend.md)) — the *only* email provider on the Vercel
+  Marketplace, so installing it reads as obvious. Refuse: it provisions a billable resource on a Hobby
+  account and takes ownership of the environment variable.
 - **Adult works catalogued, their artwork never displayed**
   ([ADR-0012](docs/adr/0012-adult-works-catalogued-artwork-never-displayed.md)) — Trakt filters adult
   titles out of its TMDB import, so "just exclude them" reads as obvious. It is not: recording that a
-  work exists is not carrying pornographic content, and the exposure is the poster. A per-account
-  toggle is worse, because self-declaration is not highly effective age assurance.
+  work exists is not carrying pornographic content, and the exposure is the poster.
 - **TMDB as the general source** ([ADR-0009](docs/adr/0009-external-source-tmdb.md)) — its published
-  terms forbid keeping data beyond six months, so a reader who checks them will think this is wrong.
-  It rests on a project-specific exception TMDB confirmed in writing, held on CAN-34. TheTVDB is the
-  recorded fallback, not a live alternative; ADR-0009 alone names what would return us to it.
+  terms forbid keeping data past six months, so a reader who checks will think this wrong. It rests on a
+  written exception TMDB gave this project, held on CAN-34 Attach TMDB's written retention approval.
 
 ## Working practice
 
-Features run through the engineering skills in a fixed order. All of them are
-`disable-model-invocation` — **only the human can invoke them**, which is why they do not appear in
-the model's skill list:
+Features run through the engineering skills in a fixed order. All are `disable-model-invocation` —
+**only the human can invoke them**, so they do not appear in the model's skill list:
 
 ```
 /grill-with-docs   interview to shared understanding; writes CONTEXT.md + ADRs
