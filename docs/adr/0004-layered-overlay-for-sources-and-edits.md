@@ -75,16 +75,16 @@ well-formed empty list wipes every local episode; there is a test pinning that b
   finite.
 
 The distinction matters because it is the whole guard against becoming Sonarr's
-`DeleteMany(existingEpisodes)` above. A provider outage, a rate-limit wall and a genuine upstream
-deletion are all "cannot be refreshed", and ADR-0014 records what separates them and what happens to
-the row when it goes (a tombstone, not a hole).
+`DeleteMany(existingEpisodes)` above. A provider outage, a rate-limit wall and a genuine deletion at
+the Source are all "cannot be refreshed", and ADR-0014 records what separates them and what happens
+to the row when it goes (a tombstone, not a hole).
 
 **Four things per-Source retention does not fix**, each recorded in ADR-0014 rather than here
 because none of them is settled: the composed read has no floor when the only Source expires;
 `supersededValue` is a verbatim copy of Source content sitting in the **override** table, outside
 the retention machinery entirely; "a person is a Source" attaches retention to the conduit when the
 obligation attaches to the origin, so a fork launders finite retention into indefinite; and the
-per-user key below turns refresh into O(users × records) and a purge into a cross-tenant fan-out.
+per-user key below turns what was storage cost into obligation cost.
 
 ## The key is per-user, deliberately
 

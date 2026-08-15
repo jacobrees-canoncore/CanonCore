@@ -36,23 +36,24 @@ Source is reached through a Provider, including this one, and TMDB is reached th
 
 ## What the published terms require
 
-Read from the [TMDB API Terms of Use](https://www.themoviedb.org/api-terms-of-use) on 15 August
-2026, and quoted in full in
+All read from the [TMDB API Terms of Use](https://www.themoviedb.org/api-terms-of-use) on 15 August
+2026. Every clause but `§1.B` is also tabulated in
 [`source-licence-risk-and-decoupling.md`](../research/source-licence-risk-and-decoupling.md) → *2.
-The clause that actually matters*:
+The clause that actually matters*, which is where the risk analysis under them lives:
 
 - **`§1.C`** forbids caching "for longer than 6 months, any information obtained through or from
   TMDB or the TMDB APIs". A limit on the **age of the copy**, survivable by refreshing each record
   inside the window.
 - **`§1.D`** requires that on termination "you must immediately cease all use of the TMDB APIs,
   TMDB Content, and any TMDB API key(s), and you must promptly delete or otherwise purge all TMDB
-  Content, including any cached content". **This is the dangerous clause**, because it is an event
-  rather than a duration and a revoked key becomes a duty to empty the catalogue.
+  Content, including any cached content". **This is the dangerous clause**: a revoked key becomes a
+  duty to empty the catalogue.
 - **`§1.A`** grants the licence "non-exclusive, non-transferable, non-sublicensable", which is why
   `provider-tmdb` is the one Provider whose endpoint is closed
   ([ADR-0014](0014-shell-providers-and-per-source-retention.md) → *Decision 3*).
-- **`§1.B`** makes attribution an *Additional License Condition*, so failing `§3` is a licence
-  breach and `§1.D` is the remedy.
+- **`§1.B`** lists "Giving TMDB attribution for all TMDB Content, as specified in Paragraph 3"
+  among its *Additional License Conditions*, so failing `§3` is a licence breach and `§1.D` is the
+  remedy.
 - **`§1.C`** also prohibits use "in connection with, including for training, a machine learning (ML)
   or artificial intelligence (AI) based Application". It is not merely a commercial-use trigger, so
   it binds us as we are.
@@ -75,7 +76,7 @@ is the opposite of TMDB's published one: "We strongly recommend maintaining your
 database or making use of a caching proxy if your end users make direct use of data from TheTVDB."
 Its API information page carries **no retention limit and no purge clause**
 ([research §4](../research/source-licence-risk-and-decoupling.md)). Seven other surveyed sources
-impose neither either.
+impose neither clause.
 
 **What outweighs it**, and both reasons rest on public sources rather than on correspondence:
 
@@ -133,12 +134,13 @@ and until it lands the **Fallback** below is provisional in its target, though n
   display, distribution and redistribution all bind. Providers are not a route around this:
   [ADR-0014](0014-shell-providers-and-per-source-retention.md) has them serving data *into*
   CanonCore, never receiving ours.
-- **The GDPR export carries no TMDB fields beyond what the terms already permit.** The written
-  approval that once widened it is disregarded, so
-  [CAN-30 GDPR export and erasure](https://linear.app/jacobrees-canoncore/issue/CAN-30) is built on
-  the published terms alone and its scope is now an open question rather than a settled one. The
-  export must in any case be built from the composed read rather than by serialising Snapshot rows,
-  which was true under the approval and remains true without it.
+- **What the GDPR export may carry is now an open question.** The written approval that widened it
+  to the associated TMDB fields is disregarded, and the published terms restrict redistribution
+  rather than permitting it, so nothing authorises putting TMDB Content into a file handed to a
+  person. [CAN-30 GDPR export and erasure](https://linear.app/jacobrees-canoncore/issue/CAN-30) has
+  to settle the scope on the published terms alone, and the narrowest answer — external identifiers
+  only — is now the starting point rather than the fallback. One thing survives either way: the
+  export is built from the composed read rather than by serialising Snapshot rows.
 - **Identifier churn is real and already anticipated.** ADR-0004 records that TMDB loses roughly 2%
   of movie ids a year with no merge model, serving a 301 before a final 404. That is precisely why
   external ids live on the Snapshot and never on the record — and under per-Source retention it is
@@ -174,9 +176,12 @@ and until it lands the **Fallback** below is provisional in its target, though n
   already modelled as Stories with `part of` edges. `CONTEXT.md` defines a Phase as the Ordering's
   own grouping, not corresponding to seasons or to any broadcast structure, so mirroring seasons as
   Phases would contradict the glossary.
-- **More than one Source exists from the start**, so the overlay is exercised rather than
-  speculative. ADR-0014's keyless class names five, and ADR-0004 already keys Snapshots per source
-  and composes them in a configured order.
+- **More than one Source is decided, though v1 still imports from one.** ADR-0014's keyless class
+  names five more, so the overlay stops being speculative before the second one ships — ADR-0004
+  already keys Snapshots per source and composes them in a configured order. **CAN-17 v1: the
+  walking skeleton in production, then the founding case** still scopes v1 to a single Source, and
+  says so in its own out-of-scope list. The previous version of this bullet said flatly "One Source
+  exists", which stopped being true of the decision the moment the keyless five were named.
 - **Retention is established per source and never assumed.** TMDB's position is a prohibition with a
   six-month window and we hold nothing that softens it. A future source is not compatible with the
   Snapshot model until its terms have been read, and "we have always done it" is not a reading. Ask

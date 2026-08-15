@@ -27,7 +27,7 @@ no longer.
 ## Contents
 
 - [Decision 1 — the app is a shell](#decision-1--the-app-is-a-shell)
-- [Decision 2 — Providers are written and run by this project](#decision-2--providers-are-written-and-run-by-this-project)
+- [Decision 2 — Listed Providers are written and run by this project](#decision-2--listed-providers-are-written-and-run-by-this-project)
 - [Decision 3 — reachability splits by credential, in three classes](#decision-3--reachability-splits-by-credential-in-three-classes)
 - [What survives of ADR-0007](#what-survives-of-adr-0007)
 - [Decision 6 — retention is a property of the Source](#decision-6--retention-is-a-property-of-the-source)
@@ -47,9 +47,9 @@ application composes, renders and stores; it never knows that TMDB exists.
 **The wording is bounded to *Source* credentials, and the bound is the point.** Credentials for this
 project's own infrastructure are untouched: the database connection, better-auth's secrets, and
 `RESEND_API_KEY`. That last one is an external API key on any reading, and CAN-96 Record the
-architecture decisions of 15 August says in terms that it is **not** what this rules out. [ADR-0011](0011-transactional-email-resend.md) is therefore
-not contradicted, and a reader who takes this decision as "the app holds no API keys" has taken it
-too wide.
+architecture decisions of 15 August says in terms that it is **not** what this rules out.
+[ADR-0011](0011-transactional-email-resend.md) is therefore not contradicted, and a reader who takes
+this decision as "the app holds no API keys" has taken it too wide.
 
 **`provider-tmdb` is authenticated, so the application does hold a credential for it — and that
 credential is not a Source key.** It authenticates *us to our own Provider*, in the same class as
@@ -80,16 +80,18 @@ the process that renders — would put source-specific code back in the applicat
 does that, and the pattern to watch for is a clause naming the *displaying* service rather than the
 *fetching* one.
 
-## Decision 2 — Providers are written and run by this project
+## Decision 2 — Listed Providers are written and run by this project
 
-**Decided.** Every Provider is ours, each in its own repository, each deployed by us.
+**Decided.** Every **Listed Provider** is ours, each in its own repository, each deployed by us.
 [ADR-0005](0005-stack.md) already requires that Providers live outside `apps/`; this decides who
-operates them, which ADR-0005 left open.
+operates the listed ones, which ADR-0005 left open.
 
-This is the decision that breaks ADR-0007. A pasted URL pointing at a stranger's service is still
-supported — decision 7 of CAN-96 Record the architecture decisions of 15 August accepts third-party
-Providers and the duties that come with them —
-but it is no longer the *only* shape, and the Providers that matter on day one are ours.
+**Listed is the operative word, and `CONTEXT.md` defines it.** A pasted URL pointing at a stranger's
+service is still supported — decision 7 of CAN-96 Record the architecture decisions of 15 August
+accepts third-party Providers and the duties that come with them. What this decides is that the
+Providers *this project vouches for* are ours, not a community's, and that the list is a real
+boundary: anything off it is a stranger's service however familiar the Source behind it looks. That
+is the half ADR-0007 cannot carry, because a list is a review process.
 
 **Rejected: a community registry.** Stremio retrofitted moderation after "malicious addons, spam",
 and Stash's scraper index is unsigned, so whoever controls the source URL controls both the hash and
@@ -108,20 +110,25 @@ shrinks or somebody else runs part of it, and the second answer needs its own de
 
 ## Decision 3 — reachability splits by credential, in three classes
 
-**Decided.** Providers do not form one class. They form three, and the axis is the credential.
+**Decided.** Listed Providers do not form one class. They form three, and the axis is the
+credential.
 
-| Class | Providers | Repository | Endpoint | Self-hostable |
+| Class | Listed Provider, and the Source behind it | Repository | Endpoint | Self-hostable |
 | --- | --- | --- | --- | --- |
-| **Authenticated** | `provider-tmdb` | Public | Reachable only by `canoncore.com` | **No** — the key is ours |
-| **Keyless** | TVmaze, the Grand Comics Database, ISFDB, Open Library, MusicBrainz | Public | Public, listable | **Yes** |
-| **Permission-bound** | tardis.wiki | Public | Reachable only by `canoncore.com` | **No** — the permission is ours |
+| **Authenticated** | `provider-tmdb`, for TMDB | Public | Reachable only by `canoncore.com` | **No** — the key is ours |
+| **Keyless** | one each for TVmaze, the Grand Comics Database, ISFDB, Open Library and MusicBrainz | Public | Public, listable | **Yes** |
+| **Permission-bound** | `provider-tardis-wiki`, for tardis.wiki | Public | Reachable only by `canoncore.com` | **No** — the permission is ours |
+
+The two columns are deliberately separate. A Provider is not its Source, and this table is the one
+place the distinction has to be read carefully: the credential belongs to the **Provider**, and the
+terms belong to the **Source**.
 
 **Why the first class is closed.** TMDB's licence is granted "non-exclusive, **non-transferable,
 non-sublicensable**" (`§1.A`, read from the
 [API terms](https://www.themoviedb.org/api-terms-of-use) on 15 August 2026 and quoted in research
-§2). A public endpoint serving our key to strangers resembles sublicensing access, so the endpoint is
-authenticated and the key sits in a Vercel Sensitive variable that never appears in source. The
-repository is still public; the key is what is closed, not the code.
+§2's table). A public endpoint serving our key to strangers resembles sublicensing access, so the
+endpoint is authenticated and the key sits in a Vercel Sensitive variable that never appears in
+source. The repository is still public; the key is what is closed, not the code.
 
 **Why the second class is open.** TVmaze, the Grand Comics Database, ISFDB, Open Library and
 MusicBrainz require no key at all and impose neither a retention limit nor a purge clause (research
@@ -142,9 +149,9 @@ Recording three classes rather than two is the whole point of this decision. Two
 key" and "does not" — put tardis.wiki in the open bucket, and the open bucket is defined by being
 safe to self-host.
 
-**Rejected: one class, everything closed.** It costs the self-hostability decision 10 commits to
-(the Mastodon/Gitea/Plausible shape) for nothing: there is no credential to protect on the keyless
-five, and closing them protects nothing.
+**Rejected: one class, everything closed.** It costs the self-hostability decision 10 of CAN-96
+Record the architecture decisions of 15 August commits to, for nothing: there is no credential to
+protect on the keyless five, and closing them protects nothing.
 
 **Rejected: one class, everything open.** It sublicenses TMDB's key and hands out a permission that
 was never ours to give.
@@ -176,23 +183,27 @@ listed or reviewed does not.
 **Re-derived: why the contract is additive-only.** ADR-0007 justified the exception to the
 no-backward-compatibility rule with "someone else's service implements it and deploys on their
 schedule". That is **false for every Provider that will exist in v1**, because we write and run all
-of them. The correct reason, under decisions 2, 3 and 10, is **self-hostability**: someone else may
+of them. The correct reason, under decisions 2 and 3 above and decision 10 of CAN-96 Record the
+architecture decisions of 15 August — a hosted public instance plus self-hostable code, the
+Mastodon/Gitea/Plausible shape — is **self-hostability**: someone else may
 be running our code on their own schedule, and a self-hosted copy is a fork we cannot upgrade even
 though we wrote it. That argument is stronger than the one it replaces, and it survives even if no
 third party ever implements the contract.
 
-**Corrected: the Audiobookshelf adapter.** ADR-0007 says to "ship an Audiobookshelf-compatible
-adapter anyway", which reads as source-specific code inside the product and decision 1 forbids it
-outright. It is a separate repository like every other Provider.
+**Corrected: the Audiobookshelf-compatible Provider.** ADR-0007 says to "ship an
+Audiobookshelf-compatible adapter anyway", which reads as source-specific code inside the product,
+and decision 1 forbids that outright. It is a Listed Provider in a repository of its own, like every
+other.
 
 **Extended: the capability endpoint carries five things it was never sized for.** Under decision 1
 anything the application must honour has to arrive through the contract, because the application
 cannot know it any other way:
 
 1. **Retention policy** — the value `source.retention` takes (*Decision 6* below).
-2. **Required attribution**, including a *logo* and not merely a text credit. TMDB `§1.B` makes
-   attribution an *Additional License Condition*, so failing it is a licence breach and `§1.D` is
-   the remedy.
+2. **Required attribution**, including a *logo* and not merely a text credit. TMDB `§1.B` lists
+   "Giving TMDB attribution for all TMDB Content, as specified in Paragraph 3" among its *Additional
+   License Conditions* ([API terms](https://www.themoviedb.org/api-terms-of-use), read 15 August
+   2026), so failing it is a licence breach and `§1.D` is the remedy.
 3. **Usage restrictions** — the non-commercial limit and the AI/ML prohibition are examples that
    bind today.
 4. **Content classification**, because [ADR-0012](0012-adult-works-catalogued-artwork-never-displayed.md)'s
@@ -207,7 +218,8 @@ Wikimedia Commons' `extmetadata`, which already has the field set — `License`,
 `UsageTerms`, `AttributionRequired`, `Artist`, `Credit`, `Permission`, `Restrictions`.
 
 **CAN-7 Provider contract: define and publish it** carries all of this, and moved into `v1` under
-decision 4 because third-party implementors exist from the start.
+decision 4 of CAN-96 Record the architecture decisions of 15 August, because third-party
+implementors exist from the start.
 
 ## Decision 6 — retention is a property of the Source
 
@@ -230,9 +242,11 @@ composed read never blanks. Decision 6 rules it out explicitly. It buys a floor 
 second set of terms for every record, and where the floor is CC BY-SA it imports share-alike into an
 aggregate that also holds proprietary data — which research §11 shows cannot be reconciled.
 
-**Rejected: promote a value out of the expiring Snapshot into an owner-authored row.** A fig leaf.
-It is still that Source's content, moved into a table with no clock on it, which is evasion rather
-than compliance.
+**Rejected: promote a value out of the expiring Snapshot into an owner-authored row**, so the
+composed read keeps something to show. A fig leaf: it is still that Source's content, moved into a
+table with no clock on it, which is evasion rather than compliance. It is also unnecessary for the
+case that motivates it, because a genuine Override already survives the sweep — *What per-Source
+retention does not fix* below.
 
 **The columns land with the first schema, not later.** Retrofitting `fetched_at` onto live Snapshot
 rows is a data migration; landing it before any production Snapshot exists is free. This is the same
@@ -254,10 +268,10 @@ TMDB's two clauses are different shapes, and only one of them is a duration.
 **What is unresolved, named rather than left to be discovered:**
 
 1. **What detects termination.** A revoked key is indistinguishable at the call site from an outage
-   or a rate-limit wall, and TMDB staff are blunt about how ordinary revocation is: *"We kill API
-   keys fairly often as we find out about apps doing bad or illegal things"*
-   ([TMDB Talk](https://www.themoviedb.org/talk/65bb413111c066017bd01c3d), quoted in research §2).
-   Nothing currently watches for it, and a purge duty nobody notices is a breach that runs quietly.
+   or a rate-limit wall, and revocation is ordinary rather than exceptional —
+   [ADR-0009](0009-external-source-tmdb.md) → *Fallback: TheTVDB* quotes TMDB's own staff on how
+   often they do it. Nothing currently watches for it, and a purge duty nobody notices is a breach
+   that runs quietly.
 2. **The purge must reach `supersededValue`.** ADR-0004 stores the composed value at the moment of
    override as the merge base, so it is by construction a verbatim copy of Source content sitting in
    the **override** table. Decision 6 specifies `snapshot.fetched_at` only. If the sweep does not
@@ -297,8 +311,8 @@ prohibition because it is the first thing anyone reaches for and it fails silent
 "Drop what cannot be refreshed" is the dangerous half of decision 6, and ADR-0004 already names the
 failure it invites: Sonarr's unguarded `DeleteMany(existingEpisodes)`, where "a provider returning a
 well-formed empty list wipes every local episode". A provider outage, a revoked key, a rate-limit
-wall, a 404 from identifier churn and a genuine upstream deletion are all "cannot be refreshed", and
-the clock does not care which.
+wall, a 404 from identifier churn and a genuine deletion at the Source are all "cannot be
+refreshed", and the clock does not care which.
 
 **TMDB's daily ID exports are what separates them.** Every valid identifier is published as
 newline-delimited JSON at `https://files.tmdb.org/p/exports/`, one file per type per day; the job
@@ -327,22 +341,33 @@ the application acts on `liveness`.
 
 Recorded because the qualifier is **necessary and not sufficient**, and three of these break quietly.
 
-- **The composed read has no floor.** ADR-0004's "the displayed record is derived and never written
-  directly" was safe only while Snapshots were permanent. If a Source with finite retention is a
-  record's only Source and its Snapshot expires unrefreshed, the composed read has nowhere to fall
-  back to. **Decision 8 answers this**: the record becomes a tombstone rather than blanking. Decision
-  6 expressly rules out the alternative of adding a second Source as a floor, and promoting a value
-  out of the expiring Snapshot into an owner-authored row is a fig leaf — it is still that Source's
-  content, in a table with no clock on it.
+- **The composed read loses its Snapshot layer, and only sometimes has a floor under it.** An
+  earlier draft of this bullet said it has *no* floor, which is wrong: the Override table is one.
+  Overrides hold the owner's own authored values rather than any Source's, and
+  [ADR-0008](0008-operations-and-undo.md) already states that "removing Snapshots cannot touch
+  them". Three cases separate, and only the second reaches decision 8:
+  - **A field the owner overrode survives the sweep.** Dropping such a record would destroy a value
+    a person typed, which ADR-0004 forbids in terms ("nothing is destroyed in either direction"), so
+    **a record carrying Overrides degrades to them rather than becoming a tombstone.**
+  - **A field with no Override and no second Source has nothing beneath it.** That is the case with
+    no floor, and decision 8 answers it.
+  - **An Override whose value came from `supersededValue` is not the owner's**, since that column is
+    by construction a verbatim copy of Source content. It cannot serve as a floor, which is
+    unresolved item 2 above wearing a different hat.
+
+  Decision 6 rules out adding a second Source as a floor, and promoting a Snapshot value into an
+  owner-authored row is the fig leaf rejected above. **What a partly-overridden record renders as
+  once its Snapshots are gone is not decided here**; CAN-90 Decide how an Ordering reads, and what
+  the interface calls its parts owns it.
 - **A Story with no title is therefore a routine rendering state**, not an exceptional one. ADR-0004
   records that TMDB loses roughly 2% of movie identifiers a year; each of those is now a drop rather
   than a flag. Nothing in
   [`frontend-design-scope.md`](../research/frontend-design-scope.md) treats it as routine, and
   **CAN-90 Decide how an Ordering reads, and what the interface calls its parts** owns what it looks
   like.
-- **`liveness = gone` stops being durable** for a finite-retention Source, since a row that is gone
-  upstream cannot be refreshed by definition and must be dropped at expiry. It is a durable state
-  only where retention is indefinite.
+- **`liveness = gone` stops being durable** for a finite-retention Source, since a row the Source no
+  longer carries cannot be refreshed by definition and must be dropped at expiry. It is a durable
+  state only where retention is indefinite.
 - **Where `source.retention` lives is unresolved, and every answer costs something.** Per-user rows
   make terms compliance a user setting. A global table is not an Anchor, which grates against
   ADR-0003's "the shared layer is Anchors, and nothing else", and sits outside ADR-0005 rule 2's
@@ -365,9 +390,11 @@ retrofitting is the migration this decision exists to avoid.
 
 ## Decision 8 — an expired or purged Story is a tombstone
 
-**Decided.** A Story dropped by the retention sweep or by a purge becomes a **tombstone**, following
+**Decided.** A Story left with nothing to display, once the retention sweep or a purge has taken
+every Source value it had and it carries no Overrides, becomes a **tombstone**, following
 ActivityPub: the object is replaced by a `Tombstone`, and the URL answers **410 Gone** rather than
-404.
+404. A record with Overrides keeps them and is not tombstoned — see *What per-Source retention does
+not fix* above.
 
 ActivityStreams 2.0 defines the shape and this project adopts it verbatim rather than inventing one:
 a `Tombstone` "represents a content object that has been deleted"; `formerType` "identifies the type
@@ -402,8 +429,9 @@ how an Ordering reads, and what the interface calls its parts** owns it.
 
 One mechanism discharges three obligations that would otherwise need three:
 
-1. **TMDB `§3` attribution** — the logo plus the prescribed notice, in a fixed form, as a condition
-   of the licence under `§1.B`.
+1. **TMDB `§3` attribution** — the logo plus the prescribed notice, in a fixed form, and a
+   condition of the licence rather than a courtesy: `§1.B` lists it among the *Additional License
+   Conditions* ([API terms](https://www.themoviedb.org/api-terms-of-use), read 15 August 2026).
 2. **CC BY-SA attribution across the keyless Sources.** TVmaze, the Grand Comics Database and
    tardis.wiki are share-alike, ISFDB is CC BY, and all of them require attribution per source.
    Research §11 puts it plainly: per-record provenance is **required by the licences**, not merely
