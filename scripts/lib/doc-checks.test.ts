@@ -9,6 +9,7 @@ import {
   findLinks,
   findPointers,
   parseCiJobNames,
+  parseUncheckedVariables,
   parseVercelEnv,
   pointerResolves,
 } from './doc-checks.ts'
@@ -56,6 +57,26 @@ test('a variable set on Vercel but absent from the roster is reported', () => {
 
   assert.deepEqual(compareVariables(documented, live, 'the roster'), [
     'legacy_token is set on Vercel but missing from the roster',
+  ])
+})
+
+test('a documented variable held outside Vercel is named rather than silently dropped', () => {
+  // `parseDocumentedVariables` keeps only rows whose Holder contains "Vercel", so a row held
+  // anywhere else leaves the comparison altogether. Dropping it quietly is the same failure as
+  // dropping an unparseable row: the check reports agreement across a roster it never read in
+  // full. CAN-99 Move the TMDB credential out of the app, atomically with its roster row put the
+  // first credential into that blind spot deliberately, so the count has to be spoken aloud.
+  const roster = [
+    '| Variable | Holder | Environments | Sensitivity | What it is |',
+    '| --- | --- | --- | --- | --- |',
+    '| `DATABASE_URL` | Vercel | Production | Sensitive | the application role |',
+    '| `MIGRATION_DATABASE_URL` | GitHub Actions secret | — | — | the migration role |',
+    '| `TMDB_API_READ_ACCESS_TOKEN` | `provider-tmdb` | Production | Sensitive | pending that repo |',
+  ].join('\n')
+
+  assert.deepEqual(parseUncheckedVariables(roster), [
+    'MIGRATION_DATABASE_URL',
+    'TMDB_API_READ_ACCESS_TOKEN',
   ])
 })
 

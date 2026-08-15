@@ -191,10 +191,16 @@ export function parseLinearLabels(rawJson: string): Set<string> {
   return new Set(labels.map((l) => l.name));
 }
 
+// The roster's four columns, named once. The two readers below partition the same rows on the
+// same predicate, so a column renamed in one and not the other would silently make them overlap
+// or leave a gap — and the pair's whole value is that together they account for every row.
+const rosterRows = (markdown: string) =>
+  parseTable(markdown, "Variable", "Holder", "Environments", "Sensitivity");
+
 /** The Vercel-held rows of the variable roster. */
 export function parseDocumentedVariables(markdown: string): Map<string, VariableState> {
   return new Map(
-    parseTable(markdown, "Variable", "Holder", "Environments", "Sensitivity")
+    rosterRows(markdown)
       .filter((r) => r.Holder.includes("Vercel"))
       .map((r) => [
         unbacktick(r.Variable),
@@ -209,6 +215,19 @@ export function parseDocumentedVariables(markdown: string): Map<string, Variable
         },
       ]),
   );
+}
+
+/**
+ * The roster rows this project documents but cannot verify: those held anywhere other than
+ * Vercel. `parseDocumentedVariables` filters them out so the comparison against
+ * `vercel env ls` stays sound, and that filter is silent — the check would otherwise report
+ * agreement across a roster it had only partly read. Naming them is what keeps the blind spot
+ * visible on every run, so the roster's own claim about its reach can be trusted.
+ */
+export function parseUncheckedVariables(markdown: string): string[] {
+  return rosterRows(markdown)
+    .filter((r) => !r.Holder.includes("Vercel"))
+    .map((r) => unbacktick(r.Variable));
 }
 
 const ENVIRONMENTS = /Production|Preview|Development/g;

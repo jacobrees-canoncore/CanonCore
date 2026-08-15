@@ -42,6 +42,7 @@ import {
   parseDocumentedLabels,
   parseDocumentedVariables,
   parseLinearLabels,
+  parseUncheckedVariables,
   parseVercelEnv,
   pointerResolves,
   setEq,
@@ -201,7 +202,8 @@ check("the label roster matches the tracker", () => {
 // ---------------------------------------------------------------------------
 
 check("the variable roster matches Vercel", () => {
-  const documented = parseDocumentedVariables(read(CONTEXT_HOME));
+  const roster = read(CONTEXT_HOME);
+  const documented = parseDocumentedVariables(roster);
   if (documented.size === 0) fail(`${CONTEXT_HOME} records no Vercel-held variables`);
   const live = parseVercelEnv(
     source("vercel", ["env", "ls", "--project", "canoncore"], "cannot read the Vercel environment"),
@@ -213,7 +215,13 @@ check("the variable roster matches Vercel", () => {
       `the roster in ${CONTEXT_HOME} disagrees with \`vercel env ls\`:\n    - ` +
         problems.join("\n    - "),
     );
-  return `${documented.size} variables agree`;
+  // Rows held anywhere but Vercel are outside this comparison by construction, and saying so is
+  // the point: the reach of the check is stated on every run rather than inferred from a count
+  // that shrinks quietly whenever a credential moves off this project.
+  const unchecked = parseUncheckedVariables(roster);
+  return unchecked.length
+    ? `${documented.size} agree; ${unchecked.length} held elsewhere and unchecked (${unchecked.join(", ")})`
+    : `${documented.size} variables agree`;
 });
 
 // ---------------------------------------------------------------------------
