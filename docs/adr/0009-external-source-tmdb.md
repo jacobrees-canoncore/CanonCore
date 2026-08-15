@@ -205,9 +205,9 @@ rests on correspondence, which is what made the previous list unable to fire.
 3. **The AI/ML prohibition blocks something the product needs.** `§1.C` binds now, not on
    monetisation, so this can fire without anything else changing.
 4. **The six-month refresh cannot be held.** If the sweep cannot keep every Snapshot inside `§1.C`'s
-   window at the scale actually reached — rate limits, user growth, the O(users × records) fan-out
-   ADR-0014 records — then the copy is unlawful and the Source has to change rather than the
-   schedule.
+   window at the scale actually reached — rate limits, user growth, and the per-user fan-out
+   [ADR-0014](0014-shell-providers-and-per-source-retention.md) sizes — then the copy is unlawful,
+   and it is the Source that has to change rather than the schedule.
 5. **Attribution cannot be delivered in the prescribed form.** `§1.B` makes it a licence condition,
    so this is a `§1.D` trigger wearing a different hat.
 

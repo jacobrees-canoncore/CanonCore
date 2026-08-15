@@ -8,6 +8,16 @@ broadcast one, and it must appear in both without being duplicated.
 Examples throughout are drawn from Doctor Who's 2005 series onward, because that is the seed
 collection. Nothing in the language is specific to it.
 
+## Contents
+
+- [Using these documents](#using-these-documents)
+- [Language](#language)
+  - [The catalogue](#the-catalogue)
+  - [Recurring things](#recurring-things)
+  - [Orderings](#orderings)
+  - [Sources and edits](#sources-and-edits)
+  - [Ownership and sharing](#ownership-and-sharing)
+
 ## Using these documents
 
 **Read this file and any relevant [`docs/adr/`](docs/adr/) before working in an area.** Both are
@@ -193,9 +203,9 @@ Source's own retention is.
 _Avoid_: Status, health, deleted, stale
 
 **Tombstone**:
-What is left where a Story used to be once every Source's content has been dropped from it: the
-identity, what kind of thing it was, and when it went. It carries no value any Source supplied,
-which is the whole of why it may remain.
+What is left where a Story used to be once every Source's content has been dropped from it and the
+owner overrode nothing: the identity, what kind of thing it was, and when it went. It carries no
+value any Source supplied, which is the whole of why it may remain.
 _Avoid_: Soft delete, archived, hidden, placeholder, stub
 
 **Artwork**:

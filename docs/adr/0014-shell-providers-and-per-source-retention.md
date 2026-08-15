@@ -113,15 +113,19 @@ shrinks or somebody else runs part of it, and the second answer needs its own de
 **Decided.** Listed Providers do not form one class. They form three, and the axis is the
 credential.
 
-| Class | Listed Provider, and the Source behind it | Repository | Endpoint | Self-hostable |
+| Class | Listed Provider | Source it answers for | Endpoint | Self-hostable |
 | --- | --- | --- | --- | --- |
-| **Authenticated** | `provider-tmdb`, for TMDB | Public | Reachable only by `canoncore.com` | **No** — the key is ours |
-| **Keyless** | one each for TVmaze, the Grand Comics Database, ISFDB, Open Library and MusicBrainz | Public | Public, listable | **Yes** |
-| **Permission-bound** | `provider-tardis-wiki`, for tardis.wiki | Public | Reachable only by `canoncore.com` | **No** — the permission is ours |
+| **Authenticated** | `provider-tmdb` | TMDB | Reachable only by `canoncore.com` | **No** — the key is ours |
+| **Keyless** | one each | TVmaze, the Grand Comics Database, ISFDB, Open Library, MusicBrainz | Public, listable | **Yes** |
+| **Permission-bound** | `provider-tardis-wiki` | tardis.wiki | Reachable only by `canoncore.com` | **No** — the permission is ours |
 
-The two columns are deliberately separate. A Provider is not its Source, and this table is the one
-place the distinction has to be read carefully: the credential belongs to the **Provider**, and the
-terms belong to the **Source**.
+**Every repository is public, in all three classes**, which is why there is no column for it: what
+varies is the endpoint, never the source code.
+
+**Provider and Source get a column each on purpose.** A Provider is not its Source, and this is the
+table where confusing them costs most: the **credential** belongs to the Provider, the **terms**
+belong to the Source, and the class is decided by the first while the retention policy is decided by
+the second.
 
 **Why the first class is closed.** TMDB's licence is granted "non-exclusive, **non-transferable,
 non-sublicensable**" (`§1.A`, read from the
@@ -244,9 +248,9 @@ aggregate that also holds proprietary data — which research §11 shows cannot 
 
 **Rejected: promote a value out of the expiring Snapshot into an owner-authored row**, so the
 composed read keeps something to show. A fig leaf: it is still that Source's content, moved into a
-table with no clock on it, which is evasion rather than compliance. It is also unnecessary for the
-case that motivates it, because a genuine Override already survives the sweep — *What per-Source
-retention does not fix* below.
+table with no clock on it, which is evasion rather than compliance. And where the owner has genuinely
+overridden the field it is redundant as well, because that Override survives the sweep on its own —
+*What per-Source retention does not fix* below.
 
 **The columns land with the first schema, not later.** Retrofitting `fetched_at` onto live Snapshot
 rows is a data migration; landing it before any production Snapshot exists is free. This is the same
@@ -391,7 +395,8 @@ retrofitting is the migration this decision exists to avoid.
 ## Decision 8 — an expired or purged Story is a tombstone
 
 **Decided.** A Story left with nothing to display, once the retention sweep or a purge has taken
-every Source value it had and it carries no Overrides, becomes a **tombstone**, following
+every Source value it had and it carries no Override the owner actually authored, becomes a
+**tombstone**, following
 ActivityPub: the object is replaced by a `Tombstone`, and the URL answers **410 Gone** rather than
 404. A record with Overrides keeps them and is not tombstoned — see *What per-Source retention does
 not fix* above.

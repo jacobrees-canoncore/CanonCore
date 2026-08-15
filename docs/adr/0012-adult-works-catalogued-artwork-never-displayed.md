@@ -105,8 +105,8 @@ it fetches is user-generated content, and `s.236(7)` never engages.
 this analysis assumes one.** A Provider we wrote and run is plainly controlled by us. A **self-hosted
 copy of our own keyless Provider** is our code on somebody else's machine, and a **third-party
 Provider at a pasted URL** — which decision 7 of CAN-96 Record the architecture decisions of
-15 August accepts for v1 — is neither our code nor our machine. The first is settled; the other two are not, and each self-hosted instance is in any case
-its own service with its own operator's duties
+15 August accepts for v1 — is neither our code nor our machine. The first is settled; the other two
+are not, and each self-hosted instance is in any case its own service with its own operator's duties
 ([ADR-0014](0014-shell-providers-and-per-source-retention.md)). Nothing in v1 turns on it, because
 v1 imports no artwork at all, but the question is open before artwork ships.
 

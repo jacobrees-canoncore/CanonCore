@@ -76,15 +76,19 @@ well-formed empty list wipes every local episode; there is a test pinning that b
 
 The distinction matters because it is the whole guard against becoming Sonarr's
 `DeleteMany(existingEpisodes)` above. A provider outage, a rate-limit wall and a genuine deletion at
-the Source are all "cannot be refreshed", and ADR-0014 records what separates them and what happens
-to the row when it goes (a tombstone, not a hole).
+the Source are all "cannot be refreshed", and ADR-0014 records what separates them. **Overrides are
+not touched by any of it** — they are the owner's own values, in their own table, and
+[ADR-0008](0008-operations-and-undo.md) already says removing Snapshots cannot reach them. So a
+record carrying Overrides degrades to those Overrides; only a record left with nothing to show
+becomes a tombstone.
 
 **Four things per-Source retention does not fix**, each recorded in ADR-0014 rather than here
-because none of them is settled: the composed read has no floor when the only Source expires;
-`supersededValue` is a verbatim copy of Source content sitting in the **override** table, outside
-the retention machinery entirely; "a person is a Source" attaches retention to the conduit when the
-obligation attaches to the origin, so a fork launders finite retention into indefinite; and the
-per-user key below turns what was storage cost into obligation cost.
+because none of them is settled: a field with no Override and no second Source has nothing left
+beneath it once its Snapshot expires; `supersededValue` is a verbatim copy of Source content sitting
+in the **override** table, so it is outside the retention machinery and cannot serve as that floor
+either; "a person is a Source" attaches retention to the conduit when the obligation attaches to the
+origin, so a fork launders finite retention into indefinite; and the per-user key below turns what
+was storage cost into obligation cost.
 
 ## The key is per-user, deliberately
 
