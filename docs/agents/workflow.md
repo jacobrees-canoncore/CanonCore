@@ -38,6 +38,7 @@ to remove — a retold incident is.
 - [The gates](#the-gates)
 - [What `main` refuses](#what-main-refuses)
 - [What a merge carries](#what-a-merge-carries)
+- [Work that spans two repositories](#work-that-spans-two-repositories)
 - [After the merge](#after-the-merge)
 
 ## Why a PR at all, for one developer
@@ -279,6 +280,10 @@ CANONCORE_E2E_BASE_URL=<preview url> pnpm --filter @canoncore/web test:e2e
 Without that variable it runs against production, which is a check on a deploy that has already
 happened — *After the merge* below, not a gate.
 
+**A path that crosses a closed Provider is out of the suite's reach from a preview**, which bounds
+what an end-to-end run can prove about an import. *Work that spans two repositories* below says why,
+and it is a Provider deployment decision rather than anything this file can fix.
+
 **The gate is GitHub's copy of those checks, not yours.** A local run proves the code works on the
 machine that wrote it; Actions proves it works on a fresh one, which is the failure a solo repo has
 no other way to see. So the green `/review-pr` acts on has to belong to the commit it is about to
@@ -335,7 +340,19 @@ Any other out-of-band artefact — a scheduled job, a queue, a permission,
 an environment variable — is hand-run and must be named in the PR body.
 
 Answer this for each new **kind** of artefact before the first change that needs it, not after, and
-add it here ([incident](../incidents.md#waveger-the-build-ran-no-migrations-and-nobody-knew)).
+add it here ([incident](../incidents.md#waveger-the-build-ran-no-migrations-and-nobody-knew)). The
+decisions of 15 August 2026 bring one new kind, and sharpen the check on a kind the rule above
+already covers:
+
+**A separately deployed service carries nothing.** A merge to `main` here moves `apps/web` and
+nothing else, whatever the ticket said, because a Provider is a deployment of its own. A change
+needing both is two merges in a chosen order — *Work that spans two repositories* below.
+
+**For the retention sweep, check the schedule rather than the output**
+([ADR-0014](../adr/0014-shell-providers-and-per-source-retention.md#decision-6--retention-is-a-property-of-the-source)).
+It is a scheduled job like any other, so the rule above already has it — but **a sweep that was never
+registered looks exactly like a sweep with nothing to do**, which is what makes a missed registration
+a licence breach rather than a stale cache.
 
 **A change that only works in one deploy order is a change to rewrite**, not a window to reason
 about: widen first so old and new code both work, move the data, then narrow in a *later* change
@@ -346,6 +363,39 @@ still land in one go.
 **Anything the tests structurally cannot see** goes here as it appears, and prefer making each one
 an executable check over leaving it as prose — a rule that lives only in prose is one nobody
 re-reads at the moment it is broken. `scripts/check-docs.ts` is the first of those.
+
+## Work that spans two repositories
+
+Every Provider is a repository of its own and a deployment of its own
+([ADR-0014](../adr/0014-shell-providers-and-per-source-retention.md)), so from the first Provider
+ticket the loop above stops being confined to one repo. Three of its mechanisms then **break** rather
+than merely going quiet, and each breaks in the direction that reads as fine:
+
+- **One ticket, two PRs, and the first merge closes it.** A branch carries its `CAN-n` and Linear's
+  GitHub integration moves the issue as a PR opens and merges (*After the merge* below), so two PRs
+  carrying the same identifier both drive the same issue and the first to land reports it `Done`
+  while the other half is unmerged. **Give each repository its own ticket** and relate them in
+  Linear. An extra issue costs nothing; a status that closed early is never re-opened by anything.
+- **The gates are this repository's gates.** *The gates* above describes one Actions job, and
+  `main`'s ruleset requires it — both are configuration of *this* repo, and a new repository has
+  neither until someone provisions them. `/review-pr` polls until checks appear and then reads the
+  ruleset for the contexts it must see; a repository emitting none gives it nothing to tell *not
+  registered yet* from *never will be*. **Provision the job, the ruleset and the deployment before
+  the first pull request in a Provider repository**, and record them as
+  [`docs/infrastructure.md`](../infrastructure.md) records this one.
+- **A preview only reaches a Provider that admits it.** `provider-tmdb` and `provider-tardis-wiki`
+  are closed endpoints — one because the key is ours, one because the permission is
+  ([ADR-0014](../adr/0014-shell-providers-and-per-source-retention.md#decision-3--reachability-splits-by-credential-in-three-classes))
+  — so a caller not presenting the application's own credential is refused. A preview is a separate
+  deployment, so whether it holds that credential, and whether a closed Provider should admit a
+  throwaway host at all, is a decision on the Provider's side that **nothing has taken yet**.
+
+**Land the contract side first, then the consumer**, which is the widening rule above one repository
+further out. The contract evolves additive-only, because someone may be self-hosting our Provider on
+their own schedule
+([ADR-0014](../adr/0014-shell-providers-and-per-source-retention.md#what-survives-of-adr-0007)), so a
+Provider already answering the new shape is safe for old and new consumers alike while the reverse
+order ships a consumer calling something that does not exist.
 
 ## After the merge
 

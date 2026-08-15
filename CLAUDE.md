@@ -52,8 +52,7 @@ surfaces one, discard it and say that you did. Nothing here is derived from them
 
 ## Stack
 
-Settled by the grilling session of 8 August 2026. Rationale and rejected alternatives are in
-[ADR-0005](docs/adr/0005-stack.md); do not relitigate them here.
+Settled 8 August 2026. Rationale and rejected alternatives: [ADR-0005](docs/adr/0005-stack.md). Do not relitigate them here.
 
 | Concern | Choice |
 | --- | --- |
@@ -73,10 +72,10 @@ cross-tenant read test on every RLS-protected table, and session context via `SE
 explicit transaction. [ADR-0005](docs/adr/0005-stack.md) states them and says why each one's
 failure is silent.
 
-**Layout.** One monorepo. `apps/` holds framework-specific applications, `packages/` holds shared
-TypeScript. Day one is `apps/web` and `packages/config` only, and no boundary is drawn before a
-second consumer exists. **Providers live in separate repositories**, never in `apps/` —
-[ADR-0007](docs/adr/0007-provider-contract.md) says why that separation has to be structural.
+**Layout.** One monorepo: `apps/` for applications, `packages/` for shared TypeScript, today
+`apps/web` and `packages/config` only, no boundary before a second consumer exists. **`apps/web` is
+a shell** — no source-specific code, no *Source* credential — and every Source is reached through a
+**Provider** in its own repository: [ADR-0014](docs/adr/0014-shell-providers-and-per-source-retention.md).
 
 **Working in the repo.** `pnpm install`, then `pnpm --filter @canoncore/web dev`. The four CI gates
 and the Playwright suite are in `docs/agents/workflow.md`; `node scripts/check-docs.ts` checks these
@@ -104,8 +103,7 @@ such a change ships, not after.
 - **Triage labels.** The five canonical state roles verbatim, plus `bug`/`enhancement` mapping to
   Linear's `Bug`/`Feature`. `label add` / `label remove`, never `label set`.
   `docs/agents/triage-labels.md`.
-- **Domain docs.** Single-context: one `CONTEXT.md` and one `docs/adr/`, both populated. How to
-  consume them is `CONTEXT.md` → *Using these documents*.
+- **Domain docs.** One `CONTEXT.md`, one `docs/adr/`. How to consume them: `CONTEXT.md` → *Using these documents*.
 - **Branches and landing.** Trunk-based and solo: one `main`, a branch per ticket carrying its
   `CAN-n`, squash-merge to land. `docs/agents/workflow.md` names the gates, the preview environment
   and which artefacts a merge carries; since CAN-22 those gates run in GitHub Actions on every push.
@@ -131,14 +129,13 @@ such a change ships, not after.
 | Transactional email — sending, domains, API keys, delivery logs, inbound mail | **`resend` MCP** |
 | Whether a message actually arrived, and in which folder | **`macos-mail-mcp`**, Jacob's Mail.app |
 
-Five rules the table does not carry, and **`docs/agents/tooling.md` has the reasoning under each**:
+Four rules the table does not carry, and **`docs/agents/tooling.md` has the reasoning under each**:
 
 - **Playwright drives the browser; chrome-devtools measures it.** `claude-in-chrome` is denied in
   `.claude/settings.json` two ways, because its browser is Jacob's own and carries all his sessions.
 - **A deliverability claim needs both email tools.** `resend` reports what the provider did;
   `macos-mail-mcp` reports what the recipient's client did. A send can be `delivered` and in Junk.
 - **Ignore `next-devtools-mcp`'s `browser_eval` tool.** *Playwright drives the browser* settled it.
-- **`next-devtools-mcp` answers nothing when the dev server is down.**
 - **Never use `macos-mail-mcp` for anything but mail this project sent** — it reads every account in
   Jacob's Mail.app, work and personal.
 
@@ -165,9 +162,13 @@ answer first, then what will offer you something else.
   ([ADR-0012](docs/adr/0012-adult-works-catalogued-artwork-never-displayed.md)) — Trakt filters adult
   titles out of its TMDB import, so "just exclude them" reads as obvious. It is not: recording that a
   work exists is not carrying pornographic content, and the exposure is the poster.
-- **TMDB as the general source** ([ADR-0009](docs/adr/0009-external-source-tmdb.md)) — its published
-  terms forbid keeping data past six months, so a reader who checks will think this wrong. It rests on a
-  written exception TMDB gave this project, held on CAN-34 Attach TMDB's written retention approval.
+- **TMDB as the general source, on published terms with no exception** ([ADR-0009](docs/adr/0009-external-source-tmdb.md))
+  — every earlier approval is disregarded and none will be sought, so the six-month cache limit binds
+  and reads as fatal. The reflex is a second Source as a floor, which ADR-0014 refuses outright.
+- **`apps/web` holds no source-specific code and no *Source* credential** (ADR-0014) — ask any tool
+  for a TMDB client and it lands in `apps/web`. Bound to *Source*: `RESEND_API_KEY` is not one.
+- **Three reachability classes, not two** (ADR-0014) — a keyless Provider reads as safe to self-host;
+  `provider-tardis-wiki` is keyless and is not, because its permission is ours personally.
 - **Hand-written CSS, no framework and no component library** ([ADR-0013](docs/adr/0013-hand-written-css-no-framework.md))
   — `vercel:shadcn` and `vercel:next-forge` both propose one, and Next's own CSS page recommends Tailwind twice.
 
@@ -193,8 +194,7 @@ production database and releases. `docs/agents/workflow.md` has the command and 
 It counts only when the review read the *committed* change; staging alone does not achieve that.
 `docs/agents/workflow.md` → *The review runs once* has the argument and the three exceptions.
 
-`/draft-pr` and `/review-pr` live in `.claude/skills/`, each carrying its own procedure — run
-either from its body alone. `docs/agents/workflow.md` holds the policy behind them.
+`/draft-pr` and `/review-pr` are in `.claude/skills/`; run either from its own body. Policy: `docs/agents/workflow.md`.
 
 **Run the grill and the implementation in separate sessions.** Why, the plugin token costs, how the
 chain is declared, and when `/wayfinder` replaces `/to-spec`: `docs/agents/tooling.md`.

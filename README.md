@@ -29,6 +29,26 @@ deliberately avoids for each concept. The reasoning behind each decision is in
 [`docs/adr/`](docs/adr/) — start with [two levels](docs/adr/0001-two-levels-story-and-version.md)
 and [orderings](docs/adr/0002-orderings-are-separate-from-containment.md).
 
+## Where the data comes from
+
+**The application is a shell**, which is the property everything else here rests on. Nothing in it
+knows that TMDB exists: every Source is reached through a **Provider** — a separate service, in its
+own repository, speaking a published contract — so the application carries no source-specific code
+and holds no Source's credentials. The Providers on the product's own list are ours, written and run
+by this project; anything off that list is a stranger's service.
+
+TMDB is the general television and film source, and every other source gets its own Provider too —
+a second television database, comics, prose, music, the fan wikis. Anyone else's Provider can be
+added by pasting in its URL.
+
+Sources whose licences flatly disagree — a six-month cache limit on one, share-alike on another —
+are carried by two further decisions rather than by the split itself. How long data may be kept is a
+property of each source, not of the product; and **every displayed value records which source it
+came from**, field by field, because the share-alike sources require attribution per record and one
+credit block in a footer cannot give it. Both are in
+[ADR-0014](docs/adr/0014-shell-providers-and-per-source-retention.md); the source decision itself is
+[ADR-0009](docs/adr/0009-external-source-tmdb.md). **None of it is built yet** — below.
+
 ## Status
 
 **A walking skeleton, and it now goes all the way through.** One Story is stored in Neon behind
@@ -36,7 +56,7 @@ row-level security and rendered on the public URL to an anonymous visitor; CI ga
 push and the release migrates the database before it promotes production. The catalogue itself is
 not built yet — there is no way to sign in and no way to add a second Story.
 
-What that means concretely: roughly 800 lines of application code against thirteen architecture
+What that means concretely: roughly 800 lines of application code against fourteen architecture
 decision records and a domain model. The design work ran ahead of the implementation on purpose,
 and the ratio will correct itself as vertical slices land, not by adding more planning.
 
@@ -84,7 +104,7 @@ Nothing here is derived from any earlier attempt at this product. It was built f
 | Where | What |
 | --- | --- |
 | [`CONTEXT.md`](CONTEXT.md) | The domain vocabulary. Read this first |
-| [`docs/adr/`](docs/adr/) | Thirteen decisions, each naming its rejected alternatives and what would reverse it |
+| [`docs/adr/`](docs/adr/) | Fourteen decisions, each naming its rejected alternatives and what would reverse it |
 | [`docs/research/`](docs/research/) | The evidence under the decisions, cited to the page that owns each claim |
 | [`docs/compliance/`](docs/compliance/) | Online Safety Act duties: risk assessments, reporting, review policy |
 | [`docs/infrastructure.md`](docs/infrastructure.md) | The register: what is provisioned right now, and what is unverified |
