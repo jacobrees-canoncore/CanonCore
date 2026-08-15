@@ -1,3 +1,7 @@
+---
+status: accepted
+---
+
 # Two levels: Story and Version
 
 A media record needs to group "the same thing in different forms" without losing that the forms

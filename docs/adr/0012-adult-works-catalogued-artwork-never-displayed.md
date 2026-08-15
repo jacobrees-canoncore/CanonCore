@@ -1,3 +1,7 @@
+---
+status: accepted
+---
+
 # Adult works may be catalogued; their artwork is never displayed
 
 The catalogue is unbounded: any work may be recorded, including pornographic films. Their **artwork is
@@ -12,13 +16,37 @@ effective age assurance duty out of this product.
 > 25 July 2025. Both errors ran the same way: they made the terms of service look load-bearing over
 > something the terms cannot reach.
 
+> **Amended 15 August 2026** by
+> [CAN-97 Record the shell architecture, the reachability split and per-Source retention](https://linear.app/jacobrees-canoncore/issue/CAN-97).
+> **The rule and the Part 5 analysis are untouched.** What was false is one mechanism sentence: the
+> importer no longer lives in this repository, because
+> [ADR-0014](0014-shell-providers-and-per-source-retention.md) puts every Source behind a Provider
+> in its own repository. Three passages are corrected below and the conclusion survives all three.
+
+## Contents
+
+- [The poster is provider content, so the Part that governs it is Part 5](#the-poster-is-provider-content-so-the-part-that-governs-it-is-part-5)
+- [Whether a poster is pornographic content at all is unresolved, and the answer does not change the rule](#whether-a-poster-is-pornographic-content-at-all-is-unresolved-and-the-answer-does-not-change-the-rule)
+- ["Cataloguing is not carrying" rests on the text-only carve-outs](#cataloguing-is-not-carrying-rests-on-the-text-only-carve-outs)
+- [Blurring is not a remedy, and neither is hotlinking](#blurring-is-not-a-remedy-and-neither-is-hotlinking)
+- [What TMDB's `adult` flag actually is](#what-tmdbs-adult-flag-actually-is)
+- [The alternatives](#the-alternatives)
+- [Consequences](#consequences)
+
 ## The poster is provider content, so the Part that governs it is Part 5
 
-A poster this product would display is fetched from TMDB by our importer and put on the page by our
-renderer. Nobody uploads it. That is **provider pornographic content** under `s.79(2)`: pornographic
-content "published or displayed on the service by the provider of the service", expressly including
-content published or displayed "by means of … software or an automated tool or algorithm applied by the
-provider" ([s.79](https://www.legislation.gov.uk/ukpga/2023/50/section/79)).
+A poster this product would display is fetched from TMDB by a Provider we wrote and run, and put on the
+page by our renderer. Nobody uploads it. That is **provider pornographic content** under `s.79(2)`:
+pornographic content "published or displayed on the service by the provider of the service", expressly
+including content published or displayed "by means of … software or an automated tool or algorithm applied
+by the provider" ([s.79](https://www.legislation.gov.uk/ukpga/2023/50/section/79)).
+
+**Moving the fetch out of this repository changes nothing, and the statute says why.** `s.79(2)`
+catches content displayed "by means of … software or an automated tool or algorithm applied by the
+provider", and **our renderer is ours** whatever fetched the bytes. The provider split is not a
+Part 5 escape route: it relocates the fetch, and `s.79(2)` is not about fetching. The sentence above
+previously read "fetched from TMDB by our importer", which invited exactly that misreading once the
+importer left.
 
 **We are the provider, on the limb that reaches a user-to-user service.** Ofcom's guidance quotes
 `s.226(8)` — control over which content is published or displayed — but that subsection is written for
@@ -70,8 +98,19 @@ service, or uploaded to or shared on the service by a user of the service", with
 counted as a user only where it "is not controlled by or on behalf of the provider of the service"
 (`s.55(4)(b)`)
 ([s.55](https://www.legislation.gov.uk/ukpga/2023/50/section/55),
-[s.236](https://www.legislation.gov.uk/ukpga/2023/50/section/236)). Our importer is ours, so nothing it
-fetches is user-generated content, and `s.236(7)` never engages. So the two artwork paths
+[s.236](https://www.legislation.gov.uk/ukpga/2023/50/section/236)). Our Provider is ours, so nothing
+it fetches is user-generated content, and `s.236(7)` never engages.
+
+**`s.55(4)(b)` turns on control rather than on authorship, and there are now three fetch paths where
+this analysis assumes one.** A Provider we wrote and run is plainly controlled by us. A **self-hosted
+copy of our own keyless Provider** is our code on somebody else's machine, and a **third-party
+Provider at a pasted URL** — which decision 7 of CAN-96 Record the architecture decisions of
+15 August accepts for v1 — is neither our code nor our machine. The first is settled; the other two are not, and each self-hosted instance is in any case
+its own service with its own operator's duties
+([ADR-0014](0014-shell-providers-and-per-source-retention.md)). Nothing in v1 turns on it, because
+v1 imports no artwork at all, but the question is open before artwork ships.
+
+So the two artwork paths
 [CAN-13 Artwork: uploads, rights and takedown](https://linear.app/jacobrees-canoncore/issue/CAN-13)
 covers land in different Parts: an image a user uploads stays user-generated content under `s.236(7)`,
 in Part 3, where the prohibition in the terms and `s.12(5)` remove the `s.12(4)` age assurance
@@ -158,7 +197,12 @@ The rule runs on one flag, so the flag's shape is part of the decision.
   ([TV season details](https://developer.themoviedb.org/reference/tv-season-details)). An episode's adult
   status therefore has to be derived through `part of` from its series, which is what
   [CAN-26 Import a series from TMDB, with the overlay behind it](https://linear.app/jacobrees-canoncore/issue/CAN-26)
-  carries it onto the Snapshot for.
+  carries it onto the Snapshot for. **The application must no longer know what a TMDB `adult` flag
+  is** ([ADR-0014](0014-shell-providers-and-per-source-retention.md) → *Decision 1*), so
+  classification arrives as a contract field instead — and if the Provider's graph response drops
+  the series node when an episode is fetched, the `part of` derivation becomes impossible and this
+  rule fails **silently**. The contract has to carry it; ADR-0014 lists content classification among
+  the five things the capability endpoint must declare.
 - It is **absent from `discover/tv` results** ([discover TV](https://developer.themoviedb.org/reference/discover-tv)):
   `include_adult` filters such a query, but the flag is not on the rows it returns and cannot be read back.
 - By [TMDB's contribution bible](https://www.themoviedb.org/bible/movie) it means **hardcore pornography

@@ -1,3 +1,7 @@
+---
+status: accepted
+---
+
 # Stack
 
 Settled after the domain work rather than before it, as `CLAUDE.md` requires.

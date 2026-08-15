@@ -1,3 +1,7 @@
+---
+status: accepted
+---
+
 # No shared catalogue: Anchors, per-user records, per-user merge
 
 CanonCore is multi-user, but there is **no shared catalogue**. Each person's Stories, Versions and
@@ -45,5 +49,13 @@ same thing, held as an alias rather than a rewrite, undone by discarding it.
   on 13 August 2026 (CAN-73 Settle the Snapshot layer): deduplicating external data per Anchor was
   rejected because it puts person-forks in a shared table, hardens erasure, and makes the
   Anchor↔external-id mapping global truth, which this ADR's per-viewer merges forbid. The cost —
-  the same TMDB payloads stored once per importing user — is storage, not legality, since the
-  retention exception is project-wide.
+  the same TMDB payloads stored once per importing user — is **storage and obligation, and the
+  second half is the larger**: under TMDB's published terms each copy carries its own `§1.C`
+  six-month clock and its own `§1.D` purge duty, so refresh is O(users × records), a missed refresh
+  is a breach rather than a stale cache, dormant users hold rows nobody will refresh, and a purge
+  fans out across every tenant. **The conclusion is unaffected** — it stands on the three reasons
+  named above, none of which touches cost. *Amended 15 August 2026 (CAN-97 Record the shell
+  architecture, the reachability split and per-Source retention): this clause read "storage, not
+  legality, since the retention exception is project-wide", and both halves were false. There is no
+  exception ([ADR-0009](0009-external-source-tmdb.md)), and duplication multiplies obligations
+  rather than only bytes.*

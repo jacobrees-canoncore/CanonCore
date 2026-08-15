@@ -1,3 +1,7 @@
+---
+status: accepted
+---
+
 # The canonical host is `www.canoncore.com`
 
 Production is served from `www.canoncore.com`. The apex `canoncore.com` returns a **301** to it.

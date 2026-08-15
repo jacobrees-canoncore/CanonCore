@@ -1,9 +1,22 @@
+---
+status: accepted
+---
+
 # Layered overlay: source snapshots, owner overrides, and a person as a Source
 
 Metadata arrives from several external sources that disagree, over the top of things the owner has
 edited by hand, and neither may destroy the other. We store **one row per (record, source) holding
 that source's last-seen values verbatim**, plus **one row per field the owner has actually
 overridden**, and compose them on read. The displayed record is derived and never written directly.
+
+## Contents
+
+- [Why not the obvious alternatives](#why-not-the-obvious-alternatives)
+- [What the overlay buys](#what-the-overlay-buys)
+- [Identity and liveness](#identity-and-liveness)
+- [Retention is a property of the Source](#retention-is-a-property-of-the-source)
+- [The key is per-user, deliberately](#the-key-is-per-user-deliberately)
+- [A person is a Source](#a-person-is-a-source)
 
 ## Why not the obvious alternatives
 
@@ -41,6 +54,38 @@ merge model and serves a 301 before a final 404.
 delete.** Sonarr's `DeleteMany(existingEpisodes)` has no guard, so a provider returning a
 well-formed empty list wipes every local episode; there is a test pinning that behaviour.
 
+## Retention is a property of the Source
+
+> **Amended 15 August 2026** by
+> [CAN-97 Record the shell architecture, the reachability split and per-Source retention](https://linear.app/jacobrees-canoncore/issue/CAN-97).
+> A Snapshot was permanent when this ADR was written, because
+> [ADR-0009](0009-external-source-tmdb.md) rested on a written retention exception. That
+> correspondence is disregarded entirely, so permanence is gone and **retention becomes a property
+> of each Source**: `source.retention`, `snapshot.fetched_at`, refresh before expiry, drop what
+> cannot be refreshed. The decision, its traps and what it does **not** fix are
+> [ADR-0014](0014-shell-providers-and-per-source-retention.md) → *Decision 6*.
+
+**This ADR's two rules survive per Source rather than universally.**
+
+- **Verbatim.** A Snapshot still holds what that Source last said, unedited, for as long as that
+  Source's retention allows. What changes is the "for as long as", not the "unedited".
+- **Never a local delete.** A Source ceasing to carry something still sets `liveness` and still
+  never deletes a local row. What may now delete one is the **clock** — a fact about the age of our
+  copy rather than about the shape of a response — and only where the Source's own retention is
+  finite.
+
+The distinction matters because it is the whole guard against becoming Sonarr's
+`DeleteMany(existingEpisodes)` above. A provider outage, a rate-limit wall and a genuine upstream
+deletion are all "cannot be refreshed", and ADR-0014 records what separates them and what happens to
+the row when it goes (a tombstone, not a hole).
+
+**Four things per-Source retention does not fix**, each recorded in ADR-0014 rather than here
+because none of them is settled: the composed read has no floor when the only Source expires;
+`supersededValue` is a verbatim copy of Source content sitting in the **override** table, outside
+the retention machinery entirely; "a person is a Source" attaches retention to the conduit when the
+obligation attaches to the origin, so a fork launders finite retention into indefinite; and the
+per-user key below turns refresh into O(users × records) and a purge into a cross-tenant fan-out.
+
 ## The key is per-user, deliberately
 
 `(record, source)` hangs every snapshot off the owner's record, so snapshots are per-user rows and
@@ -64,3 +109,10 @@ runtimes, positions) remain, since facts stop being personal data once de-attrib
 keeps structure, facts and all of their own overrides; the person is gone. Settled 13 August 2026
 (CAN-73); CAN-30 GDPR export and erasure implements the job, CAN-9 Fork and divergence creates the
 rows it will one day act on.
+
+**Retention is the unsolved half of this section.** A fork's Source is the *person*, whose retention
+is indefinite, but the values may have originated at a Source whose retention is not — so the
+factual fields this section preserves can outlive the obligation attached to where they came from.
+Named as unresolved in
+[ADR-0014](0014-shell-providers-and-per-source-retention.md) → *What per-Source retention does not
+fix*, with the two candidate answers.
