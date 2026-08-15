@@ -41,10 +41,19 @@ this file and `orca linear --help` disagree, trust `--help` and say the doc look
 
 ## Relationship to GitHub
 
-Linear's GitHub integration syncs issues two ways: title, description, status, labels, assignee and
-comments propagate in both directions, and a PR that references a Linear issue id moves that issue
-through its workflow states automatically as the PR drafts, opens and merges. See
+Linear's GitHub integration syncs issues two ways: title, description, status, labels and assignee
+propagate in both directions, and a PR that references a Linear issue id moves that issue through
+its workflow states automatically as the PR drafts, opens and merges. See
 https://linear.app/docs/github.
+
+**Comments do not.** Linear's documentation lists them, and this file used to as well, but no
+substantive comment has ever reached the GitHub side here: across all 100 mirrored issues every one
+of the 23 GitHub comments is Linear's own `<!-- linear-linkback -->` marker, while Linear holds
+comment threads going back to 9 August 2026 (measured on CAN-100 Restructure the tracker for the
+architecture change, 15 August 2026). **So a decision recorded only in a Linear comment is invisible
+to anyone reading the mirror** — put anything that has to survive in the description, or in the
+repository. CAN-112 Comments never reach the GitHub mirror, and the tracker doc said they did holds
+the diagnosis.
 
 **Linear is canonical; GitHub Issues is the mirror.** Write through `orca linear` and let the sync
 carry it across. Never create the same issue on both sides — that produces a duplicate pair nothing
