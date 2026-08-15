@@ -8,6 +8,16 @@ broadcast one, and it must appear in both without being duplicated.
 Examples throughout are drawn from Doctor Who's 2005 series onward, because that is the seed
 collection. Nothing in the language is specific to it.
 
+## Contents
+
+- [Using these documents](#using-these-documents)
+- [Language](#language)
+  - [The catalogue](#the-catalogue)
+  - [Recurring things](#recurring-things)
+  - [Orderings](#orderings)
+  - [Sources and edits](#sources-and-edits)
+  - [Ownership and sharing](#ownership-and-sharing)
+
 ## Using these documents
 
 **Read this file and any relevant [`docs/adr/`](docs/adr/) before working in an area.** Both are
@@ -23,7 +33,7 @@ A concept that isn't here yet is a signal: either you're inventing language the 
 
 **If your output contradicts an ADR, surface it** rather than silently overriding:
 
-> _Contradicts ADR-0007 (provider contract) — but worth reopening because…_
+> _Contradicts ADR-0014 (the app is a shell) — but worth reopening because…_
 
 **[`docs/research/`](docs/research/) is not domain documentation.** It holds investigation output;
 its contents are findings, not decisions. Decisions belong in `docs/adr/`.
@@ -157,19 +167,29 @@ _Avoid_: Canon, canonical, canonicity, official, legitimate
 ### Sources and edits
 
 **Source**:
-Anything CanonCore reads records from and does not itself author: an external database, a
-Provider, or another person whose work has been forked. A person is a Source like any other.
-_Avoid_: API, integration, service, backend, upstream
+Where a record's values came from when CanonCore did not author them: an external database, or
+another person whose work has been forked, who is a Source like any other. Each one carries its own
+retention policy, so how long a Snapshot may be kept is a fact about the Source rather than about
+the product.
+_e.g._ TMDB, the Grand Comics Database, tardis.wiki.
+_Avoid_: API, integration, service, backend, upstream, provider
 
 **Provider**:
-A service that speaks CanonCore's contract and is added by pasting in its URL. Providers are not
-shipped with the product and are not reviewed by it.
-_Avoid_: Plugin, extension, connector, agent, scraper, adapter
+A service that speaks CanonCore's contract and stands between the product and one Source. Every
+Source is reached through one, and a Provider never lives in this repository.
+_Avoid_: Plugin, extension, connector, agent, scraper, adapter, source
+
+**Listed Provider**:
+A Provider this project writes and runs, named in the product's own list rather than pasted in by a
+person. Anything off that list is a stranger's service however familiar the Source behind it looks.
+_e.g._ `provider-tmdb`, which is authenticated; the keyless five, which anyone may self-host.
+_Avoid_: Default, official, first-party, built-in, bundled, core, trusted
 
 **Snapshot**:
-What one Source last said about one Story or Version, stored verbatim and never edited. Snapshots
-from different Sources disagree, and both are kept.
-_Avoid_: Cache, mirror, copy, sync
+What one Source last said about one Story or Version, stored verbatim, never edited, and kept only
+as long as that Source's retention allows. Snapshots from different Sources disagree, and both are
+kept.
+_Avoid_: Cache, mirror, copy, sync, archive
 
 **Override**:
 A field a person changed by hand, stored apart from every Snapshot so that neither can destroy
@@ -178,8 +198,15 @@ _Avoid_: Edit, lock, customisation, user data, patch
 
 **Liveness**:
 What a Source is currently saying about a record it used to have: present, missing, or gone. A
-Source ceasing to carry something is never a reason to delete anything local.
+Source ceasing to carry something is never by itself a reason to delete anything local; only that
+Source's own retention is.
 _Avoid_: Status, health, deleted, stale
+
+**Tombstone**:
+What is left where a Story used to be once every Source's content has been dropped from it and the
+owner overrode nothing: the identity, what kind of thing it was, and when it went. It carries no
+value any Source supplied, which is the whole of why it may remain.
+_Avoid_: Soft delete, archived, hidden, placeholder, stub
 
 **Artwork**:
 An image of a known shape doing a known job, and for most of this collection none exists
@@ -229,7 +256,8 @@ Whether a record can be seen by people other than its owner. Set per record, not
 _Avoid_: Sharing, permissions, published, privacy
 
 **Operation**:
-One thing a person did, however many records it touched. Undo works on Operations, never on rows.
+One thing a person did, however many records it touched. Undo works on Operations, never on rows,
+and what the product does unbidden — a retention sweep, a purge — is never one.
 _e.g._ Importing a series, forking a Catalogue, merging two Anchors.
 _Avoid_: Action, transaction, change, batch, job
 

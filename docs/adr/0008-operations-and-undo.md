@@ -1,3 +1,7 @@
+---
+status: accepted
+---
+
 # Undo works on Operations, and the audit trail outlives them
 
 Adding one thing creates many — importing a series creates its episodes, a fork copies a

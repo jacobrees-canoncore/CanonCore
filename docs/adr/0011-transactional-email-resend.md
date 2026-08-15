@@ -1,3 +1,7 @@
+---
+status: accepted
+---
+
 # Transactional email is Resend
 
 An account you can be locked out of is not an account, so email verification and password reset

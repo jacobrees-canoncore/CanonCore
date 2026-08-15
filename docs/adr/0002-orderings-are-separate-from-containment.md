@@ -1,3 +1,7 @@
+---
+status: accepted
+---
+
 # Orderings are separate from containment, and position lives on the membership
 
 The product exists because one Story legitimately belongs in two places at once. Two distinct

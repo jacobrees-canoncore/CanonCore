@@ -1,4 +1,26 @@
+---
+status: superseded by ADR-0014
+---
+
 # The provider contract is public, versioned and additive-only
+
+> **Superseded 15 August 2026 by
+> [ADR-0014](0014-shell-providers-and-per-source-retention.md)**, under
+> [CAN-97 Record the shell architecture, the reachability split and per-Source retention](https://linear.app/jacobrees-canoncore/issue/CAN-97).
+> Two sentences below cannot survive that decision. **"Sources that no general database covers"** is
+> wrong by one step: every Source is now reached through a Provider, including the general database,
+> so the contract is the only ingress rather than the residual. And **"No store, no review process,
+> no manifests"** cannot survive a listed set of Providers this project writes, runs and reviews.
+>
+> **Most of this file is still right**, which is why it is superseded rather than deleted. A reader
+> arriving from one of those documents is misled by those two sentences and by the three corrections
+> named next, and by nothing else here.
+> [ADR-0014](0014-shell-providers-and-per-source-retention.md) → *What survives of ADR-0007* is the
+> authority: it says what is kept unchanged, what breaks, that the additive-only justification below
+> is **false for every Provider that will exist in v1** and is re-derived on self-hostability
+> instead, that the Audiobookshelf-compatible reader is a Provider in a repository of its own rather
+> than something shipped in the product, and what five things the capability endpoint has to carry
+> that it was never sized for.
 
 Sources that no general database covers are added by pasting in the URL of a service that speaks
 CanonCore's contract. No store, no review process, no manifests. Nothing source-specific ships in

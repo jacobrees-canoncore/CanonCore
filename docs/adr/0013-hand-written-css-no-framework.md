@@ -1,3 +1,7 @@
+---
+status: accepted
+---
+
 # Styling is hand-written CSS, with no framework and no component library
 
 `apps/web/src/app/globals.css` is 86 lines of hand-written CSS: four custom properties, one
@@ -11,6 +15,16 @@ ADR behind it — and therefore the one an installed skill can reopen without co
 written down. This ADR ratifies the default and records what it was weighed against. Settled
 14 August 2026 under
 [CAN-50 Record the styling decision, which CAN-22 made by default](https://linear.app/jacobrees-canoncore/issue/CAN-50).
+
+## Contents
+
+- [The scale this is decided against](#the-scale-this-is-decided-against)
+- [Deferring is nearly free, which is what makes deferring right](#deferring-is-nearly-free-which-is-what-makes-deferring-right)
+- [The rejected alternatives](#the-rejected-alternatives)
+- [What would cross to a second app, and what would not](#what-would-cross-to-a-second-app-and-what-would-not)
+- [Two constraints recorded here because the design work has no other home](#two-constraints-recorded-here-because-the-design-work-has-no-other-home)
+- [What will try to reopen it](#what-will-try-to-reopen-it)
+- [Consequences](#consequences)
 
 ## The scale this is decided against
 

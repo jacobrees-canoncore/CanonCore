@@ -1,3 +1,7 @@
+---
+status: accepted
+---
+
 # CanonCore never holds or serves bytes
 
 The product records what exists, what you hold and where it is. It does not store, transcode or
