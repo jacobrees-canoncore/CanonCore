@@ -105,8 +105,8 @@ trigger and catastrophic for a catalogue that has no other source.
 Four provenance gaps, each already recorded in this repository. Together they are the reason the
 "what if it is revoked" question is well aimed.
 
-1. **The correspondence is not in the repo**, deliberately. It is held on CAN-34, so the one
-   load-bearing claim in ADR-0009 is the one a reader must leave the repository to check
+1. **The correspondence is not in the repo**, deliberately. It is held on **CAN-34 Attach TMDB's written retention
+   approval**, so the one load-bearing claim in ADR-0009 is the one a reader must leave the repo to check
    ([ADR-0009](../adr/0009-external-source-tmdb.md)).
 2. **Neither copy carries headers, a sender address or a date.** ADR-0009: "Both are pasted bodies
    rather than saved messages, so the exception's age cannot be established and neither can be tied
@@ -201,7 +201,8 @@ formalised by the provider itself.
 > thing about ownership. Both cannot be the whole picture. **Unverified** which page ADR-0009's
 > claim came from; it must be re-read before TheTVDB is relied on either way.
 
-**Comic Vine** — non-commercial only, with commercial use resulting in key revocation; requires
+**Comic Vine** ([API terms](https://comicvine.gamespot.com/api/)) — non-commercial only, with
+commercial use resulting in key revocation; requires
 caching and a link back; roughly 200 requests per resource per hour.
 
 **OMDb** — [API](https://www.omdbapi.com/apikey.aspx). CC BY-NC 4.0, so commercial use is excluded
@@ -230,7 +231,8 @@ necessarily limited to our database schema and data distribution format."* No ke
 
 Three operational facts that decide how it must be used:
 
-- **Rate limit is severe anonymously.** From its own `settings.py`:
+- **Rate limit is severe anonymously.** From its own
+  [`settings.py`](https://raw.githubusercontent.com/GrandComicsDatabase/gcd-django/beta/settings.py):
   `'DEFAULT_THROTTLE_RATES': { 'anon': '30/hour', 'user': '2000/day' }`. A free account is
   effectively mandatory.
 - **Attribution has a prescribed form**, ratified by Board resolution: *"Naming the Grand Comics
@@ -252,7 +254,8 @@ an issuable app key, so not transferable).
 
 **This is the find worth noting.** Metron is the only source in this entire survey — across
 television, film, comics, prose and audio — that models alternative orderings natively. Its
-`reading_lists/models.py` defines a `ReadingList` with `ReadingListItem.order`, an `issue_type` of
+[`reading_lists/models.py`](https://github.com/Metron-Project/metron/blob/master/comicsdb/models/)
+defines a `ReadingList` with `ReadingListItem.order`, an `issue_type` of
 `PROLOGUE / CORE / TIE_IN / EPILOGUE`, `previous`/`next` self-references chaining lists into longer
 orders, a `list_type` of `CREATOR / EVENT / STORY / CHARACTERS / TEAMS / MASTER`, and an
 `attribution_source` crediting external reading-order sites.
@@ -260,7 +263,8 @@ orders, a `list_type` of `CREATOR / EVENT / STORY / CHARACTERS / TEAMS / MASTER`
 That is strikingly close to this product's own model: Placements with positions, entry types, and
 Phases. It is prior art for [ADR-0002](../adr/0002-orderings-are-separate-from-containment.md) that
 [`versions-and-orderings-prior-art.md`](versions-and-orderings-prior-art.md) does not carry, and it
-is worth reading before CAN-27 is built whether or not Metron is ever used as a source.
+is worth reading before CAN-27 Orderings and Placements, and the imported broadcast Ordering is
+built, whether or not Metron is ever used as a source.
 
 ### ISFDB — the most permissive licence found
 
@@ -292,7 +296,8 @@ strict.
 ### Ruled out
 
 - **ISBNdb** — the purge clause quoted in §4. Fatal.
-- **Hardcover** — terms prohibit the use case in terms: *"Systematically retrieve data or other
+- **Hardcover** ([terms of service](https://hardcover.app/pages/terms-of-service)) — prohibits the
+  use case in terms: *"Systematically retrieve data or other
   content from the Site to create or compile, directly or indirectly, a collection, compilation,
   database, or directory without written permission from us."* Its token is also a personal account
   credential that can delete the account, and the API is explicitly beta.
@@ -304,7 +309,8 @@ strict.
 This is the significant negative result, and it matters because audio drama is a first-class part of
 this domain — `external-metadata-sources.md` measures 2,495 audio story pages on tardis.wiki.
 
-**Big Finish, the dominant publisher in the genre, forbids the use outright.** Its terms: *"we
+**Big Finish, the dominant publisher in the genre, forbids the use outright.** Its
+[terms](https://www.bigfinish.com/pages/v/terms-conditions): *"we
 authorise the User to access and make use of the Big Finish Productions Web Site for personal use
 only"*, and *"The Information may not be used for any other purpose including, publication,
 reproduction, or transmission without the express written permission of BFP."* `robots.txt` carries
@@ -326,7 +332,8 @@ a series from TMDB, with the overlay behind it** carries it as a criterion: the 
 resolvable for every Story the import creates, derived down the `part of` edges because TMDB carries
 `adult` on the series object only.
 
-TMDB also publishes an editorial definition — by its contribution bible the flag means hardcore
+TMDB also publishes an editorial definition — by its [contribution bible](https://www.themoviedb.org/bible/movie)
+the flag means hardcore
 pornography specifically, with 18+ erotic titles deliberately excluded.
 
 **A source swap therefore has a statutory consequence, not merely a data one.** If the replacement
@@ -362,7 +369,8 @@ Three findings follow, and each is a problem in its own right:
 
 1. **The top of every scale is "Mature", not "pornographic".** Metron's vocabulary runs
    `Unknown / Everyone / Teen / Teen Plus / Mature`, where Mature is *"Appropriate for readers age 17
-   and older"*. TMDB's flag, by its contribution bible, means hardcore pornography **specifically**
+   and older"*. TMDB's flag, by its [contribution bible](https://www.themoviedb.org/bible/movie), means
+hardcore pornography **specifically**
    and deliberately excludes 18+ erotic titles. These are not the same predicate, so the flags are
    **not interchangeable**: mapping one onto the other would either over-block or under-block, and
    ADR-0012 depends on the narrow reading.
@@ -396,9 +404,9 @@ lands, the source must carry an adult signal — and today only TMDB does.
 Since the only question that matters is who accepted the terms, the obvious move is to make someone
 else accept them. **Sixteen comparable products were read at source to test that, and the finding is
 negative: per-user keys do not do what they appear to do.** Keep this section's conclusion when
-reading §9's ranking, because it demotes an option that looked strong.
+reading §10's ranking, because it demotes an option that looked strong.
 
-### Bring-your-own-key fails for a centrally hosted service, for three separate reasons
+### Bring-your-own-key fails for a centrally hosted service, for four separate reasons
 
 **1. TMDB rate-limits by IP, not by key.** Travis Bell, TMDB staff: *"We do rate limiting based on IP
 address, not API key. With more and more users your single IP will be doing more and more requests
@@ -421,7 +429,7 @@ application `CanonCore`, `https://www.canoncore.com`. **We are already a party.*
 bring-your-own-key architecture separates privity only for a vendor that never registers anything,
 which for TMDB is not possible.
 
-**4. Serving more than one person makes you the licensee anyway, and upstreams enforce it.** A Radarr
+**4. Serving more than one person makes you the licensee anyway, and the sources themselves enforce it.** A Radarr
 maintainer, on why they proxy rather than let users connect directly:
 
 > "`api.radarr.video` is serving more than one user… We already had issues with another arr where a
@@ -439,7 +447,8 @@ longer given out to individual end users of projects. The projects themselves wi
 
 The dominant pattern is **project key mandatory, user key optional as an entitlement upgrade** — not
 as a licence substitute. Jellyfin, Kodi, Emby and tinyMediaManager all ship a project key and treat a
-user key as a perk. Fanart.tv, from the provider side, says why: *"the personal API key is an optional
+user key as a perk. Fanart.tv, from the provider side, says why on its
+[personal API keys page](https://fanart.tv/personal-api-keys/): *"the personal API key is an optional
 additional key not a replacement"*, and its tiers are about image freshness (7 days → 48 hours → VIP),
 not about who is licensed.
 
@@ -514,9 +523,10 @@ disagreement rather than resolving it. **CAN-17 v1: the walking skeleton in prod
 founding case** names the gap in its own out-of-scope list: "The Source table is built for more than
 one; only one exists."
 
-### Non-negotiables, bought painfully by others
+### What other projects got wrong, and paid for
 
-If a paste-a-URL provider is built, these came from watching other projects get them wrong:
+Recorded as findings rather than as rules. Each is a failure observed in a shipped product, and each
+would bear on a paste-a-URL provider if one is built:
 
 - **SSRF-guard the pasted URL.** Audiobookshelf's entire validation is `new URL(rawUrl).toString()` —
   no scheme restriction, no internal-address blocking. BookWyrm's `raise_not_valid_url` is the mature
@@ -577,7 +587,8 @@ statutory shield against the contract.
    not permit the act, it voids nothing.
 
 The UK never implemented DSM Arts 3 and 4 — which, unlike s.29A, expressly extend to Art 7(1)
-database right. As at August 2026 no replacement is enacted, and the March 2026 Government report
+database right. As at August 2026 no replacement is enacted, and the
+[March 2026 Government report](https://www.gov.uk/government/publications/report-and-impact-assessment-on-copyright-and-artificial-intelligence)
 points towards a **rights-reservation model**, i.e. more restrictive, not less.
 
 ### The purge clause is enforceable, and the fix is architectural
@@ -684,8 +695,9 @@ mandatory age assurance. ADR-0012 reaches the right answer; this is the citation
 
 ### The GDPR export, confirmed as already correct
 
-`Art 20` is confined to data "**which he or she has provided to a controller**", and the ICO's
-guidance draws the provided/observed/inferred line explicitly. **Data fetched from a third-party API
+`Art 20` is confined to data "**which he or she has provided to a controller**", and the ICO's [guidance on the right to data
+portability](https://ico.org.uk/for-organisations/uk-gdpr-guidance-and-resources/individual-rights/individual-rights/right-to-data-portability/)
+draws the provided/observed/inferred line explicitly. **Data fetched from a third-party API
 was not provided by the data subject**, so portability has a strong argument for not reaching it at
 all. `Art 15(4)` and `Art 20(4)` add that the right "shall not adversely affect the rights and
 freedoms of others", and Recital 63 names intellectual property expressly — while equally expressly
@@ -709,7 +721,7 @@ Checked 15 August 2026 against the working tree.
 because **CAN-26 Import a series from TMDB, with the overlay behind it** has not been built.
 `scripts/check-docs.ts` pins no TMDB claim, so CI would not break.
 
-**Documentation:** ADR-0009 entirely; ADR-0012's Part 5 analysis (see §5 above); passing references
+**Documentation:** ADR-0009 entirely; ADR-0012's Part 5 analysis (see §6 above); passing references
 in ADR-0002, ADR-0003 and ADR-0004; `CLAUDE.md`'s closed-decisions list; `docs/infrastructure.md`'s
 credential roster and *External data source* section; this file and
 [`external-metadata-sources.md`](external-metadata-sources.md);
@@ -722,15 +734,26 @@ uploads, rights and takedown**.
 
 **And the cost is at its minimum right now.** ADR-0009 gives exactly two reasons for TMDB over
 TheTVDB, cost being explicitly a wash: the ordering model, and images being covered by the same
-attribution regime. v1 uses neither. CAN-27 states as a criterion "It does **not** read an episode
-group to do this"; CAN-26 states "No artwork is imported", with artwork deferred to CAN-13 in the
-Later band; and the in-universe Ordering is hand-authored by a human under CAN-29. **v1 consumes
-seasons, episode numbers, titles, runtimes and identifiers — the most generic television metadata
-there is.** The switching cost rises steeply the moment CAN-13 lands.
+attribution regime. **v1 uses neither**, on the evidence of three tickets:
+
+- **CAN-27 Orderings and Placements, and the imported broadcast Ordering** carries the criterion
+  "It does **not** read an episode group to do this."
+- **CAN-26 Import a series from TMDB, with the overlay behind it** states "No artwork is imported",
+  with artwork deferred to **CAN-13 Artwork: uploads, rights and takedown** in the `Later` band.
+- The in-universe Ordering is hand-authored by a human under **CAN-29 Author the Doctor Who
+  in-universe chronology in production**.
+
+So **v1 consumes seasons, episode numbers, titles, runtimes and identifiers — the most generic
+television metadata there is.** The switching cost rises steeply the moment CAN-13 Artwork: uploads,
+rights and takedown lands.
 
 ---
 
-## 10. Options, ranked
+## 10. The options, and how they rank against the evidence
+
+**A finding, not a decision.** What follows ranks the available options against what §§1–9 measured.
+Which option is taken is [ADR-0009](../adr/0009-external-source-tmdb.md)'s to record, not this
+file's.
 
 Ranked against the stated constraint: a public website with per-record public and private
 visibility, and no reliance on a private agreement.
@@ -739,12 +762,13 @@ visibility, and no reliance on a private agreement.
    store the composed fields rather than the verbatim payload, and hold a second Source so §1.D is
    survivable. Cheapest, keeps every ADR-0009 advantage, and is the only option that needs no
    decision reversed. Costs two things in ADR-0004: "verbatim" Snapshots, and "a Source ceasing to
-   carry something… is never a local delete", since an unrefreshable record must go. Note CAN-30
+   carry something… is never a local delete", since an unrefreshable record must go. Note CAN-30 GDPR
+export and erasure
    already uses the facts-not-payload pattern.
 2. **Add an open-licensed second Source alongside TMDB.** TVmaze for television, and the overlay
    composes them. Removes the single point of failure without removing TMDB, and finally exercises
    the multi-source machinery ADR-0004 was built for. The share-alike consequence is real and
-   quantified in §10 below. **Promoted on the prior art**: BookWyrm is the only project surveyed with
+   quantified in §11 below. **Promoted on the prior art**: BookWyrm is the only project surveyed with
    no licensing exposure at all, and it got there by choosing sources that need no key — not by
    solving the licensing problem.
 3. **Replace TMDB outright with an open-licensed source.** Only option where public display is
@@ -810,7 +834,8 @@ So §4(b) bites. What it reaches:
 | The application source code | **No** — not the database |
 
 For a product whose premise is publishing Orderings, that is close to costless, and it is the
-identical trade tardis.wiki already imposes under CAN-8.
+identical trade tardis.wiki already imposes under CAN-8 Provider: tardis.wiki chronologies
+(separate repo).
 
 ### Mixing licence regimes in one database is not coherent
 
@@ -877,15 +902,21 @@ closed (§6, §11).
 
 ---
 
-## What this changes in the existing records
+## What these findings bear on, and who owns each
 
-One finding is live today regardless of whether TMDB ever withdraws anything.
+**Findings, not decisions.** This file records what was measured; what to do about any of it belongs
+in `docs/adr/` or on a ticket, per [`README.md`](README.md)'s precedence rule. Each item below names
+its owner.
+
+One is live today regardless of whether TMDB ever withdraws anything.
 
 **1. ADR-0009's Fallback was selected from an incomplete candidate set.** The candidates were TMDB,
 TheTVDB, MusicBrainz, Open Library, Wikidata, tardis.wiki and Big Finish. **TVmaze, the Grand Comics
 Database, Metron and ISFDB were never assessed**, and all four are better than TheTVDB on the exact
 axis the Fallback exists to protect: no retention limit, no purge clause, and an open licence
-permitting public redistribution. The Fallback should be re-derived from the completed set.
+permitting public redistribution.
+**Owned by CAN-94 Re-derive ADR-0009's fallback from the completed source set**, which carries the
+re-derivation as acceptance criteria.
 
 **2. `versions-and-orderings-prior-art.md` is missing the closest prior art there is.** It records
 TMDB Episode Groups and TheTVDB season types as "the two public schemas worth borrowing vocabulary
