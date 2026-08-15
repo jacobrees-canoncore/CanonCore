@@ -15,8 +15,9 @@ architectural changes make the answer not matter?
 > recovered from their transcripts and all delivered. §5 (comics, prose, audio) and §7 (prior art)
 > were measured live against source code and providers' own terms; §8 (the legal position) reads
 > statutes and judgments directly. Sources reached through a real browser rather than a plain HTTP
-> client are marked, because two of them (isfdb.org, metron.cloud) sit behind challenge pages that
-> refuse `curl`. **§8 is analysis for a decision record, not legal advice.** What is missing is in
+> client are marked, because several of them (isfdb.org, metron.cloud, fanart.tv, hardcover.app)
+> sit behind challenge pages that refuse `curl` — those four need a browser to open. **§8 is
+> analysis for a decision record, not legal advice.** What is missing is in
 > *Not covered*. The two gaps that mattered most — the CC BY-SA legal code, and the adult-flag
 > question for the television sources — were closed afterwards and are answered in §11 and §6.
 
@@ -105,8 +106,9 @@ trigger and catastrophic for a catalogue that has no other source.
 Four provenance gaps, each already recorded in this repository. Together they are the reason the
 "what if it is revoked" question is well aimed.
 
-1. **The correspondence is not in the repo**, deliberately. It is held on **CAN-34 Attach TMDB's written retention
-   approval**, so the one load-bearing claim in ADR-0009 is the one a reader must leave the repo to check
+1. **The correspondence is not in the repo**, deliberately. It is held on **CAN-34 Attach TMDB's
+   written retention approval**, so the one load-bearing claim in ADR-0009 is the one a reader must
+   leave the repository to check
    ([ADR-0009](../adr/0009-external-source-tmdb.md)).
 2. **Neither copy carries headers, a sender address or a date.** ADR-0009: "Both are pasted bodies
    rather than saved messages, so the exception's age cannot be established and neither can be tied
@@ -263,7 +265,7 @@ orders, a `list_type` of `CREATOR / EVENT / STORY / CHARACTERS / TEAMS / MASTER`
 That is strikingly close to this product's own model: Placements with positions, entry types, and
 Phases. It is prior art for [ADR-0002](../adr/0002-orderings-are-separate-from-containment.md) that
 [`versions-and-orderings-prior-art.md`](versions-and-orderings-prior-art.md) does not carry, and it
-is worth reading before CAN-27 Orderings and Placements, and the imported broadcast Ordering is
+is worth reading before **CAN-27 Orderings and Placements, and the imported broadcast Ordering** is
 built, whether or not Metron is ever used as a source.
 
 ### ISFDB — the most permissive licence found
@@ -429,8 +431,8 @@ application `CanonCore`, `https://www.canoncore.com`. **We are already a party.*
 bring-your-own-key architecture separates privity only for a vendor that never registers anything,
 which for TMDB is not possible.
 
-**4. Serving more than one person makes you the licensee anyway, and the sources themselves enforce it.** A Radarr
-maintainer, on why they proxy rather than let users connect directly:
+**4. Serving more than one person makes you the licensee anyway, and the sources themselves enforce
+it.** A Radarr maintainer, on why they proxy rather than let users connect directly:
 
 > "`api.radarr.video` is serving more than one user… We already had issues with another arr where a
 > user provided scripts to scrape the metadata API with a random user-agent to bypass the rate limit,
@@ -695,10 +697,10 @@ mandatory age assurance. ADR-0012 reaches the right answer; this is the citation
 
 ### The GDPR export, confirmed as already correct
 
-`Art 20` is confined to data "**which he or she has provided to a controller**", and the ICO's [guidance on the right to data
-portability](https://ico.org.uk/for-organisations/uk-gdpr-guidance-and-resources/individual-rights/individual-rights/right-to-data-portability/)
-draws the provided/observed/inferred line explicitly. **Data fetched from a third-party API
-was not provided by the data subject**, so portability has a strong argument for not reaching it at
+`Art 20` is confined to data "**which he or she has provided to a controller**", and the ICO's
+[guidance on the right to data portability](https://ico.org.uk/for-organisations/uk-gdpr-guidance-and-resources/individual-rights/individual-rights/right-to-data-portability/)
+draws the provided/observed/inferred line explicitly. **Data fetched from a third-party API was not
+provided by the data subject**, so portability has a strong argument for not reaching it at
 all. `Art 15(4)` and `Art 20(4)` add that the right "shall not adversely affect the rights and
 freedoms of others", and Recital 63 names intellectual property expressly — while equally expressly
 forbidding a refusal to provide *all* information.
