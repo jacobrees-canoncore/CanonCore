@@ -56,6 +56,7 @@ is what the rule was built on.
 
 **Credentials**
 - [Regenerating a TMDB key does not revoke the old one promptly](#regenerating-a-tmdb-key-does-not-revoke-the-old-one-promptly)
+- [The TMDB regeneration entry's licence reasoning no longer holds](#the-tmdb-regeneration-entrys-licence-reasoning-no-longer-holds)
 - [What the TMDB credential was checked against](#what-the-tmdb-credential-was-checked-against)
 - [A Vercel sensitive variable cannot be read back, by anyone](#a-vercel-sensitive-variable-cannot-be-read-back-by-anyone)
 - [A sensitive variable named its SSL mode in a deprecation warning](#a-sensitive-variable-named-its-ssl-mode-in-a-deprecation-warning)
@@ -637,6 +638,10 @@ second.
 
 ## Regenerating a TMDB key does not revoke the old one promptly
 
+> *Follow-up, 15 August 2026: this entry's **licence** reasoning no longer holds — see
+> [the follow-up entry](#the-tmdb-regeneration-entrys-licence-reasoning-no-longer-holds) below. The
+> observation and the rule it proves are unchanged.*
+
 **10 August 2026.** The key was regenerated because the original had been pasted into a chat
 transcript. The warning at
 [`themoviedb.org/settings/api/regenerate`](https://www.themoviedb.org/settings/api/regenerate) reads
@@ -655,6 +660,32 @@ being disabled, expiring or terminated. Nothing already fetched depends on which
 
 **Do not read the token's `nbf` claim as an issue date.** It is `21 July 2025` on both the old token
 and the one that replaced it, so it dates the account's API registration and survives regeneration.
+
+## The TMDB regeneration entry's licence reasoning no longer holds
+
+**15 August 2026.** A follow-up to
+[Regenerating a TMDB key does not revoke the old one promptly](#regenerating-a-tmdb-key-does-not-revoke-the-old-one-promptly)
+above, which is left as written because the reasoning of the day is what the rule was built on.
+
+**What is now false.** That entry says regeneration "costs nothing under the licence", because
+ADR-0009 then recorded a retention exception surviving the key being disabled, expiring or
+terminated. **There is no exception.** All previous TMDB correspondence is disregarded entirely —
+decision 5 of **CAN-96 Record the architecture decisions of 15 August, and make the repository
+agree**, recorded in [ADR-0009](adr/0009-external-source-tmdb.md) — and TMDB is used on its
+published terms alone.
+
+**The observation stands, and so does the conclusion, on a different ground.** Regenerating our own
+key is not TMDB terminating our access, so `§1.D` — purge all TMDB Content "on termination" — is not
+fired by it. What is gone is the second half, that nothing already fetched depends on the
+credential's fate. Under the published terms every cached row carries a `§1.C` six-month clock, and a
+revocation *by TMDB* fires `§1.D` across the lot.
+
+**So the entry's practical advice binds harder than it did, not less.** A leaked TMDB key has to be
+assumed live for a window of unknown length and regeneration does not close it. The exposure is no
+longer only that a stranger reads TMDB on our quota: it is that the account can be terminated over
+it, and a termination is a duty to empty the catalogue that **nothing currently detects**
+([ADR-0014](adr/0014-shell-providers-and-per-source-retention.md#it-models-1c-and-cannot-represent-1d)
+records that as unresolved).
 
 ## What the TMDB credential was checked against
 

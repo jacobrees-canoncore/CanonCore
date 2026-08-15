@@ -15,6 +15,7 @@ rather than restating it.
 - [The two email tools are not interchangeable](#the-two-email-tools-are-not-interchangeable)
 - [`next-devtools-mcp` inspects this app; the `vercel:*` skills teach the framework](#next-devtools-mcp-inspects-this-app-the-vercel-skills-teach-the-framework)
 - [What an unauthenticated OAuth server answers](#what-an-unauthenticated-oauth-server-answers)
+- [The `vercel` MCP answers for one project, and a Provider is another](#the-vercel-mcp-answers-for-one-project-and-a-provider-is-another)
 - [Which servers are project scope and which are user scope](#which-servers-are-project-scope-and-which-are-user-scope)
 - [The chain is declared, so a clone runs the same process](#the-chain-is-declared-so-a-clone-runs-the-same-process)
 - [Run the grill and the implementation in separate sessions](#run-the-grill-and-the-implementation-in-separate-sessions)
@@ -73,6 +74,19 @@ carried that claim and had it rewritten three times in two days. Ask the server.
 Neon's control plane is the *only* thing that answers which branches exist, for the reason
 `docs/infrastructure.md` → *Database* records.
 
+## The `vercel` MCP answers for one project, and a Provider is another
+
+It is authenticated to one account and scoped to the `canoncore` project alone
+(`docs/infrastructure.md` → *Agent tooling*). Every Provider is a repository of its own and a
+deployment of its own ([ADR-0014](../adr/0014-shell-providers-and-per-source-retention.md)), so a
+Provider's deployments, logs and environment variables sit outside what this server answers for —
+and it answers **empty rather than wrong**, which reads as "nothing deployed" rather than "asked in
+the wrong place". Check which project you are on before believing a null result: the same habit the
+second Vercel account already demands.
+
+`scripts/check-docs.ts` goes blind the same way and for the same reason;
+[ADR-0014](../adr/0014-shell-providers-and-per-source-retention.md#consequences) owns that.
+
 ## Which servers are project scope and which are user scope
 
 `resend` is scoped to this project in `.claude/settings.json`.
@@ -93,6 +107,14 @@ body.
 
 **Keep no copy of either in `~/.claude/skills/`:** personal scope overrides project, so a personal
 copy wins silently and the two drift.
+
+**The chain runs per repository, and a Provider is a repository.** `/implement`, `/draft-pr` and
+`/review-pr` run there against that repo's own gates, while the tracker stays here — `orca linear`
+is not repo-scoped, and team `CAN` carries the Provider work too
+(`docs/agents/issue-tracker.md`). The skills themselves are *this* repository's `.claude/`, so a
+Provider repository has them only once it carries its own copy. What breaks if one ticket is worked
+across both repositories, and what to provision before a Provider repository's first pull request,
+is `docs/agents/workflow.md` → *Work that spans two repositories*. Neither is restated here.
 
 Small work can skip from the grill straight to `/implement`. `/wayfinder` replaces `/to-spec` when
 the shape is still foggy — it resolves unknown *decisions* one at a time, where `to-spec` assumes

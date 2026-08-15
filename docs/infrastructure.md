@@ -432,8 +432,17 @@ once it says `verify-full`.
 
 ## External data source: TMDB
 
-Provisioned by CAN-19. *Why* TMDB, the licence conditions the import and the UI must honour, and the
-retention exception the whole choice rests on are [ADR-0009](adr/0009-external-source-tmdb.md).
+Provisioned by CAN-19. *Why* TMDB, and the licence conditions the import and the UI must honour, are
+[ADR-0009](adr/0009-external-source-tmdb.md). **There is no retention exception**: TMDB is used on
+its published terms only, and how long a copy may be kept is a property of the Source, in
+[ADR-0014](adr/0014-shell-providers-and-per-source-retention.md#decision-6--retention-is-a-property-of-the-source).
+
+> **This credential does not belong on the application** under
+> [ADR-0014](adr/0014-shell-providers-and-per-source-retention.md#decision-1--the-app-is-a-shell),
+> which puts no *Source* credential in `apps/web`. It moves to `provider-tmdb` together with its
+> roster row above, in **one** change — **CAN-99 Move the TMDB credential out of the app, atomically
+> with its roster row**. Moving one side alone fails `scripts/check-docs.ts`, which compares them.
+> The rows below are current until it lands.
 
 | | |
 | --- | --- |
@@ -468,9 +477,10 @@ one. Both are recoverable only from the TMDB settings page.
 for a window of unknown length
 ([incident](incidents.md#regenerating-a-tmdb-key-does-not-revoke-the-old-one-promptly)).
 
-> **Nothing here ties the CAN-34 correspondence to this TMDB account.** The registered application
-> name and the exception's project scope agree with each other, which is consistency rather than
-> proof; ADR-0009 carries the provenance gap in full.
+> **The CAN-34 correspondence is disregarded entirely** and nothing here rests on it, so the
+> provenance gap this note used to carry no longer decides anything. Settled 15 August 2026 as
+> decision 5 of **CAN-96 Record the architecture decisions of 15 August, and make the repository
+> agree**, and recorded in [ADR-0009](adr/0009-external-source-tmdb.md).
 
 ## Transactional email: Resend
 

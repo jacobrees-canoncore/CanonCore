@@ -1,7 +1,10 @@
 # Issue tracker: Linear (via `orca linear`)
 
-Issues and specs for this repo live in **Linear**, in the `CanonCore` workspace. All issue
-operations go through the `orca linear` CLI — never `gh issue`.
+Issues and specs for this **project** live in **Linear**, in the `CanonCore` workspace — the
+project rather than this repository, because every Provider is a repository of its own
+([ADR-0014](../adr/0014-shell-providers-and-per-source-retention.md)) and its work is tracked on
+team `CAN` like everything else. All issue operations go through the `orca linear` CLI — never
+`gh issue`.
 
 This file is the tracker's standing policy. The observations behind its rules live in
 [`docs/incidents.md`](../incidents.md); label meanings live in
