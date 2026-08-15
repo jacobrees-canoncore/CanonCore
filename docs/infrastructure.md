@@ -37,7 +37,7 @@ changes, it is evidence and does not belong here.
 `https://www.canoncore.com`. The apex `canoncore.com` serves a **301** to it.
 
 This is the URL that **CAN-24 Sign in and sign out** (better-auth base URL and cookie domain),
-**CAN-31 Send verification and reset emails** (absolute links) and **CAN-21 Write the Online Safety
+**CAN-31 Email verification and password reset** (absolute links) and **CAN-21 Write the Online Safety
 Act documents** must bake in. `www` is canonical rather than the apex so the session cookie stays
 host-only; the reasoning and what will try to reopen it are
 [ADR-0010](adr/0010-canonical-host-www.md).
@@ -254,11 +254,18 @@ if two branches are ever routinely open at once.
 
 ## Environment variables
 
-**The complete roster.** Every variable this project holds anywhere, in one table.
-`scripts/check-docs.ts` compares the Vercel rows against `vercel env ls` and fails when they
-disagree.
+**The roster for this application.** Every variable the `canoncore` Vercel project holds, plus the
+GitHub Actions secrets, in one table. `scripts/check-docs.ts` compares the Vercel rows against
+`vercel env ls --project canoncore` and fails when they disagree.
 
-*Read back from `vercel env ls --project canoncore` and `gh secret list` on 14 August 2026.*
+**It is no longer every variable the estate holds**, and the claim was narrowed on purpose. Under
+[ADR-0014](adr/0014-shell-providers-and-per-source-retention.md#decision-1--the-app-is-a-shell) a
+*Source* credential lives in its provider's own repository and its own Vercel project, so the
+estate has several projects and this table reaches one. **Each provider repository holds the roster
+for its own credentials**; the pointer here is *Where a Source credential lives* below.
+
+*Read back from `vercel env ls --project canoncore` on 15 August 2026, and `gh secret list` on
+14 August 2026.*
 
 | Variable | Holder | Environments | Sensitivity | What it is |
 | --- | --- | --- | --- | --- |
@@ -266,12 +273,12 @@ disagree.
 | `DATABASE_APP_USER` | Vercel | Production, Preview, Development | Non-sensitive | The application role name, for a preview to compose its own URL |
 | `DATABASE_APP_PASSWORD` | Vercel | Production, Preview | Sensitive | Its password. Inherited unchanged by every preview branch |
 | `DATABASE_PRODUCTION_HOST` | Vercel | Production, Preview | Non-sensitive | Production's Neon host, so that a preview can assert the host it resolved is not that one. **Non-sensitive deliberately**: a value nobody can read back is a value nobody can catch going stale, and a stale one makes the preview's assertion vacuous |
-| `TMDB_API_READ_ACCESS_TOKEN` | Vercel | Production, Preview | Sensitive | TMDB bearer token, scope `api_read` |
 | `RESEND_API_KEY` | Vercel | Production, Preview | Sensitive | Two distinct keys under one name, one per environment |
 | `EMAIL_FROM` | Vercel | Production, Preview | Sensitive | `CanonCore <noreply@mail.canoncore.com>` |
 | `SENTRY_DSN` | Vercel | Production, Preview | Sensitive | Also recorded under *Error reporting* below, since a DSN is not a secret |
 | `SENTRY_AUTH_TOKEN` | Vercel | Production, Preview | Sensitive | Organisation auth token, scope `org:ci`, for source-map upload |
 | `MIGRATION_DATABASE_URL` | GitHub Actions secret | — | — | The migration role's connection string, which has to ask for `sslmode=verify-full`. Not in Vercel: migrations run in Actions, not in the build |
+| `VERCEL_TOKEN` | GitHub Actions secret | — | — | **Account-scoped, and it has to be.** Two steps of `ci.yml` consume it: the `node scripts/check-docs.ts --verbose` run, and **Build and promote the production deployment**. A *project*-scoped token fails both, and fails them differently — see *Why this one is account-scoped* below. Replaced 14 August 2026; the account is `jacobreesnew-7380's projects` |
 
 **No `NEON_*` variables.** All sixteen the Marketplace integration had written were removed on 13
 August 2026. Whether the integration re-writes them is checked by **CAN-69 Record the credential
@@ -293,17 +300,104 @@ not by whoever set it ([incident](incidents.md#a-vercel-sensitive-variable-canno
 different question from this table: the table is what is provisioned, the schema is what the code
 reads.
 
-> **The database rows are read; the rest are not.** Since **CAN-23 One Story from Neon, behind
-> row-level security** a deployment opens a connection, so `DATABASE_URL`,
+> **Which rows are observed, and which are still only promised.** Since **CAN-23 One Story from
+> Neon, behind row-level security** a deployment opens a connection, so `DATABASE_URL`,
 > `DATABASE_APP_USER`, `DATABASE_APP_PASSWORD` and `DATABASE_PRODUCTION_HOST` are read at request
-> time by [`apps/web/src/db/database-url.ts`](../apps/web/src/db/database-url.ts). Every other row
-> is still a platform guarantee rather than an observation, waiting on the ticket that consumes it
-> — CAN-26 Import a series from TMDB, with the overlay behind it.
+> time by [`apps/web/src/db/database-url.ts`](../apps/web/src/db/database-url.ts). `VERCEL_TOKEN`
+> is read on every CI run and `MIGRATION_DATABASE_URL` whenever a migration runs, so both are
+> observed too — by Actions rather than by the application. The Resend rows wait on **CAN-31 Email
+> verification and password reset**, and the Sentry rows on the first thing that reports to it.
+>
+> **This no longer waits on CAN-26 Import a series from TMDB, with the overlay behind it.** That
+> ticket used to be named here as the consumer of `TMDB_API_READ_ACCESS_TOKEN`, and under
+> [ADR-0014](adr/0014-shell-providers-and-per-source-retention.md#decision-1--the-app-is-a-shell)
+> it consumes no external credential at all: it reads a provider, and the provider holds the key.
 >
 > **They are read at request time and not at build time, on purpose.** A schema demanding
 > `DATABASE_URL` of every build would refuse a preview's, which correctly has none, and a refused
 > preview build reports the required `Vercel` context red — so the gate CAN-49 Refuse to build without the
 > environment variables the app needs put there would have blocked every merge. `apps/web/src/env.ts` says the same thing next to the code.
+
+### Where a Source credential lives
+
+**No *Source* credential is held by the `canoncore` project**, under
+[ADR-0014](adr/0014-shell-providers-and-per-source-retention.md#decision-1--the-app-is-a-shell).
+Each lives in its provider's own repository and its own Vercel project, and that repository
+documents it.
+
+| Source | Credential | Where it lives now |
+| --- | --- | --- |
+| TMDB | Bearer token, scope `api_read` | **Pending `provider-tmdb`, which does not exist yet.** Removed from the `canoncore` project on 15 August 2026 by **CAN-99 Move the TMDB credential out of the app, atomically with its roster row**. Until that repository exists the token is held nowhere, and is recoverable from [`themoviedb.org/settings/api`](https://www.themoviedb.org/settings/api) — see *External data source: TMDB* below |
+
+**Held nowhere is a real state, and it is recorded rather than tidied away.** A credential whose
+home is unrecorded is the failure this roster exists to prevent; a credential recorded as homeless
+is merely work outstanding. It becomes a row above only if it ever returns to this project, which
+under ADR-0014 it should not.
+
+**`scripts/check-docs.ts` was deliberately not widened past one project.** It reads
+`vercel env ls --project canoncore`, and `parseDocumentedVariables` keeps only rows whose Holder
+column contains `Vercel` — so a row naming any other holder leaves the comparison silently. Teaching
+it to walk several projects would be building for `provider-tmdb` before that repository exists,
+which is the speculative generality `CLAUDE.md` rules out.
+
+**What was done instead is to make the gap audible.** `parseUncheckedVariables` names every
+documented row the comparison cannot reach, and the check reports them in its detail line — which
+means **on every CI run**, since `ci.yml` runs `node scripts/check-docs.ts --verbose`. A bare local
+run prints only `PASS` and the check's name, for this check as for every other, so **pass
+`--verbose` when you are asking what the roster actually covers**:
+
+```
+PASS  the variable roster matches Vercel   8 agree; 2 held elsewhere and unchecked (MIGRATION_DATABASE_URL, VERCEL_TOKEN)
+```
+
+So the reach of the check is stated rather than inferred, and a credential moving off this project
+shrinks a count somebody can see. **When `provider-tmdb` exists, that repository runs its own
+check against its own project** — the same shape, one project each, rather than one checker
+reaching across an estate.
+
+**Both rows it currently names are unchecked for a different reason, and a fixable one.**
+`MIGRATION_DATABASE_URL` and `VERCEL_TOKEN` are GitHub Actions secrets, which no walk of Vercel
+projects would ever reach — but `gh secret list` would, and this document's own read-back already
+uses it. Their names could be compared today. That they are not is a gap in this check rather than
+a consequence of the shell architecture, and it is **CAN-69 Record the credential purge, regenerate
+the credentials table, and lint-ban NEON\_ reads** that next touches this table.
+
+**A future provider row must not put `Vercel` in its Holder.** The filter is a substring test, so a
+Holder reading `Vercel (provider-tmdb)` would be pulled *into* the comparison against `canoncore`,
+fail against a project that correctly does not hold it, and disappear from the unchecked list at the
+same time — the one failure mode this arrangement still has. Name the holder as the repository, and
+let its own project's check do the verifying.
+
+### Why this one is account-scoped
+
+`VERCEL_TOKEN` is scoped to the account, `jacobreesnew-7380's projects`, and a project-scoped
+token breaks both consumers — differently, which is the part worth recording.
+
+| Token scope | `check-docs` result **in CI** |
+| --- | --- |
+| Project | `5 passed, 2 skipped, 0 failed` |
+| Account | `6 passed, 1 skipped, 0 failed` |
+
+*Both figures are from a runner.* A local run reports `7 passed, 0 skipped`, because the label
+roster reaches `orca` here and never can on a runner — so the local total cannot be compared with
+either row above, and a green local run is not evidence about the token's scope.
+
+**The release step fails loudly and `check-docs` fails quietly.** **Build and promote the
+production deployment** stops the job at its `vercel pull`, with
+`Error: Could not retrieve Project Settings`, having `VERCEL_ORG_ID` and `VERCEL_PROJECT_ID` set in
+its environment and unrescued by either. The `check-docs` step instead *skips* `the variable roster
+matches Vercel` and carries on green, so a wrongly-scoped token costs a documentation gate on every
+branch and only announces itself on a merge to `main`. **Anyone reading a green pull request would not
+know.**
+
+**Reissuing is a dashboard action, not a CLI one.** `vercel tokens add <name>` returns
+`Error: Cannot create tokens for this app. (403)` under the current *Sign in with Vercel (google)*
+login, from an agent session and from Jacob's own terminal alike — so the natural assumption when
+the release fails, that the CLI can mint the replacement, is wrong.
+
+Whether the release can be made to work on a project-scoped token is **CAN-86 Record VERCEL_TOKEN
+in the credential roster, and revisit whether the release can use a project-scoped one**. The
+roster half of that ticket is done here; the question it asks is still open.
 
 ## Database
 
@@ -437,13 +531,16 @@ Provisioned by **CAN-19 Obtain a TMDB API key and the account behind it**. *Why*
 its published terms only, and how long a copy may be kept is a property of the Source, in
 [ADR-0014](adr/0014-shell-providers-and-per-source-retention.md#decision-6--retention-is-a-property-of-the-source).
 
-> **This credential does not belong on the application** under
+> **This credential is no longer held by this project.** Under
 > [ADR-0014](adr/0014-shell-providers-and-per-source-retention.md#decision-1--the-app-is-a-shell),
-> which puts no *Source* credential in `apps/web`. It moves to `provider-tmdb` together with its
-> roster row above, in **one** change — **CAN-99 Move the TMDB credential out of the app, atomically
-> with its roster row** — for the reason
-> [ADR-0014](adr/0014-shell-providers-and-per-source-retention.md#consequences) gives. The rows below
-> are current until it lands.
+> which puts no *Source* credential in `apps/web`, `TMDB_API_READ_ACCESS_TOKEN` was removed from the
+> `canoncore` Vercel project on 15 August 2026 by **CAN-99 Move the TMDB credential out of the app,
+> atomically with its roster row**, together with its roster row, in one change. **Its destination
+> `provider-tmdb` does not exist yet**, so the token is held nowhere and is reissued from the source
+> named below — *Where a Source credential lives* above records that state.
+>
+> **What remains here is the account, not the secret.** The table below describes the TMDB account
+> and the registered application, which stay this project's however the credential is held.
 
 | | |
 | --- | --- |
@@ -477,11 +574,6 @@ one. Both are recoverable only from the TMDB settings page.
 **Regenerating the key does not revoke the old one promptly** — assume a leaked TMDB key stays live
 for a window of unknown length
 ([incident](incidents.md#regenerating-a-tmdb-key-does-not-revoke-the-old-one-promptly)).
-
-> **The CAN-34 correspondence is disregarded entirely** and nothing here rests on it, so the
-> provenance gap this note used to carry no longer decides anything. Settled 15 August 2026 as
-> decision 5 of **CAN-96 Record the architecture decisions of 15 August, and make the repository
-> agree**, and recorded in [ADR-0009](adr/0009-external-source-tmdb.md).
 
 ## Transactional email: Resend
 
