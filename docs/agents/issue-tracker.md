@@ -194,6 +194,13 @@ a specific named `v1` ticket is the prerequisite, never for "v1 must exist" in g
 description names the structural links, the sequencing ones and every cross-band edge, and is rewritten
 whenever the queue is reordered.
 
+**Promoting a `Later` ticket into another band takes two edge edits, not one.** A project move leaves
+both of its links alone, and they need opposite treatment. **Keep the link to the ticket after it**,
+which becomes a legitimate cross-band edge under the rule above. **Delete the link to the ticket
+before it, and re-splice that ticket onto whatever came next** — otherwise a `Later` ticket is left
+blocking one outside the band, which inverts the scheme, and the queue reads as one chain while being
+severed at that position.
+
 ## When a skill says "publish to the issue tracker"
 
 Create a Linear issue on team `CAN` with `orca linear create`.
