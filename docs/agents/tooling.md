@@ -81,8 +81,7 @@ It is authenticated to one account and scoped to the `canoncore` project alone
 deployment of its own ([ADR-0014](../adr/0014-shell-providers-and-per-source-retention.md)), so a
 Provider's deployments, logs and environment variables sit outside what this server answers for —
 and it answers **empty rather than wrong**, which reads as "nothing deployed" rather than "asked in
-the wrong place". Check which project you are on before believing a null result: the same habit the
-second Vercel account already demands.
+the wrong place".
 
 `scripts/check-docs.ts` goes blind the same way and for the same reason;
 [ADR-0014](../adr/0014-shell-providers-and-per-source-retention.md#consequences) owns that.

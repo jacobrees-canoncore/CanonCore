@@ -346,10 +346,11 @@ kinds are answered in advance, because the decisions of 15 August 2026 commit to
 **A scheduled job carries nothing.** The retention sweep
 ([ADR-0014](../adr/0014-shell-providers-and-per-source-retention.md#decision-6--retention-is-a-property-of-the-source))
 is the first one this project needs. A merge moves the code; the schedule lives in platform state and
-a person registers it, so it belongs in *After the merge* below with everything else no file here can
-assert. **A sweep that was never registered looks exactly like a sweep with nothing to do** — that is
-what makes the missed registration a licence breach rather than a stale cache, and it is why the
-verification is on the schedule's existence rather than on its output.
+a person registers it, so it is named in the PR body like every other hand-run artefact above **and**
+verified in *After the merge* below, because no file here can assert it. **A sweep that was never
+registered looks exactly like a sweep with nothing to do** — that is what makes a missed registration
+a licence breach rather than a stale cache, and it is why the check is on the schedule's existence
+rather than on its output.
 
 **A separately deployed service carries nothing here either.** Every Provider is its own repository
 and its own deployment, so a merge to `main` here moves `apps/web` and nothing else, whatever the
@@ -377,8 +378,8 @@ than merely going quiet, and each breaks in the direction that reads as fine:
   carrying the same identifier both drive the same issue and the first to land reports it `Done`
   while the other half is unmerged. **Give each repository its own ticket** and relate them in
   Linear. An extra issue costs nothing; a status that closed early is never re-opened by anything.
-- **The gates are this repository's gates.** *The gates* above names one Actions job, and `main`'s
-  ruleset requires it by name — both are configuration of *this* repo, and a new repository has
+- **The gates are this repository's gates.** *The gates* above describes one Actions job, and
+  `main`'s ruleset requires it — both are configuration of *this* repo, and a new repository has
   neither until someone provisions them. `/review-pr` polls until checks appear and then reads the
   ruleset for the contexts it must see; a repository emitting none gives it nothing to tell *not
   registered yet* from *never will be*. **Provision the job, the ruleset and the deployment before
@@ -392,9 +393,11 @@ than merely going quiet, and each breaks in the direction that reads as fine:
   throwaway host at all, is a decision on the Provider's side that **nothing has taken yet**.
 
 **Land the contract side first, then the consumer**, which is the widening rule above one repository
-further out. The contract evolves additive-only ([`CODING_STANDARDS.md`](../../CODING_STANDARDS.md)),
-so a Provider already answering the new shape is safe for old and new consumers alike, while the
-reverse order ships a consumer calling something that does not exist.
+further out. The contract evolves additive-only, because someone may be self-hosting our Provider on
+their own schedule
+([ADR-0014](../adr/0014-shell-providers-and-per-source-retention.md#what-survives-of-adr-0007)), so a
+Provider already answering the new shape is safe for old and new consumers alike while the reverse
+order ships a consumer calling something that does not exist.
 
 ## After the merge
 

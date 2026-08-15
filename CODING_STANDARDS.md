@@ -35,11 +35,10 @@ against the obvious default:
 ## What the baseline will wave through, and must not
 
 **Source-specific code in `apps/web` is a finding, however clean it is.**
-[ADR-0014](docs/adr/0014-shell-providers-and-per-source-retention.md) makes the application a shell:
-it composes, renders and stores, and it never knows that TMDB exists. Everything it knows about any
-Source arrives through the published contract. So an `apps/web/src/lib/tmdb.ts` would read as good
-structure to every default heuristic — small, cohesive, one job — which is exactly why no other
-check catches it.
+[ADR-0014](docs/adr/0014-shell-providers-and-per-source-retention.md#decision-1--the-app-is-a-shell)
+makes the application a shell, and that is precisely what the baseline cannot see: an
+`apps/web/src/lib/tmdb.ts` reads as good structure to every default heuristic — small, cohesive, one
+job — so nothing else catches it.
 
 The remedy the finding asks for is **relocation to that Source's Provider, never a neater wrapper**.
 An abstraction over TMDB inside `apps/web` still leaves this project a licensee of TMDB's terms,

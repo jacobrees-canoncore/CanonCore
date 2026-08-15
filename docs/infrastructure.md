@@ -432,7 +432,7 @@ once it says `verify-full`.
 
 ## External data source: TMDB
 
-Provisioned by CAN-19. *Why* TMDB, and the licence conditions the import and the UI must honour, are
+Provisioned by **CAN-19 Obtain a TMDB API key and the account behind it**. *Why* TMDB, and the licence conditions the import and the UI must honour, are
 [ADR-0009](adr/0009-external-source-tmdb.md). **There is no retention exception**: TMDB is used on
 its published terms only, and how long a copy may be kept is a property of the Source, in
 [ADR-0014](adr/0014-shell-providers-and-per-source-retention.md#decision-6--retention-is-a-property-of-the-source).
@@ -441,8 +441,9 @@ its published terms only, and how long a copy may be kept is a property of the S
 > [ADR-0014](adr/0014-shell-providers-and-per-source-retention.md#decision-1--the-app-is-a-shell),
 > which puts no *Source* credential in `apps/web`. It moves to `provider-tmdb` together with its
 > roster row above, in **one** change — **CAN-99 Move the TMDB credential out of the app, atomically
-> with its roster row**. Moving one side alone fails `scripts/check-docs.ts`, which compares them.
-> The rows below are current until it lands.
+> with its roster row** — for the reason
+> [ADR-0014](adr/0014-shell-providers-and-per-source-retention.md#consequences) gives. The rows below
+> are current until it lands.
 
 | | |
 | --- | --- |

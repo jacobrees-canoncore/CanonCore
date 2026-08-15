@@ -31,19 +31,21 @@ and [orderings](docs/adr/0002-orderings-are-separate-from-containment.md).
 
 ## Where the data comes from
 
-**CanonCore is a shell**, which is the property everything else here rests on. Nothing in the
-application knows that TMDB exists: every Source is reached through a **Provider** — a separate
-service, in its own repository, speaking a published contract — so the application carries no
-source-specific code and holds no Source's credentials.
+**The application is a shell**, which is the property everything else here rests on. Nothing in it
+knows that TMDB exists: every Source is reached through a **Provider** — a separate service, in its
+own repository, speaking a published contract — so the application carries no source-specific code
+and holds no Source's credentials. The Providers are ours too; they are just not the product.
 
 TMDB is the general television and film source, and every other source gets its own Provider too —
 a second television database, comics, prose, music, the fan wikis. Anyone else's Provider can be
 added by pasting in its URL.
 
-That separation is what lets sources whose licences flatly disagree — a six-month cache limit on
-one, share-alike on another — sit in one catalogue without their terms mixing, and it makes how long
-data may be kept a fact about each source rather than about the product. Recorded in
-[ADR-0014](docs/adr/0014-shell-providers-and-per-source-retention.md) and
+Sources whose licences flatly disagree — a six-month cache limit on one, share-alike on another —
+are carried by two further decisions rather than by the split itself. How long data may be kept is a
+property of each source, not of the product; and **every displayed value records which source it
+came from**, field by field, because the share-alike sources require attribution per record and one
+credit block in a footer cannot give it. Both are in
+[ADR-0014](docs/adr/0014-shell-providers-and-per-source-retention.md); the source decision itself is
 [ADR-0009](docs/adr/0009-external-source-tmdb.md). **None of it is built yet** — below.
 
 ## Status

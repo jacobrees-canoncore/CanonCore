@@ -52,7 +52,7 @@ surfaces one, discard it and say that you did. Nothing here is derived from them
 
 ## Stack
 
-Settled 8 August 2026. Rationale and rejected alternatives: [ADR-0005](docs/adr/0005-stack.md), not relitigated here.
+Settled 8 August 2026. Rationale and rejected alternatives: [ADR-0005](docs/adr/0005-stack.md). Do not relitigate them here.
 
 | Concern | Choice |
 | --- | --- |
@@ -163,10 +163,10 @@ answer first, then what will offer you something else.
   titles out of its TMDB import, so "just exclude them" reads as obvious. It is not: recording that a
   work exists is not carrying pornographic content, and the exposure is the poster.
 - **TMDB as the general source, on published terms with no exception** ([ADR-0009](docs/adr/0009-external-source-tmdb.md))
-  — every earlier approval is disregarded, so the six-month cache limit binds and reads as fatal. The
-  reflex is to seek an exception or a second Source as a floor; both refused (ADR-0014).
-- **`apps/web` holds no source-specific code and no *Source* credential** (ADR-0014) — an SDK or key
-  for a Source belongs in its Provider; `RESEND_API_KEY` and `DATABASE_URL` are not Source keys.
+  — every earlier approval is disregarded and none will be sought, so the six-month cache limit binds
+  and reads as fatal. The reflex is a second Source as a floor, which ADR-0014 refuses outright.
+- **`apps/web` holds no source-specific code and no *Source* credential** (ADR-0014) — ask any tool
+  for a TMDB client and it lands in `apps/web`. Bound to *Source*: `RESEND_API_KEY` is not one.
 - **Three reachability classes, not two** (ADR-0014) — a keyless Provider reads as safe to self-host;
   `provider-tardis-wiki` is keyless and is not, because its permission is ours personally.
 - **Hand-written CSS, no framework and no component library** ([ADR-0013](docs/adr/0013-hand-written-css-no-framework.md))
