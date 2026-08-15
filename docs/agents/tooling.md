@@ -108,8 +108,7 @@ body.
 copy wins silently and the two drift.
 
 **The chain runs per repository, and a Provider is a repository.** `/implement`, `/draft-pr` and
-`/review-pr` run there against that repo's own gates, while the tracker stays here — `orca linear`
-is not repo-scoped, and team `CAN` carries the Provider work too
+`/review-pr` run there against that repo's own gates, while the tracker does not move
 (`docs/agents/issue-tracker.md`). The skills themselves are *this* repository's `.claude/`, so a
 Provider repository has them only once it carries its own copy. What breaks if one ticket is worked
 across both repositories, and what to provision before a Provider repository's first pull request,

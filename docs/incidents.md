@@ -665,7 +665,7 @@ and the one that replaced it, so it dates the account's API registration and sur
 
 **15 August 2026.** A follow-up to
 [Regenerating a TMDB key does not revoke the old one promptly](#regenerating-a-tmdb-key-does-not-revoke-the-old-one-promptly)
-above, which is left as written because the reasoning of the day is what the rule was built on.
+above, which is left as written.
 
 **What is now false.** That entry says regeneration "costs nothing under the licence", because
 ADR-0009 then recorded a retention exception surviving the key being disabled, expiring or
@@ -677,8 +677,8 @@ published terms alone.
 **The observation stands, and so does the conclusion, on a different ground.** Regenerating our own
 key is not TMDB terminating our access, so `§1.D` — purge all TMDB Content "on termination" — is not
 fired by it. What is gone is the second half, that nothing already fetched depends on the
-credential's fate. Under the published terms every cached row carries a `§1.C` six-month clock, and a
-revocation *by TMDB* fires `§1.D` across the lot.
+credential's fate. Under the published terms every copy we hold carries a `§1.C` six-month clock, and
+a revocation *by TMDB* fires `§1.D` across the lot.
 
 **So the entry's practical advice binds harder than it did, not less.** A leaked TMDB key has to be
 assumed live for a window of unknown length and regeneration does not close it. The exposure is no

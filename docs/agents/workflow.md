@@ -340,21 +340,19 @@ Any other out-of-band artefact — a scheduled job, a queue, a permission,
 an environment variable — is hand-run and must be named in the PR body.
 
 Answer this for each new **kind** of artefact before the first change that needs it, not after, and
-add it here ([incident](../incidents.md#waveger-the-build-ran-no-migrations-and-nobody-knew)). Two
-kinds are answered in advance, because the decisions of 15 August 2026 commit to both:
+add it here ([incident](../incidents.md#waveger-the-build-ran-no-migrations-and-nobody-knew)). The
+decisions of 15 August 2026 bring one new kind, and sharpen the check on a kind the rule above
+already covers:
 
-**A scheduled job carries nothing.** The retention sweep
-([ADR-0014](../adr/0014-shell-providers-and-per-source-retention.md#decision-6--retention-is-a-property-of-the-source))
-is the first one this project needs. A merge moves the code; the schedule lives in platform state and
-a person registers it, so it is named in the PR body like every other hand-run artefact above **and**
-verified in *After the merge* below, because no file here can assert it. **A sweep that was never
-registered looks exactly like a sweep with nothing to do** — that is what makes a missed registration
-a licence breach rather than a stale cache, and it is why the check is on the schedule's existence
-rather than on its output.
+**A separately deployed service carries nothing.** A merge to `main` here moves `apps/web` and
+nothing else, whatever the ticket said, because a Provider is a deployment of its own. A change
+needing both is two merges in a chosen order — *Work that spans two repositories* below.
 
-**A separately deployed service carries nothing here either.** Every Provider is its own repository
-and its own deployment, so a merge to `main` here moves `apps/web` and nothing else, whatever the
-ticket said. A change needing both is two merges in a chosen order — below.
+**For the retention sweep, check the schedule rather than the output**
+([ADR-0014](../adr/0014-shell-providers-and-per-source-retention.md#decision-6--retention-is-a-property-of-the-source)).
+It is a scheduled job like any other, so the rule above already has it — but **a sweep that was never
+registered looks exactly like a sweep with nothing to do**, which is what makes a missed registration
+a licence breach rather than a stale cache.
 
 **A change that only works in one deploy order is a change to rewrite**, not a window to reason
 about: widen first so old and new code both work, move the data, then narrow in a *later* change

@@ -34,7 +34,8 @@ and [orderings](docs/adr/0002-orderings-are-separate-from-containment.md).
 **The application is a shell**, which is the property everything else here rests on. Nothing in it
 knows that TMDB exists: every Source is reached through a **Provider** — a separate service, in its
 own repository, speaking a published contract — so the application carries no source-specific code
-and holds no Source's credentials. The Providers are ours too; they are just not the product.
+and holds no Source's credentials. The Providers on the product's own list are ours, written and run
+by this project; anything off that list is a stranger's service.
 
 TMDB is the general television and film source, and every other source gets its own Provider too —
 a second television database, comics, prose, music, the fan wikis. Anyone else's Provider can be
