@@ -41,10 +41,19 @@ this file and `orca linear --help` disagree, trust `--help` and say the doc look
 
 ## Relationship to GitHub
 
-Linear's GitHub integration syncs issues two ways: title, description, status, labels, assignee and
-comments propagate in both directions, and a PR that references a Linear issue id moves that issue
-through its workflow states automatically as the PR drafts, opens and merges. See
+Linear's GitHub integration syncs issues two ways: title, description, status, labels and assignee
+propagate in both directions, and a PR that references a Linear issue id moves that issue through
+its workflow states automatically as the PR drafts, opens and merges. See
 https://linear.app/docs/github.
+
+**Comments do not.** Linear's documentation lists them, and this file used to as well, but no
+substantive comment has ever reached the GitHub side here: across all 100 mirrored issues every one
+of the 23 GitHub comments is Linear's own `<!-- linear-linkback -->` marker, while Linear holds
+comment threads going back to 9 August 2026 (measured on CAN-100 Restructure the tracker for the
+architecture change, 15 August 2026). **So a decision recorded only in a Linear comment is invisible
+to anyone reading the mirror** — put anything that has to survive in the description, or in the
+repository. CAN-112 Comments never reach the GitHub mirror, and the tracker doc said they did holds
+the diagnosis.
 
 **Linear is canonical; GitHub Issues is the mirror.** Write through `orca linear` and let the sync
 carry it across. Never create the same issue on both sides — that produces a duplicate pair nothing
@@ -193,6 +202,13 @@ a specific named `v1` ticket is the prerequisite, never for "v1 must exist" in g
 **Which links are which is live state, so it is recorded in Linear, not here.** The `Later` project
 description names the structural links, the sequencing ones and every cross-band edge, and is rewritten
 whenever the queue is reordered.
+
+**Promoting a `Later` ticket into another band takes two edge edits, not one.** A project move leaves
+both of its links alone, and they need opposite treatment. **Keep the link to the ticket after it**,
+which becomes a legitimate cross-band edge under the rule above. **Delete the link to the ticket
+before it, and re-splice that ticket onto whatever came next** — otherwise a `Later` ticket is left
+blocking one outside the band, which inverts the scheme, and the queue reads as one chain while being
+severed at that position.
 
 ## When a skill says "publish to the issue tracker"
 
