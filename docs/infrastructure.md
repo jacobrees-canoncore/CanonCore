@@ -1059,8 +1059,10 @@ What was read before publishing, what the IP sentence rests on, and what could n
 ## Uptime monitoring: UptimeRobot
 
 Provisioned by **CAN-66 Create the uptime monitoring account and its phone alert route** on 13 August
-2026. **It polls the holding page, not a health check** — **CAN-56 Find out the site is down without
-waiting to be told** builds `/api/health` and repoints this monitor at it.
+2026. **It still polls the holding page.** **CAN-56 Find out the site is down without waiting to be
+told** built [`/api/health`](../apps/web/src/app/api/health/route.ts) and everything around it;
+repointing this monitor at that route is the one step of it no agent can take, and is outstanding —
+*The repoint, and why it is a human step* below.
 
 | | |
 | --- | --- |
@@ -1098,9 +1100,10 @@ recorded this watched a 404 page the phone on its first check.
 **That leaves the repeated-failure requirement met for one failure mode and not the other.** The
 per-channel *Notification Repeat and Delay* that would close the gap is **disabled on Free 50**, the
 monitor's advanced settings carry no failure threshold, and account-level alert storm protection is
-paid as well. Nothing free closes it here, so it is closed upstream instead: **CAN-56 Find out the
-site is down without waiting to be told** owns keeping `/api/health` from answering with an error
-status on one transient dependency blip, because a single 500 from it pages the phone unconfirmed.
+paid as well. Nothing free closes it here, so it is closed upstream instead, and **CAN-56 Find out
+the site is down without waiting to be told** closed it: `/api/health` asks PostgreSQL three times,
+a quarter of a second apart, before it answers anything but 200, so one dropped connection cannot
+page a phone. [`health.ts`](../apps/web/src/db/health.ts) holds that and the argument for it.
 
 **There is no credential, and that is not an omission.** UptimeRobot polls this site; nothing here
 calls UptimeRobot. Both keys on *Integrations & API*, main and read-only, are **un-generated**, so
@@ -1110,13 +1113,22 @@ there is nothing to hold in Vercel and no row for one in the roster above.
 the production URL, which *The URL-sharing gate* above forbids while either gate is closed. The
 monitor reads *attached to no status page*, and stays that way until both open.
 
-> **What CAN-56 Find out the site is down without waiting to be told inherits.** The free plan sends
-> `HEAD` and cannot be switched to `GET`, and up codes are fixed at 2xx and 3xx; both are paid
-> settings. Exporting `GET` alone is still enough for the `HEAD` check to pass
-> ([incident](incidents.md#a-failing-check-reaches-the-phone-a-recovering-one-may-not)). Repoint
-> monitor `803731762` rather than adding a second one, so its uptime history stays continuous, and
-> re-check the alert route with the monitor page's **Test Notification** button rather than by
-> inducing an incident.
+### The repoint, and why it is a human step
+
+**The account signs in with Google and both API keys are un-generated**, so there is no credential
+any agent here could use and no command to run: this is a dashboard edit, and it is the last thing
+CAN-56 Find out the site is down without waiting to be told needs. Do it **after** the route is
+live in production, because pointing a monitor at a 404 pages the phone within five minutes.
+
+1. UptimeRobot → monitor `803731762` → **Edit** → URL to `https://www.canoncore.com/api/health`.
+   **Edit this monitor rather than adding a second one**, so its uptime history stays continuous.
+2. Change nothing else. `HEAD`, the 5-minute interval, 2xx/3xx as up and both alert contacts are
+   all still what this route was built for, and the first two cannot be changed on Free 50 anyway.
+3. Confirm the alert route with the monitor page's **Test Notification** button rather than by
+   inducing an incident, which is how it was done the first time and cost an incident write-up.
+4. Update the *Monitor* row above, with the date it was read back.
+
+Then the check is live, and what to do when it fires is [`runbook.md`](runbook.md).
 
 ## Domains
 
@@ -1187,6 +1199,14 @@ URL, and a row reaches a stranger — and it is why the route is no longer stati
 
 Nothing else about a stranger's view changed. There is still nothing to sign in to and no way for
 anyone but the operator to put a row here.
+
+**One route is served that is not a page.** `/api/health` answers **200 with an empty body** while
+PostgreSQL answers it, and **503** when three asks in a row do not; `HEAD` gets the same, from the
+same handler. It is the uptime monitor's target rather than anything a visitor is meant to find,
+and it is deliberately not a debugging surface — no version, no host, no error, nothing about the
+database beyond whether it replied. Added by **CAN-56 Find out the site is down without waiting to
+be told**; *Uptime monitoring: UptimeRobot* above is what will poll it once the repoint recorded
+there is done, and [`runbook.md`](runbook.md) is what to do when it fails.
 
 The **Hosting** settings above are what protects against how that page was first deployed
 ([incident](incidents.md#the-holding-page-was-first-deployed-straight-to-production)).
