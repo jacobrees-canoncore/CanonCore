@@ -77,6 +77,25 @@ jobs:
       # without it the first machine to find out is the deploy.
       - run: pnpm -r build
 
+      # A known-vulnerable dependency, made to fail a push rather than sit unnoticed. Dependabot
+      # alerts see the same advisories but only after the merge, on a schedule and in a tab
+      # nobody has open; this is the same data at the moment the change is pushed.
+      #
+      # After the four above rather than before them, for the reason the documents check is after
+      # them too: a dependency's advisory is not a broken build, and the first failure stops the
+      # rest, so a moderate-to-high advisory published overnight must not be what hides a genuine
+      # compile error from the person who caused it.
+      #
+      # `high`, not `low` or `moderate`, is a threshold rather than a preference: `drizzle-kit`
+      # carries a moderate `esbuild` advisory (GHSA-67mh-4wv8-2f99, a development-server one) that
+      # nothing here can fix, and a gate that is red on arrival is a gate that gets ignored.
+      #
+      # `--ignore-registry-errors` is deliberately not passed. It exits 0 when the registry is
+      # unreachable, which would make an outage indistinguishable from a clean audit — the exact
+      # silence `check-docs` spends a whole report avoiding. A registry outage should be a red run
+      # that says so and can be re-run, not a green one that compared nothing.
+      - run: pnpm audit --audit-level=high
+
       # The documents, checked against the sources they describe. Last of the gates, so that a
       # drift in prose is never the first thing to fail while the build is broken.
       #
