@@ -9,10 +9,11 @@
 //   1. required contexts  -  docs/infrastructure.md  vs  .github/workflows/ci.yml  vs  the ruleset
 //   2. label roster       -  docs/agents/triage-labels.md  vs  the tracker's label list
 //   3. variable roster    -  docs/infrastructure.md  vs  vercel env ls
-//   4. links and anchors  -  every relative markdown link, across every tracked document
-//   5. section pointers   -  every `file -> *Section*` reference: both the document it names and
+//   4. secret roster      -  docs/infrastructure.md  vs  the GitHub Actions secrets
+//   5. links and anchors  -  every relative markdown link, across every tracked document
+//   6. section pointers   -  every `file -> *Section*` reference: both the document it names and
 //                            the section within it, since a pointer written as prose carries no
-//                            link for check 4 to follow. That shape is how CAN-76 Restructure the
+//                            link for check 5 to follow. That shape is how CAN-76 Restructure the
 //                            agent documents: policy, procedure and incidents get their own homes
 //                            replaced the duplication: one owning module, N one-line pointers
 //
@@ -24,13 +25,15 @@
 // Exit 0 when nothing FAILED. A check whose source is unreachable is reported SKIP with the
 // reason and does not fail the build - a transient API outage must not block every merge, which
 // is the same reasoning that keeps a never-reporting context out of the ruleset. Skips are
-// counted and printed, never silent. Which sources CI can actually reach is recorded in
-// docs/agents/workflow.md -> The gates.
+// counted and printed, never silent, and on a runner the whole report is written to the job
+// summary so the reach of a green run is legible without opening the log. Which sources CI can
+// actually reach is recorded in docs/agents/workflow.md -> The gates.
 
-import { readFileSync, existsSync } from "node:fs";
+import { appendFileSync, readFileSync, existsSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
+import type { Result } from "./lib/doc-checks.ts";
 import {
   Skip,
   anchorsOf,
@@ -41,17 +44,21 @@ import {
   fail,
   findLinks,
   findPointers,
+  parseActionsSecrets,
   parseCiJobNames,
   parseDocumentedContexts,
   parseDocumentedLabels,
   parseDocumentedVariables,
   parseLinearLabels,
+  parseSecretNames,
   parseUncheckedVariables,
   parseVercelEnv,
   pointerResolves,
+  renderJobSummary,
   resolvePointer,
   setEq,
   skip,
+  tally,
 } from "./lib/doc-checks.ts";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
@@ -60,8 +67,6 @@ const WORKSPACE = "ad2669ec-93a5-4ce1-97fa-c7d9247a1452";
 const CONTEXT_HOME = "docs/infrastructure.md";
 const CI_WORKFLOW = ".github/workflows/ci.yml";
 const LABEL_HOME = "docs/agents/triage-labels.md";
-
-type Result = { name: string; status: "PASS" | "SKIP" | "FAIL"; detail: string };
 
 const results: Result[] = [];
 const read = (p: string) => readFileSync(join(ROOT, p), "utf8");
@@ -230,7 +235,36 @@ check("the variable roster matches Vercel", () => {
 });
 
 // ---------------------------------------------------------------------------
-// 4 & 5. The pointers.
+// 4. The GitHub Actions secrets. Local, like the label roster and for the same reason: every
+//    route to them from a runner costs a credential, and that was weighed and refused.
+//    docs/infrastructure.md -> What this check compares, and what it cannot has the argument.
+// ---------------------------------------------------------------------------
+
+check("the secret roster matches GitHub Actions", () => {
+  const documented = parseActionsSecrets(read(CONTEXT_HOME));
+  if (documented.size === 0) fail(`${CONTEXT_HOME} records no GitHub Actions secrets`);
+  const live = parseSecretNames(
+    source(
+      "gh",
+      ["secret", "list", "--json", "name", "--jq", ".[].name"],
+      "cannot read the Actions secrets",
+    ),
+  );
+  // Empty is not agreement. A `gh` whose listing came back empty, for whatever reason, would
+  // otherwise report a roster of two as matching a store of none.
+  if (live.size === 0) skip("no secret names came back, so there was nothing to compare");
+  if (!setEq(live, documented))
+    fail(
+      describeDisagreement(live, documented, {
+        liveName: "GitHub Actions",
+        docName: CONTEXT_HOME,
+      }) + " A secret set but undocumented is how this roster goes stale.",
+    );
+  return `${live.size} secrets agree`;
+});
+
+// ---------------------------------------------------------------------------
+// 5 & 6. The pointers.
 //
 // The restructure of CAN-76 Restructure the agent documents: policy, procedure and incidents get
 // their own homes gave each rule one owning module and N one-line pointers. A pointer that rots is
@@ -319,11 +353,12 @@ for (const r of results) {
   const line = `${r.status.padEnd(4)}  ${r.name.padEnd(width)}`;
   console.log(r.status === "PASS" && !VERBOSE ? line : `${line}  ${r.detail}`);
 }
+console.log(`\n${tally(results)}`);
 
-const failed = results.filter((r) => r.status === "FAIL").length;
-const skipped = results.filter((r) => r.status === "SKIP").length;
-console.log(
-  `\n${results.length - failed - skipped} passed, ${skipped} skipped, ${failed} failed` +
-    (skipped ? "  (a skipped check reached no source; it is not a pass)" : ""),
-);
-process.exit(failed ? 1 : 0);
+// The same report where a reader of a green run will actually meet it. A log line saying which
+// rows were compared is one nobody opens a passing job to read, so the run's own page carries
+// the table too - every check, its result and what it read.
+if (process.env.GITHUB_STEP_SUMMARY)
+  appendFileSync(process.env.GITHUB_STEP_SUMMARY, renderJobSummary(results));
+
+process.exit(results.some((r) => r.status === "FAIL") ? 1 : 0);

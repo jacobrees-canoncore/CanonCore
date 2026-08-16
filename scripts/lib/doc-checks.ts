@@ -1,8 +1,8 @@
 // The parsing and comparison behind `scripts/check-docs.ts`.
 //
 // Everything here is pure: text in, data out, no filesystem and no subprocesses. That is the
-// seam — the CLI owns reading files and running `gh`, `orca` and `vercel`; this module owns
-// what their output means, and is what `doc-checks.test.ts` exercises.
+// seam — the CLI owns reading files and running `gh`, `orca` and `vercel`; this module owns what
+// their output means and how the report of it reads, and is what `doc-checks.test.ts` exercises.
 
 import { posix } from "node:path";
 
@@ -193,17 +193,25 @@ export function parseLinearLabels(rawJson: string): Set<string> {
   return new Set(labels.map((l) => l.name));
 }
 
-// The roster's four columns, named once. The two readers below partition the same rows on the
-// same predicate, so a column renamed in one and not the other would silently make them overlap
-// or leave a gap — and the pair's whole value is that together they account for every row.
+// The roster's four columns, named once. The three readers below partition the same rows on the
+// same two predicates, so a column renamed in one and not the others would silently make them
+// overlap or leave a gap — and the trio's whole value is that together they account for every row.
 const rosterRows = (markdown: string) =>
   parseTable(markdown, "Variable", "Holder", "Environments", "Sensitivity");
+
+// Which source can speak for a row, read off its Holder. Both are case-sensitive substring
+// tests, and that is the one failure mode this arrangement still has: a Holder reading
+// `Vercel (provider-tmdb)` would be pulled into the comparison against `canoncore` and leave the
+// unchecked list at the same moment. docs/infrastructure.md → What this check compares, and what
+// it cannot says so where a row gets written.
+const heldByVercel = (holder: string) => holder.includes("Vercel");
+const heldByActions = (holder: string) => holder.includes("GitHub Actions");
 
 /** The Vercel-held rows of the variable roster. */
 export function parseDocumentedVariables(markdown: string): Map<string, VariableState> {
   return new Map(
     rosterRows(markdown)
-      .filter((r) => r.Holder.includes("Vercel"))
+      .filter((r) => heldByVercel(r.Holder))
       .map((r) => [
         unbacktick(r.Variable),
         {
@@ -220,16 +228,44 @@ export function parseDocumentedVariables(markdown: string): Map<string, Variable
 }
 
 /**
- * The roster rows this project documents but cannot verify: those held anywhere other than
- * Vercel. `parseDocumentedVariables` filters them out so the comparison against
- * `vercel env ls` stays sound, and that filter is silent — the check would otherwise report
- * agreement across a roster it had only partly read. Naming them is what keeps the blind spot
- * visible on every run, so the roster's own claim about its reach can be trusted.
+ * The GitHub-Actions-held rows of the variable roster. Under CAN-109 Decide whether the label
+ * roster check needs enforcing, or is honest as it stands these stopped being unchecked prose and
+ * came under comparison — on a laptop, which is as far as a keyless route reaches.
+ * docs/infrastructure.md → What this check compares, and what it cannot has the argument.
+ */
+export function parseActionsSecrets(markdown: string): Set<string> {
+  return new Set(
+    rosterRows(markdown)
+      .filter((r) => heldByActions(r.Holder))
+      .map((r) => unbacktick(r.Variable)),
+  );
+}
+
+/**
+ * The roster rows this project documents but cannot verify: those held where neither reader
+ * above looks, which since ADR-0014 means a Provider's own Vercel project. The two filters are
+ * silent — the checks would otherwise report agreement across a roster they had only partly
+ * read. Naming what is left over is what keeps the blind spot visible on every run, so the
+ * roster's own claim about its reach can be trusted.
  */
 export function parseUncheckedVariables(markdown: string): string[] {
   return rosterRows(markdown)
-    .filter((r) => !r.Holder.includes("Vercel"))
+    .filter((r) => !heldByVercel(r.Holder) && !heldByActions(r.Holder))
     .map((r) => unbacktick(r.Variable));
+}
+
+/**
+ * Secret names, one per line, as `gh secret list --json name --jq '.[].name'` prints them. Only
+ * names, because a secret has no other property anyone can read back — so this catches a secret
+ * set but undocumented, or documented but never set, and cannot catch a stale value.
+ */
+export function parseSecretNames(raw: string): Set<string> {
+  return new Set(
+    raw
+      .split("\n")
+      .map((line) => line.trim())
+      .filter(Boolean),
+  );
 }
 
 const ENVIRONMENTS = /Production|Preview|Development/g;
@@ -569,3 +605,44 @@ export function resolvePointer(
 /** A pointer may shorten a long heading, so a title prefix counts as a resolution. */
 export const pointerResolves = (section: string, titles: string[]) =>
   titles.some((t) => t === section || t.startsWith(section));
+
+// ---------------------------------------------------------------------------------------------
+// The report.
+//
+// A check that skips reads, from the green tick on the run, exactly like a check that passed —
+// the weakness CAN-109 Decide whether the label roster check needs enforcing, or is honest as it
+// stands was opened to settle. Two of the sources this script reads cannot be reached from every
+// place it runs, so what the run actually compared has to be legible without opening a log.
+// ---------------------------------------------------------------------------------------------
+
+/** One check's outcome: what it was, how it went, and what it read to decide. */
+export type Result = { name: string; status: "PASS" | "SKIP" | "FAIL"; detail: string };
+
+/** The tally both the console report and the job summary end with, so the two cannot disagree. */
+export function tally(results: Result[]): string {
+  const failed = results.filter((r) => r.status === "FAIL").length;
+  const skipped = results.filter((r) => r.status === "SKIP").length;
+  return (
+    `${results.length - failed - skipped} passed, ${skipped} skipped, ${failed} failed` +
+    (skipped ? "  (a skipped check reached no source; it is not a pass)" : "")
+  );
+}
+
+/**
+ * The same report as markdown, for `$GITHUB_STEP_SUMMARY`. It renders on the run's own page, so
+ * a reader can see which rows were compared and which were skipped without opening the log —
+ * which is the only place the reach of a run was previously recorded.
+ */
+export function renderJobSummary(results: Result[]): string {
+  const cell = (s: string) => s.replace(/\|/g, "\\|").replace(/\n/g, " ");
+  return [
+    "### The documents, checked against the sources they describe",
+    "",
+    "| | Check | What it read |",
+    "| --- | --- | --- |",
+    ...results.map((r) => `| ${r.status} | ${cell(r.name)} | ${cell(r.detail)} |`),
+    "",
+    `**${tally(results)}**`,
+    "",
+  ].join("\n");
+}

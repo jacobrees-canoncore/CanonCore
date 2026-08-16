@@ -85,8 +85,11 @@ jobs:
       # security weight. Without the secret the check reports SKIP and says so. The release
       # steps below use the same installation.
       #
-      # `orca` is a local desktop CLI and cannot run on a runner, so the label roster is a
-      # local gate — docs/agents/workflow.md -> The gates records which checks reach which.
+      # Two of its checks reach no source from here, on purpose rather than by omission: the label
+      # roster needs `orca`, a desktop CLI, and the secret roster needs a credential this workflow
+      # deliberately does not hold. Both report SKIP, and the run's own summary page says so, so a
+      # green tick never stands in for a comparison that did not happen.
+      # docs/agents/workflow.md -> The gates is the table of which check reaches which source.
       # npm rather than pnpm: `pnpm add -g` needs PNPM_HOME configured, npm's global bin is
       # already on a runner's PATH. If the install or the token fails, the check reports SKIP
       # with the reason rather than failing the build.

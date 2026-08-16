@@ -237,19 +237,27 @@ three commands as three contexts would require names nothing emits, which is wor
 too little — a required context that never reports blocks every merge for ever.
 
 **A fifth step checks the documents against the sources they describe**, `node scripts/check-docs.ts`
-— the required contexts, the label roster, the variable roster, and every cross-document pointer.
-**Not all of it reaches CI, and the difference is not an oversight:**
+— the required contexts, the label roster, the variable roster, the Actions secrets, and every
+cross-document pointer. **Not all of it reaches CI, and the difference is not an oversight:**
 
 | Check | Where it gates | Why |
 | --- | --- | --- |
 | Job name, ruleset, links, pointers | CI | Local files, plus `gh` with the workflow's own token |
 | Variable roster vs `vercel env ls` | CI | The runner installs `vercel` and holds a `VERCEL_TOKEN` secret. An undocumented credential is how a roster goes stale, so this one is worth a secret |
-| Label roster vs the tracker | **Locally only** | `orca` drives a desktop app on Jacob's machine and cannot run on a runner |
+| Secret roster vs `gh secret list` | **Locally only** | The workflow's own token cannot be granted the secrets API, and every route that reaches a runner costs a credential |
+| Label roster vs the tracker | **Locally only** | `orca` drives a desktop app on Jacob's machine and cannot run on a runner. A Linear credential to reach it from CI was weighed and refused |
 
 A check whose source is unreachable reports **SKIP with the reason** and does not fail the build: a
 transient outage must not block every merge, which is the same reasoning that keeps a
 never-reporting context out of the ruleset. **A skip is not a pass**, and the summary line says so.
 So run the script locally before landing — `/review-pr` does — and read the skips.
+
+**In CI the whole report is written to the job summary**, so which checks compared and which
+skipped is on the run's own page rather than only in its log. That is what stops a skip reading, from
+a green tick, exactly like a pass — and the two rows above that gate locally depend on it, because a
+local gate nobody is told about is no gate. Why each row is where it is:
+[`../infrastructure.md`](../infrastructure.md) → *What this check compares, and what it cannot*, and
+[`triage-labels.md`](triage-labels.md) → *Where this check gates, and where it does not*.
 
 **Cancellation is scoped to branches other than `main`.** Superseding a run is only safe where a
 later commit replaces the earlier one as the thing being judged, which is true on a branch and false

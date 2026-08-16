@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
-import { cpSync, mkdirSync, mkdtempSync, symlinkSync, writeFileSync } from "node:fs";
+import { cpSync, mkdirSync, mkdtempSync, readFileSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 
 // Seam B: the CLI's contract with CI — what it exits with, and what it prints. The parsing
@@ -15,20 +15,37 @@ import { tmpdir } from "node:os";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 
-type Run = { code: number; output: string };
+type Run = { code: number; output: string; summary: string };
 
-/** Run the checker and return its exit code and combined output, never throwing. */
+/**
+ * Run the checker and return its exit code, its combined output and whatever it wrote to the job
+ * summary, never throwing.
+ *
+ * `GITHUB_STEP_SUMMARY` is redirected rather than inherited, and that is not tidiness. A runner
+ * sets it for every step, so a fixture left to inherit it appends its own verdicts to the real
+ * run's page, indistinguishable from the real ones
+ * (../docs/incidents.md -> A test fixture that spawns the CLI writes to the real job summary).
+ */
 function run(cli: string, env: NodeJS.ProcessEnv): Run {
+  const summaryPath = join(mkdtempSync(join(tmpdir(), "check-docs-summary-")), "summary.md");
+  const child = { ...process.env, GITHUB_STEP_SUMMARY: summaryPath, ...env };
+  const read = () => {
+    try {
+      return readFileSync(summaryPath, "utf8");
+    } catch {
+      return "";
+    }
+  };
   try {
     const stdout = execFileSync(process.execPath, [cli], {
       encoding: "utf8",
       stdio: ["ignore", "pipe", "pipe"],
-      env: { ...process.env, ...env },
+      env: child,
     });
-    return { code: 0, output: stdout };
+    return { code: 0, output: stdout, summary: read() };
   } catch (err) {
     const e = err as { status?: number; stdout?: string; stderr?: string };
-    return { code: e.status ?? -1, output: `${e.stdout ?? ""}${e.stderr ?? ""}` };
+    return { code: e.status ?? -1, output: `${e.stdout ?? ""}${e.stderr ?? ""}`, summary: read() };
   }
 }
 
@@ -65,6 +82,10 @@ function fixture({
       "| Variable | Holder | Environments | Sensitivity | What it is |",
       "| --- | --- | --- | --- | --- |",
       "| `DATABASE_URL` | Vercel | Production | Sensitive | The connection string |",
+      // Both halves of the roster, because a fixture holding only one would let the check that
+      // reads the other pass by finding nothing to compare — and finding nothing is what that
+      // check fails on.
+      "| `MIGRATION_DATABASE_URL` | GitHub Actions secret | — | — | The migration role |",
     ].join("\n"),
   );
   write(
@@ -126,6 +147,25 @@ test("a register that agrees with the workflow passes, and unreachable sources o
   assert.doesNotMatch(output, /^FAIL/m, output);
   assert.match(output, /^SKIP {2}the live ruleset requires the documented contexts/m);
   assert.equal(code, 0, output);
+});
+
+test("the job summary carries the same verdicts as the console report", () => {
+  // The run's own page is where a reader meets a skip; the log is where they do not. So every
+  // check the console reports has to appear in the summary, with the same verdict against it.
+  const { cli } = fixture({ jobName: "the same", documentedContext: "the same" });
+  const { output, summary } = run(cli, { PATH: "/nonexistent" });
+
+  let checks = 0;
+  for (const line of output.split("\n")) {
+    const reported = line.match(/^(PASS|SKIP|FAIL) {2}(.+)$/);
+    if (!reported) continue;
+    const [, status, rest] = reported;
+    const name = rest.split(/ {2,}/)[0].trim();
+    checks++;
+    assert.ok(summary.includes(`| ${status} | ${name} |`), `${status} ${name} is not in the summary`);
+  }
+  assert.ok(checks >= 5, `only ${checks} checks reported\n${output}`);
+  assert.match(summary, /not a pass/, "the summary did not carry the skip warning");
 });
 
 test("an unreachable source is reported, and does not abort the whole run", () => {
