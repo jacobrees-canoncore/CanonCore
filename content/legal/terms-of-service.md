@@ -12,7 +12,7 @@ yet reachable. Which Code measures that leaves not in effect is recorded in
 > remove this box before publishing. The dates and the reporting address were filled by
 > [CAN-44 Make the Online Safety Act records live, and create the reporting address](https://linear.app/jacobrees-canoncore/issue/CAN-44).
 
-Last updated: 14 August 2026
+Last updated: 16 August 2026
 
 CanonCore is a service for keeping a catalogue of stories, the versions of them you can watch or read,
 and orderings you write yourself. It is run by one person in the United Kingdom.
@@ -140,9 +140,18 @@ the order they arrive. We apply these terms in the same way every time.
 
 We send email using Resend. **Email logs and email metadata are stored in the United States, whatever
 country the email itself is sent from, and Resend uses 22 sub-processors to provide the service.**
-We are telling you this here because it is easy to assume otherwise.
 
-`[ ]` *Link the privacy notice here once it exists (CAN-30 GDPR export and erasure).*
+We record errors using Sentry, so that we can find out what broke and fix it. **Error reports are
+stored in the United States too, and Sentry uses 11 sub-processors to provide the service.** A report
+holds the web address that was requested, the technical detail of what failed, and technical
+information about the request itself. **It does not carry your IP address, your name, your email
+address or your account.** An error message can quote the text that caused it, so something you
+typed may appear in a report, but nothing in it says who you are.
+
+We are telling you both of these here because it is easy to assume otherwise.
+
+`[ ]` *Link the privacy notice here once it exists (CAN-30 GDPR export and erasure), and move both
+disclosures above into it: they sit in the terms only because no notice exists yet.*
 
 ## Changes to these terms
 

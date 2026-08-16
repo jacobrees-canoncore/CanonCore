@@ -134,7 +134,7 @@ no wordmark and no `opengraph-image`. There is no nav and no footer — which
 [`docs/compliance/code-measures-register.md`](../compliance/code-measures-register.md) already
 requires under ICU D2, "Reporting route to be linked from the footer of every page".
 
-Two documents in `content/legal/` — 154 lines and eight `##` headings in the terms of service, plus
+Two documents in `content/legal/` — 164 lines and eight `##` headings in the terms of service, plus
 the reporting and complaints page — are, in the register's own words, "written but is not rendered
 anywhere". Nothing in `apps/` or `packages/` references them, and no ticket says how they become
 HTML. ICU G3.2(a)(ii) requires each provision to be individually locatable by heading, which is a

@@ -886,11 +886,33 @@ read back from Vercel by anyone**, so this table is where it is recovered from. 
 plaintext was shown once at creation and is now held only by Vercel — **if it is lost, reissue it at
 Sentry.**
 
-> **The published terms do not mention this US transfer, and something has to.**
-> `content/legal/terms-of-service.md` → *Your privacy, and where your data is held* discloses
-> Resend's US storage and gives its reason. **CAN-81 Disclose Sentry's US error storage in the terms
-> of service** owns it. Not yet due: nothing reports to Sentry, so nothing has been transferred, and
-> the wording depends on what the SDK is eventually configured to send.
+### What the published terms commit to
+
+**Settled 16 August 2026 by CAN-81 Disclose Sentry's US error storage in the terms of service.**
+`content/legal/terms-of-service.md` → *Your privacy, and where your data is held* discloses this
+transfer alongside Resend's, and **the wording is the constraint rather than the description**:
+**CAN-51 Keep a record of server errors past the hour Vercel keeps them** configures the SDK to match
+it, not the other way round. What has to stay true of that configuration:
+
+| The terms say | What keeps it true |
+| --- | --- |
+| No IP address | **Not one setting.** `sendDefaultPii: false` keeps `user.ip_address` off the event, but not the request headers, which are sent by default and carry the address Vercel puts in `x-forwarded-for`. The IP-bearing headers have to go too — in `beforeSend` today, because `requestDataIntegration`'s `include.headers` is all-or-nothing, and through `dataCollection.httpHeaders`'s deny list from v11 |
+| No name, email address or account | Nothing calls `Sentry.setUser`, and local variables are not captured in stack frames |
+| Neither survives a version bump by itself | **From v11 `sendDefaultPii` is gone and every `dataCollection` category defaults to collecting**, `userInfo` and `stackFrameVariables` among them. Each has to be turned off explicitly or the promises break on upgrade alone |
+| Only the address, the failure and technical detail of the request are sent | Cookies and request bodies stay withheld. The full URL and its query string are **always** sent, so nothing personal may be put in one — which binds the links **CAN-31 Email verification and password reset** builds |
+| Text a user typed may appear inside an error message | Nothing configures that away, which is why the terms disclose it instead |
+
+**11 sub-processors is the whole of Sentry's list**, eight general and three of Sentry's own group
+companies ([subprocessors](https://sentry.io/legal/subprocessors/), last updated 1 June 2026). Resend's
+22 in the same paragraph is the count from its own list
+([ADR-0011](adr/0011-transactional-email-resend.md)).
+
+**The terms rather than a privacy notice, decided rather than defaulted.** No privacy notice exists,
+and the disclosure had to be published before the first event. **CAN-30 GDPR export and erasure**
+writes the notice; both disclosures move into it then, and the terms carry a `[ ]` saying so.
+
+What was read before publishing, what the IP sentence rests on, and what could not be read back, is
+[`docs/incidents.md`](incidents.md) → *No event had reached Sentry when the terms disclosed it*.
 
 ## Uptime monitoring: UptimeRobot
 

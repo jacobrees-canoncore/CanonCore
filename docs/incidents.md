@@ -67,6 +67,7 @@ is what the rule was built on.
 - [Three unscoped Resend API keys were revoked](#three-unscoped-resend-api-keys-were-revoked)
 - [The orphaned Resend key, and how it stopped being anonymous](#the-orphaned-resend-key-and-how-it-stopped-being-anonymous)
 - [What the Sentry token was checked against](#what-the-sentry-token-was-checked-against)
+- [No event had reached Sentry when the terms disclosed it](#no-event-had-reached-sentry-when-the-terms-disclosed-it)
 
 **DNS**
 - [There is no wildcard record, and one was wrongly recorded](#there-is-no-wildcard-record-and-one-was-wrongly-recorded)
@@ -1078,6 +1079,51 @@ active — the user was created through Google on 29 November 2025. Both resolve
 because that address is also the sole verified email on GitHub `jacobdrees`. Removing the Google
 identity is a one-click change at `/settings/account/identities/`; it is left in place only because
 it was never asked to be removed.
+
+## No event had reached Sentry when the terms disclosed it
+
+**16 August 2026, 18:50–19:10 UTC+1, on CAN-81 Disclose Sentry's US error storage in the terms of
+service.** A disclosure is only worth anything if it precedes the transfer it describes, so the state
+of `canoncore-web` was read before the wording landed.
+
+- **The project holds no issue.** `search_issues` over the hosted MCP's longest window, 90 days,
+  with an empty query, returned none. The project was created on 13 August 2026
+  ([entry](#what-the-sentry-token-was-checked-against)), so that window covers its whole life, and
+  an error event would have created one.
+- **No `@sentry/*` package is installed.** Nothing in any `package.json` in the workspace matches,
+  so there is no SDK here to have sent an event.
+
+**`firstEvent` itself was not re-read, and cannot be from this session.** The 13 August reading of
+it came from the API carrying the org auth token, and that token's plaintext now exists only as a
+Sensitive variable in Vercel, which nobody can read back
+([entry](#a-vercel-sensitive-variable-cannot-be-read-back-by-anyone)). The hosted MCP exposes no
+project-details tool either: searching its catalogue for project settings returns `update_project`,
+`create_project`, `find_projects` and the team-membership pair, and `find_projects` returns slugs
+alone. The two readings above are the evidence for the claim; the field is not.
+
+**What the "no IP address" sentence rests on, and why one setting is not enough.** `sendDefaultPii:
+false` withholds cookies, request bodies and user identity, but **not request headers**. Sentry's own
+page is explicit: *"by default, the Sentry SDK sends HTTP request and response headers"*, and *"even
+when this is disabled, IP addresses can still reach Sentry through collected HTTP headers, cookies, or
+query parameters (for example, the `X-Forwarded-For` header)"*. Vercel sets that header to *"the public
+IP address of the client that made the request"*
+([request headers](https://vercel.com/docs/headers/request-headers)), so on this host the flag alone
+leaves the address in the event. Two further readings from the same pages:
+
+- **Per-header denial does not exist on the SDK installed today.** `requestDataIntegration`'s
+  `include.headers` is a boolean (`@sentry/nextjs` 10.70.0), so today the choice is all headers or
+  none, and anything finer belongs in `beforeSend`. The `{ deny: [...] }` form the docs recommend is
+  `dataCollection`, which arrives in v11.
+- **The v11 defaults run the other way.** `sendDefaultPii` is removed, and `dataCollection` collects
+  by default: `userInfo` `true` (which populates `user.id`, `user.email`, `user.username` and
+  `user.ip_address`), `cookies` `true`, `stackFrameVariables` `true`. `includeLocalVariables` is
+  `false` today, so a version bump alone would start sending whatever was in scope where an error was
+  thrown, and would break the identity promise as well as the IP one.
+
+Read 16 August 2026:
+[data collected](https://docs.sentry.io/platforms/javascript/guides/nextjs/data-management/data-collected/),
+[options](https://docs.sentry.io/platforms/javascript/guides/nextjs/configuration/options/)
+and [RequestData](https://docs.sentry.io/platforms/javascript/guides/nextjs/configuration/integrations/requestdata/).
 
 ---
 
