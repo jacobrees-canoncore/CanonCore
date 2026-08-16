@@ -25,6 +25,7 @@ is what the rule was built on.
 - [`--delete-branch` fails after the merge has already succeeded](#--delete-branch-fails-after-the-merge-has-already-succeeded)
 - [A check-run finished and its record never closed](#a-check-run-finished-and-its-record-never-closed)
 - [A workflow reading `toJSON(secrets)` is held before any job starts](#a-workflow-reading-tojsonsecrets-is-held-before-any-job-starts)
+- [A test fixture that spawns the CLI writes to the real job summary](#a-test-fixture-that-spawns-the-cli-writes-to-the-real-job-summary)
 - [Waveger: the build ran no migrations, and nobody knew](#waveger-the-build-ran-no-migrations-and-nobody-knew)
 
 **Tools and the harness**
@@ -222,11 +223,32 @@ built was meant to close.
 
 **Three other routes were checked at the same moment and none reaches a runner keylessly.**
 `gh secret list` needs the secrets API, whose permission is not among the scopes `permissions:`
-accepts ([Workflow syntax](https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax#permissions));
-`secrets.<NAME>` reads one name at a time and so cannot enumerate; and a fine-grained token with
-`secrets: read` is a credential, which was the cost being avoided. So the secret roster gates
-locally, and the decision is `docs/infrastructure.md` → *What this check compares, and what it
-cannot*.
+accepts ([Workflow syntax](https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax#permissions))
+— run `31960500155` has it saying so on a runner, `HTTP 403: Resource not accessible by
+integration`; `secrets.<NAME>` reads one name at a time and so cannot enumerate; and a fine-grained
+token with `secrets: read` is a credential, which was the cost being avoided. So the secret roster
+gates locally, and the decision is `docs/infrastructure.md` → *What this check compares, and what
+it cannot*.
+
+## A test fixture that spawns the CLI writes to the real job summary
+
+**16 August 2026, on CAN-109 Decide whether the label roster check needs enforcing, or is honest as
+it stands**, run `31960500155`.
+
+`scripts/check-docs.ts` had just learnt to write its report to `$GITHUB_STEP_SUMMARY`. The run's own
+page then carried **four** copies of the report table. Three came from `scripts/check-docs.test.ts`,
+whose fixtures spawn the CLI against a temporary repository: a runner sets `GITHUB_STEP_SUMMARY` for
+every step, the child inherits it, and each fixture appended its own verdicts to the page. The first
+table on a green job read `3 passed, 4 skipped, 1 failed`.
+
+**A misleading summary is worse than none**, which is the whole reason it was added: a reader cannot
+tell the fixture's failures from the real ones, so the page stops being evidence about the run. The
+fix is one line of the harness — redirect `GITHUB_STEP_SUMMARY` to a temporary file per fixture run
+— and it buys a test as well, since the redirected file is then something to assert against.
+
+**It generalises to anything else this repository ever spawns.** A child process inherits the whole
+environment, so any test that runs a CLI which writes a summary, an annotation or an output has to
+redirect that path rather than assume the child is sandboxed by being a child.
 
 ## Waveger: the build ran no migrations, and nobody knew
 

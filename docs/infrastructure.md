@@ -359,7 +359,9 @@ stale value.
 **Why the Actions half stops at a laptop.** `gh secret list` reads the secrets API, whose permission
 is not among the scopes `permissions:` accepts
 ([Workflow syntax](https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax#permissions)),
-so the workflow's own token cannot be granted it. The keyless route that would have worked,
+so the workflow's own token cannot be granted it — and says so on a runner rather than in theory,
+`HTTP 403: Resource not accessible by integration`
+([incident](incidents.md#a-workflow-reading-tojsonsecrets-is-held-before-any-job-starts)). The keyless route that would have worked,
 `toJSON(secrets)`, was built, pushed and **refused by GitHub before any job started** — it is a named
 indicator of malicious-workflow detection
 ([incident](incidents.md#a-workflow-reading-tojsonsecrets-is-held-before-any-job-starts)). That
@@ -423,18 +425,19 @@ project's check do the verifying.
 `VERCEL_TOKEN` is scoped to the account, `jacobreesnew-7380's projects`, and a project-scoped
 token breaks both consumers — differently, which is the part worth recording.
 
-| Token scope | `check-docs` result **in CI** |
-| --- | --- |
-| Project | `5 passed, 2 skipped, 0 failed` |
-| Account | `6 passed, 1 skipped, 0 failed` |
+| Token scope | `check-docs` result **in CI** | When |
+| --- | --- | --- |
+| Project | `5 passed, 2 skipped, 0 failed` | 14 August 2026, seven checks |
+| Account | `6 passed, 1 skipped, 0 failed` | 14 August 2026, seven checks |
+| Account | `6 passed, 2 skipped, 0 failed` | 16 August 2026, run `31960500155`, eight checks |
 
-*Both figures are from a runner, and both were taken before the secret roster joined the run.*
-**CAN-109 Decide whether the label roster check needs enforcing, or is honest as it stands** added
-an eighth check on 16 August 2026, so neither total can be read off a run made since. What the two
-rows record is the shape, and the shape is unchanged: a project-scoped token turns a pass into a
-skip rather than into a failure. A local run reports `8 passed, 0 skipped`, because the label
-roster reaches `orca` here and never can on a runner — so the local total cannot be compared with
-either row above, and a green local run is not evidence about the token's scope.
+**The two dates are not comparable and the third row says why.** **CAN-109 Decide whether the label
+roster check needs enforcing, or is honest as it stands** added the secret roster, which skips on a
+runner, so the current baseline in CI is two skips rather than one. What the first two rows record
+is the shape, and the shape is unchanged: a project-scoped token turns a pass into a skip rather
+than into a failure, so it costs a gate without costing a build. A local run reports `8 passed,
+0 skipped`, because both the label roster and the secret roster reach their source here and neither
+can on a runner — so no local total is evidence about the token's scope.
 
 **The release step fails loudly and `check-docs` fails quietly.** **Build and promote the
 production deployment** stops the job at its `vercel pull`, with
