@@ -48,14 +48,55 @@ https://linear.app/docs/github.
 
 **Comments mirror only from the synced thread.** Linear's documentation says so directly:
 comments "made not in the synced thread of the Linear issue will not get synced to the GitHub
-issue. This allows for private discussions." Every substantive comment in this workspace is
-top-level, so none has ever mirrored — a full census on 16 August 2026 found all 30 GitHub
+issue. This allows for private discussions." Every substantive comment in this workspace was
+top-level, so none had ever mirrored — a full census on 16 August 2026 found all 30 GitHub
 comments across all 110 mirrored issues to be Linear's own `<!-- linear-linkback -->` marker,
 zero substantive (an earlier partial scan reported 23 of 100; the finding is the same). **So a
 decision recorded in an ordinary Linear comment is invisible to anyone reading the mirror** — put
 anything that has to survive in the description or the repository, or deliberately into the synced
 thread when GitHub-side visibility is wanted. CAN-112 Comments never reach the GitHub mirror, and
 the tracker doc said they did holds the diagnosis and the corrected census.
+
+**Verified, 16 August 2026.** Two comments went onto CAN-112 Comments never reach the GitHub
+mirror, and the tracker doc said they did, five seconds apart: one a reply inside the synced thread,
+one top-level. The reply crossed in **under a second** (16:19:44.6Z in Linear, 16:19:45Z on GitHub).
+The top-level comment had still not crossed ten minutes later, leaving the reply as the only comment
+on [the mirrored issue](https://github.com/jacobrees-canoncore/CanonCore/issues/161) while both sit
+on the Linear one. The pair is left in place, so the contrast stays checkable rather than retold
+here. It is also why the census above is now one out of date: that reply is the first substantive
+comment the mirror has ever held.
+
+**To write into the synced thread, reply to the linkback comment.** That comment — *"This comment
+thread is synced to a corresponding GitHub issue"* — is the thread's root, and is itself top-level.
+Replying to it sets `parentId`, which is what the sync reads. Omit `--reply-to` and the comment is
+top-level and stays in Linear, which is the default and usually what you want.
+
+```bash
+# the linkback is the thread's root — the one comment whose user is null
+orca linear issue CAN-<n> --comments --workspace ad2669ec-93a5-4ce1-97fa-c7d9247a1452 --json \
+  | jq -r '.result.comments[] | select(.user == null) | .id'
+
+orca linear comment add CAN-<n> --reply-to <that-id> --body-file - \
+  --workspace ad2669ec-93a5-4ce1-97fa-c7d9247a1452 --json
+```
+
+**Existing Linear-only comments are not back-filled** — decided 16 August 2026 under the same
+ticket, on a census of all 119 issues rather than a sample. That census found 101 substantive
+comments, 100 of them top-level and so Linear-only. Of those, 61 are landing or closeout records
+naming their own PR and merge SHA, leaving a reader on the GitHub side one click from the evidence;
+the rest are decisions, findings and corrections. Re-posting the hundred would leave a hundred
+second copies that nothing reconciles, and Linear is canonical anyway, so a mirror that holds less
+loses nothing.
+
+**What does bite is a comment that supersedes its own issue's body**, because then the mirror shows
+something false rather than something partial. Most corrections here answer an earlier *comment*,
+which never mirrored either, so the mirror shows nothing rather than a contradiction. A few answer
+the *body*: those are CAN-120 Five mirrored issue bodies are contradicted only by a comment the
+mirror never received. **The fix for that class is to move the content into the description, never
+to re-post the comment** — descriptions sync, even on a closed issue. That was done once already,
+for the amendment on CAN-100 Restructure the tracker for the architecture change, from thirteen
+tickets to eleven, which had lived only in a top-level comment while the description still asked for
+thirteen; it now shows on [the closed mirror](https://github.com/jacobrees-canoncore/CanonCore/issues/146).
 
 **Linear is canonical; GitHub Issues is the mirror.** Write through `orca linear` and let the sync
 carry it across. Never create the same issue on both sides — that produces a duplicate pair nothing
@@ -132,7 +173,9 @@ feature requests in the triage queue; `/triage` reads this flag.)_
   `--cycle`) or cursor pagination. A cursor is workspace-specific, so pair `--cursor` with a
   concrete `--workspace`, never `all`.
 - **Search**: `orca linear search "auth bug" --workspace all --limit 10 --json`.
-- **Comment**: `orca linear comment add CAN-123 --body-file - --json`.
+- **Comment**: `orca linear comment add CAN-123 --body-file - --json`. Add
+  `--reply-to <linkback-comment-id>` to write inside the synced thread, which is the only
+  form that reaches GitHub — *Relationship to GitHub* above has the lookup.
 - **Apply / remove labels**: `orca linear label add CAN-123 --label "<name>" --json` /
   `label remove`. **Never `label set`** — [triage-labels.md](./triage-labels.md) says why.
 - **Set status**: `orca linear status set CAN-123 --to "In Review" --json`. Read the issue's current
