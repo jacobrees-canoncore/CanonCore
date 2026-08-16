@@ -1,0 +1,198 @@
+{
+  "id": "64b066da-ff48-41a8-b99b-cf1f6988be5a",
+  "prevId": "60d7e86c-c268-45b7-8a2e-ac0340dfde64",
+  "version": "7",
+  "dialect": "postgresql",
+  "tables": {
+    "public.snapshot": {
+      "name": "snapshot",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "story_id": {
+          "name": "story_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "source_id": {
+          "name": "source_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "fetched_at": {
+          "name": "fetched_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "snapshot_story_id_story_id_fk": {
+          "name": "snapshot_story_id_story_id_fk",
+          "tableFrom": "snapshot",
+          "columnsFrom": [
+            "story_id"
+          ],
+          "tableTo": "story",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "cascade"
+        },
+        "snapshot_source_id_source_id_fk": {
+          "name": "snapshot_source_id_source_id_fk",
+          "tableFrom": "snapshot",
+          "columnsFrom": [
+            "source_id"
+          ],
+          "tableTo": "source",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "snapshot_one_row_per_story_and_source": {
+          "name": "snapshot_one_row_per_story_and_source",
+          "columns": [
+            "story_id",
+            "source_id"
+          ],
+          "nullsNotDistinct": false
+        }
+      },
+      "policies": {
+        "snapshot_readable_when_its_story_is": {
+          "name": "snapshot_readable_when_its_story_is",
+          "as": "PERMISSIVE",
+          "for": "SELECT",
+          "to": [
+            "canoncore_app"
+          ],
+          "using": "exists (select 1 from \"story\" where \"story\".\"id\" = \"snapshot\".\"story_id\")"
+        }
+      },
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.source": {
+      "name": "source",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "retention": {
+          "name": "retention",
+          "type": "interval",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "source_retention_is_positive": {
+          "name": "source_retention_is_positive",
+          "value": "\"source\".\"retention\" > interval '0'"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.story": {
+      "name": "story",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "title": {
+          "name": "title",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "owner_id": {
+          "name": "owner_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "visibility": {
+          "name": "visibility",
+          "type": "visibility",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'private'"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {
+        "story_readable_by_owner_or_when_public": {
+          "name": "story_readable_by_owner_or_when_public",
+          "as": "PERMISSIVE",
+          "for": "SELECT",
+          "to": [
+            "canoncore_app"
+          ],
+          "using": "\"story\".\"visibility\" = 'public' or \"story\".\"owner_id\" = current_setting('canoncore.user_id', true)"
+        }
+      },
+      "checkConstraints": {
+        "story_owner_id_not_blank": {
+          "name": "story_owner_id_not_blank",
+          "value": "length(\"story\".\"owner_id\") > 0"
+        }
+      },
+      "isRLSEnabled": false
+    }
+  },
+  "enums": {
+    "public.visibility": {
+      "name": "visibility",
+      "schema": "public",
+      "values": [
+        "private",
+        "public"
+      ]
+    }
+  },
+  "schemas": {},
+  "views": {},
+  "sequences": {},
+  "roles": {},
+  "policies": {},
+  "_meta": {
+    "columns": {},
+    "schemas": {},
+    "tables": {}
+  }
+}

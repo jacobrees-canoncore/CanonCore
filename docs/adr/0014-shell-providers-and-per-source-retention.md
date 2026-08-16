@@ -395,13 +395,28 @@ Recorded because the qualifier is **necessary and not sufficient**, and three of
 - **`liveness = gone` stops being durable** for a finite-retention Source, since a row the Source no
   longer carries cannot be refreshed by definition and must be dropped at expiry. It is a durable
   state only where retention is indefinite.
-- **Where `source.retention` lives is unresolved, and every answer costs something.** Per-user rows
-  make terms compliance a user setting. A global table is not an Anchor, which grates against
-  ADR-0003's "the shared layer is Anchors, and nothing else", and sits outside ADR-0005 rule 2's
-  cross-tenant test. And under decision 1 the application cannot know TMDB's six-month rule without
-  source-specific code, so **the value arrives from the capability endpoint** — which means trusting a
-  Provider's self-declared retention policy for a compliance decision. That last consequence is
-  forced by decision 1 and is recorded rather than argued away.
+- **Where `source.retention` lives was unresolved. It is one shared row per Source** — *settled
+  16 August 2026 by
+  [CAN-102 Give Source a retention policy, and Snapshot a fetched-at](https://linear.app/jacobrees-canoncore/issue/CAN-102),
+  the ticket that landed the column.* Per-user rows were the alternative, and they fail on meaning
+  rather than on cost: retention is a term this project is held to, so a row per person makes
+  compliance a setting somebody holds, and a setting is a thing that can be changed.
+
+  **The two costs this bullet named are paid rather than avoided.** A shared table is not an
+  Anchor, so ADR-0003's "the shared layer is Anchors, and nothing else" did not survive intact;
+  [ADR-0003](0003-no-shared-catalogue.md) now carries what a shared table holding no catalogue
+  metadata does to that sentence. And it sits outside ADR-0005 rule 2's cross-tenant test, which
+  nothing can put back — a table with one row per Source has no tenant for a read to cross. What
+  stands in place of the test it cannot have is two tripwires in `apps/web/src/db/rls.test.ts`:
+  one refuses any table nobody has classified as protected or deliberately not, the other asserts
+  `source`'s whole column list, so a column that could belong to one person fails a test instead
+  of arriving quietly on the one table with no policy over it.
+
+  **The third answer was never a third location, which is why it survives the choice untouched.**
+  Under decision 1 the application cannot know TMDB's six-month rule without source-specific code,
+  so **the value arrives from the capability endpoint** whichever row holds it — which means
+  trusting a Provider's self-declared retention policy for a compliance decision. That consequence
+  is forced by decision 1 and is recorded rather than argued away.
 - **"A person is a Source" launders finite retention into indefinite retention.** Retention attaches
   to the Source, and a Source is the *conduit*. Fork changes the conduit: if A imports from TMDB and B
   forks A, B holds a Snapshot whose Source is *the person A*, and ADR-0004 is explicit that "factual

@@ -171,7 +171,11 @@ Where a record's values came from when CanonCore did not author them: an externa
 another person whose work has been forked, who is a Source like any other. Each one carries its own
 retention policy, so how long a Snapshot may be kept is a fact about the Source rather than about
 the product — though what a *forked* Snapshot's retention is remains an open question ADR-0014
-marks unresolved, owned by CAN-9 Fork and divergence (*caveat added 16 August 2026*).
+marks unresolved, owned by CAN-9 Fork and divergence (*caveat added 16 August 2026*). That policy
+is `source.retention`, a duration or an explicit indefinite, held once per Source and shared by
+everyone rather than once per person
+([ADR-0014](docs/adr/0014-shell-providers-and-per-source-retention.md) → *Decision 6*, settled
+16 August 2026).
 _e.g._ TMDB, the Grand Comics Database, tardis.wiki.
 _Avoid_: API, integration, service, backend, upstream, provider
 
@@ -189,8 +193,10 @@ _Avoid_: Default, official, first-party, built-in, bundled, core, trusted
 
 **Snapshot**:
 What one Source last said about one Story or Version, stored verbatim, never edited, and kept only
-as long as that Source's retention allows. Snapshots from different Sources disagree, and both are
-kept.
+as long as that Source's retention allows. Every one records `snapshot.fetched_at`, the moment the
+**Source** was read — never the moment the row was written, since those differ as soon as a
+Provider serves anything it already held, and it is the first that a retention term limits.
+Snapshots from different Sources disagree, and both are kept.
 _Avoid_: Cache, mirror, copy, sync, archive
 
 **Override**:
