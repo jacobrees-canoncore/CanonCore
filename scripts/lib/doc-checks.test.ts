@@ -12,6 +12,7 @@ import {
   parseUncheckedVariables,
   parseVercelEnv,
   pointerResolves,
+  resolvePointer,
 } from './doc-checks.ts'
 
 // `vercel env ls` as it actually prints: OSC 8 hyperlinks around each environment name, one row
@@ -264,15 +265,165 @@ test('external and site-absolute links are left alone; relative ones are returne
   )
 })
 
+test('a destination CommonMark allows a space in is read rather than passed over', () => {
+  // The `](…)` match this replaced required a destination holding no whitespace, so both forms
+  // that legitimately hold one went unchecked with no FAIL and no SKIP. A bare `](docs/c d.md)`
+  // is not a link at all, so unlike those two there is nothing there to reject.
+  const body = [
+    '[bracketed](<docs/a file.md>)',
+    '[titled](docs/b.md "The title")',
+    '[neither](docs/c d.md)',
+  ].join('\n\n')
+
+  assert.deepEqual(
+    findLinks(body).map((l) => l.path),
+    ['docs/a file.md', 'docs/b.md'],
+  )
+})
+
+test('a reference definition is a destination too', () => {
+  const body = ['See [the gates][gates].', '', '[gates]: docs/agents/workflow.md#the-gates'].join('\n')
+
+  assert.deepEqual(
+    findLinks(body).map(({ path, fragment }) => [path, fragment]),
+    [['docs/agents/workflow.md', 'the-gates']],
+  )
+})
+
+test('a link inside a code fence is an example rather than a link', () => {
+  // A document showing what a link looks like is not making one. The same question, for a `#`
+  // comment being read as a heading, was settled by CAN-87 check-docs slugs the raw heading, not
+  // the rendered one, so three kinds of heading get an anchor GitHub will not resolve.
+  const body = ['```md', '[a](docs/deleted.md)', '```'].join('\n')
+
+  assert.deepEqual(findLinks(body), [])
+})
+
 // --- Pointers ------------------------------------------------------------------------------
+// A pointer is prose, but the document it names is markdown — a link, a code span or a bare
+// filename — and any of those can wrap across lines and carry a blockquote marker into the middle
+// of the section name. CAN-119 Close check-docs's two silent pointer holes replaced the raw-text
+// match for the reason the note on `anchorsOf` gives: what a match cannot see, it passes over.
 
 test('a pointer whose section name wraps across lines still resolves', () => {
   const body = '`docs/agents/issue-tracker.md` → *A description write must not be\nbundled with anything else*'
   const [pointer] = findPointers(body)
   const { titles } = anchorsOf('### A description write must not be bundled with anything else')
 
-  assert.equal(pointer.file, 'docs/agents/issue-tracker.md')
+  assert.deepEqual(pointer.target, { kind: 'name', value: 'docs/agents/issue-tracker.md' })
   assert.ok(pointerResolves(pointer.section, titles))
+})
+
+test('a bare pointer to a document nothing tracks resolves to nothing', () => {
+  // The first silent hole. The check passed over any file it could not find, on the stated
+  // assumption that the link check owned file existence — but `findLinks` reads `](…)` syntax and
+  // a bare prose pointer has none, so renaming the file left every bare pointer to it stale.
+  const [pointer] = findPointers('`docs/agents/renamed-away.md` → *The gates*')
+
+  assert.deepEqual(resolvePointer(pointer.target, 'CLAUDE.md', ['docs/agents/workflow.md']), [])
+})
+
+test('a filename written in prose resolves wherever the document sits', () => {
+  // A pointer names a document rather than a path from the document citing it:
+  // `frontend-design-scope.md` is cited from `docs/adr/` and from `docs/research/` alike.
+  const [pointer] = findPointers('`frontend-design-scope.md` → *Rejected, with reasons*')
+
+  assert.deepEqual(
+    resolvePointer(pointer.target, 'docs/adr/0013-hand-written-css-no-framework.md', [
+      'docs/research/frontend-design-scope.md',
+    ]),
+    ['docs/research/frontend-design-scope.md'],
+  )
+})
+
+test('a name carrying a directory has to match that directory', () => {
+  // Where a name is a path from the repository root, matching it by basename alone would let a
+  // pointer go on resolving after the document moved out from under it — stale in exactly the way
+  // a bare pointer to a deleted file is, and just as quiet.
+  const [pointer] = findPointers('`docs/gone/workflow.md` → *The gates*')
+
+  assert.deepEqual(resolvePointer(pointer.target, 'CLAUDE.md', ['docs/agents/workflow.md']), [])
+})
+
+test('a bare filename two documents share names neither of them', () => {
+  // Four tracked documents are called `SKILL.md` and two are called `README.md`. Returning the
+  // first match would resolve the pointer against whichever `git ls-files` happened to list first,
+  // so the caller is handed both and fails.
+  const [pointer] = findPointers('`README.md` → *The gates*')
+
+  assert.deepEqual(
+    resolvePointer(pointer.target, 'CLAUDE.md', ['README.md', 'docs/research/README.md']),
+    ['README.md', 'docs/research/README.md'],
+  )
+})
+
+test('the supersession form, a link whose text is the ADR number, is a pointer', () => {
+  // The second silent hole, and it is how ADR-0004 and ADR-0007 point into ADR-0014. The match
+  // required the `.md` filename as the link *text*, so the whole chain matched nothing: renaming a
+  // heading in ADR-0014 left CI green while the amended ADRs pointed at a section that had gone.
+  const body = '> [ADR-0014](0014-shell-providers-and-per-source-retention.md) → *Decision 6*.'
+  const [pointer] = findPointers(body)
+
+  assert.deepEqual(pointer.target, {
+    kind: 'link',
+    value: '0014-shell-providers-and-per-source-retention.md',
+  })
+  assert.deepEqual(
+    resolvePointer(pointer.target, 'docs/adr/0004-layered-overlay-for-sources-and-edits.md', [
+      'docs/adr/0014-shell-providers-and-per-source-retention.md',
+    ]),
+    ['docs/adr/0014-shell-providers-and-per-source-retention.md'],
+  )
+})
+
+test('an ADR named by its number alone still names a document', () => {
+  const [pointer] = findPointers('it does not: ADR-0005 → *Repo shape* names `packages/domain`')
+
+  assert.deepEqual(pointer.target, { kind: 'adr', value: '0005' })
+  assert.deepEqual(
+    resolvePointer(pointer.target, 'docs/research/production-readiness-baseline.md', [
+      'docs/adr/0005-stack.md',
+    ]),
+    ['docs/adr/0005-stack.md'],
+  )
+})
+
+test("a blockquote's own marker does not become part of the section named", () => {
+  // Live in `docs/compliance/childrens-risk-assessment.md`: the name wraps, and matching raw text
+  // put the continuation line's `>` into the middle of the heading.
+  const body = [
+    '> [ADR-0012](../adr/0012-adult-works.md) → *The poster is provider',
+    '> content*.',
+  ].join('\n')
+  const [pointer] = findPointers(body)
+  const { titles } = anchorsOf('## The poster is provider content, so the Part that governs it is Part 5')
+
+  assert.equal(pointer.section, 'the poster is provider content')
+  assert.ok(pointerResolves(pointer.section, titles))
+})
+
+test('a pointer whose arrow ends the line is still a pointer', () => {
+  // The other way a quoted pointer wraps, live in ADR-0012. `\s*` cannot cross the `>` that opens
+  // the continuation line, so the match saw an arrow pointing at nothing.
+  const body = [
+    '> [`docs/research/tracker-and-repository-audit.md`](../research/tracker-and-repository-audit.md) →',
+    '> *CAN-13 Artwork*.',
+  ].join('\n')
+  const [pointer] = findPointers(body)
+
+  assert.deepEqual(pointer.target, {
+    kind: 'link',
+    value: '../research/tracker-and-repository-audit.md',
+  })
+  assert.equal(pointer.section, 'can-13 artwork')
+})
+
+test('an arrow that names no document is not a pointer', () => {
+  // Both shapes are live and both are correct prose. Reading either as a pointer would fail a run
+  // over a document naming no file at all: `docs/compliance/code-measures-register.md` maps each
+  // duty to a section of a page, and `docs/incidents.md` walks a user interface.
+  assert.deepEqual(findPointers('| *How we protect people from illegal content* → *Terrorism content* |'), [])
+  assert.deepEqual(findPointers("Projects → the row's menu → *Update Project Connection*"), [])
 })
 
 test('a pointer may shorten a heading, but may not name a different one', () => {
