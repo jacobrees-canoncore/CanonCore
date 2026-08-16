@@ -63,6 +63,7 @@ describe.skipIf(!migratorUrl || !applicationUrl)("the schema, against a real Pos
   let withSession: typeof import("./session").withSession;
   let anonymous: typeof import("./session").anonymous;
   let readVisibleStories: typeof import("./stories").readVisibleStories;
+  let databaseAnswers: typeof import("./health").databaseAnswers;
 
   beforeAll(async () => {
     migrator = new Client({ connectionString: migratorUrl });
@@ -120,6 +121,7 @@ describe.skipIf(!migratorUrl || !applicationUrl)("the schema, against a real Pos
     vi.resetModules();
     ({ withSession, anonymous } = await import("./session"));
     ({ readVisibleStories } = await import("./stories"));
+    ({ databaseAnswers } = await import("./health"));
   });
 
   afterAll(async () => {
@@ -459,6 +461,16 @@ describe.skipIf(!migratorUrl || !applicationUrl)("the schema, against a real Pos
           [foundingStory.id, indefiniteSource.id],
         ),
       ).rejects.toThrow(/fetched_at/);
+    });
+  });
+
+  // The half of `/api/health` that a fake ask cannot reach. `health.test.ts` proves what the
+  // check does with an ask that fails; this proves the real ask succeeds against a database that
+  // is up, through the application role, which is the answer the monitor reads as "the site is
+  // fine" every five minutes.
+  describe("the health check, against a database that is up", () => {
+    test("answers", async () => {
+      await expect(databaseAnswers()).resolves.toBe(true);
     });
   });
 });

@@ -33,6 +33,22 @@ function database() {
       `[canoncore] database host ${connection.host} (VERCEL_ENV=${env.VERCEL_ENV ?? "unset"})`,
     );
     pool = new Pool({ connectionString: connection.url });
+    // A connection the far side has already closed errors while it is sitting idle, and `pg`
+    // raises that on the pool rather than on any query: the `error` event is *"Emitted whenever
+    // an idle client in the pool encounters an error. This is common when your PostgreSQL server
+    // shuts down, reboots, or a network partition otherwise causes it to become unavailable while
+    // your pool has connected clients"* (`pg-pool` 3.14.0's README).
+    //
+    // **Without this listener that is not a missed log line, it is the end of the process.** An
+    // `error` event with nothing listening is one Node *"[throws], a stack trace is printed, and
+    // the Node.js process exits"* (https://nodejs.org/api/events.html#error-events) — which is
+    // the wrong answer twice over: it takes down a deployment that has nothing wrong with it, and
+    // it turns a dropped connection into exactly the erroneous HTTP status `health.ts` exists to
+    // avoid answering with. There is nothing to do but say so. The pool discards the client
+    // either way, which is what makes asking a second time worth anything.
+    pool.on("error", (error) => {
+      console.warn(`[canoncore] an idle database connection was dropped: ${error.message}`);
+    });
   }
   return drizzle(pool, { schema });
 }

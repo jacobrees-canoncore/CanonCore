@@ -84,7 +84,8 @@ default heuristics: `CODING_STANDARDS.md`.
 
 **Production is `https://www.canoncore.com`**, apex 301s to it. What is provisioned, and where each
 credential lives: `docs/infrastructure.md` — read it before touching deployment, environment
-variables or the database connection, and note the items it flags as unverified.
+variables or the database connection, and note the items it flags as unverified. What to do when it
+is down, and the weekly usage check Hobby cannot automate: `docs/runbook.md`.
 
 **The URL is deployed and deliberately not shared.** `docs/infrastructure.md` → *The URL-sharing gate*
 holds both gates, lawfulness and readiness, and what opens each. **`docs/compliance/` holds the statutory
