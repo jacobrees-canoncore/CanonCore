@@ -888,37 +888,29 @@ Sentry.**
 
 ### What the published terms commit to
 
-**Settled 16 August 2026 by CAN-81 Disclose Sentry's US error storage in the terms of service**, and
-written before any event had been sent. `content/legal/terms-of-service.md` → *Your privacy, and
-where your data is held* now discloses this transfer alongside Resend's, and **the wording is the
-constraint rather than the description**: **CAN-51 Keep a record of server errors past the hour
-Vercel keeps them** has to configure the SDK to match it, not the other way round. Four commitments,
-each of which is a check on that configuration:
+**Settled 16 August 2026 by CAN-81 Disclose Sentry's US error storage in the terms of service.**
+`content/legal/terms-of-service.md` → *Your privacy, and where your data is held* discloses this
+transfer alongside Resend's, and **the wording is the constraint rather than the description**:
+**CAN-51 Keep a record of server errors past the hour Vercel keeps them** configures the SDK to match
+it, not the other way round. What has to stay true of that configuration:
 
-- **No IP address.** `sendDefaultPii` stays `false`, which is both its default and the only thing
-  that *"will enable automatic IP address collection on events"*. From v11 it is replaced by
-  `dataCollection`, whose legacy-preserving form denies the IP-bearing headers by name.
-- **No name, email address or account.** Nothing calls `Sentry.setUser`, and `dataCollection.userInfo`
-  stays off. This is what keeps Sentry outside the reach of **CAN-30 GDPR export and erasure**.
-- **The address requested, the technical detail of the failure, and request headers are sent.** That
-  is the default with PII off, which already withholds cookies and request bodies.
-- **Text a user typed may appear inside an error message.** Nothing configures that away, so the
-  terms say it instead.
+| The terms say | What keeps it true |
+| --- | --- |
+| No IP address | **Two settings, not one.** `sendDefaultPii` stays `false`, which governs the `user.ip_address` field alone, **and** the IP-bearing request headers are denied — headers are sent by default and Vercel sets `x-forwarded-for` on every request |
+| No name, email address or account | Nothing calls `Sentry.setUser`; `dataCollection.userInfo` stays off; local variables are not captured, which is today's default (`includeLocalVariables`) but is **not** the default from v11 (`dataCollection.stackFrameVariables`) |
+| Only the address, the failure and technical detail of the request are sent | Cookies and request bodies stay withheld, which `sendDefaultPii: false` does already |
+| Text a user typed may appear inside an error message | Nothing configures that away, which is why the terms disclose it instead |
 
-Both option pages were read on 16 August 2026:
-[options](https://docs.sentry.io/platforms/javascript/guides/nextjs/configuration/options/) and
-[data collected](https://docs.sentry.io/platforms/javascript/guides/nextjs/data-management/data-collected/).
+**11 sub-processors is the whole of Sentry's list**, eight general and three of Sentry's own group
+companies ([subprocessors](https://sentry.io/legal/subprocessors/), last updated 1 June 2026). Resend's
+22 in the same paragraph is a flat list counted the same way
+([ADR-0011](adr/0011-transactional-email-resend.md)).
 
-**The terms rather than a privacy notice, decided rather than defaulted.** No privacy notice exists
-— `content/legal/` holds the terms and the reporting page — and the disclosure had to be published
-before the first event. **CAN-30 GDPR export and erasure** writes the notice; both data-location
-disclosures move into it then, and the terms carry a `[ ]` saying so.
+**The terms rather than a privacy notice, decided rather than defaulted.** No privacy notice exists,
+and the disclosure had to be published before the first event. **CAN-30 GDPR export and erasure**
+writes the notice; both disclosures move into it then, and the terms carry a `[ ]` saying so.
 
-**The 11 sub-processors are the whole of Sentry's list**: eight general, and three of Sentry's own
-group companies ([subprocessors](https://sentry.io/legal/subprocessors/), last updated 1 June 2026,
-read 16 August 2026). Resend's 22 in the same paragraph is counted the same way.
-
-What had reached Sentry when this landed, and what could not be read back, is
+What was read before publishing, what the IP sentence rests on, and what could not be read back, is
 [`docs/incidents.md`](incidents.md) → *No event had reached Sentry when the terms disclosed it*.
 
 ## Uptime monitoring: UptimeRobot

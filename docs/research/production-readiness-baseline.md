@@ -92,8 +92,9 @@ rate limiting, performance, dependency scanning, or a unit-test layer.
 
 ### The compliance hole
 
-`content/legal/terms-of-service.md:128` carries `[ ] Link the privacy notice here once it exists
-(CAN-30)`, and when this research was done **CAN-30's acceptance criteria did not include writing
+`content/legal/terms-of-service.md` → *Your privacy, and where your data is held* carries
+`[ ] Link the privacy notice here once it exists (CAN-30 GDPR export and erasure)`, and when this
+research was done **CAN-30's acceptance criteria did not include writing
 one** — a merged document on `main` making a promise nothing in the plan kept.
 
 **Closed on 12 August 2026.** CAN-30 now carries a *The privacy notice, added 12 August 2026* block

@@ -1082,9 +1082,9 @@ it was never asked to be removed.
 
 ## No event had reached Sentry when the terms disclosed it
 
-**16 August 2026, on CAN-81 Disclose Sentry's US error storage in the terms of service.** A
-disclosure is only worth anything if it precedes the transfer it describes, so the state of
-`canoncore-web` was read before the wording landed.
+**16 August 2026, 18:50–19:10 UTC+1, on CAN-81 Disclose Sentry's US error storage in the terms of
+service.** A disclosure is only worth anything if it precedes the transfer it describes, so the state
+of `canoncore-web` was read before the wording landed.
 
 - **The project holds no issue.** `search_issues` over the hosted MCP's longest window, 90 days,
   with an empty query, returned none. The project was created on 13 August 2026
@@ -1100,6 +1100,19 @@ Sensitive variable in Vercel, which nobody can read back
 project-details tool either: searching its catalogue for project settings returns `update_project`,
 `create_project`, `find_projects` and the team-membership pair, and `find_projects` returns slugs
 alone. The two readings above are the evidence for the claim; the field is not.
+
+**What the "no IP address" sentence rests on, and why one setting is not enough.** `sendDefaultPii`
+governs the `user.ip_address` field alone. Sentry's own page is explicit that *"Even when this is
+disabled, IP addresses can still reach Sentry through collected HTTP headers, cookies, or query
+parameters (for example, the `X-Forwarded-For` header)"*, and that *"by default, the Sentry SDK sends
+HTTP request and response headers"* — and Vercel sets `x-forwarded-for` on every request it forwards.
+So the published promise needs the header deny list as well as the flag, and **CAN-51 Keep a record of
+server errors past the hour Vercel keeps them** carries both. The same reading settled local
+variables: `includeLocalVariables` is `false` today, and the option that replaces it from v11,
+`dataCollection.stackFrameVariables`, is `true`, so a version bump alone could start sending whatever
+is in scope where an error was thrown. Read 16 August 2026:
+[data collected](https://docs.sentry.io/platforms/javascript/guides/nextjs/data-management/data-collected/)
+and [options](https://docs.sentry.io/platforms/javascript/guides/nextjs/configuration/options/).
 
 ---
 

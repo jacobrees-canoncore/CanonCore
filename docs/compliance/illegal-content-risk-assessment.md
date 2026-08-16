@@ -229,3 +229,11 @@ Ofcom materially changes a relevant Risk Profile.
 - Adding search across other users' content.
 - Adding a recommender, ranking or engagement signal.
 - Adding a marketplace, listings or payments.
+
+> **The terms amendment of 16 August 2026 is on neither this list nor the children's additions to
+> it.** It added a data-location disclosure for error reporting to
+> [`terms-of-service.md`](../../content/legal/terms-of-service.md) → *Your privacy, and where your
+> data is held*, and changed no prohibition, no minimum age and no functionality of the service. Both
+> lists were checked before it shipped, which is the check
+> [`childrens-risk-assessment.md`](childrens-risk-assessment.md) → *Step 4 — Review* records for the
+> amendment of 14 August 2026. **CAN-81 Disclose Sentry's US error storage in the terms of service.**

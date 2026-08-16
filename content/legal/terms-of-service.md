@@ -143,10 +143,10 @@ country the email itself is sent from, and Resend uses 22 sub-processors to prov
 
 We record errors using Sentry, so that we can find out what broke and fix it. **Error reports are
 stored in the United States too, and Sentry uses 11 sub-processors to provide the service.** A report
-holds the address being requested, the technical detail of what failed, and the header information a
-browser sends with any request. **It does not carry your IP address, your name, your email address or
-your account.** An error message can quote the text that caused it, so something you typed may appear
-in a report, but nothing in the report says who you are.
+holds the address being requested, the technical detail of what failed, and technical information
+about the request itself, such as which browser made it. **It does not carry your IP address, your
+name, your email address or your account.** An error message can quote the text that caused it, so
+something you typed may appear in a report, but nothing in it says who you are.
 
 We are telling you both of these here because it is easy to assume otherwise.
 
