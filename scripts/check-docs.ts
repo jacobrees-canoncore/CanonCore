@@ -143,6 +143,13 @@ check("the job name has exactly one documented home", () => {
     // The research archive quotes history verbatim, on purpose; the tests quote the name as
     // fixture data. Neither is a second home a reader could mistake for the register.
     .filter((f) => !f.startsWith("docs/research/") && !f.endsWith(".test.ts"));
+  // Nothing scanned is not nothing found, the same distinction the document set draws below: this
+  // check searches the tracked tree for a second home, so an empty list means it searched nowhere,
+  // which reads from the report exactly like having searched and found none. What emptied the list
+  // is not the point — `git ls-files` returning nothing and the four filters above removing
+  // everything leave the check equally vacuous.
+  if (tracked.length === 0)
+    fail("no tracked .md, .yml or .ts file was left to search for a second copy of the job name");
   const offenders: string[] = [];
   for (const file of tracked) {
     let body: string;
@@ -286,6 +293,15 @@ const documents = () => {
         return [f, { body, ...anchorsOf(body) }] as const;
       }),
   );
+  // Empty is not agreement, the rule the secret roster states above: a set that came back empty is
+  // not a repository whose every pointer holds, it is a repository this run never read. It fails
+  // here where the secret roster skips, because the two sources differ in what empty can mean -
+  // `gh` is remote and an outage must not block every merge, while `git ls-files` is local and has
+  // already skipped if git could not be reached, so an empty listing is git having run and found
+  // nothing. Not hypothetical, and it was invisible for three days - docs/incidents.md -> The same
+  // fixture inherited its working directory, and two checks went untested for three days.
+  if (documentCache.size === 0)
+    fail("`git ls-files \"*.md\"` matched no tracked markdown, so there was nothing to resolve");
   return documentCache;
 };
 
