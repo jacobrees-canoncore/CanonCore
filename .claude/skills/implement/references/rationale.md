@@ -2,8 +2,9 @@
 
 Read this before changing or re-syncing `.claude/skills/implement/`.
 
-The body of `SKILL.md`, minus the docs-lookup paragraph, is a verbatim fork of
-`mattpocock-skills:implement` at pack version 1.2.3.
+The body of `SKILL.md` is a verbatim fork of `mattpocock-skills:implement` at
+pack version 1.2.3, plus three local additions: the read-the-ticket line, the
+docs-lookup line, and the closing pointer to this file.
 
 ## Why it is a copy rather than a delegation
 
@@ -23,11 +24,22 @@ can fire it.
 **Re-sync by eye when the pack updates.** Upstream is five lines, at
 `~/.claude/plugins/cache/claude-plugins-official/mattpocock-skills/<version>/skills/engineering/implement/SKILL.md`.
 
-## Why the docs-lookup paragraph was added
+## Why the read-the-ticket-first line was added
+
+Upstream assumes the human pasted the spec into the same conversation. Here
+`CLAUDE.md` puts the grill and the implementation in **separate sessions**, so
+`/implement` starts on a ticket it has never seen, and a default read returns
+the description alone. The comments are where a scope cut or a reversal gets
+recorded, so the body by itself is not the ticket. `--comments` is the flag
+that carries them: `--full` is capped and may truncate, and `--current` is the
+form a worktree created with `--linear-issue` makes work
+([issue-tracker.md](../../../../docs/agents/issue-tracker.md) → *Conventions*).
+
+## Why the docs-lookup line was added
 
 Every other rule that would trigger a lookup is gated on something that is not
 true mid-implementation: `CLAUDE.md`'s *"do not assume a library lacks a
 capability"* fires on dependency choice, and the global context7 rule fires on
 the user asking. Neither fires when the agent is writing a call from memory.
-The tool table in `CLAUDE.md` answers *which* tool; the added paragraph answers
+The tool table in `CLAUDE.md` answers *which* tool; the added line answers
 *when*.
