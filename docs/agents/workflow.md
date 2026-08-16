@@ -268,9 +268,15 @@ on `main`, where every push is its own release and a cancelled run is not a pass
 **One check is not optional, because its failure mode is silence: every row-level-security-protected
 table has a test asserting that a cross-tenant read returns zero rows.** A misconfigured RLS policy
 returns an empty result rather than an error, so it is indistinguishable from "no data" in the UI
-and cannot be caught by looking. `story` is the first such table and
-[`apps/web/src/db/rls.test.ts`](../../apps/web/src/db/rls.test.ts) is the shape every later one
-copies; ADR-0005 rule 2 is what requires it.
+and cannot be caught by looking. `story` and `snapshot` are those tables today, and every one of
+them is tested from [`apps/web/src/db/rls.test.ts`](../../apps/web/src/db/rls.test.ts) — one file
+rather than one per table, for the reason that file's own header gives and cites. ADR-0005 rule 2 is what requires it.
+
+**A table deliberately left unprotected still owes the gate two tripwires**, because an exclusion
+nothing enforces is indistinguishable from a table somebody forgot: one asserting that every table
+in `public` is classified as protected or not, and one asserting the unprotected table's whole
+column list. `source` is the first and the reason it is exempt is
+[ADR-0014](../adr/0014-shell-providers-and-per-source-retention.md) → *Decision 6*.
 
 **Those tests need a real PostgreSQL, and `pnpm -r test` behaves differently depending on whether
 it has one.** In Actions the job runs a `postgres:17` service container and the suite always runs.

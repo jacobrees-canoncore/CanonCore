@@ -1,5 +1,16 @@
 import { sql } from "drizzle-orm";
-import { check, pgEnum, pgPolicy, pgRole, pgTable, text, uuid } from "drizzle-orm/pg-core";
+import {
+  check,
+  interval,
+  pgEnum,
+  pgPolicy,
+  pgRole,
+  pgTable,
+  text,
+  timestamp,
+  unique,
+  uuid,
+} from "drizzle-orm/pg-core";
 
 /**
  * The name of the session setting that says who is asking. `session.ts` writes it and the
@@ -62,6 +73,104 @@ export const story = pgTable(
       for: "select",
       to: applicationRole,
       using: sql`${t.visibility} = 'public' or ${t.ownerId} = ${currentSessionUser}`,
+    }),
+  ],
+);
+
+/**
+ * Where a record's values came from, and how long what it said may be kept — `CONTEXT.md` →
+ * *Source*.
+ *
+ * **One row per Source, shared by every reader, and the only table here with no policy over it.**
+ * Why that shape rather than a row per person, and what it costs:
+ * [ADR-0014](../../../../docs/adr/0014-shell-providers-and-per-source-retention.md) → *Decision
+ * 6*. `rls.test.ts` carries the two tripwires that stand in for the cross-tenant test this table
+ * cannot have.
+ *
+ * **Nothing in this repository writes a row**, and no migration seeds one: under decision 1 the
+ * application does not know which Sources exist or what any of them permits, so the values arrive
+ * from a Provider's capability endpoint. A migration stating a real Source's retention would be
+ * the source-specific knowledge that decision removes from `apps/web`.
+ */
+export const source = pgTable(
+  "source",
+  {
+    id: uuid().primaryKey().defaultRandom(),
+
+    /**
+     * How long a Snapshot of this Source may be kept, as a duration or as an explicit
+     * `'infinity'` — never as a null, because "nobody has said yet" and "this Source imposes no
+     * limit" would then be the same row, and the safe reading of the first is the opposite of the
+     * second.
+     *
+     * `interval` rather than a count of days, because the terms this represents are written in
+     * months: TMDB's `§1.C` limits the age of what is held to six months, and
+     * `timestamptz + interval '6 months'` is that sentence where any number of days is a rounding
+     * of it.
+     *
+     * **`'infinity'` makes the expiry test branchless** — `fetched_at + retention` is infinite,
+     * so no `now()` reaches it. That needs PostgreSQL 17, which added infinite intervals
+     * ([PostgreSQL 17 release notes](https://www.postgresql.org/docs/17/release-17.html)); the
+     * versions this runs against are in [`ci.yml`](../../../../.github/workflows/ci.yml), which
+     * records production's alongside the container's.
+     */
+    retention: interval().notNull(),
+  },
+  (t) => [
+    // Zero or less is not a duration any terms express, and a row carrying one would expire every
+    // Snapshot of that Source the instant it was written.
+    check("source_retention_is_positive", sql`${t.retention} > interval '0'`),
+  ],
+);
+
+/**
+ * What one Source last said about one Story, and when it was read — `CONTEXT.md` → *Snapshot*.
+ *
+ * **It carries no values yet, and that is the whole of it for now.** What a Snapshot holds is
+ * additive and belongs to the tickets that import anything; what cannot be added later without a
+ * data migration is `fetched_at`, which is why it lands with the table
+ * ([ADR-0014](../../../../docs/adr/0014-shell-providers-and-per-source-retention.md) →
+ * *Decision 6*).
+ */
+export const snapshot = pgTable(
+  "snapshot",
+  {
+    id: uuid().primaryKey().defaultRandom(),
+
+    // Deleting a Story takes its Snapshots with it; deleting a Source is refused while any
+    // Snapshot still points at it, because that row is the clock the Snapshot expires on, and a
+    // Snapshot with no clock is one nothing will ever come back to refresh or to drop.
+    storyId: uuid("story_id")
+      .notNull()
+      .references(() => story.id, { onDelete: "cascade" }),
+    sourceId: uuid("source_id")
+      .notNull()
+      .references(() => source.id),
+
+    /**
+     * When the **Source** was read — not when this row was written, and the difference is why
+     * there is no default. They diverge the moment a Provider serves anything it already held,
+     * and only the first is the age a retention term limits. A `defaultNow()` here would look
+     * identical, be wrong by however long the Provider had held the values, and be wrong in the
+     * direction that keeps values longer than their terms allow.
+     */
+    fetchedAt: timestamp("fetched_at", { withTimezone: true }).notNull(),
+  },
+  (t) => [
+    // ADR-0004's key, `(record, source)`: one row per Story per Source, holding what that Source
+    // last said. A second row for the same pair would be a history, which the overlay does not
+    // keep — the previous values are gone when the next fetch replaces them.
+    unique("snapshot_one_row_per_story_and_source").on(t.storyId, t.sourceId),
+
+    // **This policy names no owner, on purpose.** It asks whether the Story is readable and lets
+    // `story`'s own policy answer, so the two can never disagree; a copy of the owner and
+    // visibility rules here would be a second thing to keep in step, and a Story made public
+    // whose Snapshots stayed private renders as a Story with nothing in it.
+    pgPolicy("snapshot_readable_when_its_story_is", {
+      as: "permissive",
+      for: "select",
+      to: applicationRole,
+      using: sql`exists (select 1 from ${story} where ${story.id} = ${t.storyId})`,
     }),
   ],
 );

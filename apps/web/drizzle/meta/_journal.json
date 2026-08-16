@@ -22,6 +22,20 @@
       "when": 1786662646185,
       "tag": "0002_the_founding_story",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1786904457537,
+      "tag": "0003_source_and_snapshot",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1786904458007,
+      "tag": "0004_grant_the_application_role_read_on_source_and_snapshot",
+      "breakpoints": true
     }
   ]
 }

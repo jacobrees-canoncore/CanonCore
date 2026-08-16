@@ -58,4 +58,11 @@ same thing, held as an alias rather than a rewrite, undone by discarding it.
   architecture, the reachability split and per-Source retention): this clause read "storage, not
   legality, since the retention exception is project-wide", and both halves were false. There is no
   exception ([ADR-0009](0009-external-source-tmdb.md)), and duplication multiplies obligations
-  rather than only bytes.*
+  rather than only bytes.* *Amended again 16 August 2026 (CAN-102 Give Source a retention policy,
+  and Snapshot a fetched-at): **"the shared layer" means the catalogue, and one table now sits
+  outside it.** `source` holds one row per Source carrying that Source's retention terms, shared by
+  everyone and under no policy —
+  [ADR-0014](0014-shell-providers-and-per-source-retention.md) → *Decision 6*. It is not an Anchor
+  and it is not a counter-example: it holds nothing anybody recorded, so there is no view of
+  anyone's for it to damage and nothing on it to edit or moderate, which are the two properties
+  this bullet exists to protect.*
