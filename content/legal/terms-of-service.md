@@ -143,16 +143,15 @@ country the email itself is sent from, and Resend uses 22 sub-processors to prov
 
 We record errors using Sentry, so that we can find out what broke and fix it. **Error reports are
 stored in the United States too, and Sentry uses 11 sub-processors to provide the service.** A report
-holds the address being requested, the technical detail of what failed, and technical information
-about the request itself, such as which browser made it. **It does not carry your IP address, your
-name, your email address or your account.** An error message can quote the text that caused it, so
+holds the web address that was requested, the technical detail of what failed, and technical
+information about the request itself. **It does not carry your IP address, your name, your email
+address or your account.** An error message can quote the text that caused it, so
 something you typed may appear in a report, but nothing in it says who you are.
 
 We are telling you both of these here because it is easy to assume otherwise.
 
 `[ ]` *Link the privacy notice here once it exists (CAN-30 GDPR export and erasure), and move both
-disclosures above into it. They sit in the terms because no privacy notice exists yet, and because
-neither transfer could begin before it was disclosed.*
+disclosures above into it: they sit in the terms only because no notice exists yet.*
 
 ## Changes to these terms
 

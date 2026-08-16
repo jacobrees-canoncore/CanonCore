@@ -10,6 +10,7 @@ and is provided to Ofcom on request.
 | Service type | User-to-user service (`s.3(1)`). Not a search service |
 | Completion date | 13 August 2026 |
 | Last revised | 14 August 2026 (substantive edits), revision row added 16 August 2026 per RKRG §2.7 |
+| Revised | 16 August 2026 — the terms amendment of that date, and why it triggers no redo, recorded in Step 4. Carried by [CAN-81 Disclose Sentry's US error storage in the terms of service](https://linear.app/jacobrees-canoncore/issue/CAN-81). No level or finding changed |
 | Next review date | 13 August 2027 — the service's 12-month policy cadence (Ofcom good practice; `s.9(3)` imposes keep-up-to-date, not a fixed interval — corrected 16 August 2026), and earlier before any significant change (`s.9(4)`) |
 | Reason for review | First assessment, before launch |
 | Completed by | Jacob Rees |
@@ -236,4 +237,5 @@ Ofcom materially changes a relevant Risk Profile.
 > data is held*, and changed no prohibition, no minimum age and no functionality of the service. Both
 > lists were checked before it shipped, which is the check
 > [`childrens-risk-assessment.md`](childrens-risk-assessment.md) → *Step 4 — Review* records for the
-> amendment of 14 August 2026. **CAN-81 Disclose Sentry's US error storage in the terms of service.**
+> amendment of 14 August 2026. Carried by [CAN-81 Disclose Sentry's US error storage in the terms of
+> service](https://linear.app/jacobrees-canoncore/issue/CAN-81).

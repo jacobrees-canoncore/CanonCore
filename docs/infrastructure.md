@@ -896,14 +896,15 @@ it, not the other way round. What has to stay true of that configuration:
 
 | The terms say | What keeps it true |
 | --- | --- |
-| No IP address | **Two settings, not one.** `sendDefaultPii` stays `false`, which governs the `user.ip_address` field alone, **and** the IP-bearing request headers are denied — headers are sent by default and Vercel sets `x-forwarded-for` on every request |
-| No name, email address or account | Nothing calls `Sentry.setUser`; `dataCollection.userInfo` stays off; local variables are not captured, which is today's default (`includeLocalVariables`) but is **not** the default from v11 (`dataCollection.stackFrameVariables`) |
-| Only the address, the failure and technical detail of the request are sent | Cookies and request bodies stay withheld, which `sendDefaultPii: false` does already |
+| No IP address | **Not one setting.** `sendDefaultPii: false` keeps `user.ip_address` off the event, but not the request headers, which are sent by default and carry the address Vercel puts in `x-forwarded-for`. The IP-bearing headers have to go too — in `beforeSend` today, because `requestDataIntegration`'s `include.headers` is all-or-nothing, and through `dataCollection.httpHeaders`'s deny list from v11 |
+| No name, email address or account | Nothing calls `Sentry.setUser`, and local variables are not captured in stack frames |
+| Neither survives a version bump by itself | **From v11 `sendDefaultPii` is gone and every `dataCollection` category defaults to collecting**, `userInfo` and `stackFrameVariables` among them. Each has to be turned off explicitly or the promises break on upgrade alone |
+| Only the address, the failure and technical detail of the request are sent | Cookies and request bodies stay withheld. The full URL and its query string are **always** sent, so nothing personal may be put in one — which binds the links **CAN-31 Email verification and password reset** builds |
 | Text a user typed may appear inside an error message | Nothing configures that away, which is why the terms disclose it instead |
 
 **11 sub-processors is the whole of Sentry's list**, eight general and three of Sentry's own group
 companies ([subprocessors](https://sentry.io/legal/subprocessors/), last updated 1 June 2026). Resend's
-22 in the same paragraph is a flat list counted the same way
+22 in the same paragraph is the count from its own list
 ([ADR-0011](adr/0011-transactional-email-resend.md)).
 
 **The terms rather than a privacy notice, decided rather than defaulted.** No privacy notice exists,

@@ -1101,18 +1101,29 @@ project-details tool either: searching its catalogue for project settings return
 `create_project`, `find_projects` and the team-membership pair, and `find_projects` returns slugs
 alone. The two readings above are the evidence for the claim; the field is not.
 
-**What the "no IP address" sentence rests on, and why one setting is not enough.** `sendDefaultPii`
-governs the `user.ip_address` field alone. Sentry's own page is explicit that *"Even when this is
-disabled, IP addresses can still reach Sentry through collected HTTP headers, cookies, or query
-parameters (for example, the `X-Forwarded-For` header)"*, and that *"by default, the Sentry SDK sends
-HTTP request and response headers"* — and Vercel sets `x-forwarded-for` on every request it forwards.
-So the published promise needs the header deny list as well as the flag, and **CAN-51 Keep a record of
-server errors past the hour Vercel keeps them** carries both. The same reading settled local
-variables: `includeLocalVariables` is `false` today, and the option that replaces it from v11,
-`dataCollection.stackFrameVariables`, is `true`, so a version bump alone could start sending whatever
-is in scope where an error was thrown. Read 16 August 2026:
-[data collected](https://docs.sentry.io/platforms/javascript/guides/nextjs/data-management/data-collected/)
-and [options](https://docs.sentry.io/platforms/javascript/guides/nextjs/configuration/options/).
+**What the "no IP address" sentence rests on, and why one setting is not enough.** `sendDefaultPii:
+false` withholds cookies, request bodies and user identity, but **not request headers**. Sentry's own
+page is explicit: *"by default, the Sentry SDK sends HTTP request and response headers"*, and *"even
+when this is disabled, IP addresses can still reach Sentry through collected HTTP headers, cookies, or
+query parameters (for example, the `X-Forwarded-For` header)"*. Vercel sets that header to *"the public
+IP address of the client that made the request"*
+([request headers](https://vercel.com/docs/headers/request-headers)), so on this host the flag alone
+leaves the address in the event. Two further readings from the same pages:
+
+- **Per-header denial does not exist on the SDK installed today.** `requestDataIntegration`'s
+  `include.headers` is a boolean (`@sentry/nextjs` 10.70.0), so today the choice is all headers or
+  none, and anything finer belongs in `beforeSend`. The `{ deny: [...] }` form the docs recommend is
+  `dataCollection`, which arrives in v11.
+- **The v11 defaults run the other way.** `sendDefaultPii` is removed, and `dataCollection` collects
+  by default: `userInfo` `true` (which populates `user.id`, `user.email`, `user.username` and
+  `user.ip_address`), `cookies` `true`, `stackFrameVariables` `true`. `includeLocalVariables` is
+  `false` today, so a version bump alone would start sending whatever was in scope where an error was
+  thrown, and would break the identity promise as well as the IP one.
+
+Read 16 August 2026:
+[data collected](https://docs.sentry.io/platforms/javascript/guides/nextjs/data-management/data-collected/),
+[options](https://docs.sentry.io/platforms/javascript/guides/nextjs/configuration/options/)
+and [RequestData](https://docs.sentry.io/platforms/javascript/guides/nextjs/configuration/integrations/requestdata/).
 
 ---
 
