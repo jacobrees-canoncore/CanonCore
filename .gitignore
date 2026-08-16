@@ -25,6 +25,15 @@ node_modules/
 # itself says "This file should not be edited". create-next-app ignores it too.
 next-env.d.ts
 
+# Written by `next dev` on every run, and re-added if deleted — the block inside says so, and
+# names `next/dist/server/lib/generate-agent-files.js` as what writes it. Next's own advice is to
+# commit them; not done here, because `apps/web/CLAUDE.md` would be a second always-loaded
+# instruction file for everything under that directory, and what an agent reads in this repository
+# is a decision rather than a build artefact. Named in full rather than as bare `AGENTS.md` /
+# `CLAUDE.md`, so the repository-root instructions can never be caught by this.
+apps/web/AGENTS.md
+apps/web/CLAUDE.md
+
 # Playwright's own artefacts, written wherever the suite is run from
 test-results/
 playwright-report/
