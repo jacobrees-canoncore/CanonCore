@@ -145,8 +145,8 @@ We record errors using Sentry, so that we can find out what broke and fix it. **
 stored in the United States too, and Sentry uses 11 sub-processors to provide the service.** A report
 holds the web address that was requested, the technical detail of what failed, and technical
 information about the request itself. **It does not carry your IP address, your name, your email
-address or your account.** An error message can quote the text that caused it, so
-something you typed may appear in a report, but nothing in it says who you are.
+address or your account.** An error message can quote the text that caused it, so something you
+typed may appear in a report, but nothing in it says who you are.
 
 We are telling you both of these here because it is easy to assume otherwise.
 
