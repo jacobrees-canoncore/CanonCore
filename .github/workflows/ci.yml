@@ -85,12 +85,32 @@ jobs:
       # security weight. Without the secret the check reports SKIP and says so. The release
       # steps below use the same installation.
       #
-      # `orca` is a local desktop CLI and cannot run on a runner, so the label roster is a
-      # local gate — docs/agents/workflow.md -> The gates records which checks reach which.
+      # `orca` is a local desktop CLI and cannot run on a runner, so the label roster stays a
+      # local gate on purpose — docs/agents/triage-labels.md -> Where this check gates, and where
+      # it does not holds that decision, and docs/agents/workflow.md -> The gates the table of
+      # which check reaches which source. The run's own page says which were compared.
       # npm rather than pnpm: `pnpm add -g` needs PNPM_HOME configured, npm's global bin is
       # already on a runner's PATH. If the install or the token fails, the check reports SKIP
       # with the reason rather than failing the build.
       - run: npm i -g vercel@58
+
+      # The Actions secrets, named for the roster check to compare against. `gh secret list`
+      # reaches them on a laptop and never here: reading the secrets API needs a permission the
+      # workflow's own token has no way to be granted — it is not among the scopes `permissions:`
+      # accepts (https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax#permissions).
+      # The `secrets` context is the route that does work: it "contains the names and values of
+      # secrets that are available to a workflow run"
+      # (https://docs.github.com/en/actions/reference/workflows-and-actions/contexts), so it is
+      # also better evidence — it says the job can *reach* the secret, not merely that one exists.
+      #
+      # Names only, and in a step of its own, because that blob carries every secret's value and
+      # `check-docs` spawns `git`, `gh` and `vercel`, which would inherit whatever it is given.
+      - name: Name the Actions secrets this job can reach
+        run: |
+          echo "ACTIONS_SECRET_NAMES=$(node -e 'process.stdout.write(Object.keys(JSON.parse(process.env.SECRETS_JSON)).join(" "))')" >> "$GITHUB_ENV"
+        env:
+          SECRETS_JSON: ${{ toJSON(secrets) }}
+
       - run: node scripts/check-docs.ts --verbose
         env:
           GH_TOKEN: ${{ github.token }}

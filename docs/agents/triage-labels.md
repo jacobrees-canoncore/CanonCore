@@ -9,7 +9,8 @@ The tracker itself is [issue-tracker.md](./issue-tracker.md) (Linear, team `CAN`
 ## The roster
 
 All eight exist on team `CAN`. `scripts/check-docs.ts` compares this table against
-`orca linear team labels` and fails when they disagree.
+`orca linear team labels` and fails when they disagree — **on a laptop, and nowhere else**. Why
+that is a decision rather than a gap: *Where this check gates, and where it does not* below.
 
 **Category roles** — exactly one per triaged issue. These map onto labels Linear created by default.
 
@@ -38,6 +39,45 @@ in the CanonCore workspace inherits them.
 ```bash
 orca linear team labels --team CAN --workspace ad2669ec-93a5-4ce1-97fa-c7d9247a1452 --json
 ```
+
+## Where this check gates, and where it does not
+
+**The roster gates locally and skips in CI, and that is the settled answer** — **CAN-109 Decide
+whether the label roster check needs enforcing, or is honest as it stands**. `orca` drives a
+desktop application on Jacob's machine, so on a runner the CLI is absent and the check reports SKIP
+with the reason. **So run the script before landing**, which `/review-pr` does, and read the skips.
+
+**A skip is not a pass, and a green run now says which it was.** `check-docs` writes its report to
+the job summary, so the run's own page names this check as skipped rather than leaving a green tick
+to imply it ran. Without that the roster would be unenforced *and* unannounced, which is the half
+of this that was never acceptable.
+
+**What was rejected.** A Linear API token in Actions would replace the desktop CLI and buy real
+enforcement. It was turned down: a personal API key is user-scoped and workspace-wide, and it would
+need a roster row, an expiry and a rotation story of its own — a credential added to gate eight
+strings, when a credential is the thing these checks exist to keep honest.
+
+**What that leaves exposed is small, because the two ways this table can drift are not
+symmetrical:**
+
+- **The document invents a label.** Already loud, and at the moment of use: the CLI cannot create a
+  label definition, so applying one the tracker does not have fails outright.
+- **The tracker gains a label the document does not map.** The silent direction, and the cheap one:
+  `/triage` neither applies nor interprets a label it has no role for, which is exactly what it
+  already does with `Improvement` on purpose.
+
+Neither is the failure mode a credential roster has, where the silent direction is a secret nobody
+recorded. That asymmetry is why the same decision widened the credential roster to reach the GitHub
+Actions secrets and left this one where it is —
+[`docs/infrastructure.md`](../infrastructure.md) → *What this check compares, and what it cannot*
+is that half.
+
+**GitHub's mirror is not a second source.** Labels sync two ways to GitHub Issues, so the mirror
+looks like something a runner could read with `gh label list` and no credential at all. It is a
+different set. Read back on 16 August 2026 it held fourteen, of which six are names from this
+table: no `Bug` — GitHub label names are case-insensitive, so Linear's collapses into the `bug`
+every repository is created with — no `Improvement`, and eight of GitHub's own defaults alongside.
+Comparing against it would report disagreement on a roster that is correct.
 
 ## Changing them
 

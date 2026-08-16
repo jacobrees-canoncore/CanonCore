@@ -258,8 +258,10 @@ if two branches are ever routinely open at once.
 ## Environment variables
 
 **The roster for this application.** Every variable the `canoncore` Vercel project holds, plus the
-GitHub Actions secrets, in one table. `scripts/check-docs.ts` compares the Vercel rows against
-`vercel env ls --project canoncore` and fails when they disagree.
+GitHub Actions secrets, in one table. `scripts/check-docs.ts` compares each half against its own
+source and fails when either disagrees: the Vercel rows against `vercel env ls --project canoncore`,
+the Actions rows against the secrets the workflow can reach. What each source can and cannot speak
+for is *What this check compares, and what it cannot* below.
 
 **It is no longer every variable the estate holds**, and the claim was narrowed on purpose. Under
 [ADR-0014](adr/0014-shell-providers-and-per-source-retention.md#decision-1--the-app-is-a-shell) a
@@ -268,7 +270,7 @@ estate has several projects and this table reaches one. **Each provider reposito
 for its own credentials**; the pointer here is *Where a Source credential lives* below.
 
 *Read back from `vercel env ls --project canoncore` on 15 August 2026, and `gh secret list` on
-14 August 2026.*
+16 August 2026.*
 
 | Variable | Holder | Environments | Sensitivity | What it is |
 | --- | --- | --- | --- | --- |
@@ -337,39 +339,74 @@ home is unrecorded is the failure this roster exists to prevent; a credential re
 is merely work outstanding. It becomes a row above only if it ever returns to this project, which
 under ADR-0014 it should not.
 
-**`scripts/check-docs.ts` was deliberately not widened past one project.** It reads
+### What this check compares, and what it cannot
+
+**The roster has two halves and `scripts/check-docs.ts` compares both, against a different source
+each.** Which source can speak for a row is read off its Holder column, and the reach of each is
+worth stating because it is not obvious from a green tick.
+
+| Half | Source | Where it gates |
+| --- | --- | --- |
+| Holder says `Vercel` | `vercel env ls --project canoncore` | CI and locally. The runner installs `vercel` and holds a `VERCEL_TOKEN` |
+| Holder says `GitHub Actions secret` | the workflow's own `secrets` context in CI, `gh secret list` locally | CI and locally, by a different route in each |
+| Any other Holder | none | Nowhere. Named on every run instead |
+
+**The Actions half needs two routes because neither works in both places.** `gh secret list` reads
+the secrets API, which needs a permission the workflow's own token cannot be granted — it is not
+among the scopes `permissions:` accepts
+([Workflow syntax](https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax#permissions)),
+so a check resting on it alone would gate on a laptop or nowhere. The `secrets` context does work,
+"contains the names and values of secrets that are available to a workflow run"
+([Contexts](https://docs.github.com/en/actions/reference/workflows-and-actions/contexts)), and is
+the better evidence of the two: it says the job can *reach* the secret, not merely that one exists.
+`ci.yml` reduces it to names in a step of its own, because the blob carries every value and
+`check-docs` spawns three CLIs that would inherit it.
+
+**Only names are compared, because a secret has no other readable property.** An Actions secret
+cannot be read back any more than a Vercel Sensitive one can, so this half catches a secret set but
+undocumented, or documented but never set — which is how a roster goes stale — and cannot catch a
+stale value.
+
+**`scripts/check-docs.ts` was deliberately not widened past one Vercel project.** It reads
 `vercel env ls --project canoncore`, and `parseDocumentedVariables` keeps only rows whose Holder
-column contains `Vercel` — so a row naming any other holder leaves the comparison silently. Teaching
-it to walk several projects would be building for `provider-tmdb` before that repository exists,
-which is the speculative generality `CLAUDE.md` rules out.
+column contains `Vercel` — so a row naming a Provider's project leaves the comparison silently.
+Teaching it to walk several projects would be building for `provider-tmdb` before that repository
+exists, which is the speculative generality `CLAUDE.md` rules out. **When `provider-tmdb` exists,
+that repository runs its own check against its own project** — the same shape, one project each,
+rather than one checker reaching across an estate.
 
-**What was done instead is to make the gap audible.** `parseUncheckedVariables` names every
-documented row the comparison cannot reach, and the check reports them in its detail line — which
-means **on every CI run**, since `ci.yml` runs `node scripts/check-docs.ts --verbose`. A bare local
+**So the third row of the table above is the blind spot, and it is named rather than left silent.**
+`parseUncheckedVariables` reports every documented row neither source reaches, in the check's
+detail line, on every CI run — `ci.yml` runs `node scripts/check-docs.ts --verbose`. A bare local
 run prints only `PASS` and the check's name, for this check as for every other, so **pass
-`--verbose` when you are asking what the roster actually covers**:
+`--verbose` when you are asking what the roster actually covers**. Today nothing is in it, and the
+first thing that will be is the TMDB token when `provider-tmdb` holds it:
 
 ```
-PASS  the variable roster matches Vercel   8 agree; 2 held elsewhere and unchecked (MIGRATION_DATABASE_URL, VERCEL_TOKEN)
+PASS  the variable roster matches Vercel        8 variables agree
+PASS  the secret roster matches GitHub Actions  2 secrets agree
 ```
 
-So the reach of the check is stated rather than inferred, and a credential moving off this project
-shrinks a count somebody can see. **When `provider-tmdb` exists, that repository runs its own
-check against its own project** — the same shape, one project each, rather than one checker
-reaching across an estate.
+**A green run says which halves were compared, without opening a log.** `check-docs` writes its
+whole report to the job summary, so the run's own page carries every check, its result and what it
+read. That is what makes a SKIP visible: a skipped check reads, from the tick on the job, exactly
+like one that passed, and both the label roster and a wrongly-scoped `VERCEL_TOKEN` skip rather
+than fail. **CAN-109 Decide whether the label roster check needs enforcing, or is honest as it
+stands** decided this shape, and the same summary answers the finding recorded on **CAN-86 Record
+VERCEL_TOKEN in the credential roster, and revisit whether the release can use a project-scoped
+one** rather than answering it separately.
 
-**Both rows it currently names are unchecked for a different reason, and a fixable one.**
-`MIGRATION_DATABASE_URL` and `VERCEL_TOKEN` are GitHub Actions secrets, which no walk of Vercel
-projects would ever reach — but `gh secret list` would, and this document's own read-back already
-uses it. Their names could be compared today. That they are not is a gap in this check rather than
-a consequence of the shell architecture, and it is **CAN-69 Record the credential purge, regenerate
-the credentials table, and lint-ban NEON\_ reads** that next touches this table.
+**The label roster is the one check that stays local, on purpose.** Its source is a desktop CLI,
+and the decision not to buy a Linear credential to reach it from CI is
+[`docs/agents/triage-labels.md`](agents/triage-labels.md) → *Where this check gates, and where it
+does not*.
 
-**A future provider row must not put `Vercel` in its Holder.** The filter is a substring test, so a
-Holder reading `Vercel (provider-tmdb)` would be pulled *into* the comparison against `canoncore`,
-fail against a project that correctly does not hold it, and disappear from the unchecked list at the
-same time — the one failure mode this arrangement still has. Name the holder as the repository, and
-let its own project's check do the verifying.
+**A future provider row must not put `Vercel` in its Holder**, and the same now goes for
+`GitHub Actions`. Both filters are substring tests, so a Holder reading `Vercel (provider-tmdb)`
+would be pulled *into* the comparison against `canoncore`, fail against a project that correctly
+does not hold it, and disappear from the unchecked list at the same time — the one failure mode
+this arrangement still has. Name the holder as the repository, and let its own project's check do
+the verifying.
 
 ### Why this one is account-scoped
 
@@ -381,7 +418,11 @@ token breaks both consumers — differently, which is the part worth recording.
 | Project | `5 passed, 2 skipped, 0 failed` |
 | Account | `6 passed, 1 skipped, 0 failed` |
 
-*Both figures are from a runner.* A local run reports `7 passed, 0 skipped`, because the label
+*Both figures are from a runner, and both were taken before the secret roster joined the run.*
+**CAN-109 Decide whether the label roster check needs enforcing, or is honest as it stands** added
+an eighth check on 16 August 2026, so neither total can be read off a run made since. What the two
+rows record is the shape, and the shape is unchanged: a project-scoped token turns a pass into a
+skip rather than into a failure. A local run reports `8 passed, 0 skipped`, because the label
 roster reaches `orca` here and never can on a runner — so the local total cannot be compared with
 either row above, and a green local run is not evidence about the token's scope.
 
@@ -390,8 +431,14 @@ production deployment** stops the job at its `vercel pull`, with
 `Error: Could not retrieve Project Settings`, having `VERCEL_ORG_ID` and `VERCEL_PROJECT_ID` set in
 its environment and unrescued by either. The `check-docs` step instead *skips* `the variable roster
 matches Vercel` and carries on green, so a wrongly-scoped token costs a documentation gate on every
-branch and only announces itself on a merge to `main`. **Anyone reading a green pull request would not
-know.**
+branch and only announces itself on a merge to `main`.
+
+**Anyone reading a green pull request would not have known, and now would.** That finding is
+answered rather than merely recorded: since **CAN-109 Decide whether the label roster check needs
+enforcing, or is honest as it stands** the check writes its report to the job summary, so a skip
+and its reason sit on the run's own page. It is the same mechanism that makes the label roster's
+skip visible, which is why the two are one answer and not two — *What this check compares, and what
+it cannot* above.
 
 **Reissuing is a dashboard action, not a CLI one.** `vercel tokens add <name>` returns
 `Error: Cannot create tokens for this app. (403)` under the current *Sign in with Vercel (google)*

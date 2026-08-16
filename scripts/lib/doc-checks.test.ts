@@ -8,10 +8,13 @@ import {
   explainFailure,
   findLinks,
   findPointers,
+  parseActionsSecrets,
   parseCiJobNames,
+  parseSecretNames,
   parseUncheckedVariables,
   parseVercelEnv,
   pointerResolves,
+  renderJobSummary,
   resolvePointer,
 } from './doc-checks.ts'
 
@@ -61,24 +64,76 @@ test('a variable set on Vercel but absent from the roster is reported', () => {
   ])
 })
 
-test('a documented variable held outside Vercel is named rather than silently dropped', () => {
-  // `parseDocumentedVariables` keeps only rows whose Holder contains "Vercel", so a row held
-  // anywhere else leaves the comparison altogether. Dropping it quietly is the same failure as
-  // dropping an unparseable row: the check reports agreement across a roster it never read in
-  // full. CAN-99 Move the TMDB credential out of the app, atomically with its roster row put the
-  // first credential into that blind spot deliberately, so the count has to be spoken aloud.
-  const roster = [
-    '| Variable | Holder | Environments | Sensitivity | What it is |',
-    '| --- | --- | --- | --- | --- |',
-    '| `DATABASE_URL` | Vercel | Production | Sensitive | the application role |',
-    '| `MIGRATION_DATABASE_URL` | GitHub Actions secret | — | — | the migration role |',
-    '| `TMDB_API_READ_ACCESS_TOKEN` | `provider-tmdb` | Production | Sensitive | pending that repo |',
-  ].join('\n')
+// --- The roster's three holders, and the rows the check cannot reach --------------------------
+// Every row has to land in exactly one of the three readers below. A row that falls between them
+// is compared by nothing and named by nothing, which is agreement reported across a roster the
+// check never read in full.
 
-  assert.deepEqual(parseUncheckedVariables(roster), [
-    'MIGRATION_DATABASE_URL',
-    'TMDB_API_READ_ACCESS_TOKEN',
+const ROSTER = [
+  '| Variable | Holder | Environments | Sensitivity | What it is |',
+  '| --- | --- | --- | --- | --- |',
+  '| `DATABASE_URL` | Vercel | Production | Sensitive | the application role |',
+  '| `MIGRATION_DATABASE_URL` | GitHub Actions secret | — | — | the migration role |',
+  '| `TMDB_API_READ_ACCESS_TOKEN` | `provider-tmdb` | Production | Sensitive | pending that repo |',
+].join('\n')
+
+test('the Actions-held rows are read apart from the Vercel-held ones', () => {
+  assert.deepEqual([...parseActionsSecrets(ROSTER)], ['MIGRATION_DATABASE_URL'])
+})
+
+test('a documented variable no holder reaches is named rather than silently dropped', () => {
+  // CAN-109 Decide whether the label roster check needs enforcing, or is honest as it stands
+  // brought the Actions secrets under comparison, so what is left unchecked is the rows held
+  // where neither reader looks — a Provider's own Vercel project, under ADR-0014. Dropping one
+  // quietly is the same failure as dropping an unparseable row.
+  assert.deepEqual(parseUncheckedVariables(ROSTER), ['TMDB_API_READ_ACCESS_TOKEN'])
+})
+
+test("the run's own token is not a roster row, from either source", () => {
+  // `gh secret list` never returns it — it is minted per run rather than stored — but the
+  // `secrets` context always carries it: "GITHUB_TOKEN is a secret that is automatically created
+  // for every workflow run, and is always included in the `secrets` context"
+  // (https://docs.github.com/en/actions/reference/workflows-and-actions/contexts). Left in, it
+  // fails the comparison on every CI run against a roster that is correct.
+  assert.deepEqual(
+    [...parseSecretNames('github_token MIGRATION_DATABASE_URL VERCEL_TOKEN')],
+    ['MIGRATION_DATABASE_URL', 'VERCEL_TOKEN'],
+  )
+})
+
+test('the two secret sources are read the same way, one name per line or spaced', () => {
+  // `gh secret list` locally, the runner's own `secrets` context in CI. Neither shape may be the
+  // only one that parses: the check gates in both places, or it repeats the hole it was widened
+  // to close.
+  assert.deepEqual(
+    [...parseSecretNames('MIGRATION_DATABASE_URL\nVERCEL_TOKEN\n')],
+    [...parseSecretNames('MIGRATION_DATABASE_URL VERCEL_TOKEN')],
+  )
+})
+
+// --- The job summary --------------------------------------------------------------------------
+
+test('the job summary names what was skipped, and says a skip is not a pass', () => {
+  // Why one is written at all: a green run's page has to say which rows were compared and which
+  // were not, without opening the log. A summary reporting only the tally would read, from its
+  // green tick, exactly like a run that checked everything.
+  const summary = renderJobSummary([
+    { name: 'the variable roster matches Vercel', status: 'PASS', detail: '8 variables agree' },
+    { name: 'the label roster matches the tracker', status: 'SKIP', detail: '`orca` is not here' },
   ])
+
+  assert.match(summary, /\| SKIP \| the label roster matches the tracker \| `orca` is not here \|/)
+  assert.match(summary, /1 passed, 1 skipped, 0 failed/)
+  assert.match(summary, /not a pass/)
+})
+
+test('a summary with nothing skipped does not warn about skips', () => {
+  const summary = renderJobSummary([
+    { name: 'the secret roster matches GitHub Actions', status: 'PASS', detail: '2 secrets agree' },
+  ])
+
+  assert.doesNotMatch(summary, /not a pass/)
+  assert.match(summary, /1 passed, 0 skipped, 0 failed/)
 })
 
 // The real listing wraps the rows in a header and a footer, neither of which is a variable.

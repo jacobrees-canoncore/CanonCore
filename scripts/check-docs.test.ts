@@ -65,6 +65,10 @@ function fixture({
       "| Variable | Holder | Environments | Sensitivity | What it is |",
       "| --- | --- | --- | --- | --- |",
       "| `DATABASE_URL` | Vercel | Production | Sensitive | The connection string |",
+      // Both halves of the roster, because a fixture holding only one would let the check that
+      // reads the other pass by finding nothing to compare — and finding nothing is what that
+      // check fails on.
+      "| `MIGRATION_DATABASE_URL` | GitHub Actions secret | — | — | The migration role |",
     ].join("\n"),
   );
   write(

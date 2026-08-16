@@ -510,6 +510,18 @@ all. Two of the surveyed sources already are; the roster as a whole will not be.
 - **The check sees one Vercel project.** Once a credential lives in a Provider's own project it is
   invisible to `check-docs`, and a roster row whose Holder no longer says "Vercel" silently drops out
   of the comparison and becomes unchecked prose.
+
+  *Amended 16 August 2026 under* **CAN-109 Decide whether the label roster check needs enforcing, or
+  is honest as it stands**, which took this consequence in its general form and settled it. Two
+  thirds of it no longer hold: a dropped row is **not silent**, since `parseUncheckedVariables` names
+  every row no source reaches and the run's own summary page carries the report; and a row held as a
+  **GitHub Actions secret is compared** rather than dropped, by a route that costs no credential.
+  What survives is the first clause. The Vercel half still reads one project, deliberately, so a
+  Provider's own project remains out of reach and is named rather than counted as agreement.
+  [`docs/infrastructure.md`](../infrastructure.md) → *What this check compares, and what it cannot*
+  holds the reach of each source, and
+  [`docs/agents/triage-labels.md`](../agents/triage-labels.md) → *Where this check gates, and where
+  it does not* the one check deliberately left local.
 - **The retention sweep and the purge are not Operations.** [ADR-0008](0008-operations-and-undo.md)
   defines an Operation as one thing a *person* did, and undo works on Operations. Nobody performs a
   sweep and nothing undoes one, which `CONTEXT.md`'s definition of Operation now says in terms.
