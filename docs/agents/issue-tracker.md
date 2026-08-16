@@ -187,18 +187,19 @@ feature requests in the triage queue; `/triage` reads this flag.)_
 
 ### A listing is bounded, and only half of that is signalled
 
-Every list-shaped command stops at `--limit`, which defaults to **50 for `list-issues` and 20 for
-`orca linear list`** when the flag is omitted. Each reports the cut, but in `result.meta` and never
-beside the rows: `list-issues` sets `hasMore` and `nextCursor`, `list` sets `hasMore` and offers
-**no cursor and no `--cursor` flag**, `search` sets `limitReached`. So paginate `list-issues` with
-`--cursor` until `hasMore` is false; for the other two, raise `--limit` and re-check.
+Every list-shaped command stops at `--limit`, which defaults to **50 for `list-issues`, 20 for
+`orca linear list` and `search`** when the flag is omitted. Each reports the cut — in
+`result.meta`, never in `result.issues`, and as a `warning:` line when `--json` is omitted:
+`list-issues` sets `hasMore` and `nextCursor`, `list` sets `hasMore` and offers **no cursor and no
+`--cursor` flag**, `search` sets `limitReached`. So paginate `list-issues` with `--cursor` until
+`hasMore` is false; for the other two, raise `--limit` and re-check. *(Measured 16 August 2026,
+when `hasMore` was exact at the boundary.)*
 
 **Archived issues are the silent half.** Both listings drop them by default and nothing in the
 response says so — on team `CAN` a fully paginated `list-issues` returns 117 while 121 exist,
 because CAN-1 to CAN-4, Linear's own onboarding templates, are archived; `list` has no flag for
-them at all. **When the count is itself
-the finding, pass `--include-archived` and check the identifiers run unbroken**, rather than
-trusting a total. *(Measured 16 August 2026, when `hasMore` was exact at the boundary.)*
+them at all. **When the count is itself the finding, pass `--include-archived` and check the
+identifiers run unbroken**, rather than trusting a total.
 
 ### Identifiers and CLI gotchas
 

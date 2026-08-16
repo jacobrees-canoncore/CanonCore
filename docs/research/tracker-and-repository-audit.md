@@ -68,10 +68,11 @@ no JSX and change nothing), the ordering constraint (the shared config must be s
   `--limit` accepts 100 and 250 but errors on 300. Same failure shape as the `--workspace` trap
   already in `docs/agents/issue-tracker.md`, and belongs beside it.
   **Half superseded, 16 August 2026:** the CLI now surfaces truncation in both output modes, so
-  only the archived exclusion is still silent. It landed beside the `--workspace` trap as asked,
-  under CAN-121 list-issues truncates at its limit and reports no next page, so a census run off it
-  is silently short — `docs/agents/issue-tracker.md` → *A listing is bounded, and only half of that
-  is signalled* carries the current behaviour.
+  only the archived exclusion is still silent. The finding landed under
+  [CAN-121 list-issues truncates at its limit and reports no next page, so a census run off it is
+  silently short](https://linear.app/jacobrees-canoncore/issue/CAN-121) — placed in *Conventions*
+  beside the command it governs rather than beside the `--workspace` trap as suggested here:
+  `docs/agents/issue-tracker.md` → *A listing is bounded, and only half of that is signalled*.
 - **`save-issue` reports unconfirmed but lands.** "Linear may have applied the issue save, but Orca
   could not confirm it" — every occurrence this audit (four) had in fact landed, verified by
   re-read. Consistent with the existing guidance: re-read, never retry blind.
