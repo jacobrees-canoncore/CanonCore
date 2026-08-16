@@ -9,12 +9,18 @@ supplied is reduced to the external identifier that names the record: the Source
 do not travel. The export **names each value it withheld and why**, so what arrives is re-importable,
 and visibly incomplete rather than quietly short.
 
+**For TMDB this is settled permanently**, and the reason it cannot be reopened is the same reason it
+had to be decided this way: its published terms say nothing on the point at all, so no re-reading of
+them supports more. What could widen the rule is a *different* Source, and only at the moment that
+Source is adopted.
+
 > **Decided 16 August 2026** in the walkthrough recorded on
 > [CAN-115 Land the 16 August verification sweep: the decisions, the corrections, and what they touch](https://linear.app/jacobrees-canoncore/issue/CAN-115),
 > and derived here by
 > [CAN-106 Decide what the GDPR export may contain under TMDB's published terms](https://linear.app/jacobrees-canoncore/issue/CAN-106).
-> It replaces the position [ADR-0009](0009-external-source-tmdb.md) held until 15 August — the export
-> carries Snapshots whole — which rested on TMDB correspondence now **disregarded entirely**
+> It replaces the position [ADR-0009](0009-external-source-tmdb.md) held until 15 August: the export
+> carries "episode titles, runtimes, and IDs", the three field types a written approval named. That
+> approval is TMDB correspondence now **disregarded entirely**
 > (decision 5 of CAN-96 Record the architecture decisions of 15 August, and make the repository
 > agree, recorded in [ADR-0014](0014-shell-providers-and-per-source-retention.md)).
 >
@@ -65,14 +71,12 @@ The line runs where the person's own act stops and the Source's content begins.
   which is far more than the identifier. The export is built from the composed read
   ([ADR-0004](0004-layered-overlay-for-sources-and-edits.md)), which is the one thing that survived
   every version of this decision.
-- **`supersededValue` is withheld with the values, and it is the trap here.** ADR-0004 stores the
-  composed value at the moment of override as the merge base, so it is by construction a verbatim
-  copy of Source content sitting in the **override** table — a table the previous bullet's rule
-  would otherwise wave through as the owner's own. It is the same trap
-  [ADR-0014](0014-shell-providers-and-per-source-retention.md) → *It models `§1.C` and cannot
-  represent `§1.D`* names for the retention sweep, arriving a second time by a different route.
-  The Override's own value is the person's and travels; the value it superseded is the Source's and
-  does not.
+- **`supersededValue` is withheld with the values, and it is the trap here.** It is Source content
+  living in the **override** table, which *The owner's own rows leave whole* above would otherwise
+  wave through as the person's own. [ADR-0014](0014-shell-providers-and-per-source-retention.md) →
+  *It models `§1.C` and cannot represent `§1.D`* has why, having met the same trap on the retention
+  sweep; it arrives here a second time by a different route. The Override's own value is the
+  person's and travels; the value it superseded is the Source's and does not.
 
 **An identifier is still TMDB Content, and this decision does not pretend otherwise.** `§1.A`
 defines the term as "any content (including audio or visual content) or other information available
@@ -94,7 +98,8 @@ catalogue it is:
 - **`§1.C`** prohibits "Sell, lease, or sublicense the TMDB APIs, access to the TMDB APIs, or TMDB
   Content, or derive revenues from the use or provision of TMDB, the TMDB APIs, or TMDB Content,
   whether for direct commercial or monetary gain or otherwise, except as expressly permitted in a
-  written agreement between You and TMDB". A GDPR export is none of those and earns nothing.
+  written agreement between You and TMDB, as provided for in Paragraph 2 (Commercial Use) below". A
+GDPR export is none of those and earns nothing.
 - **`§1.A`** licenses the APIs "on a worldwide (except as limited below), non-exclusive,
   non-transferable, non-sublicensable, basis". That makes the **licence** non-transferable, which is
   not the same as making a copy of the content unlawful to hand over.
@@ -152,7 +157,9 @@ activities" but no further ([ICO, right to data
 portability](https://ico.org.uk/for-organisations/uk-gdpr-guidance-and-resources/individual-rights/individual-rights/right-to-data-portability/)).
 A title the Source wrote is neither provided by the person nor observed from their activity. **The
 identifier sits on the other side of that line**: which record they put in their catalogue is
-observed from what they did here. Art 20(4) then mirrors Art 15(4) word for word.
+observed from what they did here. Art 20(4) then carries the same limit — "The right referred to in
+paragraph 1 shall not adversely affect the rights and freedoms of others" — so the analysis above
+does not change with the article the request is made under.
 
 **Two unrelated tests landing on the same boundary is what makes this line the natural one** rather
 than a compromise struck between two worse options. It is not evidence that the licence question is
@@ -185,8 +192,10 @@ as CAN-30 GDPR export and erasure already requires. Narrowing the contents does 
 [ADR-0014](0014-shell-providers-and-per-source-retention.md) → *Decision 6 — retention is a property
 of the Source* made the same move for how long a copy may be kept, and for the same reason: Sources
 differ, and a project-wide answer is either too strict for the permissive ones or unlawful for the
-strict ones. Export scope differs the same way — two of the keyless roster are CC0, which permits
-the copy outright, and ADR-0014's Decision 9 records that the roster's licences range from CC0
+strict ones. Export scope differs the same way — two of the keyless roster are recorded as CC0,
+which would permit the copy outright, though ADR-0014 marks Open Library's row *unverified* because
+its CC0 designation is unverifiable on any live page, and that is exactly the reading each Source
+still needs, and ADR-0014's Decision 9 records that the roster's licences range from CC0
 through CC BY to two versions of CC BY-SA.
 
 **And yet no `source.export_scope` column lands, because every Source answers the same way today.**
@@ -203,19 +212,35 @@ is not a reading. A Source whose licence permits the copy is widened by a decisi
 adoption, and the column is written **then**, against two Sources that genuinely disagree, rather
 than now against one.
 
-**What would reverse this.** The first Source whose published terms permit its values to be handed
-to the account holder. That is a widening, which CAN-36 Obtain written confirmation that the GDPR
-export is not redistribution's timing note makes a one-line change rather than a breach — so the
-reversal is cheap by construction, which is the property the conservative reading was chosen for.
+**What would reverse this, and what would not.** The first Source whose published terms permit its
+values to be handed to the account holder. That is a widening, which CAN-36 Obtain written
+confirmation that the GDPR export is not redistribution's timing note makes a one-line change rather
+than a breach — so the reversal is cheap by construction, which is the property the conservative
+reading was chosen for.
+
+**A re-reading of TMDB's terms is not on that list.** CAN-106 Decide what the GDPR export may
+contain under TMDB's published terms carried an escape hatch until 16 August 2026 — *unless a
+reading of the published terms alone supports more* — and closed it. It is closed permanently rather
+than for now, because what closes it cannot expire: there is no clause to read differently, only
+silence. Should TMDB one day publish terms that speak to the point, that is new terms rather than a
+new reading, and it arrives through this ADR being amended rather than through the hatch.
 
 ## The alternatives
 
-**Export the Snapshots whole.** What ADR-0009 said until 15 August 2026, on a written approval that
-decision 5 of CAN-96 Record the architecture decisions of 15 August, and make the repository agree
-now disregards entirely. Rejected because the document permitting it is set aside and nothing in the
-published terms replaces it — and because CAN-36 Obtain written confirmation that the GDPR export is
-not redistribution had already declined to tick its own first criterion, recording the reply as
-"attested, not checked".
+**Export titles, runtimes and identifiers**, the three field types the written approval named. This
+is what ADR-0009 actually said until 15 August 2026, and it is the only alternative here that was
+ever this project's position. Rejected because decision 5 of CAN-96 Record the architecture
+decisions of 15 August, and make the repository agree sets that approval aside entirely and nothing
+in the published terms replaces it — and because CAN-36 Obtain written confirmation that the GDPR
+export is not redistribution had already declined to tick its own first criterion, recording the
+reply as "attested, not checked".
+
+**Serialise the Snapshot rows into the export.** Never this project's position — ADR-0009 rejected
+it in terms even while the approval stood, because a Snapshot holds what the Source returned
+verbatim, overviews, air dates, credits, image paths and vote counts included, which exceeded even
+the wide scope. Recorded because it is the naive implementation of "export everything they own", and
+because "the export carries Snapshots whole" circulated on the tracker as a description of this
+ADR's predecessor when it was never true of it.
 
 **Withhold the Source-derived rows entirely, identifiers included.** Rejected on Recital 63's second
 sentence, and rejected again on the product: an export that cannot be resolved back against a Source
