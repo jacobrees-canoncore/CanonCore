@@ -10,8 +10,11 @@
 //   2. label roster       -  docs/agents/triage-labels.md  vs  the tracker's label list
 //   3. variable roster    -  docs/infrastructure.md  vs  vercel env ls
 //   4. links and anchors  -  every relative markdown link, across every tracked document
-//   5. section pointers   -  every `file -> *Section*` reference, which is how CAN-76 replaced
-//                            the duplication: one owning module, N one-line pointers
+//   5. section pointers   -  every `file -> *Section*` reference: both the document it names and
+//                            the section within it, since a pointer written as prose carries no
+//                            link for check 4 to follow. That shape is how CAN-76 Restructure the
+//                            agent documents: policy, procedure and incidents get their own homes
+//                            replaced the duplication: one owning module, N one-line pointers
 //
 // Run:  node scripts/check-docs.ts [--verbose]
 //
@@ -33,6 +36,7 @@ import {
   anchorsOf,
   compareVariables,
   describeDisagreement,
+  describeTarget,
   explainFailure,
   fail,
   findLinks,
@@ -45,6 +49,7 @@ import {
   parseUncheckedVariables,
   parseVercelEnv,
   pointerResolves,
+  resolvePointer,
   setEq,
   skip,
 } from "./lib/doc-checks.ts";
@@ -227,9 +232,10 @@ check("the variable roster matches Vercel", () => {
 // ---------------------------------------------------------------------------
 // 4 & 5. The pointers.
 //
-// The restructure of CAN-76 gave each rule one owning module and N one-line pointers. A pointer
-// that rots is worse than the duplication it replaced, because the reader is now sent nowhere
-// rather than to a stale copy. Both checks are local, so they always run.
+// The restructure of CAN-76 Restructure the agent documents: policy, procedure and incidents get
+// their own homes gave each rule one owning module and N one-line pointers. A pointer that rots is
+// worse than the duplication it replaced, because the reader is now sent nowhere rather than to a
+// stale copy. Both checks are local, so they always run.
 // ---------------------------------------------------------------------------
 
 // Built on first use rather than at module level. A `Skip` thrown out here would escape the
@@ -279,19 +285,31 @@ check("every relative link and anchor resolves", () => {
 
 check('every "file → *Section*" pointer resolves', () => {
   const docs = documents();
-  const byName = new Map([...docs.keys()].map((f) => [f.split("/").pop()!, f]));
   const broken: string[] = [];
+  let pointers = 0;
   for (const [file, { body }] of docs) {
-    for (const { file: named, section, display, line } of findPointers(body)) {
-      const target = byName.get(named.split("/").pop()!);
-      if (!target) continue; // a document outside the tracked set; the link check owns those
-      if (!pointerResolves(section, docs.get(target)!.titles))
-        broken.push(`${file}:${line} → ${named} → *${display}*`);
+    for (const { target, section, display, line } of findPointers(body)) {
+      pointers++;
+      const where = `${file}:${line} → ${describeTarget(target)} → *${display}*`;
+      // A pointer names its own document, so this check owns whether that document exists. The
+      // link check cannot: a bare prose pointer carries no `](…)` for it to see.
+      const named = resolvePointer(target, file, docs.keys());
+      if (named.length !== 1) {
+        broken.push(
+          named.length === 0
+            ? `${where} (no tracked document of that name)`
+            : `${where} (that name is carried by ${named.join(", ")}; name one of them)`,
+        );
+        continue;
+      }
+      const [resolved] = named;
+      if (!pointerResolves(section, docs.get(resolved)!.titles))
+        broken.push(`${where} (${resolved} has no such section)`);
     }
   }
   if (broken.length)
-    fail(`pointers naming a section that does not exist:\n    - ${broken.join("\n    - ")}`);
-  return "all resolve";
+    fail(`pointers that resolve to nothing:\n    - ${broken.join("\n    - ")}`);
+  return `${pointers} pointers resolve`;
 });
 
 // ---------------------------------------------------------------------------

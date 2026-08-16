@@ -110,7 +110,9 @@ notes CAN-116 Make the tracker agree with the 16 August verification sweep left;
    ADR-link pointer form — a markdown link whose text is `ADR-NNNN` followed by `→ *Section*`, the
    shape of the entire ADR supersession chain — never
    matches the pointer regex, so renaming a heading in ADR-0014 leaves CI green while the amended
-   ADRs point at nothing. *Ticketed as CAN-119 Close check-docs's two silent pointer holes.*
+   ADRs point at nothing. *Ticketed as CAN-119 Close check-docs's two silent pointer holes, and
+   closed there: both checks parse each document now rather than matching its raw text, which
+   reaches the shapes a match could not see, the supersession chain among them.*
 9. **Two v1 tickets owned one statutory deliverable.** CAN-32 Roles, takedown, and the Online Safety Act surfaces already carried the terms page, its
    footer link and per-heading anchors; CAN-89 Give the product a visual identity and a reading surface claimed no other ticket rendered `content/legal/`
    and would have built it again — a lawfulness-gate condition with no stated boundary. *Resolved:
