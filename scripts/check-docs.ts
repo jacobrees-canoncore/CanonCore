@@ -235,28 +235,22 @@ check("the variable roster matches Vercel", () => {
 });
 
 // ---------------------------------------------------------------------------
-// 4. The GitHub Actions secrets.
-//
-// The roster's other holder. `gh secret list` reaches them here but never on a runner: reading
-// the secrets API needs a permission `GITHUB_TOKEN` cannot be granted, so a check resting on it
-// alone would gate locally or nowhere - which is the weakness CAN-109 Decide whether the label
-// roster check needs enforcing, or is honest as it stands was opened to settle. In CI the names
-// come from the job's own `secrets` context instead, which ci.yml reduces to names before this
-// script sees them. docs/infrastructure.md -> Environment variables carries the argument.
+// 4. The GitHub Actions secrets. Local, like the label roster and for the same reason: every
+//    route to them from a runner costs a credential, and that was weighed and refused.
+//    docs/infrastructure.md -> What this check compares, and what it cannot has the argument.
 // ---------------------------------------------------------------------------
 
 check("the secret roster matches GitHub Actions", () => {
   const documented = parseActionsSecrets(read(CONTEXT_HOME));
   if (documented.size === 0) fail(`${CONTEXT_HOME} records no GitHub Actions secrets`);
   const live = parseSecretNames(
-    process.env.ACTIONS_SECRET_NAMES ??
-      source(
-        "gh",
-        ["secret", "list", "--json", "name", "--jq", ".[].name"],
-        "cannot read the Actions secrets",
-      ),
+    source(
+      "gh",
+      ["secret", "list", "--json", "name", "--jq", ".[].name"],
+      "cannot read the Actions secrets",
+    ),
   );
-  // Empty is not agreement. A runner denied every secret, or a `gh` that lists none, would
+  // Empty is not agreement. A `gh` whose listing came back empty, for whatever reason, would
   // otherwise report a roster of two as matching a store of none.
   if (live.size === 0) skip("no secret names came back, so there was nothing to compare");
   if (!setEq(live, documented))

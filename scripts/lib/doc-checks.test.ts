@@ -89,25 +89,12 @@ test('a documented variable no holder reaches is named rather than silently drop
   assert.deepEqual(parseUncheckedVariables(ROSTER), ['TMDB_API_READ_ACCESS_TOKEN'])
 })
 
-test("the run's own token is not a roster row, from either source", () => {
-  // `gh secret list` never returns it — it is minted per run rather than stored — but the
-  // `secrets` context always carries it: "GITHUB_TOKEN is a secret that is automatically created
-  // for every workflow run, and is always included in the `secrets` context"
-  // (https://docs.github.com/en/actions/reference/workflows-and-actions/contexts). Left in, it
-  // fails the comparison on every CI run against a roster that is correct.
-  assert.deepEqual(
-    [...parseSecretNames('github_token MIGRATION_DATABASE_URL VERCEL_TOKEN')],
-    ['MIGRATION_DATABASE_URL', 'VERCEL_TOKEN'],
-  )
-})
-
-test('the two secret sources are read the same way, one name per line or spaced', () => {
-  // `gh secret list` locally, the runner's own `secrets` context in CI. Neither shape may be the
-  // only one that parses: the check gates in both places, or it repeats the hole it was widened
-  // to close.
+test('a secret listing is read as one name per line, trailing newline and all', () => {
+  // `gh secret list --json name --jq '.[].name'`, captured from the real CLI on 16 August 2026.
+  // An empty last line read as a name would fail the comparison against a roster that is right.
   assert.deepEqual(
     [...parseSecretNames('MIGRATION_DATABASE_URL\nVERCEL_TOKEN\n')],
-    [...parseSecretNames('MIGRATION_DATABASE_URL VERCEL_TOKEN')],
+    ['MIGRATION_DATABASE_URL', 'VERCEL_TOKEN'],
   )
 })
 

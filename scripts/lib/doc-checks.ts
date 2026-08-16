@@ -1,8 +1,8 @@
 // The parsing and comparison behind `scripts/check-docs.ts`.
 //
 // Everything here is pure: text in, data out, no filesystem and no subprocesses. That is the
-// seam — the CLI owns reading files and running `gh`, `orca` and `vercel`; this module owns
-// what their output means, and is what `doc-checks.test.ts` exercises.
+// seam — the CLI owns reading files and running `gh`, `orca` and `vercel`; this module owns what
+// their output means and how the report of it reads, and is what `doc-checks.test.ts` exercises.
 
 import { posix } from "node:path";
 
@@ -199,12 +199,13 @@ export function parseLinearLabels(rawJson: string): Set<string> {
 const rosterRows = (markdown: string) =>
   parseTable(markdown, "Variable", "Holder", "Environments", "Sensitivity");
 
-// Which source can speak for a row, read off its Holder. Both are substring tests, which is the
-// one failure mode this arrangement still has: a Holder reading `Vercel (provider-tmdb)` would be
-// pulled into the comparison against `canoncore` and leave the unchecked list at the same time.
-// docs/infrastructure.md → Where a Source credential lives says so where a row gets written.
+// Which source can speak for a row, read off its Holder. Both are case-sensitive substring
+// tests, and that is the one failure mode this arrangement still has: a Holder reading
+// `Vercel (provider-tmdb)` would be pulled into the comparison against `canoncore` and leave the
+// unchecked list at the same moment. docs/infrastructure.md → What this check compares, and what
+// it cannot says so where a row gets written.
 const heldByVercel = (holder: string) => holder.includes("Vercel");
-const heldByActions = (holder: string) => /GitHub Actions/i.test(holder);
+const heldByActions = (holder: string) => holder.includes("GitHub Actions");
 
 /** The Vercel-held rows of the variable roster. */
 export function parseDocumentedVariables(markdown: string): Map<string, VariableState> {
@@ -226,9 +227,12 @@ export function parseDocumentedVariables(markdown: string): Map<string, Variable
   );
 }
 
-/** The GitHub-Actions-held rows of the variable roster: names only, since a secret has no other
- * readable property. Under CAN-109 Decide whether the label roster check needs enforcing, or is
- * honest as it stands these stopped being prose and came under comparison. */
+/**
+ * The GitHub-Actions-held rows of the variable roster. Under CAN-109 Decide whether the label
+ * roster check needs enforcing, or is honest as it stands these stopped being unchecked prose and
+ * came under comparison — on a laptop, which is as far as a keyless route reaches.
+ * docs/infrastructure.md → What this check compares, and what it cannot has the argument.
+ */
 export function parseActionsSecrets(markdown: string): Set<string> {
   return new Set(
     rosterRows(markdown)
@@ -251,20 +255,16 @@ export function parseUncheckedVariables(markdown: string): string[] {
 }
 
 /**
- * Secret names, from either source that can name them: `gh secret list` locally, and on a runner
- * the job's own `secrets` context, which `ci.yml` reduces to names before `check-docs` sees it.
- * One reader for both, because a shape that parses in only one place would leave the check
- * gating locally or nowhere — the hole CAN-109 was opened to close.
- *
- * `GITHUB_TOKEN` is dropped rather than compared: it is minted per run rather than provisioned,
- * so it is no roster row, and the `secrets` context carries it on every run.
+ * Secret names, one per line, as `gh secret list --json name --jq '.[].name'` prints them. Only
+ * names, because a secret has no other property anyone can read back — so this catches a secret
+ * set but undocumented, or documented but never set, and cannot catch a stale value.
  */
 export function parseSecretNames(raw: string): Set<string> {
   return new Set(
     raw
-      .split(/\s+/)
-      .filter(Boolean)
-      .filter((name) => name.toUpperCase() !== "GITHUB_TOKEN"),
+      .split("\n")
+      .map((line) => line.trim())
+      .filter(Boolean),
   );
 }
 
@@ -618,14 +618,10 @@ export const pointerResolves = (section: string, titles: string[]) =>
 /** One check's outcome: what it was, how it went, and what it read to decide. */
 export type Result = { name: string; status: "PASS" | "SKIP" | "FAIL"; detail: string };
 
-const counts = (results: Result[]) => ({
-  failed: results.filter((r) => r.status === "FAIL").length,
-  skipped: results.filter((r) => r.status === "SKIP").length,
-});
-
 /** The tally both the console report and the job summary end with, so the two cannot disagree. */
 export function tally(results: Result[]): string {
-  const { failed, skipped } = counts(results);
+  const failed = results.filter((r) => r.status === "FAIL").length;
+  const skipped = results.filter((r) => r.status === "SKIP").length;
   return (
     `${results.length - failed - skipped} passed, ${skipped} skipped, ${failed} failed` +
     (skipped ? "  (a skipped check reached no source; it is not a pass)" : "")
@@ -638,7 +634,6 @@ export function tally(results: Result[]): string {
  * which is the only place the reach of a run was previously recorded.
  */
 export function renderJobSummary(results: Result[]): string {
-  const { failed, skipped } = counts(results);
   const cell = (s: string) => s.replace(/\|/g, "\\|").replace(/\n/g, " ");
   return [
     "### The documents, checked against the sources they describe",
@@ -647,8 +642,7 @@ export function renderJobSummary(results: Result[]): string {
     "| --- | --- | --- |",
     ...results.map((r) => `| ${r.status} | ${cell(r.name)} | ${cell(r.detail)} |`),
     "",
-    `**${results.length - failed - skipped} passed, ${skipped} skipped, ${failed} failed.**` +
-      (skipped ? " A skipped check reached no source; it is not a pass." : ""),
+    `**${tally(results)}**`,
     "",
   ].join("\n");
 }

@@ -260,8 +260,8 @@ if two branches are ever routinely open at once.
 **The roster for this application.** Every variable the `canoncore` Vercel project holds, plus the
 GitHub Actions secrets, in one table. `scripts/check-docs.ts` compares each half against its own
 source and fails when either disagrees: the Vercel rows against `vercel env ls --project canoncore`,
-the Actions rows against the secrets the workflow can reach. What each source can and cannot speak
-for is *What this check compares, and what it cannot* below.
+the Actions rows against `gh secret list`. The two do not reach equally far, and *What this check
+compares, and what it cannot* below is which reaches where.
 
 **It is no longer every variable the estate holds**, and the claim was narrowed on purpose. Under
 [ADR-0014](adr/0014-shell-providers-and-per-source-retention.md#decision-1--the-app-is-a-shell) a
@@ -341,31 +341,48 @@ under ADR-0014 it should not.
 
 ### What this check compares, and what it cannot
 
-**The roster has two halves and `scripts/check-docs.ts` compares both, against a different source
-each.** Which source can speak for a row is read off its Holder column, and the reach of each is
-worth stating because it is not obvious from a green tick.
+**The roster has two halves and `scripts/check-docs.ts` compares both, each against its own
+source.** Which source can speak for a row is read off its Holder column. The reach of each is worth
+stating in a table, because it is exactly what a green tick does not tell you:
 
 | Half | Source | Where it gates |
 | --- | --- | --- |
 | Holder says `Vercel` | `vercel env ls --project canoncore` | CI and locally. The runner installs `vercel` and holds a `VERCEL_TOKEN` |
-| Holder says `GitHub Actions secret` | the workflow's own `secrets` context in CI, `gh secret list` locally | CI and locally, by a different route in each |
+| Holder says `GitHub Actions secret` | `gh secret list` | **Locally.** Every route to them from a runner costs a credential, and none is bought — below |
 | Any other Holder | none | Nowhere. Named on every run instead |
-
-**The Actions half needs two routes because neither works in both places.** `gh secret list` reads
-the secrets API, which needs a permission the workflow's own token cannot be granted — it is not
-among the scopes `permissions:` accepts
-([Workflow syntax](https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax#permissions)),
-so a check resting on it alone would gate on a laptop or nowhere. The `secrets` context does work,
-"contains the names and values of secrets that are available to a workflow run"
-([Contexts](https://docs.github.com/en/actions/reference/workflows-and-actions/contexts)), and is
-the better evidence of the two: it says the job can *reach* the secret, not merely that one exists.
-`ci.yml` reduces it to names in a step of its own, because the blob carries every value and
-`check-docs` spawns three CLIs that would inherit it.
 
 **Only names are compared, because a secret has no other readable property.** An Actions secret
 cannot be read back any more than a Vercel Sensitive one can, so this half catches a secret set but
 undocumented, or documented but never set — which is how a roster goes stale — and cannot catch a
 stale value.
+
+**Why the Actions half stops at a laptop.** `gh secret list` reads the secrets API, whose permission
+is not among the scopes `permissions:` accepts
+([Workflow syntax](https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax#permissions)),
+so the workflow's own token cannot be granted it. The keyless route that would have worked,
+`toJSON(secrets)`, was built, pushed and **refused by GitHub before any job started** — it is a named
+indicator of malicious-workflow detection
+([incident](incidents.md#a-workflow-reading-tojsonsecrets-is-held-before-any-job-starts)). That
+leaves a fine-grained token with `secrets: read`, which is a credential added to check the credential
+roster, and the same reasoning that refused a Linear credential for the label roster refuses this
+one. So the comparison happens where a credential already exists: on the machine `gh` is already
+signed in on.
+
+**Which makes this the same answer twice, and that is the point.** Both rosters gate locally, both
+skip in CI saying why, and neither buys a credential to do otherwise —
+[`docs/agents/triage-labels.md`](agents/triage-labels.md) → *Where this check gates, and where it does
+not* is the label half, with the argument for accepting rather than enforcing.
+
+**What was decided, and what was turned down.** **CAN-109 Decide whether the label roster check needs
+enforcing, or is honest as it stands** posed three options and the answer is a fourth, assembled from
+two of them:
+
+| | Option | Outcome |
+| --- | --- | --- |
+| 1 | Accept it, and make the skip visible rather than a log line | **Taken, for the label roster** and now for this half too. The job summary is the mechanism |
+| 2 | Widen the comparison to reach the Actions secrets | **Taken, and it lands locally.** The two rows leave the unchecked list because they are genuinely compared, just not everywhere |
+| 3 | A Linear API token in Actions, to enforce the label roster from CI | **Refused.** A user-scoped, workspace-wide credential with a roster row, an expiry and a rotation story, to gate eight strings |
+| 4 | `toJSON(secrets)`, which would have made option 2 reach CI for nothing | **Blocked by GitHub**, and would have blocked every merge with it |
 
 **`scripts/check-docs.ts` was deliberately not widened past one Vercel project.** It reads
 `vercel env ls --project canoncore`, and `parseDocumentedVariables` keeps only rows whose Holder
@@ -375,38 +392,31 @@ exists, which is the speculative generality `CLAUDE.md` rules out. **When `provi
 that repository runs its own check against its own project** — the same shape, one project each,
 rather than one checker reaching across an estate.
 
-**So the third row of the table above is the blind spot, and it is named rather than left silent.**
-`parseUncheckedVariables` reports every documented row neither source reaches, in the check's
-detail line, on every CI run — `ci.yml` runs `node scripts/check-docs.ts --verbose`. A bare local
-run prints only `PASS` and the check's name, for this check as for every other, so **pass
-`--verbose` when you are asking what the roster actually covers**. Today nothing is in it, and the
-first thing that will be is the TMDB token when `provider-tmdb` holds it:
+**So the third row of the first table is the blind spot, and it is named rather than left silent.**
+`parseUncheckedVariables` reports every documented row neither source reaches, in the check's detail
+line. A bare local run prints only `PASS` and the check's name, for this check as for every other, so
+**pass `--verbose` when you are asking what the roster actually covers**. Today nothing is in it, and
+the first thing that will be is the TMDB token once `provider-tmdb` holds it:
 
 ```
 PASS  the variable roster matches Vercel        8 variables agree
 PASS  the secret roster matches GitHub Actions  2 secrets agree
 ```
 
-**A green run says which halves were compared, without opening a log.** `check-docs` writes its
-whole report to the job summary, so the run's own page carries every check, its result and what it
-read. That is what makes a SKIP visible: a skipped check reads, from the tick on the job, exactly
-like one that passed, and both the label roster and a wrongly-scoped `VERCEL_TOKEN` skip rather
-than fail. **CAN-109 Decide whether the label roster check needs enforcing, or is honest as it
-stands** decided this shape, and the same summary answers the finding recorded on **CAN-86 Record
-VERCEL_TOKEN in the credential roster, and revisit whether the release can use a project-scoped
-one** rather than answering it separately.
-
-**The label roster is the one check that stays local, on purpose.** Its source is a desktop CLI,
-and the decision not to buy a Linear credential to reach it from CI is
-[`docs/agents/triage-labels.md`](agents/triage-labels.md) → *Where this check gates, and where it
-does not*.
+**And a green CI run says which halves it compared, without anyone opening a log.** `check-docs`
+writes its whole report to the job summary, so the run's own page carries every check, its result and
+what it read. That is what a skip needs to be worth anything: `docs/agents/workflow.md` → *The gates*
+holds the rule, and this is where it becomes visible. The same page answers the finding recorded on
+**CAN-86 Record VERCEL_TOKEN in the credential roster, and revisit whether the release can use a
+project-scoped one** — a wrongly-scoped token skips this roster rather than failing it — so the two
+share one mechanism rather than getting an answer each.
 
 **A future provider row must not put `Vercel` in its Holder**, and the same now goes for
-`GitHub Actions`. Both filters are substring tests, so a Holder reading `Vercel (provider-tmdb)`
-would be pulled *into* the comparison against `canoncore`, fail against a project that correctly
-does not hold it, and disappear from the unchecked list at the same time — the one failure mode
-this arrangement still has. Name the holder as the repository, and let its own project's check do
-the verifying.
+`GitHub Actions`. Both filters are case-sensitive substring tests, so a Holder reading
+`Vercel (provider-tmdb)` would be pulled *into* the comparison against `canoncore`, fail against a
+project that correctly does not hold it, and disappear from the unchecked list at the same moment —
+the one failure mode this arrangement still has. Name the holder as the repository, and let its own
+project's check do the verifying.
 
 ### Why this one is account-scoped
 
@@ -433,12 +443,10 @@ its environment and unrescued by either. The `check-docs` step instead *skips* `
 matches Vercel` and carries on green, so a wrongly-scoped token costs a documentation gate on every
 branch and only announces itself on a merge to `main`.
 
-**Anyone reading a green pull request would not have known, and now would.** That finding is
-answered rather than merely recorded: since **CAN-109 Decide whether the label roster check needs
-enforcing, or is honest as it stands** the check writes its report to the job summary, so a skip
-and its reason sit on the run's own page. It is the same mechanism that makes the label roster's
-skip visible, which is why the two are one answer and not two — *What this check compares, and what
-it cannot* above.
+**Anyone reading a green pull request would not have known, and now would.** Since **CAN-109 Decide
+whether the label roster check needs enforcing, or is honest as it stands** the report reaches the
+run's own page, where this skip sits with its reason next to the others — *What this check compares,
+and what it cannot* above.
 
 **Reissuing is a dashboard action, not a CLI one.** `vercel tokens add <name>` returns
 `Error: Cannot create tokens for this app. (403)` under the current *Sign in with Vercel (google)*

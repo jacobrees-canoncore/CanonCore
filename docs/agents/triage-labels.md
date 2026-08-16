@@ -47,10 +47,9 @@ whether the label roster check needs enforcing, or is honest as it stands**. `or
 desktop application on Jacob's machine, so on a runner the CLI is absent and the check reports SKIP
 with the reason. **So run the script before landing**, which `/review-pr` does, and read the skips.
 
-**A skip is not a pass, and a green run now says which it was.** `check-docs` writes its report to
-the job summary, so the run's own page names this check as skipped rather than leaving a green tick
-to imply it ran. Without that the roster would be unenforced *and* unannounced, which is the half
-of this that was never acceptable.
+**Unenforced is tolerable; unenforced and unannounced was not**, and the second half is what the
+job summary fixed — [`workflow.md`](workflow.md) → *The gates*. A green run's own page now names this
+check as skipped rather than leaving the tick to imply it ran.
 
 **What was rejected.** A Linear API token in Actions would replace the desktop CLI and buy real
 enforcement. It was turned down: a personal API key is user-scoped and workspace-wide, and it would
@@ -67,17 +66,19 @@ symmetrical:**
   already does with `Improvement` on purpose.
 
 Neither is the failure mode a credential roster has, where the silent direction is a secret nobody
-recorded. That asymmetry is why the same decision widened the credential roster to reach the GitHub
-Actions secrets and left this one where it is —
-[`docs/infrastructure.md`](../infrastructure.md) → *What this check compares, and what it cannot*
-is that half.
+recorded. That is why the same decision widened the credential roster to compare the GitHub Actions
+secrets — though a keyless route to them from CI turned out not to exist either, so both rosters
+ended up gating in the same place. The three options as posed, and which was taken:
+[`docs/infrastructure.md`](../infrastructure.md) → *What this check compares, and what it cannot*.
 
 **GitHub's mirror is not a second source.** Labels sync two ways to GitHub Issues, so the mirror
 looks like something a runner could read with `gh label list` and no credential at all. It is a
-different set. Read back on 16 August 2026 it held fourteen, of which six are names from this
-table: no `Bug` — GitHub label names are case-insensitive, so Linear's collapses into the `bug`
-every repository is created with — no `Improvement`, and eight of GitHub's own defaults alongside.
-Comparing against it would report disagreement on a roster that is correct.
+different set. Read back on 16 August 2026 it held fourteen labels: six of this table's names, eight
+of the defaults GitHub creates a repository with
+([Managing labels](https://docs.github.com/en/issues/using-labels-and-milestones-to-track-work/managing-labels)),
+and neither `Bug` nor `Improvement`. `Bug` is the one name of ours that collides with a default,
+case aside, and the mirror carries `bug` instead. Comparing against that set would report
+disagreement on a roster that is correct.
 
 ## Changing them
 
