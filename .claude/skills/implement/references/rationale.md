@@ -2,9 +2,9 @@
 
 Read this before changing or re-syncing `.claude/skills/implement/`.
 
-The body of `SKILL.md`, minus the two added lines — *read the ticket first* and
-*check the docs* — is a verbatim fork of `mattpocock-skills:implement` at pack
-version 1.2.3.
+The body of `SKILL.md` is a verbatim fork of `mattpocock-skills:implement` at
+pack version 1.2.3, plus three local additions: the read-the-ticket line, the
+docs-lookup line, and the closing pointer to this file.
 
 ## Why it is a copy rather than a delegation
 
@@ -27,19 +27,19 @@ can fire it.
 ## Why the read-the-ticket-first line was added
 
 Upstream assumes the human pasted the spec into the same conversation. Here
-`CLAUDE.md` requires the grill and the implementation to run in **separate
-sessions**, so `/implement` starts on a ticket it has never seen. `--full` is
-what carries the comments, and comments are where a scope cut or a reversal
-gets recorded: none of them mirrors to GitHub (CAN-112 Comments never reach the
-GitHub mirror, and the tracker doc said they did), so the body alone is not the
-ticket. `--workspace` is spelled out because Orca picks one of three silently
-when it is omitted.
+`CLAUDE.md` puts the grill and the implementation in **separate sessions**, so
+`/implement` starts on a ticket it has never seen, and a default read returns
+the description alone. The comments are where a scope cut or a reversal gets
+recorded, so the body by itself is not the ticket. `--comments` is the flag
+that carries them: `--full` is capped and may truncate, and `--current` is the
+form a worktree created with `--linear-issue` makes work
+([issue-tracker.md](../../../../docs/agents/issue-tracker.md) → *Conventions*).
 
-## Why the docs-lookup paragraph was added
+## Why the docs-lookup line was added
 
 Every other rule that would trigger a lookup is gated on something that is not
 true mid-implementation: `CLAUDE.md`'s *"do not assume a library lacks a
 capability"* fires on dependency choice, and the global context7 rule fires on
 the user asking. Neither fires when the agent is writing a call from memory.
-The tool table in `CLAUDE.md` answers *which* tool; the added paragraph answers
+The tool table in `CLAUDE.md` answers *which* tool; the added line answers
 *when*.

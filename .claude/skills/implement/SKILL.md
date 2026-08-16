@@ -6,7 +6,7 @@ disable-model-invocation: true
 
 Implement the work described by the user in the spec or tickets.
 
-Start by reading the ticket and its comments — `orca linear issue CAN-n --full --json --workspace ad2669ec-93a5-4ce1-97fa-c7d9247a1452` — then the documents it names.
+When the work is a ticket, read it and its comments first — `orca linear issue --current --comments --json` — then the ADRs and docs for the area.
 
 Use /tdd where possible, at pre-agreed seams.
 
