@@ -271,9 +271,9 @@ export function parseSecretNames(raw: string): Set<string> {
 // --- The release token ------------------------------------------------------------------------
 //
 // Reissuing a Vercel token leaves the one it replaced live until somebody revokes it, so a name
-// can be carried by more than one unexpired token. That is not hypothetical here: it is why the
-// register described a replaced token's expiry for two days after the replacement, and why a
-// check matching on the name alone would have called that agreement.
+// can be carried by more than one unexpired token — as this one was, from 14 to 16 August 2026.
+// A check matching on the name alone would have picked whichever it read first and called that
+// agreement, which is why the comparison is anchored to last use instead.
 // docs/infrastructure.md → Why this one is account-scoped holds the rows and the argument.
 
 export type ReleaseTokenRow = { name: string; scope: string; expires: string; live: boolean };
@@ -324,8 +324,9 @@ export function parseVercelTokens(rawJson: string): VercelToken[] {
       expiresAt: typeof row.expiresAt === "number" ? row.expiresAt : null,
       activeAt: typeof row.activeAt === "number" ? row.activeAt : null,
       // Vercel's own marker for the narrowest scope the dashboard offers: one project inside one
-      // team. Reported rather than enforced — what a wrongly-scoped token costs is CAN-109's
-      // answer, not a second one here.
+      // team. Reported rather than enforced — what a wrongly-scoped token costs is answered by
+      // CAN-109 Decide whether the label roster check needs enforcing, or is honest as it stands,
+      // and does not get a second answer here.
       projectOnly: row.scope === "project-only",
     };
   });
@@ -334,16 +335,16 @@ export function parseVercelTokens(rawJson: string): VercelToken[] {
 /**
  * Which token of a name is the one in use: the one Vercel last saw used. Creation order cannot
  * answer it — a replacement is newer, but so is a token minted and never wired up — and neither
- * can expiry, since both survive their replacement.
+ * can expiry, since a replaced token goes on being unexpired until somebody revokes it.
  */
-export function liveTokenNamed(tokens: VercelToken[], name: string): VercelToken | undefined {
+export function lastUsedTokenNamed(tokens: VercelToken[], name: string): VercelToken | undefined {
   return tokens
     .filter((t) => t.name === name)
     .sort((a, b) => (b.activeAt ?? 0) - (a.activeAt ?? 0))[0];
 }
 
-/** A token timestamp as the register writes it: UTC, day precision, or `never`. */
-export const utcDay = (ms: number | null): string =>
+/** An expiry as the register writes it: UTC, day precision — or `never`, which a token may be. */
+export const expiryDay = (ms: number | null): string =>
   ms === null ? "never" : new Date(ms).toISOString().slice(0, 10);
 
 const ENVIRONMENTS = /Production|Preview|Development/g;

@@ -45,7 +45,7 @@ import {
   fail,
   findLinks,
   findPointers,
-  liveTokenNamed,
+  expiryDay,
   parseActionsSecrets,
   parseCiJobNames,
   parseDocumentedContexts,
@@ -62,8 +62,8 @@ import {
   resolvePointer,
   setEq,
   skip,
+  lastUsedTokenNamed,
   tally,
-  utcDay,
 } from "./lib/doc-checks.ts";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
@@ -279,20 +279,26 @@ check("the secret roster matches GitHub Actions", () => {
 // 5. The release token's expiry.
 //
 // The roster records when `VERCEL_TOKEN` runs out, and an expiry nobody re-reads is one that goes
-// stale silently — there is no failure until the day it stops the release. It stayed wrong for two
-// days once already, because reissuing left the replaced token live and the register kept its
-// date. So the date is compared rather than merely written down, and the token in use is
-// identified by which one Vercel last saw used rather than by a name two tokens share.
+// stale silently — there is no failure until the day it stops the release. So the date is compared
+// rather than merely written down, and the token it is compared against is the one Vercel last saw
+// used, because a name is not unique: reissuing leaves the replaced token live and unexpired, as
+// happened here from 14 to 16 August 2026.
 //
-// Which is as far as this goes: what a *wrongly scoped* token costs is CAN-109 Decide whether the
-// label roster check needs enforcing, or is honest as it stands, answered on the job summary.
+// The comparison is to the day, so a replacement minted hours after the token it replaces slips
+// through — which is what 14 August was. It catches the ordinary case, a reissue weeks or months
+// later whose expiry moves with it. docs/infrastructure.md -> Why this one is account-scoped says
+// so where the date is written.
+//
+// Which is as far as this goes: what a *wrongly scoped* token costs is answered by CAN-109 Decide
+// whether the label roster check needs enforcing, or is honest as it stands, on the job summary.
 // The scope is reported in the detail line here and never failed on.
 // ---------------------------------------------------------------------------
 
-// `vercel tokens ls` defaults to 20, refuses more than 100 (`--limit must be between 1 and 100`)
-// and offers no way to ask for the next page. This account already carries more than 100 tokens,
-// nearly all of them minted by signing in, so the listing is capped however it is asked for — and
-// what that costs is handled below rather than assumed away.
+// `vercel tokens ls --help` on 16 August 2026 (CLI 58.7.1) documents `--limit` as "Maximum number
+// of tokens to return (default 20)" and offers no flag for the next page; asking for 101 returns
+// `Error: --limit must be between 1 and 100`. At 100 this account fills the page, so the listing
+// is capped in practice however it is asked for — and what that costs is handled below rather than
+// assumed away.
 const TOKEN_LIMIT = 100;
 
 check("the release token's expiry matches Vercel", () => {
@@ -314,12 +320,15 @@ check("the release token's expiry matches Vercel", () => {
   // nothing is one this run never read, not an account holding no tokens.
   if (tokens.length === 0) skip("no tokens came back, so there was nothing to compare");
 
-  // A full page is the listing stopping, not the account ending. It is ordered newest first, so a
-  // token found in one has every token created after it in there too — the one thing a capped page
-  // cannot tell apart is a token that is absent from a token that fell off the end. Absent is a
-  // failure worth stopping for and off-the-end is an outage, so they part company here.
+  // A full page is the listing stopping, not the account ending. It comes back ordered by last
+  // use, descending — read off the live CLI on 16 August 2026, where `activeAt` descends across
+  // all 100 rows and `createdAt` does not — so everything a full page leaves out was used less
+  // recently than everything in it. A name present in the page therefore has its most recently
+  // used holder in the page, which is the one compared below. What a full page cannot tell apart
+  // is a name that is absent from a name that fell off the end: absent is worth failing on, and
+  // off-the-end is an outage, so the two part company here.
   const capped = tokens.length >= TOKEN_LIMIT;
-  const live = liveTokenNamed(tokens, row.name);
+  const live = lastUsedTokenNamed(tokens, row.name);
   if (!live) {
     if (capped)
       skip(
@@ -331,7 +340,7 @@ check("the release token's expiry matches Vercel", () => {
         `A release token that does not exist stops the release on the next merge to \`main\`.`,
     );
   }
-  const expires = utcDay(live.expiresAt);
+  const expires = expiryDay(live.expiresAt);
   if (expires !== row.expires)
     fail(
       `${CONTEXT_HOME} records \`${row.name}\` as expiring ${row.expires}; the token Vercel last ` +

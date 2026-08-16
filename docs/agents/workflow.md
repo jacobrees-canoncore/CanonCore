@@ -247,7 +247,7 @@ not an oversight:**
 | Variable roster vs `vercel env ls` | CI | The runner installs `vercel` and holds a `VERCEL_TOKEN` secret. An undocumented credential is how a roster goes stale, so this one is worth a secret |
 | Secret roster vs `gh secret list` | **Locally only** | The workflow's own token cannot be granted the secrets API, and every route that reaches a runner costs a credential |
 | Label roster vs the tracker | **Locally only** | `orca` drives a desktop app on Jacob's machine and cannot run on a runner. A Linear credential to reach it from CI was weighed and refused |
-| Release token's expiry vs `vercel tokens ls` | Locally. **In CI, not yet known** | The same `VERCEL_TOKEN` as the variable roster, but listing an account's tokens is a user-level call rather than a project one. Whether this token may make it is read off the first run's summary rather than claimed here |
+| Release token's expiry vs `vercel tokens ls` | Locally. **In CI, not yet known** | The same `VERCEL_TOKEN` as the variable roster, but listing an account's tokens is a user-level call rather than a project one. Whether this token may make it is read off the first run's summary rather than claimed here. Either way it degrades safely: a token the listing refuses exits `Error: Not authorized`, which is a SKIP with that reason and not a failed build |
 
 A check whose source is unreachable reports **SKIP with the reason** and does not fail the build: a
 transient outage must not block every merge, which is the same reasoning that keeps a

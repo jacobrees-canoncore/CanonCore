@@ -283,7 +283,7 @@ for its own credentials**; the pointer here is *Where a Source credential lives*
 | `SENTRY_DSN` | Vercel | Production, Preview | Sensitive | Also recorded under *Error reporting* below, since a DSN is not a secret |
 | `SENTRY_AUTH_TOKEN` | Vercel | Production, Preview | Sensitive | Organisation auth token, scope `org:ci`, for source-map upload |
 | `MIGRATION_DATABASE_URL` | GitHub Actions secret | — | — | The migration role's connection string, which has to ask for `sslmode=verify-full`. Not in Vercel: migrations run in Actions, not in the build |
-| `VERCEL_TOKEN` | GitHub Actions secret | — | — | **Account-scoped, and it has to be.** Two steps of `ci.yml` consume it: the `node scripts/check-docs.ts --verbose` run, and **Build and promote the production deployment**. A *project*-scoped token fails both, and fails them differently. Replaced 14 August 2026, **expires 14 August 2027** — *Why this one is account-scoped* below holds the identity, the expiry and the scope, and `scripts/check-docs.ts` compares that expiry against Vercel on every run |
+| `VERCEL_TOKEN` | GitHub Actions secret | — | — | **Account-scoped, and it has to be.** Two steps of `ci.yml` consume it: the `node scripts/check-docs.ts --verbose` run, and **Build and promote the production deployment**. A *project*-scoped token fails both, and fails them differently. Replaced 14 August 2026, **expires 14 August 2027** — *Why this one is account-scoped* below holds the identity, the expiry and the scope, and `scripts/check-docs.ts` compares that expiry against Vercel wherever it can list tokens, which `docs/agents/workflow.md` → *The gates* says is not everywhere |
 
 **No `NEON_*` variables.** All sixteen the Marketplace integration had written were removed on 13
 August 2026. Whether the integration re-writes them is checked by **CAN-69 Record the credential
@@ -432,19 +432,26 @@ breaks both consumers — differently, which is the part worth recording.
 | `canoncore-github-actions-release` | **User** — the whole account: every team the user belongs to, and every project in each | `2027-08-14` | **Live.** Created 14 August 2026 at 10:43 UTC, runs out **16:43 UTC on 14 August 2027**. Identified as the one CI holds by last use: Vercel last saw it at 17:43 UTC on 16 August 2026, inside run `31962399354`'s window |
 | `canoncore-github-actions-release` | Project — `canoncore` alone, inside `team_fM6JucuEULAiTuHY5TM5h3TP` | `2027-08-14` | **Replaced** 14 August 2026, thirty-six minutes after it was set, and **revoked 16 August 2026** — it had a year of life left and nothing had used it since |
 
-**The expiry is compared rather than merely written down**, and the second row is why. For two days
-this document recorded the replaced token's expiry: reissuing leaves the old token live, so one name
-was carried by two unexpired tokens and the wrong one read as a match. `scripts/check-docs.ts` reads
-the listing, takes the token Vercel **last saw used** and fails when its expiry is not the date
-above. Last use rather than the name is the whole trick — on 14 August both tokens carried this
-name, both were unexpired, and only one had ever run a release.
+**The expiry is compared rather than merely written down**, and the second row is why it cannot be
+compared by name. Until this change no document here carried an expiry at all — the replacement date
+was recorded and the date it runs out was not — so nothing had gone stale in these pages. What had
+gone stale is the tracker's copy: from 14 to 16 August 2026 **CAN-86 Record VERCEL_TOKEN in the
+credential roster, and revisit whether the release can use a project-scoped one** described the
+replaced token's identity as the live one's. Nothing could have caught that by reading, because two
+unexpired tokens carried the one name. So `scripts/check-docs.ts` reads the listing, takes the token
+Vercel **last saw used**, and fails when its expiry is not the date above.
 
-**What that catches, and what it deliberately does not.** It catches the failure that has actually
-happened here: a token replaced and a date left behind. It does not count down to 14 August 2027. A
-check that began failing as the date approached would turn a stopped release into a blocked merge,
-which is worse than what it warns about — and the failure this guards is loud already: the release
-step stops and production keeps serving the previous deployment. So the expiry stays a year, and a
-shorter one would buy nothing, since it cannot narrow the scope and every rotation is manual work.
+**What that catches, and the case it would have missed.** It catches the ordinary drift: a token
+reissued weeks or months later, whose expiry moves with it and whose recorded date stops matching.
+It would **not** have caught 14 August, because the replacement was minted thirty-six minutes after
+the token it replaced and the two expire on the same day — the comparison is to the day, which is
+the precision a roster can carry in a form a reader can check.
+
+**It also does not count down to 14 August 2027, on purpose.** A check that began failing as the
+date approached would turn a stopped release into a blocked merge, which is worse than what it warns
+about — and this failure is loud already: the release step stops and production keeps serving the
+previous deployment. So the expiry stays a year, and a shorter one would buy nothing, since it
+cannot narrow the scope and every rotation is manual dashboard work.
 
 **"Account" here is the user, not the team, and the distinction is real even where it makes no
 difference today.** The live token's scope is `{ "type": "user" }` with no team attached, so it
@@ -511,6 +518,12 @@ A remote build's calls are a **strict subset** of `vercel pull`'s, behind the sa
 release run above stopped, is that project fetch failing. Every deploy path the CLI offers resolves the linked
 project before it does anything else; the remote build then reads `rootDirectory` from the answer to
 find `apps/web` at all. **So the question that ticket asked is closed: no.**
+
+**That is a trace and not a run, and the difference is worth stating.** No project-scoped token was
+put through `vercel deploy`: what was compared is which endpoints each command calls, against the
+endpoint the failure names. It closes the question because the failing call is one a remote build
+makes too, not because the narrower token was watched failing at it. Re-testing it would now need a
+fresh token from the dashboard, the old one having been revoked.
 
 **`--prebuilt` therefore stays**, and now for the reason it was chosen rather than for want of an
 alternative. Vercel's build cache was the other half of that suggestion and it is real, but it is

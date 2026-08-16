@@ -8,7 +8,7 @@ import {
   explainFailure,
   findLinks,
   findPointers,
-  liveTokenNamed,
+  expiryDay,
   parseActionsSecrets,
   parseCiJobNames,
   parseDocumentedReleaseTokens,
@@ -18,8 +18,8 @@ import {
   parseVercelEnv,
   pointerResolves,
   renderJobSummary,
+  lastUsedTokenNamed,
   resolvePointer,
-  utcDay,
 } from './doc-checks.ts'
 
 // `vercel env ls` as it actually prints: OSC 8 hyperlinks around each environment name, one row
@@ -103,8 +103,9 @@ test('a secret listing is read as one name per line, trailing newline and all', 
 })
 
 // --- The release token ------------------------------------------------------------------------
-// Two tokens have carried the release name, and for two days the roster described the one that
-// had been replaced. That is what this check exists to stop: a date nobody can verify by reading.
+// Two tokens carried the release name between 14 and 16 August 2026, both unexpired. That is what
+// this check has to survive: a date nobody can verify by reading, against a name that is not
+// unique.
 
 // `vercel tokens ls --json --limit 100` as it actually prints — captured from the real CLI on
 // 16 August 2026, trimmed to the fields the check reads. The blank first line is the CLI's own.
@@ -175,22 +176,22 @@ test('the token in use is the one used most recently, not the one created first'
   // The whole point. Both tokens carry the release name and both are unexpired, so a check
   // matching on the name alone would have called the replaced one a match and passed on a
   // roster that was wrong — which is exactly what happened for two days in prose.
-  const live = liveTokenNamed(parseVercelTokens(TOKENS_JSON), 'canoncore-github-actions-release')
+  const live = lastUsedTokenNamed(parseVercelTokens(TOKENS_JSON), 'canoncore-github-actions-release')
 
   assert.equal(live?.id, 'NC7KwX54fmoSWeutOo7UsXIqUEv3diIxfawJ9ShwJFpSUxcS')
   assert.equal(live?.projectOnly, false)
-  assert.equal(utcDay(live?.expiresAt ?? null), '2027-08-14')
+  assert.equal(expiryDay(live?.expiresAt ?? null), '2027-08-14')
 })
 
 test('a project-only token is read as one, and a token that never expires as never', () => {
   const tokens = parseVercelTokens(TOKENS_JSON)
 
   assert.equal(tokens.find((t) => t.projectOnly)?.id.startsWith('J5nUaKc'), true)
-  assert.equal(utcDay(tokens.find((t) => t.name === 'canoncore-local-dev')!.expiresAt), 'never')
+  assert.equal(expiryDay(tokens.find((t) => t.name === 'canoncore-local-dev')!.expiresAt), 'never')
 })
 
 test('a name no token carries comes back as nothing rather than as the wrong token', () => {
-  assert.equal(liveTokenNamed(parseVercelTokens(TOKENS_JSON), 'canoncore-release'), undefined)
+  assert.equal(lastUsedTokenNamed(parseVercelTokens(TOKENS_JSON), 'canoncore-release'), undefined)
 })
 
 test('a token listing that is not JSON, or carries no array, is a skip and not a failure', () => {
