@@ -268,6 +268,84 @@ export function parseSecretNames(raw: string): Set<string> {
   );
 }
 
+// --- The release token ------------------------------------------------------------------------
+//
+// Reissuing a Vercel token leaves the one it replaced live until somebody revokes it, so a name
+// can be carried by more than one unexpired token. That is not hypothetical here: it is why the
+// register described a replaced token's expiry for two days after the replacement, and why a
+// check matching on the name alone would have called that agreement.
+// docs/infrastructure.md → Why this one is account-scoped holds the rows and the argument.
+
+export type ReleaseTokenRow = { name: string; scope: string; expires: string; live: boolean };
+
+/**
+ * Every token the register says has held the release name, the live one included. `State` stays
+ * prose because a reader needs the sentence and not a flag; the check reads only whether it opens
+ * with **Live**, so a row demoted to history leaves the comparison by being rewritten as one.
+ */
+export function parseDocumentedReleaseTokens(markdown: string): ReleaseTokenRow[] {
+  return parseTable(markdown, "Token", "Scope", "Expires", "State").map((r) => ({
+    name: unbacktick(r.Token),
+    scope: r.Scope,
+    expires: unbacktick(r.Expires),
+    live: /\*\*Live\b/.test(r.State),
+  }));
+}
+
+export type VercelToken = {
+  id: string;
+  name: string;
+  expiresAt: number | null;
+  activeAt: number | null;
+  projectOnly: boolean;
+};
+
+/**
+ * `vercel tokens ls --json` as the CLI prints it, down to the fields this check reads. Anything
+ * it cannot read is a Skip rather than a failure, the rule the tracker's labels state: a source
+ * whose format moved, or that refused, must not read as a source that disagreed.
+ */
+export function parseVercelTokens(rawJson: string): VercelToken[] {
+  const start = rawJson.indexOf("{");
+  if (start === -1) skip("`vercel tokens ls` printed no JSON object");
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(rawJson.slice(start));
+  } catch (err) {
+    skip(`could not parse the token listing: ${(err as Error).message}`);
+  }
+  const tokens = (parsed as { tokens?: unknown })?.tokens;
+  if (!Array.isArray(tokens)) skip("the token listing carried no tokens array");
+  return tokens.map((t) => {
+    const row = t as Record<string, unknown>;
+    return {
+      id: typeof row.id === "string" ? row.id : "",
+      name: typeof row.name === "string" ? row.name : "",
+      expiresAt: typeof row.expiresAt === "number" ? row.expiresAt : null,
+      activeAt: typeof row.activeAt === "number" ? row.activeAt : null,
+      // Vercel's own marker for the narrowest scope the dashboard offers: one project inside one
+      // team. Reported rather than enforced — what a wrongly-scoped token costs is CAN-109's
+      // answer, not a second one here.
+      projectOnly: row.scope === "project-only",
+    };
+  });
+}
+
+/**
+ * Which token of a name is the one in use: the one Vercel last saw used. Creation order cannot
+ * answer it — a replacement is newer, but so is a token minted and never wired up — and neither
+ * can expiry, since both survive their replacement.
+ */
+export function liveTokenNamed(tokens: VercelToken[], name: string): VercelToken | undefined {
+  return tokens
+    .filter((t) => t.name === name)
+    .sort((a, b) => (b.activeAt ?? 0) - (a.activeAt ?? 0))[0];
+}
+
+/** A token timestamp as the register writes it: UTC, day precision, or `never`. */
+export const utcDay = (ms: number | null): string =>
+  ms === null ? "never" : new Date(ms).toISOString().slice(0, 10);
+
 const ENVIRONMENTS = /Production|Preview|Development/g;
 // A row of `vercel env ls`: leading space, the name, a value column, the sensitivity, the
 // environments. The name matches what Vercel itself accepts, not the all-capitals convention

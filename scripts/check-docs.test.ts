@@ -31,17 +31,23 @@ type Fixture = {
  * `documents` adds further tracked markdown, which is how a case gives one check something to
  * fail on; `untracked` hides paths from the index without removing them from disk, which is how
  * a case takes the document set away while leaving every file the other checks read.
+ *
+ * `tokenRows` is the release-token table's body. It is a parameter rather than part of
+ * `documents` because a case wanting a different table would otherwise have to rewrite the whole
+ * register, taking every other check's source with it.
  */
 function fixture({
   jobName,
   documentedContext,
   documents = {},
   untracked = [],
+  tokenRows = ["| `the-release-token` | User | `2027-08-14` | **Live.** What CI holds |"],
 }: {
   jobName: string;
   documentedContext: string;
   documents?: Record<string, string>;
   untracked?: string[];
+  tokenRows?: string[];
 }): Fixture {
   const dir = mkdtempSync(join(tmpdir(), "check-docs-"));
   const write = (rel: string, body: string) => {
@@ -75,6 +81,12 @@ function fixture({
       // reads the other pass by finding nothing to compare — and finding nothing is what that
       // check fails on.
       "| `MIGRATION_DATABASE_URL` | GitHub Actions secret | — | — | The migration role |",
+      "",
+      "### Why this one is account-scoped",
+      "",
+      "| Token | Scope | Expires | State |",
+      "| --- | --- | --- | --- |",
+      ...tokenRows,
     ].join("\n"),
   );
   write(
@@ -265,6 +277,27 @@ test("a listing that came back empty fails rather than passing over nothing", ()
   assert.match(output, /^FAIL {2}the job name has exactly one documented home {2,}.*was left to search/m);
   assert.match(output, /^FAIL {2}every relative link and anchor resolves {2,}.*no tracked markdown/m);
   assert.match(output, /^FAIL {2}every "file → \*Section\*" pointer resolves {2,}.*no tracked markdown/m);
+});
+
+test("a register naming two live release tokens fails before it reaches Vercel", () => {
+  // Reissuing leaves the replaced token live, so the register grows a second row and the reader
+  // has to be told which one CI runs on. Two rows claiming to be that one is not a smaller version
+  // of the same answer — the check would compare against whichever it read first, and a wrong
+  // expiry would then pass. This decides on the document alone, so it holds even where `vercel`
+  // is unreachable.
+  const { run, gitOnly } = fixture({
+    jobName: "the register's context",
+    documentedContext: "the register's context",
+    tokenRows: [
+      "| `the-release-token` | User | `2027-08-14` | **Live.** What CI holds |",
+      "| `the-release-token` | Project | `2026-11-01` | **Live.** Also, apparently |",
+    ],
+  });
+  const { code, output } = run(gitOnly);
+
+  assert.equal(code, 1, output);
+  assert.match(output, /^FAIL {2}the release token's expiry matches Vercel/m);
+  assert.match(output, /marks 2 release tokens \*\*Live\*\*/);
 });
 
 test("the job summary carries the same verdicts as the console report", () => {

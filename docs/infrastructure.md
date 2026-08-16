@@ -283,7 +283,7 @@ for its own credentials**; the pointer here is *Where a Source credential lives*
 | `SENTRY_DSN` | Vercel | Production, Preview | Sensitive | Also recorded under *Error reporting* below, since a DSN is not a secret |
 | `SENTRY_AUTH_TOKEN` | Vercel | Production, Preview | Sensitive | Organisation auth token, scope `org:ci`, for source-map upload |
 | `MIGRATION_DATABASE_URL` | GitHub Actions secret | — | — | The migration role's connection string, which has to ask for `sslmode=verify-full`. Not in Vercel: migrations run in Actions, not in the build |
-| `VERCEL_TOKEN` | GitHub Actions secret | — | — | **Account-scoped, and it has to be.** Two steps of `ci.yml` consume it: the `node scripts/check-docs.ts --verbose` run, and **Build and promote the production deployment**. A *project*-scoped token fails both, and fails them differently — see *Why this one is account-scoped* below. Replaced 14 August 2026; the account is `jacobreesnew-7380's projects` |
+| `VERCEL_TOKEN` | GitHub Actions secret | — | — | **Account-scoped, and it has to be.** Two steps of `ci.yml` consume it: the `node scripts/check-docs.ts --verbose` run, and **Build and promote the production deployment**. A *project*-scoped token fails both, and fails them differently. Replaced 14 August 2026, **expires 14 August 2027** — *Why this one is account-scoped* below holds the identity, the expiry and the scope, and `scripts/check-docs.ts` compares that expiry against Vercel on every run |
 
 **No `NEON_*` variables.** All sixteen the Marketplace integration had written were removed on 13
 August 2026. Whether the integration re-writes them is checked by **CAN-69 Record the credential
@@ -422,8 +422,39 @@ project's check do the verifying.
 
 ### Why this one is account-scoped
 
-`VERCEL_TOKEN` is scoped to the account, `jacobreesnew-7380's projects`, and a project-scoped
-token breaks both consumers — differently, which is the part worth recording.
+`VERCEL_TOKEN` is scoped to the account rather than to this project, and a project-scoped token
+breaks both consumers — differently, which is the part worth recording.
+
+**What the live token is**, read back from `vercel tokens ls --json` on 16 August 2026:
+
+| Token | Scope | Expires | State |
+| --- | --- | --- | --- |
+| `canoncore-github-actions-release` | **User** — the whole account: every team the user belongs to, and every project in each | `2027-08-14` | **Live.** Created 14 August 2026 at 10:43 UTC, runs out **16:43 UTC on 14 August 2027**. Identified as the one CI holds by last use: Vercel last saw it at 17:43 UTC on 16 August 2026, inside run `31962399354`'s window |
+| `canoncore-github-actions-release` | Project — `canoncore` alone, inside `team_fM6JucuEULAiTuHY5TM5h3TP` | `2027-08-14` | **Replaced** 14 August 2026, thirty-six minutes after it was set, and **revoked 16 August 2026** — it had a year of life left and nothing had used it since |
+
+**The expiry is compared rather than merely written down**, and the second row is why. For two days
+this document recorded the replaced token's expiry: reissuing leaves the old token live, so one name
+was carried by two unexpired tokens and the wrong one read as a match. `scripts/check-docs.ts` reads
+the listing, takes the token Vercel **last saw used** and fails when its expiry is not the date
+above. Last use rather than the name is the whole trick — on 14 August both tokens carried this
+name, both were unexpired, and only one had ever run a release.
+
+**What that catches, and what it deliberately does not.** It catches the failure that has actually
+happened here: a token replaced and a date left behind. It does not count down to 14 August 2027. A
+check that began failing as the date approached would turn a stopped release into a blocked merge,
+which is worse than what it warns about — and the failure this guards is loud already: the release
+step stops and production keeps serving the previous deployment. So the expiry stays a year, and a
+shorter one would buy nothing, since it cannot narrow the scope and every rotation is manual work.
+
+**"Account" here is the user, not the team, and the distinction is real even where it makes no
+difference today.** The live token's scope is `{ "type": "user" }` with no team attached, so it
+reaches every team the user belongs to. The dashboard's middle rung — one team, all its projects —
+is narrower, and the narrowest is the project rung that does not work at all. The account holds one
+team, `jacobreesnew-7380's projects`, and nine projects in it, so user scope and team scope reach
+the same nine today. They part company the moment a second team exists, or if the token should be
+kept off account-level endpoints such as the token list itself. **The middle rung is untested**, and
+what would settle it is a team-scoped token minted in the dashboard and run through the release
+once.
 
 | Token scope | `check-docs` result **in CI** | When |
 | --- | --- | --- |
@@ -435,9 +466,15 @@ token breaks both consumers — differently, which is the part worth recording.
 roster check needs enforcing, or is honest as it stands** added the secret roster, which skips on a
 runner, so the current baseline in CI is two skips rather than one. What the first two rows record
 is the shape, and the shape is unchanged: a project-scoped token turns a pass into a skip rather
-than into a failure, so it costs a gate without costing a build. A local run reports `8 passed,
-0 skipped`, because both the label roster and the secret roster reach their source here and neither
-can on a runner — so no local total is evidence about the token's scope.
+than into a failure, so it costs a gate without costing a build. A local run reports `9 passed,
+0 skipped`, because the label roster, the secret roster and the token expiry all reach their source
+here and none of them can be assumed to on a runner — so no local total is evidence about the
+token's scope.
+
+**Every total above is against the check count of its day, and the count has moved twice.** Seven
+checks on 14 August, eight after CAN-109 Decide whether the label roster check needs enforcing, or
+is honest as it stands added the secret roster, nine since the expiry check above. Read the row's
+own date before comparing it with a run, and read the run's summary rather than its tally.
 
 **The release step fails loudly and `check-docs` fails quietly.** **Build and promote the
 production deployment** stops the job at its `vercel pull`, with
@@ -446,19 +483,46 @@ its environment and unrescued by either. The `check-docs` step instead *skips* `
 matches Vercel` and carries on green, so a wrongly-scoped token costs a documentation gate on every
 branch and only announces itself on a merge to `main`.
 
+**Reproduced by hand and then on live CI**, which is worth separating because the first was in an
+empty directory and proves less. Run `31792489379` on `f34b673`, landing **CAN-84 A preview's
+composed sslmode=require silently stops verifying certificates under pg 9**, failed there —
+**attempt 1**, and the citation needs that word: attempt 2 was the same job re-run on the
+replacement token, every step green, so the run's own page reports success and a reader following
+the number alone would find no failure at all.
+
 **Anyone reading a green pull request would not have known, and now would.** Since **CAN-109 Decide
 whether the label roster check needs enforcing, or is honest as it stands** the report reaches the
 run's own page, where this skip sits with its reason next to the others — *What this check compares,
 and what it cannot* above.
 
-**Reissuing is a dashboard action, not a CLI one.** `vercel tokens add <name>` returns
-`Error: Cannot create tokens for this app. (403)` under the current *Sign in with Vercel (google)*
-login, from an agent session and from Jacob's own terminal alike — so the natural assumption when
-the release fails, that the CLI can mint the replacement, is wrong.
+**Dropping `--prebuilt` would not have bought project scoping.** **CAN-86 Record VERCEL_TOKEN in
+the credential roster, and revisit whether the release can use a project-scoped one** proposed that
+`vercel pull` is needed only because the workflow builds locally, so a plain `vercel deploy --prod`
+might read no project settings at all. It reads the same ones. Traced with `--debug` on 16 August
+2026, in a clean checkout with `VERCEL_ORG_ID` and `VERCEL_PROJECT_ID` set:
 
-Whether the release can be made to work on a project-scoped token is **CAN-86 Record VERCEL_TOKEN
-in the credential roster, and revisit whether the release can use a project-scoped one**. The
-roster half of that ticket is done here; the question it asks is still open.
+| Command | What it calls |
+| --- | --- |
+| `vercel pull` | `/v2/user`, `/teams/:id`, **`/v9/projects/:id`**, `/v10/projects/:id/env`, `/v3/env/pull/:id/production` |
+| `vercel deploy --prod`, no `--prebuilt` | `/v2/user`, `/teams/:id`, **`/v9/projects/:id`** |
+
+A remote build's calls are a **strict subset** of `vercel pull`'s, behind the same
+`Retrieving project…` spinner — and `Could not retrieve Project Settings`, which is where the
+release run above stopped, is that project fetch failing. Every deploy path the CLI offers resolves the linked
+project before it does anything else; the remote build then reads `rootDirectory` from the answer to
+find `apps/web` at all. **So the question that ticket asked is closed: no.**
+
+**`--prebuilt` therefore stays**, and now for the reason it was chosen rather than for want of an
+alternative. Vercel's build cache was the other half of that suggestion and it is real, but it is
+now the only half, and it would be bought by promoting something other than what this job built and
+put through the gates.
+
+**Reissuing is a dashboard action; revoking is not.** `vercel tokens add <name>` returns
+`Error: Cannot create tokens for this app. (403)` under the current *Sign in with Vercel (google)*
+login, from an agent session and from Jacob's own terminal alike, and `POST /v3/user/tokens` returns
+the same `forbidden` — so it is the login that refuses, not the CLI. `vercel tokens rm <id>` works,
+and is how the replaced token above was revoked. The natural assumption when the release fails, that
+whatever noticed can mint the replacement, is wrong in one direction only.
 
 ## Database
 

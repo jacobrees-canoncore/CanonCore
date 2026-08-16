@@ -10,8 +10,9 @@
 //   2. label roster       -  docs/agents/triage-labels.md  vs  the tracker's label list
 //   3. variable roster    -  docs/infrastructure.md  vs  vercel env ls
 //   4. secret roster      -  docs/infrastructure.md  vs  the GitHub Actions secrets
-//   5. links and anchors  -  every relative markdown link, across every tracked document
-//   6. section pointers   -  every `file -> *Section*` reference: both the document it names and
+//   5. release token      -  docs/infrastructure.md  vs  the expiry of the token CI last used
+//   6. links and anchors  -  every relative markdown link, across every tracked document
+//   7. section pointers   -  every `file -> *Section*` reference: both the document it names and
 //                            the section within it, since a pointer written as prose carries no
 //                            link for check 5 to follow. That shape is how CAN-76 Restructure the
 //                            agent documents: policy, procedure and incidents get their own homes
@@ -44,21 +45,25 @@ import {
   fail,
   findLinks,
   findPointers,
+  liveTokenNamed,
   parseActionsSecrets,
   parseCiJobNames,
   parseDocumentedContexts,
   parseDocumentedLabels,
+  parseDocumentedReleaseTokens,
   parseDocumentedVariables,
   parseLinearLabels,
   parseSecretNames,
   parseUncheckedVariables,
   parseVercelEnv,
+  parseVercelTokens,
   pointerResolves,
   renderJobSummary,
   resolvePointer,
   setEq,
   skip,
   tally,
+  utcDay,
 } from "./lib/doc-checks.ts";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
@@ -271,7 +276,78 @@ check("the secret roster matches GitHub Actions", () => {
 });
 
 // ---------------------------------------------------------------------------
-// 5 & 6. The pointers.
+// 5. The release token's expiry.
+//
+// The roster records when `VERCEL_TOKEN` runs out, and an expiry nobody re-reads is one that goes
+// stale silently — there is no failure until the day it stops the release. It stayed wrong for two
+// days once already, because reissuing left the replaced token live and the register kept its
+// date. So the date is compared rather than merely written down, and the token in use is
+// identified by which one Vercel last saw used rather than by a name two tokens share.
+//
+// Which is as far as this goes: what a *wrongly scoped* token costs is CAN-109 Decide whether the
+// label roster check needs enforcing, or is honest as it stands, answered on the job summary.
+// The scope is reported in the detail line here and never failed on.
+// ---------------------------------------------------------------------------
+
+// `vercel tokens ls` defaults to 20, refuses more than 100 (`--limit must be between 1 and 100`)
+// and offers no way to ask for the next page. This account already carries more than 100 tokens,
+// nearly all of them minted by signing in, so the listing is capped however it is asked for — and
+// what that costs is handled below rather than assumed away.
+const TOKEN_LIMIT = 100;
+
+check("the release token's expiry matches Vercel", () => {
+  const documented = parseDocumentedReleaseTokens(read(CONTEXT_HOME)).filter((t) => t.live);
+  if (documented.length !== 1)
+    fail(
+      `${CONTEXT_HOME} marks ${documented.length} release tokens **Live**, and exactly one can be ` +
+        `in use. Rewrite the others' State as history.`,
+    );
+  const [row] = documented;
+  const tokens = parseVercelTokens(
+    source(
+      "vercel",
+      ["tokens", "ls", "--json", "--limit", String(TOKEN_LIMIT)],
+      "cannot read the Vercel tokens",
+    ),
+  );
+  // Empty is not agreement, the rule the secret roster states: a listing that came back with
+  // nothing is one this run never read, not an account holding no tokens.
+  if (tokens.length === 0) skip("no tokens came back, so there was nothing to compare");
+
+  // A full page is the listing stopping, not the account ending. It is ordered newest first, so a
+  // token found in one has every token created after it in there too — the one thing a capped page
+  // cannot tell apart is a token that is absent from a token that fell off the end. Absent is a
+  // failure worth stopping for and off-the-end is an outage, so they part company here.
+  const capped = tokens.length >= TOKEN_LIMIT;
+  const live = liveTokenNamed(tokens, row.name);
+  if (!live) {
+    if (capped)
+      skip(
+        `no token named \`${row.name}\` among the newest ${TOKEN_LIMIT}, which is as far as ` +
+          `\`vercel tokens ls\` reaches`,
+      );
+    fail(
+      `no Vercel token is named \`${row.name}\`, which ${CONTEXT_HOME} records as the live one. ` +
+        `A release token that does not exist stops the release on the next merge to \`main\`.`,
+    );
+  }
+  const expires = utcDay(live.expiresAt);
+  if (expires !== row.expires)
+    fail(
+      `${CONTEXT_HOME} records \`${row.name}\` as expiring ${row.expires}; the token Vercel last ` +
+        `saw used expires ${expires}. Reissuing leaves the replaced token live, so a register ` +
+        `that is not compared can go on describing a token nothing runs on.`,
+    );
+  const sharing = tokens.filter((t) => t.name === row.name).length;
+  return (
+    `expires ${expires}, scope ${live.projectOnly ? "project-only" : "wider than one project"}, ` +
+    `read the newest ${tokens.length}` +
+    (sharing > 1 ? `, ${sharing} of them carry the name` : "")
+  );
+});
+
+// ---------------------------------------------------------------------------
+// 6 & 7. The pointers.
 //
 // The restructure of CAN-76 Restructure the agent documents: policy, procedure and incidents get
 // their own homes gave each rule one owning module and N one-line pointers. A pointer that rots is
