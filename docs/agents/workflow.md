@@ -219,7 +219,8 @@ pnpm -r build
 Three commands rather than one for the first three. `pnpm -r test typecheck lint` looks equivalent
 and is not — pnpm passes words after the script name to that script as arguments, so it would run
 `test` alone and silently skip the rest. The one-command form is the regex selector `pnpm -r run
-"/^(test|typecheck|lint)$/"`, which arrived in pnpm 11.11 and buys nothing here
+"/^(test|typecheck|lint)$/"` — restored in pnpm 11.11, having first shipped in January 2023
+(*attribution corrected 16 August 2026*) — and it buys nothing here
 ([pnpm run](https://pnpm.io/cli/run)). Use `pnpm --filter` to scope to one workspace while iterating.
 
 **The fourth is deliberately not one of the three.** `next build` fails on things the others cannot

@@ -46,14 +46,16 @@ propagate in both directions, and a PR that references a Linear issue id moves t
 its workflow states automatically as the PR drafts, opens and merges. See
 https://linear.app/docs/github.
 
-**Comments do not.** Linear's documentation lists them, and this file used to as well, but no
-substantive comment has ever reached the GitHub side here: across all 100 mirrored issues every one
-of the 23 GitHub comments is Linear's own `<!-- linear-linkback -->` marker, while Linear holds
-comment threads going back to 9 August 2026 (measured on CAN-100 Restructure the tracker for the
-architecture change, 15 August 2026). **So a decision recorded only in a Linear comment is invisible
-to anyone reading the mirror** — put anything that has to survive in the description, or in the
-repository. CAN-112 Comments never reach the GitHub mirror, and the tracker doc said they did holds
-the diagnosis.
+**Comments mirror only from the synced thread.** Linear's documentation says so directly:
+comments "made not in the synced thread of the Linear issue will not get synced to the GitHub
+issue. This allows for private discussions." Every substantive comment in this workspace is
+top-level, so none has ever mirrored — a full census on 16 August 2026 found all 30 GitHub
+comments across all 110 mirrored issues to be Linear's own `<!-- linear-linkback -->` marker,
+zero substantive (an earlier partial scan reported 23 of 100; the finding is the same). **So a
+decision recorded in an ordinary Linear comment is invisible to anyone reading the mirror** — put
+anything that has to survive in the description or the repository, or deliberately into the synced
+thread when GitHub-side visibility is wanted. CAN-112 Comments never reach the GitHub mirror, and
+the tracker doc said they did holds the diagnosis and the corrected census.
 
 **Linear is canonical; GitHub Issues is the mirror.** Write through `orca linear` and let the sync
 carry it across. Never create the same issue on both sides — that produces a duplicate pair nothing

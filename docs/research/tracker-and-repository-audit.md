@@ -626,12 +626,23 @@ glossary), CAN-76 (the document restructure, chosen over deferral), CAN-77 (the 
 landing before CAN-76).
 
 **Settled by the owner — do not re-raise.**
+
+> **Superseded twice, 16 August 2026 — the first two bullets now instruct the reverse of the
+> governing position.** The TMDB correspondence is **disregarded entirely** (decision 5 of CAN-96
+> Record the architecture decisions of 15 August, and make the repository agree), so §4's
+> published-terms reading is the operative one, not "a finding only", and the export scope is owned
+> by CAN-106 Decide what the GDPR export may contain under TMDB's published terms. And tardis.wiki
+> is **licence-only** since the 16 August walkthrough (CAN-115 Land the 16 August verification
+> sweep: the decisions, the corrections, and what they touch): no permission is load-bearing, so
+> nothing "travels" and §8.11's obtain-export-permission remedy is unavailable. The third and
+> fourth bullets stand.
+
 - **TMDB.** The correspondence held on CAN-34 and CAN-36 covers the export and the display,
   discussed with TMDB at length; no further request goes out. §4's contrary reading of the
-  published terms stands as a finding only.
+  published terms stands as a finding only. *(Superseded — see the note above.)*
 - **tardis.wiki.** The provider lives in a separate repository that is deliberately not this
   project's; the permission travels with whoever builds it, and this repo carries no obligation to
-  hold it.
+  hold it. *(Superseded — see the note above.)*
 - **The `canoncore_app` password.** Scrub the digest from the doc without rotating (CAN-69),
   accepting that git history retains it. Recorded as an accepted risk, not an oversight.
 - **The Schedule 3 clock.** Treated as running: the assessments are dated now (CAN-71), not

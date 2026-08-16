@@ -170,7 +170,8 @@ _Avoid_: Canon, canonical, canonicity, official, legitimate
 Where a record's values came from when CanonCore did not author them: an external database, or
 another person whose work has been forked, who is a Source like any other. Each one carries its own
 retention policy, so how long a Snapshot may be kept is a fact about the Source rather than about
-the product.
+the product — though what a *forked* Snapshot's retention is remains an open question ADR-0014
+marks unresolved, owned by CAN-9 Fork and divergence (*caveat added 16 August 2026*).
 _e.g._ TMDB, the Grand Comics Database, tardis.wiki.
 _Avoid_: API, integration, service, backend, upstream, provider
 
@@ -182,7 +183,8 @@ _Avoid_: Plugin, extension, connector, agent, scraper, adapter, source
 **Listed Provider**:
 A Provider this project writes and runs, named in the product's own list rather than pasted in by a
 person. Anything off that list is a stranger's service however familiar the Source behind it looks.
-_e.g._ `provider-tmdb`, which is authenticated; the keyless five, which anyone may self-host.
+_e.g._ `provider-tmdb`, which is authenticated; `provider-tardis-wiki`, keyless and licence-only
+since 16 August 2026; the other keyless Providers, which anyone may self-host.
 _Avoid_: Default, official, first-party, built-in, bundled, core, trusted
 
 **Snapshot**:

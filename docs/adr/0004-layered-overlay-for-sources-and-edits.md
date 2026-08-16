@@ -47,8 +47,8 @@ writers contend for one field, which is not this situation.
 
 Local ids are sovereign and external ids live on the snapshot, never on the record. Sonarr removed
 its unique TVDB episode id in 2013 over renumbering and refused to reinstate it in 2023 because
-records "often saw things deleted and recreated". TMDb loses roughly 2% of movie ids a year with no
-merge model and serves a 301 before a final 404.
+records "often saw things deleted and recreated". TMDb loses roughly 2% of movie ids a year — a project estimate, not a TMDB-published figure
+(*hedged 16 August 2026*) — with no merge model, serving a 301 before a final 404.
 
 **A source ceasing to carry something sets `liveness` on one snapshot row. It is never a local
 delete.** Sonarr's `DeleteMany(existingEpisodes)` has no guard, so a provider returning a

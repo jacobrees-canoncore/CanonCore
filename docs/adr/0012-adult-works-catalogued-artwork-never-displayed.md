@@ -98,14 +98,25 @@ service, or uploaded to or shared on the service by a user of the service", with
 counted as a user only where it "is not controlled by or on behalf of the provider of the service"
 (`s.55(4)(b)`)
 ([s.55](https://www.legislation.gov.uk/ukpga/2023/50/section/55),
-[s.236](https://www.legislation.gov.uk/ukpga/2023/50/section/236)). Our Provider is ours, so nothing
-it fetches is user-generated content, and `s.236(7)` never engages.
+[s.236](https://www.legislation.gov.uk/ukpga/2023/50/section/236)). **Corrected 16 August 2026 —
+that limb does not settle it, and this service now adopts the opposite reading as policy.**
+`s.55(4)(b)(ii)` governs when a *tool* is itself a user; the live limb for a human pasting a URL is
+`s.55(4)(a)` — content "generated, uploaded or shared by means of software or an automated tool
+**applied by the user**" — which the earlier text never engaged, and `s.59(14)(a)` makes the answer
+decide whether the illegal-content regime reaches imported data at all. Rather than resolve an
+unsettled statutory question in its own favour, the service **treats provider-imported content as
+in scope** (user-generated) wherever a user's act initiates the fetch — the conservative reading,
+adopted 16 August 2026 (CAN-115 Land the 16 August verification sweep: the decisions, the
+corrections, and what they touch) as policy, not as a legal conclusion. CAN-108 Re-assess the
+illegal-content risk before a user can paste an arbitrary Provider URL assesses on that basis.
 
 **`s.55(4)(b)` turns on control rather than on authorship, and there are now three fetch paths where
 this analysis assumes one.** A Provider we wrote and run is plainly controlled by us. A **self-hosted
 copy of our own keyless Provider** is our code on somebody else's machine, and a **third-party
 Provider at a pasted URL** — which decision 7 of CAN-96 Record the architecture decisions of
-15 August accepts for v1 — is neither our code nor our machine. The first is settled; the other two
+15 August accepts for v1 — is neither our code nor our machine. The first is settled *as to
+control* — though under the corrected passage above, control no longer decides scope, and the
+in-scope policy governs; the other two
 are not, and each self-hosted instance is in any case its own service with its own operator's duties
 ([ADR-0014](0014-shell-providers-and-per-source-retention.md)). Nothing in v1 turns on it, because
 v1 imports no artwork at all, but the question is open before artwork ships.

@@ -14,7 +14,9 @@ status: superseded by ADR-0014
 >
 > **Most of this file is still right**, which is why it is superseded rather than deleted. A reader
 > arriving from one of those documents is misled by those two sentences and by the three corrections
-> named next, and by nothing else here.
+> named next, by the shape sentence at the foot of this file repeating the no-store-no-review
+> framing unannotated, and by the MIT line below overstating its own research — the spec's
+> `info.license` says MIT, its scope unstated (*blockquote widened 16 August 2026*).
 > [ADR-0014](0014-shell-providers-and-per-source-retention.md) → *What survives of ADR-0007* is the
 > authority: it says what is kept unchanged, what breaks, that the additive-only justification below
 > is **false for every Provider that will exist in v1** and is re-derived on self-hostability

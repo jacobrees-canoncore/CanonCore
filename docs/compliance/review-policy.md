@@ -4,13 +4,14 @@
 the public [reporting and complaints procedure](../../content/legal/reporting-and-complaints.md), because
 `s.21(3)` requires the terms to specify the policies and processes governing complaint handling.
 
-Kept to satisfy `s.9(3)–(4)`, `s.23(6)`, `s.36(3)` and **ICU D12.4(b)**.
+Kept to satisfy `s.9(3)–(4)`, `s.11(3)–(4)`, `s.23(6)`, `s.36(3)` and **ICU D12.4(b)**.
 
 ## Review cycle
 
 | Record | Reviewed |
 | --- | --- |
-| [Illegal content risk assessment](illegal-content-risk-assessment.md) | At least every 12 months (`s.9(3)`), and **before** any significant change to the design or operation of the service (`s.9(4)`) |
+| [Illegal content risk assessment](illegal-content-risk-assessment.md) | At least every 12 months — Ofcom good practice, adopted as this service's policy; `s.9(3)` imposes keep-up-to-date, not a statutory cadence *(corrected 16 August 2026)* — and **before** any significant change to the design or operation of the service (`s.9(4)`) |
+| [Children's risk assessment](childrens-risk-assessment.md) | At least every 12 months — same policy basis; `s.11(3)` mirrors `s.9(3)` — and **before** any significant change (`s.11(4)`) *(row added 16 August 2026; it was previously missing from this table while that record pointed here for its cadence)* |
 | [Children's access assessment](childrens-access-assessment.md) | Not more than one year apart (`s.36(3)`); also before a relevant significant change, on evidence of reduced age assurance effectiveness, or on evidence of a significant increase in child users (`s.36(4)`) |
 | [Code measures register](code-measures-register.md) | Alongside the risk assessment |
 

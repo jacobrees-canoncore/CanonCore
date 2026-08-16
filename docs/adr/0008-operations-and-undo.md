@@ -16,8 +16,10 @@ failure: undoing a fifty-episode import means fifty restores.
 
 **Event sourcing** would allow rebuilding any past state, and is rejected as over-committing. AWS
 and microservices.io both warn that the event store is hard to query because ordinary reads must
-reconstruct state, and that "once your system becomes an event sourcing system, all future design
-decisions are constrained by it, with a high cost to migrate to or from it". This is the rare case
+reconstruct state; and Azure's Architecture Center warns that once a system becomes an event
+sourcing system, every later design decision is constrained by it, with a high cost of migrating
+to or from it *(re-attributed 16 August 2026 — the sentence previously stood here as a quote of
+the first two sources, and belongs to neither)*. This is the rare case
 where the expensive choice is the trap rather than the cheap one.
 
 **The Command pattern** is what remains, and it is the standard name for it: turn each request

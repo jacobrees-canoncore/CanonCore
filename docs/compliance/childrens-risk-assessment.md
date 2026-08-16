@@ -48,9 +48,10 @@ no age assurance enforces this, so the assessment does not assume their absence.
 > comprehensible for the youngest permitted user, and that question has to have an answer.
 >
 > **Why 13, rather than lower or higher.**
-> [Section 9 of the Data Protection Act 2018](https://www.legislation.gov.uk/ukpga/2018/12/section/9)
-> sets 13 as the age at which a child in the United Kingdom may consent to an information society
-> service without a parent, so
+> [UK GDPR Article 8(1)](https://www.legislation.gov.uk/eur/2016/679/article/8) sets 13 as the age
+> at which a child in the United Kingdom may consent to an information society service without a
+> parent *(corrected 16 August 2026: this previously cited DPA 2018 s.9, which was omitted from the
+> statute book on 31 December 2020 — the substance is unchanged)*, so
 > anything lower would oblige this service to build parental-consent machinery it has no other reason to
 > have. Anything higher would not be enforced, because no age assurance is deployed, and it would raise the
 > drafting target of the terms above the reading age of the 13 to 17 population this assessment expects to
