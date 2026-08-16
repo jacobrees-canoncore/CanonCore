@@ -6,6 +6,9 @@
 -- the overlay behind it is what will — and nothing here ever writes a Source at all, for the
 -- reason `schema.ts` gives on that table.
 --
+-- **True as of migration 0005 and not before it**, for the reason 0001 now carries — and `source`,
+-- with no policy over it, is where that was reachable rather than merely wrong.
+--
 -- `source` has no policy over it, so this grant exposes every row of it. That is the intended
 -- reading rather than an oversight:
 -- docs/adr/0014-shell-providers-and-per-source-retention.md -> Decision 6.

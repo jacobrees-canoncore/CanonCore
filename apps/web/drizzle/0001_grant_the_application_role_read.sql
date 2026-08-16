@@ -5,6 +5,10 @@
 -- SELECT only, and no INSERT, UPDATE or DELETE: nothing in this release writes a Story, and a
 -- privilege that exists is one a policy has to be written for.
 --
+-- **Migration 0005 is what makes that sentence true.** It was not, from here until there: this
+-- grant is accurate about what it grants and was never the whole of what the role held.
+-- docs/infrastructure.md -> Roles has what was, and why no reading of this file could show it.
+--
 -- `canoncore_migrator` needs no grant here — it owns the table, and an owner bypasses row-level
 -- security ("Table owners normally bypass row security as well",
 -- https://www.postgresql.org/docs/current/ddl-rowsecurity.html), which is exactly why table

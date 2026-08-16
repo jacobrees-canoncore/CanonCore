@@ -407,10 +407,21 @@ Recorded because the qualifier is **necessary and not sufficient**, and three of
   [ADR-0003](0003-no-shared-catalogue.md) now carries what a shared table holding no catalogue
   metadata does to that sentence. And it sits outside ADR-0005 rule 2's cross-tenant test, which
   nothing can put back — a table with one row per Source has no tenant for a read to cross. What
-  stands in place of the test it cannot have is two tripwires in `apps/web/src/db/rls.test.ts`:
-  one refuses any table nobody has classified as protected or deliberately not, the other asserts
+  stands in place of the test it cannot have is three tripwires in `apps/web/src/db/rls.test.ts`:
+  one refuses any table nobody has classified as protected or deliberately not, one asserts
   `source`'s whole column list, so a column that could belong to one person fails a test instead
-  of arriving quietly on the one table with no policy over it.
+  of arriving quietly on the one table with no policy over it, and one asserts what the
+  application role may do to every table.
+
+  **The third was added on 16 August 2026 by
+  [CAN-123 Revoke the application role's write privileges, and decide whether the blanket default
+  privilege should exist](https://linear.app/jacobrees-canoncore/issue/CAN-123), which found the
+  first two insufficient.** With no policy over `source`, the grant is the only control on it, and
+  the grant said `INSERT, SELECT, UPDATE, DELETE` — so the application role could set every
+  retention window to `'infinity'` and make this decision's own guarantee false at the database
+  level. Neither of the other two looks at a privilege. **A fourth test in that file asserts that
+  no default privilege exists**, and is deliberately not counted here: it guards tables nobody has
+  created yet, not `source`.
 
   **The third answer was never a third location, which is why it survives the choice untouched.**
   Under decision 1 the application cannot know TMDB's six-month rule without source-specific code,
