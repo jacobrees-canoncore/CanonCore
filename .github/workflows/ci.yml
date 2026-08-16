@@ -88,7 +88,9 @@ jobs:
       # Two of its checks reach no source from here, on purpose rather than by omission: the label
       # roster needs `orca`, a desktop CLI, and the secret roster needs a credential this workflow
       # deliberately does not hold. Both report SKIP, and the run's own summary page says so, so a
-      # green tick never stands in for a comparison that did not happen.
+      # green tick never stands in for a comparison that did not happen. Everything else it checks
+      # does reach a source from here, the release token's expiry included: listing the account's
+      # tokens is within this token's reach, which was read off a run rather than assumed.
       # docs/agents/workflow.md -> The gates is the table of which check reaches which source.
       # npm rather than pnpm: `pnpm add -g` needs PNPM_HOME configured, npm's global bin is
       # already on a runner's PATH. If the install or the token fails, the check reports SKIP
@@ -114,6 +116,12 @@ jobs:
       # `--prebuilt` deploys "existing build output from the .vercel/output directory"
       # (https://vercel.com/docs/cli/deploy), so this promotes what the line above it built and
       # never triggers a build of its own — which is what keeps the migration in front of it.
+      #
+      # Letting Vercel build instead, to buy its build cache and a project-scoped token, does not
+      # help: `vercel deploy` resolves the linked project through the same call `vercel pull` does,
+      # so the narrower token has nothing to gain. That is an endpoint trace rather than a run on a
+      # project-scoped token, and docs/infrastructure.md -> Why this one is account-scoped carries
+      # it with that distinction made.
       #
       # The two ids are project identifiers, not credentials: `vercel project inspect canoncore`
       # prints the second, and docs/infrastructure.md -> Hosting records it.

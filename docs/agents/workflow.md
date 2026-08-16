@@ -237,8 +237,9 @@ three commands as three contexts would require names nothing emits, which is wor
 too little — a required context that never reports blocks every merge for ever.
 
 **A fifth step checks the documents against the sources they describe**, `node scripts/check-docs.ts`
-— the required contexts, the label roster, the variable roster, the Actions secrets, and every
-cross-document pointer. **Not all of it reaches CI, and the difference is not an oversight:**
+— the required contexts, the label roster, the variable roster, the Actions secrets, the release
+token's expiry, and every cross-document pointer. **Not all of it reaches CI, and the difference is
+not an oversight:**
 
 | Check | Where it gates | Why |
 | --- | --- | --- |
@@ -246,6 +247,7 @@ cross-document pointer. **Not all of it reaches CI, and the difference is not an
 | Variable roster vs `vercel env ls` | CI | The runner installs `vercel` and holds a `VERCEL_TOKEN` secret. An undocumented credential is how a roster goes stale, so this one is worth a secret |
 | Secret roster vs `gh secret list` | **Locally only** | The workflow's own token cannot be granted the secrets API, and every route that reaches a runner costs a credential |
 | Label roster vs the tracker | **Locally only** | `orca` drives a desktop app on Jacob's machine and cannot run on a runner. A Linear credential to reach it from CI was weighed and refused |
+| Release token's expiry vs `vercel tokens ls` | CI and locally | The same `VERCEL_TOKEN` as the variable roster. Listing an account's tokens is a user-level call rather than a project one, so this was recorded as unknown until a runner answered it: run `31964525778` on `6b03296` reported PASS, naming the expiry and the scope. A refused listing exits non-zero, which is a SKIP carrying whatever the CLI said rather than a failed build — reproduced on 16 August 2026 with an invalid token, `Error: Not authorized`, which is the nearest case available: the project-scoped token that would have been the real test is revoked |
 
 A check whose source is unreachable reports **SKIP with the reason** and does not fail the build: a
 transient outage must not block every merge, which is the same reasoning that keeps a
