@@ -7,6 +7,7 @@ identify the relevant Code of Practice, and give the date it takes effect.
 | | |
 | --- | --- |
 | Completion date | 13 August 2026 |
+| Last revised | 14 August 2026 (substantive edits), revision row added 16 August 2026 per RKRG §2.7 |
 | Next review date | 13 August 2027 — and alongside either risk assessment whenever that is reviewed |
 | Completed by | Jacob Rees |
 | Named person responsible | Jacob Rees |

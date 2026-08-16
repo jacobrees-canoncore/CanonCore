@@ -8,6 +8,7 @@ Code; **this records what was not**, and what stands in its place.
 | --- | --- |
 | Service name | CanonCore (`https://www.canoncore.com`) |
 | Completion date | 13 August 2026 |
+| Last revised | 14 August 2026 (substantive edits), revision row added 16 August 2026 per RKRG §2.7 |
 | Next review date | 13 August 2027 — reviewed with the risk assessments, and immediately if the justification below stops holding |
 | Completed by | Jacob Rees |
 | Named person responsible | Jacob Rees |

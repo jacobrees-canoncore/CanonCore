@@ -82,8 +82,10 @@ impose neither clause.
 
 **The ordering model is the best available.** TMDB allows unlimited episode groups, each carrying a
 type — `5` is literally "Story arc" — and each sub-group within a group carries its own `id`,
-`name`, `order` and `episodes[]`. Doctor Who already has five groups, three of them story-arc, with
-named sub-groups like "First Doctor".
+`name`, `order` and `episodes[]`. **Doctor Who (1963), TMDB id 121** (*pinned 16 August 2026*), already has five groups,
+three of them story-arc, with named sub-groups like "First Doctor" — the 2005 series (id 57243,
+which CAN-26 Import a series from TMDB, with the overlay behind it seeds from) now carries six, so
+re-run any per-series check against the series actually imported.
 [`versions-and-orderings-prior-art.md`](../research/versions-and-orderings-prior-art.md) calls
 Episode Groups "the closest existing model to named phases". TheTVDB offers seven fixed slots per
 series whose display names are per-series overrides, which cannot express a new named ordering
@@ -130,19 +132,26 @@ and until it lands the **Fallback** below is provisional in its target, though n
   ADR is reopened.
 - **The non-commercial licence carries an AI/ML prohibition** in paragraph 1.C. It is not merely a
   commercial-use trigger, so it binds us as we are.
-- **The licence grants no redistribution to third parties.** The terms' restrictions on use,
-  display, distribution and redistribution all bind. Providers are not a route around this:
+- **The licence is silent on handing a copy to a third party — it prohibits selling, leasing and
+  sublicensing, and nothing more** *(corrected 16 August 2026: an earlier draft asserted the terms
+  "restrict redistribution"; no clause uses that word or any equivalent — `§1.C` bars "sell, lease,
+  or sublicense", `§1.A` makes the licence itself non-transferable, and that is the whole of it)*.
+  Silence is not permission: nothing licenses the recipient. Providers are not a route around this:
   [ADR-0014](0014-shell-providers-and-per-source-retention.md) has them serving data *into*
   CanonCore, never receiving ours.
-- **What the GDPR export may carry is now an open question.** The written approval that widened it
-  to the associated TMDB fields is disregarded, and the published terms restrict redistribution
-  rather than permitting it, so nothing authorises putting TMDB Content into a file handed to a
-  person. [CAN-30 GDPR export and erasure](https://linear.app/jacobrees-canoncore/issue/CAN-30) has
-  to settle the scope on the published terms alone, and the narrowest answer — external identifiers
-  only — is now the starting point rather than the fallback. One thing survives either way: the
+- **What the GDPR export may carry is settled as policy, 16 August 2026: external identifiers
+  only, permanently.** The written approval that widened it is disregarded, and the published terms
+  are *silent* on a gratuitous copy (above) — so rather than rest on silence, the owner adopted the
+  conservative reading outright (CAN-115 Land the 16 August verification sweep: the decisions, the
+  corrections, and what they touch), with UK GDPR Article 15(4) and Recital 63 — the rights of
+  others, intellectual property included — noted as the withholding support for the values.
+  [CAN-106 Decide what the GDPR export may contain under TMDB's published terms](https://linear.app/jacobrees-canoncore/issue/CAN-106)
+  records the derivation; [CAN-30 GDPR export and erasure](https://linear.app/jacobrees-canoncore/issue/CAN-30)
+  builds it. One thing survives either way: the
   export is built from the composed read rather than by serialising Snapshot rows.
 - **Identifier churn is real and already anticipated.** ADR-0004 records that TMDB loses roughly 2%
-  of movie ids a year with no merge model, serving a 301 before a final 404. That is precisely why
+  of movie ids a year (a project estimate, not TMDB-published) with no merge model, serving a 301
+  before a final 404. That is precisely why
   external ids live on the Snapshot and never on the record — and under per-Source retention it is
   now also why the **daily ID exports** are load-bearing
   ([ADR-0014](0014-shell-providers-and-per-source-retention.md) → *The daily ID exports are the
@@ -166,7 +175,7 @@ and until it lands the **Fallback** below is provisional in its target, though n
   set in original air order as editorial policy — "episodes should be added as they first aired on
   their original channel", and "Please do not ask us to change the episodes to a non-original
   order. There is an 'Episode Group' feature that can be used for all and any alternative orders."
-  Doctor Who's five groups are DVD, Digital and three Story Arc; none is an air-date group. So the
+  Doctor Who (1963)'s five groups are DVD, Digital and three Story Arc; none is an air-date group. So the
   import reads seasons and episode numbers directly and no adjudication is required. Note this is
   editorial policy rather than a schema guarantee — nothing in the API enforces it. `/3/tv/{id}`
   carries no episode-group field either, so if an *alternative* ordering is ever imported the

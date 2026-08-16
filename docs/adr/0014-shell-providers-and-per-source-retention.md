@@ -54,8 +54,9 @@ this decision as "the app holds no API keys" has taken it too wide.
 **`provider-tmdb` is authenticated, so the application does hold a credential for it — and that
 credential is not a Source key.** It authenticates *us to our own Provider*, in the same class as
 `DATABASE_URL`. TMDB's own bearer token lives in `provider-tmdb` and nowhere else;
-[`docs/infrastructure.md`](../infrastructure.md) currently records it on the application, and
-**CAN-99 Move the TMDB credential out of the app, atomically with its roster row** moves it.
+**CAN-99 Move the TMDB credential out of the app, atomically with its roster row** moved it on 15
+August 2026: [`docs/infrastructure.md`](../infrastructure.md) → *Where a Source credential lives*
+records the token as held nowhere until `provider-tmdb` exists.
 
 **The user's session cannot be that credential**, and
 [ADR-0010](0010-canonical-host-www.md) is why. The session cookie is host-only, so it is returned
@@ -140,30 +141,45 @@ MusicBrainz require no key at all and impose neither a retention limit nor a pur
 public and listable, and a stranger can self-host the code and reach the same data on their own
 terms.
 
-**Why tardis.wiki is a third class rather than the second.** It is keyless, so on the credential axis
-alone it looks like the second class. It is not, and the reason is that **its permission is personal
-to this project**. The wiki's `robots.txt` disallows `/api.php` for every user agent
-([`external-metadata-sources.md`](../research/external-metadata-sources.md) → *6. tardis.wiki*), so
-lawful automated reuse runs on permission rather than on the licence, and permission granted to this
-project **does not travel to a stranger running a fork**. A self-hosted copy of that Provider would
-be an unpermitted crawler wearing our code. So the endpoint is closed like the first class, for a
-reason that has nothing to do with a key.
+**Amended 16 August 2026 — tardis.wiki is second class after all, licence-only, and the third
+class is dissolved.** As first written, this section rested on a factual premise the 16 August
+verification sweep refuted: it claimed the wiki's `robots.txt` disallows `/api.php` for every user
+agent, citing a research passage the 13 August audit had already flagged stale. The live file
+(fetched three ways on 16 August) reads `User-agent: *` → `Allow: /`, with only named AI crawlers
+disallowed and a Cloudflare content-signals block (`ai-train=no`) — and it had changed within a day
+of being read, so it is volatile as well as permissive. With the premise gone, the owner decided
+(CAN-115 Land the 16 August verification sweep: the decisions, the corrections, and what they
+touch) to **stop relying on the personal permission entirely**: tardis.wiki is a keyless Source on
+its licence — CC BY-SA **3.0**, attribution and share-alike per its terms, noting 3.0 has no §4(b)
+database deeming — with an honest technical posture: honour the live `robots.txt`, rate-limit,
+identify truthfully, and re-read that file at build time rather than trusting any record of it. The
+self-hostability bar this section imposed dissolves with the premise; the Cloudflare challenge
+remains a build reality, not a legal gate. **CAN-8 Provider: tardis.wiki chronologies (separate
+repo)** carries the consequences.
 
-Recording three classes rather than two is the whole point of this decision. Two classes — "has a
-key" and "does not" — put tardis.wiki in the open bucket, and the open bucket is defined by being
-safe to self-host.
+*(The three paragraphs below are the original argument, kept for the record; read them through the
+16 August amendment above. Two classes are now exactly right — tardis.wiki sits in the open bucket
+because nothing but its licence governs it — and the reversal trigger about a "general permission"
+is spent, since no permission is load-bearing at all.)*
+
+Recording three classes rather than two was the whole point of this decision as first taken. Two
+classes — "has a key" and "does not" — put tardis.wiki in the open bucket, and the open bucket is
+defined by being safe to self-host; that placement was thought wrong on a premise the amendment
+refutes, and is now correct.
 
 **Rejected: one class, everything closed.** It costs the self-hostability decision 10 of CAN-96
 Record the architecture decisions of 15 August commits to, for nothing: there is no credential to
-protect on the keyless five, and closing them protects nothing.
+protect on the keyless Providers, and closing them protects nothing. *(Still rejected — this
+argument survives the amendment untouched.)*
 
 **Rejected: one class, everything open.** It sublicenses TMDB's key and hands out a permission that
-was never ours to give.
+was never ours to give. *(Still rejected — the TMDB half of the argument carries it alone.)*
 
-**What would reverse it.** A keyless source adding a key, or tardis.wiki granting a general
-permission rather than a personal one, each moves one Provider between classes. That is a row in the
-table, not a new decision — but a source moving *into* the first class means its Provider's endpoint
-closes, which is a deployment change.
+**What would reverse it.** A keyless source adding a key moves its Provider between classes — a row
+in the table, not a new decision, though a source moving *into* the authenticated class means its
+Provider's endpoint closes, which is a deployment change. The former second trigger — tardis.wiki
+granting a general rather than personal permission — is spent: since 16 August no permission is
+relied on, so there is nothing for a wider grant to change.
 
 ## What survives of ADR-0007
 
@@ -330,7 +346,14 @@ So the test is not "did the fetch fail". It is:
 
 - **Present in today's export, fetch failed** → transient. Do not drop. Retry, and let the row expire
   on the clock if it never succeeds.
-- **Absent from today's export** → genuinely gone. `liveness` is `gone`, and the row is dropped when
+- **Absent from today's export** — *amended 16 August 2026*: "the export" means the **union of the
+  main and `adult_*` export sets**, because the main files exclude adult titles entirely (verified:
+  all 1,233,086 rows of one day's movie export are `adult:false`), and reading them alone would
+  silently drop every adult work ADR-0012 deliberately catalogues. **Episodes and seasons appear in
+  no export at all**: their liveness derives from the parent series — the series absent from the
+  union means its episodes are gone with it; the series present while an episode's refresh 404s is
+  settled against the live season listing, one call, absent-there meaning genuinely deleted. With
+  that, → genuinely gone. `liveness` is `gone`, and the row is dropped when
   its retention expires.
 
 Without that oracle, "drop what cannot be refreshed" *is* the unguarded `DeleteMany`. With it, the
@@ -364,8 +387,8 @@ Recorded because the qualifier is **necessary and not sufficient**, and three of
   once its Snapshots are gone is not decided here**; CAN-90 Decide how an Ordering reads, and what
   the interface calls its parts owns it.
 - **A Story with no title is therefore a routine rendering state**, not an exceptional one. ADR-0004
-  records that TMDB loses roughly 2% of movie identifiers a year; each of those is now a drop rather
-  than a flag. Nothing in
+  records that TMDB loses roughly 2% of movie identifiers a year (a project estimate); each of
+  those is now a drop rather than a flag. Nothing in
   [`frontend-design-scope.md`](../research/frontend-design-scope.md) treats it as routine, and
   **CAN-90 Decide how an Ordering reads, and what the interface calls its parts** owns what it looks
   like.
@@ -437,10 +460,16 @@ One mechanism discharges three obligations that would otherwise need three:
 1. **TMDB `§3` attribution** — the logo plus the prescribed notice, in a fixed form, and a
    condition of the licence rather than a courtesy: `§1.B` lists it among the *Additional License
    Conditions* ([API terms](https://www.themoviedb.org/api-terms-of-use), read 15 August 2026).
-2. **CC BY-SA attribution across the keyless Sources.** TVmaze, the Grand Comics Database and
-   tardis.wiki are share-alike, ISFDB is CC BY, and all of them require attribution per source.
-   Research §11 puts it plainly: per-record provenance is **required by the licences**, not merely
-   convenient.
+2. **Licence obligations across the keyless Sources — including "none" *(corrected 16 August
+   2026)*.** TVmaze and the Grand Comics Database are CC BY-SA 4.0; tardis.wiki is CC BY-SA **3.0**
+   (licence-only per the amendment to Decision 3 above); ISFDB is CC BY 4.0; **Open Library and
+   MusicBrainz core are CC0, which requires no attribution at all** — and Open Library's CC0
+   designation is itself unverifiable on any live page ([research
+   §4](../research/source-licence-risk-and-decoupling.md)), so its row reads *unverified* until
+   resolved. The declared obligation must therefore express **none**, and must carry the licence
+   identity and version — share-alike under 4.0 and 3.0 differ materially. Research §11's point
+   stands where a licence does impose the duty: per-record provenance is **required by those
+   licences**, not merely convenient.
 3. **Cross-viewer misattribution.** ADR-0003's Placements resolve against whichever records the
    *viewer* holds, so a published Ordering shows the reader values from the reader's own Sources.
    Without provenance on the value, an Ordering's author appears to have asserted something a

@@ -75,9 +75,10 @@ pnpm install
 pnpm --filter @canoncore/web dev
 ```
 
-The gates are `test`, `typecheck`, `lint` and `build`, plus a Playwright suite. They run in GitHub
-Actions on every push, and the ruleset on `main` requires them by name, so nothing reaches
-production without passing. See [`docs/agents/workflow.md`](docs/agents/workflow.md).
+The gates are `test`, `typecheck`, `lint` and `build`, which run in GitHub Actions on every push;
+the ruleset on `main` requires that job and the Vercel deployment by name, so nothing reaches
+production without passing. The Playwright suite runs against deployed environments by hand,
+deliberately outside CI. See [`docs/agents/workflow.md`](docs/agents/workflow.md).
 
 ## How this repository is built
 

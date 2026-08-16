@@ -47,6 +47,8 @@ host-only; the reasoning and what will try to reopen it are
 **The public URL is not shared with anyone until both gates below are open.** Deployed is not shared:
 `www.canoncore.com` resolves today and serves a holding page, and that is deliberately as far as it goes.
 
+**What the gates hold shut, concretely: CAN-57 Make a public Ordering discoverable and shareable.** Its first criterion lifts `noindex` and publishes a sitemap — the strongest form of inviting a stranger — so it is `blocked-by` every condition of both gates (drawn 16 August 2026), and must never be worked while either gate is closed.
+
 **There are two of them, and they test different things.** *Lawfulness* asks whether sharing the address
 would be legal. *Readiness* asks whether what a stranger finds on the other end is worth the visit, and
 whether it will still be there next week. Only the first was ever written down, so it was being read as
@@ -123,14 +125,15 @@ that is v1's scope rather than a condition here, and this gate would open withou
 | Project | `canoncore`, `prj_BMzP9Dq7Qx3Eev8WwsvVoH5khnaU` |
 | Repository | `jacobrees-canoncore/CanonCore`, production branch `main` |
 | Function region | `lhr1` (London) |
-| Preview protection | **Vercel Authentication, covering preview deployments** (`ssoProtection: preview`) |
+| Preview protection | **None — off, and accepted deliberately** (16 August 2026). The live API reads `ssoProtection: disabled`; an earlier row here claimed Vercel Authentication covered previews, which the 16 August verification sweep refuted. The exposure — previews run against copy-on-write clones of production rows — is accepted until **CAN-79 Previews clone production rows, and the integration has no switch to stop it** closes it; re-enabling is a dashboard toggle if that changes |
 | Root Directory | `apps/web` |
 | Framework Preset | Next.js |
 | Include files outside the root directory | On |
 | Node.js version | 24.x |
 
 *Read back with `vercel project inspect canoncore`; the last four rows set by CAN-22 on 11 August
-2026, preview protection on 13 August 2026.*
+2026. Preview protection was set on 13 August 2026 and turned off since — the row above records
+the 16 August acceptance.*
 
 **The last five rows exist nowhere but here.** They are project settings, so no file in this
 repository can assert them, and `vercel.json` cannot set any of them either. Without the first two
@@ -429,6 +432,13 @@ it. There is no way to pay only part of that price.
 `vercel env pull` reads project-level values, and the build log is silent, because the branch is
 created by the platform out of band
 ([incident](incidents.md#preview-branching-was-switched-off-so-no-preview-ever-got-a-branch)).
+
+> **The production branch `main` is not protected, and cannot be on this plan** (checked live 16
+> August 2026: `protected: false`). Branch protection is a Neon **paid-plan** feature — Launch
+> allows 2 protected branches, Free none — so this is plan-gated rather than forgotten. The
+> upgrade question is owned by **CAN-59 Decide whether the Hobby plan can carry a public
+> service**; the outstanding-work record is **CAN-69 Record the credential purge, regenerate the
+> credentials table, and lint-ban NEON\_ reads**.
 
 ### Roles
 

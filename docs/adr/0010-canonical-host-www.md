@@ -27,11 +27,14 @@ This is a decision about what a *future* mistake can cost, not about what is tru
 It was a weak preference rather than a strong one, and it is recorded so that the weakness does not
 invite a second argument later.
 
-Once `demo.canoncore.com` was released the domain has **no** subdomains, so nothing is being
-protected right now. The case rests on future-proofing plus the fact that `www` was already
+Once `demo.canoncore.com` was released the domain briefly had no subdomains; `mail.canoncore.com`
+has since existed for Resend (*corrected 16 August 2026*), which strengthens rather than weakens
+the case — a `Domain`-scoped cookie would now reach a mail-infrastructure hostname. The case rests on future-proofing plus the fact that `www` was already
 configured and therefore free. The apex was considered and rejected on that basis, not overlooked.
 
-Vercel's documentation takes no position either way, so nothing external decides this.
+Vercel's documentation in fact recommends `www` as the primary domain with a redirect
+(*corrected 16 August 2026 — this line previously claimed it took no position*), which supports
+the decision without deciding it.
 
 ## What will try to reopen it
 

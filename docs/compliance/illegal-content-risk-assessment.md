@@ -9,7 +9,8 @@ and is provided to Ofcom on request.
 | Service name | CanonCore (`https://www.canoncore.com`) |
 | Service type | User-to-user service (`s.3(1)`). Not a search service |
 | Completion date | 13 August 2026 |
-| Next review date | 13 August 2027 — at most 12 months after completion (`s.9(3)`) |
+| Last revised | 14 August 2026 (substantive edits), revision row added 16 August 2026 per RKRG §2.7 |
+| Next review date | 13 August 2027 — the service's 12-month policy cadence (Ofcom good practice; `s.9(3)` imposes keep-up-to-date, not a fixed interval — corrected 16 August 2026), and earlier before any significant change (`s.9(4)`) |
 | Reason for review | First assessment, before launch |
 | Completed by | Jacob Rees |
 | Named person responsible | Jacob Rees |

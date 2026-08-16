@@ -33,7 +33,7 @@ The risk in ADR-0009 is not the six-month cache limit, which a rolling refresh s
 catalogue — and TMDB is not the only source that has one, so this is a clause to check for by name
 rather than a TMDB quirk. **Seven sources impose neither a retention limit nor a purge clause** and
 are usable with no agreement of any kind: **TVmaze** (CC BY-SA 4.0), **Wikidata** (CC0), **Open
-Library** (CC0), **MusicBrainz** (CC0 core), the **Grand Comics Database** (CC BY-SA 4.0), **Metron**
+Library** (CC0 unverified — §4), **MusicBrainz** (CC0 core), the **Grand Comics Database** (CC BY-SA 4.0), **Metron**
 (CC BY-SA 4.0) and **ISFDB** (CC BY 4.0, the most permissive found). TheTVDB publishes no retention
 or purge clause either, but gates access behind a licence tier. **Moving the key to the user does not
 work** — it buys nothing on rate limits, forfeits the retention exception, and does not even achieve
@@ -135,7 +135,7 @@ Retrieved 15 August 2026. The two columns that decide everything are the first t
 | --- | --- | --- | --- | --- | --- | --- |
 | **TVmaze** | **None stated** | **None stated** | CC BY-SA 4.0 | **No** | Licensed expressly | TV only |
 | **Wikidata** | **None** | **None** | CC0 | No | Licensed expressly | All, thinly |
-| **Open Library** | **None** | **None** | CC0 | No | Licensed expressly | Books |
+| **Open Library** | **None** | **None** | CC0 **(unverified — see §4's correction)** | No | Non-assertion only | Books |
 | **Grand Comics Database** | **None** | **None** | CC BY-SA 4.0 | No | Licensed expressly | Comics |
 | **MusicBrainz** | **None** | **None** | CC0 core; CC BY-NC-SA 3.0 supplementary | No | Licensed expressly | Audio |
 | **TheTVDB** | None stated | **None stated** | Tiered licence | Yes | Attribution with direct link | TV, film |
@@ -174,9 +174,14 @@ the main, Property, Lexeme and EntitySchema namespaces is CC0; **attribution is 
 repository's own [`external-metadata-sources.md`](external-metadata-sources.md) already assessed it
 and its verdict stands: "a good join table and a poor catalogue."
 
-**Open Library** — [Developer Center](https://openlibrary.org/developers). Contributions are
-requested under CC0 1.0, and the Internet Archive "does not assert any new copyright or other
-proprietary rights over any of the material in the Open Library database". Note the access shape:
+**Open Library** — [Developer Center](https://openlibrary.org/developers). **The CC0 designation
+is unverifiable and this row overstated it** *(corrected 16 August 2026)*: the "Contributions are
+requested under CC0 1.0" sentence appears on no reachable Open Library page today; what exists is
+the Internet Archive's non-assertion — it "does not assert any new copyright or other proprietary
+rights over any of the material in the Open Library database" — which grants nothing.
+`external-metadata-sources.md` §4 had this right ("treat 'Open Library is CC0' as unverified") and
+is the accurate account. Until resolved, Open Library's licence position is **unknown**, which is a
+different compliance posture from CC0's nothing-required. Note the access shape:
 the API "is not intended to serve as a bulk data backend"; bulk use is directed to the free
 [monthly data dumps](https://openlibrary.org/developers/dumps).
 
@@ -668,11 +673,15 @@ service is very likely the publisher.** CanonCore is unambiguously the second.
 
 ### The Online Safety Act, and strong statutory backing for ADR-0012
 
-**Imported metadata is provider content, not user-generated content.** `s.55(4)(b)(ii)` provides that
-a bot or automated tool is a user **only** where it "is not controlled by or on behalf of the provider
-of the service". Our importer is ours, so what it publishes is provider content under `s.55(7)`.
-`s.236(7)` runs one way only — it stops a provider laundering *user* content into *provider* content,
-not the reverse. So the import never puts the service into Part 3.
+**Imported metadata: this section's conclusion is superseded (16 August 2026).** As written it
+argued provider content from `s.55(4)(b)(ii)` — the limb governing when a *tool* is itself a user —
+without engaging `s.55(4)(a)`, under which content "generated, uploaded or shared by means of
+software or an automated tool **applied by the user**" is user-generated, the live limb once a user
+pastes a Provider URL. `s.59(14)(a)` makes the question dispositive for the illegal-content regime.
+The service now **adopts the in-scope (user-generated) reading as policy** — the conservative
+posture, decided in the 16 August walkthrough (CAN-115 Land the 16 August verification sweep: the
+decisions, the corrections, and what they touch) — so nothing rests on the analysis this paragraph
+used to carry. ADR-0012's corrected passage is the governing record.
 
 **What does put it there is user-authored text.** `Schedule 1 para 4` exempts a service where users
 may communicate **only** by commenting on, reviewing, rating or reacting to provider content. The
@@ -873,10 +882,12 @@ Both provisions are now read verbatim above, so this conclusion no longer rests 
 Listed rather than hidden. None of these changes a conclusion above; the two that would have were
 closed (§6, §11).
 
-1. **The TheTVDB image-rights discrepancy** (§4). ADR-0009 says its terms deny image display rights in
-   capitals; the live `api-information` page says TheTVDB claims no ownership of images or data. Both
-   cannot be the whole picture, and it must be resolved before TheTVDB is relied on either way. **The
-   highest-value remaining gap.**
+1. **The TheTVDB image-rights discrepancy** (§4) — **resolved 16 August 2026, no discrepancy.**
+   The capitals clause is live at `thetvdb.com/tos` §2 and quoted with citation in
+   `external-metadata-sources.md`; the `api-information` page's no-ownership line is also true, and
+   the two are compatible — claiming no ownership of images is not licensing their display. Retired
+   from this list; the survivor is that TheTVDB conveys no express display right, which ADR-0009
+   already marks.
 2. **Ofcom's guidance** on the scope of regulated services and on highly effective age assurance.
    The statutory analysis in §8 is complete; Ofcom's gloss on it is not retrieved.
 3. **Whether TMDB's UK-establishment position could ever satisfy `SI 1997/3032 reg 18(1)(b)`.** The
