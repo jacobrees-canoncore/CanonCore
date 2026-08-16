@@ -36,6 +36,13 @@
       "when": 1786904458007,
       "tag": "0004_grant_the_application_role_read_on_source_and_snapshot",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1786906371970,
+      "tag": "0005_revoke_the_application_roles_writes_and_the_default_privileges",
+      "breakpoints": true
     }
   ]
 }

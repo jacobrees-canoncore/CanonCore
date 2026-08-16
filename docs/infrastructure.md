@@ -593,6 +593,62 @@ Neon's `neondb_owner` has `rolbypassrls = true` and is therefore never the appli
 | `canoncore_migrator` | Owns every table it creates. Runs migrations | `false` |
 | `canoncore_app` | The application connects as this and nothing else | `false` |
 
+#### What each role may do to a table, and the default privileges there are not
+
+**`canoncore_app` holds `SELECT` and nothing else, on every table.** `canoncore_migrator` needs no
+grant at all — it owns each table, and an owner bypasses row security, which is why ownership sits
+with it rather than with the application's role.
+
+**There are no default privileges, and the absence is the decision.** Until 16 August 2026 two
+`ALTER DEFAULT PRIVILEGES` grants existed here and in no other place:
+
+| Granted by | On | To `canoncore_app` |
+| --- | --- | --- |
+| `canoncore_migrator` | tables | `arwd` — INSERT, SELECT, UPDATE, DELETE |
+| `canoncore_migrator` | sequences | `rU` — SELECT, USAGE |
+
+A default privilege applies to every table the granting role **creates**, so each table arrived
+holding all four however its own migration read — and both `0001` and `0004` say `SELECT` only.
+**Row-level security was carrying it invisibly**: a `FOR SELECT` policy refuses the writes an ACL
+allows, so `story` and `snapshot` were never reachable, and `source` — the first table with no
+policy over it — is where the ACL became the only thing standing there. The application role could
+set every retention window to `'infinity'`, which is what
+[ADR-0014](adr/0014-shell-providers-and-per-source-retention.md#decision-6--retention-is-a-property-of-the-source)
+chose the shared row to prevent.
+
+**CAN-123 Revoke the application role's write privileges, and decide whether the blanket default
+privilege should exist** removed both rather than narrowing them to `SELECT`. A narrowed default
+would still hand a new table to the application role before anyone had written a policy for it, and
+row-level security is off until a policy turns it on, so that table would be readable in full.
+Since the change, a table arrives with **no ACL at all** and the application role is refused it
+outright, which is a loud error rather than the silent empty result a broken policy gives.
+
+Three things follow from that, and the third is why no reading of the repository could find it:
+
+- **A migration is the only place a table privilege is granted.**
+  [`apps/web/src/db/roles.sql`](../apps/web/src/db/roles.sql) carries what exists *before* any
+  migration runs, and cannot carry this — it is applied by a superuser, so the statement would
+  bind the wrong role. That file holds the argument, the citation and the check it rests on,
+  because it is the file somebody would otherwise add the revoke to.
+- **A test asserts it**, in [`apps/web/src/db/rls.test.ts`](../apps/web/src/db/rls.test.ts): every
+  table's privileges for `canoncore_app` as an exact list, and `pg_default_acl` as empty of it. A
+  new table fails that test rather than arriving armed.
+- **The test cannot see production.** It runs against CI's container and a laptop, so it gates what
+  the *migrations* produce. A privilege granted here by hand is invisible to it — which is exactly
+  what happened — so the check on production is reading the catalogues back, and nothing else is.
+  **Read both**: `relacl` for the three tables, and `pg_default_acl` with its `defaclnamespace`,
+  which is the half no test can ever reach and the half this arrived through.
+
+> **Read back from production on 16 August 2026, before the change**: `relacl` on all three tables
+> was `canoncore_app=arwd/canoncore_migrator`, and the two `pg_default_acl` rows were as tabled
+> above, both with `defaclnamespace = 2200` — the `public` schema, not a role-wide default. That
+> last detail is what makes migration 0005's `IN SCHEMA "public"` the right scope, and a read-back
+> that omits it cannot tell the two cases apart.
+>
+> **The reading that confirms the end state is due when the release runs migration 0005**, and
+> until it has been taken this section describes what the migration establishes rather than what
+> has been observed.
+
 ### Schema
 
 `public.story`, `public.visibility` and `drizzle.__drizzle_migrations`, every one of them owned by

@@ -272,11 +272,21 @@ and cannot be caught by looking. `story` and `snapshot` are those tables today, 
 them is tested from [`apps/web/src/db/rls.test.ts`](../../apps/web/src/db/rls.test.ts) — one file
 rather than one per table, for the reason that file's own header gives and cites. ADR-0005 rule 2 is what requires it.
 
-**A table deliberately left unprotected still owes the gate two tripwires**, because an exclusion
+**A table deliberately left unprotected still owes the gate three tripwires**, because an exclusion
 nothing enforces is indistinguishable from a table somebody forgot: one asserting that every table
-in `public` is classified as protected or not, and one asserting the unprotected table's whole
-column list. `source` is the first and the reason it is exempt is
+in `public` is classified as protected or not, one asserting the unprotected table's whole
+column list, and one asserting what the application role may do to every table. `source` is the
+first and the reason it is exempt is
 [ADR-0014](../adr/0014-shell-providers-and-per-source-retention.md) → *Decision 6*.
+
+**The third is there because the first two were not enough.** Where there is no policy, the grant
+is the only control, and CAN-123 Revoke the application role's write privileges, and decide whether
+the blanket default privilege should exist found the application role holding INSERT, UPDATE and
+DELETE on every table — from a default privilege that existed in production and in no file, so no
+reading of the migrations could have shown it. A fourth test in the same file asserts that no
+default privilege exists; it is not one of the three, because it guards tables nobody has created
+yet rather than the unprotected one. [`docs/infrastructure.md`](../infrastructure.md) → *Roles*
+records what that leaves, including the one thing those tests still cannot see.
 
 **Those tests need a real PostgreSQL, and `pnpm -r test` behaves differently depending on whether
 it has one.** In Actions the job runs a `postgres:17` service container and the suite always runs.

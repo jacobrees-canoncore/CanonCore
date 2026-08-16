@@ -10,8 +10,11 @@
 // the same time as this one.
 //
 // `source` has no cross-tenant test, which is a decision rather than an omission:
-// docs/adr/0014-shell-providers-and-per-source-retention.md -> Decision 6. The two tripwires
-// standing in its place are below.
+// docs/adr/0014-shell-providers-and-per-source-retention.md -> Decision 6. The three tripwires
+// standing in its place are below: every table classified, `source`'s whole column list, and
+// what the application role may do to each table. A fourth test asserts that no default
+// privilege exists at all — it guards tables nobody has created yet rather than `source`, so it
+// is not one of the three.
 import { fileURLToPath } from "node:url";
 import { sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/node-postgres";
@@ -322,6 +325,63 @@ describe.skipIf(!migratorUrl || !applicationUrl)("the schema, against a real Pos
       { relname: "source", relrowsecurity: false },
       { relname: "story", relrowsecurity: true },
     ]);
+  });
+
+  // The same question asked of the *grants* rather than of the policies, and the two are layers
+  // rather than alternatives: a policy narrows what a role may reach, the grant decides whether it
+  // may reach it at all, and only the grant stands over a table with no policy. What that cost
+  // before this test existed: docs/infrastructure.md -> Roles.
+  //
+  // `has_table_privilege` rather than a read of `relacl`, because the ACL is not the whole
+  // answer: a privilege reaching the role through PUBLIC or through role membership is written
+  // nowhere in `relacl` and is just as real. This asks the question that matters instead.
+  test("the application role may read every table and write none", async () => {
+    const { rows } = await migrator.query<{
+      relname: string;
+      may_select: boolean;
+      may_insert: boolean;
+      may_update: boolean;
+      may_delete: boolean;
+    }>(
+      `select c.relname,
+              has_table_privilege('canoncore_app', c.oid, 'SELECT') as may_select,
+              has_table_privilege('canoncore_app', c.oid, 'INSERT') as may_insert,
+              has_table_privilege('canoncore_app', c.oid, 'UPDATE') as may_update,
+              has_table_privilege('canoncore_app', c.oid, 'DELETE') as may_delete
+         from pg_class c
+        where c.relnamespace = 'public'::regnamespace and c.relkind = 'r'
+        order by c.relname`,
+    );
+
+    const readOnly = { may_select: true, may_insert: false, may_update: false, may_delete: false };
+    expect(rows).toEqual([
+      { relname: "snapshot", ...readOnly },
+      { relname: "source", ...readOnly },
+      { relname: "story", ...readOnly },
+    ]);
+  });
+
+  // What made the assertion above false in production, and the one test here that is about tables
+  // nobody has created yet: `ALTER DEFAULT PRIVILEGES` grants on every table the migration role
+  // *creates*, so a table arrives carrying privileges its own migration never wrote.
+  //
+  // Asserted as an absence, because that is the shape of the decision rather than an accident of
+  // it — migration 0005 removed both defaults instead of narrowing them. Sequences are in scope
+  // with tables because there were two of them, and only one was known about.
+  //
+  // **This can only ever pass here**, since no migration creates a default privilege. It locks
+  // the decision against a future migration that adds one; it cannot see a grant made by hand in
+  // production, which is exactly how the original one arrived.
+  test("no privilege reaches the application role by default, on a table or a sequence", async () => {
+    const { rows } = await migrator.query<{ grantor: string; kind: string; privilege: string }>(
+      `select pg_get_userbyid(d.defaclrole) as grantor,
+              d.defaclobjtype as kind,
+              a.privilege_type as privilege
+         from pg_default_acl d, aclexplode(d.defaclacl) a
+        where a.grantee = 'canoncore_app'::regrole`,
+    );
+
+    expect(rows).toEqual([]);
   });
 
   // Why `source` is the row above with `false` in it, and what that costs:

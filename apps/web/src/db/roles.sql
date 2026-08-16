@@ -38,3 +38,23 @@ GRANT USAGE ON SCHEMA public TO canoncore_app;
 DO $$ BEGIN
   EXECUTE format('GRANT CREATE ON DATABASE %I TO canoncore_migrator', current_database());
 END $$;
+
+-- **No default privileges, deliberately, and this file is not where they could be undone.**
+--
+-- Until 16 August 2026 production carried two `ALTER DEFAULT PRIVILEGES` grants that this file
+-- had no counterpart for, which is why a laptop and CI could not have caught them. What they were
+-- and what they did: docs/infrastructure.md -> Roles. Migration 0005 removed them, and
+-- `rls.test.ts` asserts their absence so it stays a decision rather than a state.
+--
+-- **Do not add the revoke here.** `ALTER DEFAULT PRIVILEGES` without `FOR ROLE` alters the
+-- *current* role's defaults (https://www.postgresql.org/docs/17/sql-alterdefaultprivileges.html),
+-- and this file runs as a superuser — checked on 16 August 2026 against PostgreSQL 17.11, where
+-- the grant was recorded against the superuser rather than `canoncore_migrator`. Since
+-- `canoncore_migrator` owns every table, a default privilege belonging to anyone else applies to
+-- nothing, so the statement would report success and change nothing.
+--
+-- The seam that follows: **this file carries what exists before any migration runs** — the two
+-- roles, and the schema and database privileges a migration needs in order to run at all.
+-- **Every privilege on a table is a migration's**, because a migration is the only thing that
+-- runs as the role that owns the tables, and the only thing that runs against production as well
+-- as here.
