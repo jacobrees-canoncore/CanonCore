@@ -11,8 +11,10 @@ and visibly incomplete rather than quietly short.
 
 **For TMDB this is settled permanently**, and the reason it cannot be reopened is the same reason it
 had to be decided this way: its published terms say nothing on the point at all, so no re-reading of
-them supports more. What could widen the rule is a *different* Source, and only at the moment that
-Source is adopted.
+them supports more. What could widen the rule is a *different* Source, at the moment that Source is
+adopted — or TMDB one day publishing terms that speak to the point, which is new terms rather than a
+new reading and reaches this document as an amendment. *What would reverse this, and what would
+not* below has both.
 
 > **Decided 16 August 2026** in the walkthrough recorded on
 > [CAN-115 Land the 16 August verification sweep: the decisions, the corrections, and what they touch](https://linear.app/jacobrees-canoncore/issue/CAN-115),
@@ -98,8 +100,8 @@ catalogue it is:
 - **`§1.C`** prohibits "Sell, lease, or sublicense the TMDB APIs, access to the TMDB APIs, or TMDB
   Content, or derive revenues from the use or provision of TMDB, the TMDB APIs, or TMDB Content,
   whether for direct commercial or monetary gain or otherwise, except as expressly permitted in a
-  written agreement between You and TMDB, as provided for in Paragraph 2 (Commercial Use) below". A
-GDPR export is none of those and earns nothing.
+  written agreement between You and TMDB, as provided for in Paragraph 2 (Commercial Use) below".
+  A GDPR export is none of those and earns nothing.
 - **`§1.A`** licenses the APIs "on a worldwide (except as limited below), non-exclusive,
   non-transferable, non-sublicensable, basis". That makes the **licence** non-transferable, which is
   not the same as making a copy of the content unlawful to hand over.
@@ -192,11 +194,12 @@ as CAN-30 GDPR export and erasure already requires. Narrowing the contents does 
 [ADR-0014](0014-shell-providers-and-per-source-retention.md) → *Decision 6 — retention is a property
 of the Source* made the same move for how long a copy may be kept, and for the same reason: Sources
 differ, and a project-wide answer is either too strict for the permissive ones or unlawful for the
-strict ones. Export scope differs the same way — two of the keyless roster are recorded as CC0,
-which would permit the copy outright, though ADR-0014 marks Open Library's row *unverified* because
-its CC0 designation is unverifiable on any live page, and that is exactly the reading each Source
-still needs, and ADR-0014's Decision 9 records that the roster's licences range from CC0
-through CC BY to two versions of CC BY-SA.
+strict ones. Export scope differs the same way. [ADR-0014](0014-shell-providers-and-per-source-retention.md)
+→ *Decision 9 — per-field provenance on every displayed value* records a roster ranging from CC0
+through CC BY to two versions of CC BY-SA, and two of its rows are CC0, which would permit the copy
+outright. It also marks Open Library's row *unverified*, because that CC0 designation is
+unverifiable on any live page — which is the per-Source reading this section argues for, arriving as
+its own first example.
 
 **And yet no `source.export_scope` column lands, because every Source answers the same way today.**
 Retention got columns because a job reads them each night. Nothing would read an export-scope column
@@ -228,8 +231,8 @@ new reading, and it arrives through this ADR being amended rather than through t
 ## The alternatives
 
 **Export titles, runtimes and identifiers**, the three field types the written approval named. This
-is what ADR-0009 actually said until 15 August 2026, and it is the only alternative here that was
-ever this project's position. Rejected because decision 5 of CAN-96 Record the architecture
+is what ADR-0009 actually said until 15 August 2026, and it is the only *scope* offered here that
+this project ever held. Rejected because decision 5 of CAN-96 Record the architecture
 decisions of 15 August, and make the repository agree sets that approval aside entirely and nothing
 in the published terms replaces it — and because CAN-36 Obtain written confirmation that the GDPR
 export is not redistribution had already declined to tick its own first criterion, recording the
