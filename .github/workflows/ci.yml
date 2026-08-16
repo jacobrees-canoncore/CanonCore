@@ -88,9 +88,10 @@ jobs:
       # Two of its checks reach no source from here, on purpose rather than by omission: the label
       # roster needs `orca`, a desktop CLI, and the secret roster needs a credential this workflow
       # deliberately does not hold. Both report SKIP, and the run's own summary page says so, so a
-      # green tick never stands in for a comparison that did not happen, and a third may join them.
-      # docs/agents/workflow.md -> The gates is the table of which check reaches which source, and
-      # is where that third is recorded as not yet known rather than guessed at.
+      # green tick never stands in for a comparison that did not happen. Everything else it checks
+      # does reach a source from here, the release token's expiry included: listing the account's
+      # tokens is within this token's reach, which was read off a run rather than assumed.
+      # docs/agents/workflow.md -> The gates is the table of which check reaches which source.
       # npm rather than pnpm: `pnpm add -g` needs PNPM_HOME configured, npm's global bin is
       # already on a runner's PATH. If the install or the token fails, the check reports SKIP
       # with the reason rather than failing the build.

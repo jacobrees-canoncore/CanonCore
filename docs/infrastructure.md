@@ -283,7 +283,7 @@ for its own credentials**; the pointer here is *Where a Source credential lives*
 | `SENTRY_DSN` | Vercel | Production, Preview | Sensitive | Also recorded under *Error reporting* below, since a DSN is not a secret |
 | `SENTRY_AUTH_TOKEN` | Vercel | Production, Preview | Sensitive | Organisation auth token, scope `org:ci`, for source-map upload |
 | `MIGRATION_DATABASE_URL` | GitHub Actions secret | — | — | The migration role's connection string, which has to ask for `sslmode=verify-full`. Not in Vercel: migrations run in Actions, not in the build |
-| `VERCEL_TOKEN` | GitHub Actions secret | — | — | **Account-scoped, and it has to be.** Two steps of `ci.yml` consume it: the `node scripts/check-docs.ts --verbose` run, and **Build and promote the production deployment**. A *project*-scoped token fails both, and fails them differently. Replaced 14 August 2026, **expires 14 August 2027** — *Why this one is account-scoped* below holds the identity, the expiry and the scope, and `scripts/check-docs.ts` compares that expiry against Vercel wherever it can list tokens, which `docs/agents/workflow.md` → *The gates* says is not everywhere |
+| `VERCEL_TOKEN` | GitHub Actions secret | — | — | **Account-scoped, and it has to be.** Two steps of `ci.yml` consume it: the `node scripts/check-docs.ts --verbose` run, and **Build and promote the production deployment**. A *project*-scoped token fails both, and fails them differently. Replaced 14 August 2026, **expires 14 August 2027** — *Why this one is account-scoped* below holds the identity, the expiry and the scope, and `scripts/check-docs.ts` compares that expiry against Vercel on every run, in CI as well as locally |
 
 **No `NEON_*` variables.** All sixteen the Marketplace integration had written were removed on 13
 August 2026. Whether the integration re-writes them is checked by **CAN-69 Record the credential
@@ -429,7 +429,7 @@ breaks both consumers — differently, which is the part worth recording.
 
 | Token | Scope | Expires | State |
 | --- | --- | --- | --- |
-| `canoncore-github-actions-release` | **User** — the whole account: every team the user belongs to, and every project in each | `2027-08-14` | **Live.** Created 14 August 2026 at 10:43 UTC, runs out **16:43 UTC on 14 August 2027**. Identified as the one CI holds by last use: Vercel last saw it at 17:43 UTC on 16 August 2026, inside run `31962399354`'s window |
+| `canoncore-github-actions-release` | **User** — the whole account: every team the user belongs to, and every project in each | `2027-08-14` | **Live.** Created 14 August 2026 at 10:43 UTC, runs out **16:43 UTC on 14 August 2027**. Identified as the one CI holds by last use, which moves with every run and so is quoted as a reading rather than a fact: at 17:43 UTC on 16 August 2026 it sat inside run `31962399354`'s window |
 | `canoncore-github-actions-release` | Project — `canoncore` alone, inside `team_fM6JucuEULAiTuHY5TM5h3TP` | `2027-08-14` | **Replaced** 14 August 2026, thirty-six minutes after it was set, and **revoked 16 August 2026** — it had a year of life left and nothing had used it since |
 
 **The expiry is compared rather than merely written down**, and the second row is why it cannot be
@@ -468,6 +468,7 @@ once.
 | Project | `5 passed, 2 skipped, 0 failed` | 14 August 2026, seven checks |
 | Account | `6 passed, 1 skipped, 0 failed` | 14 August 2026, seven checks |
 | Account | `6 passed, 2 skipped, 0 failed` | 16 August 2026, run `31960500155`, eight checks |
+| Account | `7 passed, 2 skipped, 0 failed` | 16 August 2026, run `31964525778`, nine checks |
 
 **The two dates are not comparable and the third row says why.** **CAN-109 Decide whether the label
 roster check needs enforcing, or is honest as it stands** added the secret roster, which skips on a
@@ -482,6 +483,14 @@ token's scope.
 checks on 14 August, eight after CAN-109 Decide whether the label roster check needs enforcing, or
 is honest as it stands added the secret roster, nine since the expiry check above. Read the row's
 own date before comparing it with a run, and read the run's summary rather than its tally.
+
+**The scope is now stated on the run rather than inferred from a skip.** Run `31964525778`
+reported `PASS the release token's expiry matches Vercel — expires 2027-08-14, scope wider than one
+project, read the newest 100`. That line is read from the token CI actually holds, by that token, so
+it settles two things this section previously took on trust from a laptop: the expiry above, and
+that the token in use is not project-scoped. It is a detail line and not a gate — what a
+wrongly-scoped token *costs* is still **CAN-109 Decide whether the label roster check needs
+enforcing, or is honest as it stands**'s answer, below, and does not get a second one here.
 
 **The release step fails loudly and `check-docs` fails quietly.** **Build and promote the
 production deployment** stops the job at its `vercel pull`, with

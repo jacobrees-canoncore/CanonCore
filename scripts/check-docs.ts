@@ -296,7 +296,7 @@ check("the secret roster matches GitHub Actions", () => {
 
 // `vercel tokens ls --help` on 16 August 2026 (CLI 58.7.1) documents `--limit` as "Maximum number
 // of tokens to return (default 20)" and offers no flag for the next page; asking for 101 returns
-// `Error: --limit must be between 1 and 100`. At 100 this account fills the page, so the listing
+// ``Error: `--limit` must be between 1 and 100.`` At 100 this account fills the page, so the listing
 // is capped in practice however it is asked for — and what that costs is handled below rather than
 // assumed away.
 const TOKEN_LIMIT = 100;

@@ -324,9 +324,8 @@ export function parseVercelTokens(rawJson: string): VercelToken[] {
       expiresAt: typeof row.expiresAt === "number" ? row.expiresAt : null,
       activeAt: typeof row.activeAt === "number" ? row.activeAt : null,
       // Vercel's own marker for the narrowest scope the dashboard offers: one project inside one
-      // team. Reported rather than enforced — what a wrongly-scoped token costs is answered by
-      // CAN-109 Decide whether the label roster check needs enforcing, or is honest as it stands,
-      // and does not get a second answer here.
+      // team. Why this is reported and never failed on is argued once, where the check is:
+      // scripts/check-docs.ts, above `the release token's expiry matches Vercel`.
       projectOnly: row.scope === "project-only",
     };
   });
