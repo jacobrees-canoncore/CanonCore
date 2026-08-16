@@ -133,13 +133,13 @@ function fixture({
    * `cwd` is this fixture's root. The checker reads files against a root derived from its own
    * location but runs `git ls-files` in the working directory, so a child left to inherit one
    * makes the two disagree, and what the suite then reports depends on where it was invoked from
-   * (../docs/incidents.md → *The same fixture inherited its working directory, and two checks went
-   * untested for three days*).
+   * (../docs/incidents.md -> The same fixture inherited its working directory, and two checks went
+   * untested for three days).
    *
    * `GITHUB_STEP_SUMMARY` is redirected to a temporary file. A runner sets it for every step, so
    * a fixture left to inherit it appends its own verdicts to the real run's page,
    * indistinguishable from the real ones
-   * (../docs/incidents.md → *A test fixture that spawns the CLI writes to the real job summary*).
+   * (../docs/incidents.md -> A test fixture that spawns the CLI writes to the real job summary).
    */
   const run = (env: NodeJS.ProcessEnv): Run => {
     const summaryPath = join(mkdtempSync(join(tmpdir(), "check-docs-summary-")), "summary.md");
@@ -262,7 +262,7 @@ test("a listing that came back empty fails rather than passing over nothing", ()
   const { code, output } = run(gitOnly);
 
   assert.equal(code, 1, output);
-  assert.match(output, /^FAIL {2}the job name has exactly one documented home {2,}.*no tracked file/m);
+  assert.match(output, /^FAIL {2}the job name has exactly one documented home {2,}.*was left to search/m);
   assert.match(output, /^FAIL {2}every relative link and anchor resolves {2,}.*no tracked markdown/m);
   assert.match(output, /^FAIL {2}every "file → \*Section\*" pointer resolves {2,}.*no tracked markdown/m);
 });

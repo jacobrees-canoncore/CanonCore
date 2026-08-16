@@ -251,6 +251,10 @@ fix is one line of the harness — redirect `GITHUB_STEP_SUMMARY` to a temporary
 environment, so any test that runs a CLI which writes a summary, an annotation or an output has to
 redirect that path rather than assume the child is sandboxed by being a child.
 
+> The second instance, in the same fixture and found three days later, is
+> [The same fixture inherited its working directory, and two checks went untested for three days](#the-same-fixture-inherited-its-working-directory-and-two-checks-went-untested-for-three-days):
+> the environment is not the only thing a child takes from its parent.
+
 ## The same fixture inherited its working directory, and two checks went untested for three days
 
 **16 August 2026, on CAN-122 The check-docs test fixture runs in the wrong directory, so the link
