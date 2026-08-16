@@ -26,6 +26,7 @@ is what the rule was built on.
 - [A check-run finished and its record never closed](#a-check-run-finished-and-its-record-never-closed)
 - [A workflow reading `toJSON(secrets)` is held before any job starts](#a-workflow-reading-tojsonsecrets-is-held-before-any-job-starts)
 - [A test fixture that spawns the CLI writes to the real job summary](#a-test-fixture-that-spawns-the-cli-writes-to-the-real-job-summary)
+- [The same fixture inherited its working directory, and two checks went untested for three days](#the-same-fixture-inherited-its-working-directory-and-two-checks-went-untested-for-three-days)
 - [Waveger: the build ran no migrations, and nobody knew](#waveger-the-build-ran-no-migrations-and-nobody-knew)
 
 **Tools and the harness**
@@ -249,6 +250,38 @@ fix is one line of the harness — redirect `GITHUB_STEP_SUMMARY` to a temporary
 **It generalises to anything else this repository ever spawns.** A child process inherits the whole
 environment, so any test that runs a CLI which writes a summary, an annotation or an output has to
 redirect that path rather than assume the child is sandboxed by being a child.
+
+## The same fixture inherited its working directory, and two checks went untested for three days
+
+**16 August 2026, on CAN-122 The check-docs test fixture runs in the wrong directory, so the link
+and pointer checks are never exercised.** Present since commit `9da1803`, 13 August 2026, which
+created `scripts/check-docs.ts` with both document checks in it. **Neither had ever been exercised.**
+
+`scripts/check-docs.test.ts` spawned the CLI with no `cwd`, so the child took whichever directory
+the runner started in. `scripts/check-docs.ts` reads every file against a `ROOT` derived from its
+own location — the fixture — but runs `git ls-files` in the working directory, and **the two
+disagreed in a way that depended entirely on where the suite was invoked from**:
+
+| Invoked from | `git ls-files "*.md"` returned | The link and pointer checks |
+| --- | --- | --- |
+| `scripts/`, which is what `pnpm -r test` and CI use | nothing, no markdown lives there | `PASS`, over `0 documents` and `0 pointers` |
+| the repository root | every document in the *real* repository | `FAIL`, `ENOENT` reading each one against the fixture |
+
+**Two of the eight checks had no test at all, and the suite reported that they did.** It is the
+shape CAN-109 Decide whether the label roster check needs enforcing, or is honest as it stands was
+opened to settle, one level down: there a *check* reached no source and the report was rebuilt to
+say so, here a *test* read no repository and said nothing at all.
+The `0 documents` count that would have given it away prints only under `--verbose`, and the suite
+never read the child's output at all.
+
+**It is the working-directory half of the entry above**, whose lesson was that a child inherits the
+whole environment. It inherits the working directory too, and a fixture that builds its own
+repository has to say which one every spawn runs in. Both fields, once, in the same helper.
+
+**A green test over an empty set is the failure, not the symptom.** So the fix was not only the
+`cwd`: the three checks that walk a listing now fail when the listing came back empty, because
+*searched nowhere* and *searched and found nothing* are indistinguishable in a report and only one
+of them is a pass.
 
 ## Waveger: the build ran no migrations, and nobody knew
 

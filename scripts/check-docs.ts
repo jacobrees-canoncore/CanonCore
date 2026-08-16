@@ -158,6 +158,11 @@ check("the job name has exactly one documented home", () => {
       `the CI job name is copied into ${offenders.join(", ")}. It must be named only in ` +
         `${CI_WORKFLOW} and ${CONTEXT_HOME}; everywhere else, point at that table.`,
     );
+  // Nothing scanned is not nothing found, the same distinction the document set draws below: this
+  // check searches the tracked tree for a second home, so a listing that came back empty means it
+  // searched nowhere, which reads from the report exactly like having searched and found none.
+  if (tracked.length === 0)
+    fail("`git ls-files` matched no tracked file to search for a second copy of the job name");
   return `${tracked.length} tracked files carry no copy`;
 });
 
@@ -286,6 +291,12 @@ const documents = () => {
         return [f, { body, ...anchorsOf(body) }] as const;
       }),
   );
+  // Empty is not agreement, the same rule the secret roster states above: a set that came back
+  // empty is not a repository whose every pointer holds, it is a repository this run never read.
+  // Not hypothetical, and it was invisible for three days - docs/incidents.md -> The same fixture
+  // inherited its working directory, and two checks went untested for three days.
+  if (documentCache.size === 0)
+    fail("`git ls-files \"*.md\"` matched no tracked markdown, so there was nothing to resolve");
   return documentCache;
 };
 
