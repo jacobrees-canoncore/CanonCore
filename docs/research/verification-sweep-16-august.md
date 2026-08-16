@@ -137,7 +137,10 @@ architecture decision, in the amended ADR itself.
    ADR-0014's third reachability class dissolves into a note.
 4. **Conservative statutory readings adopted as policy, no solicitor**: provider-imported content
    is treated as in scope for the illegal-content regime, and the GDPR export narrows to external
-   identifiers permanently. Policy, deliberately — not a legal conclusion.
+   identifiers permanently. Policy, deliberately — not a legal conclusion. The export half is
+   derived in [ADR-0015](../adr/0015-gdpr-export-owner-rows-and-source-identifiers.md), under
+   CAN-106 Decide what the GDPR export may contain under TMDB's published terms, and generalised
+   there from TMDB to any Source.
 5. **CAN-32 Roles, takedown, and the Online Safety Act surfaces owns the legal pages; CAN-89 Give the product a visual identity and a reading surface restyles them.** The gate never waits on design.
 6. **Baseline before repository**: CAN-107 Give every Provider repository a CI baseline now blocks CAN-101 Create the provider-tmdb repository, and give it the TMDB credential, so the first Provider repository is
    born gated rather than retrofitted.

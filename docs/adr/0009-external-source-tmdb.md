@@ -139,16 +139,18 @@ and until it lands the **Fallback** below is provisional in its target, though n
   Silence is not permission: nothing licenses the recipient. Providers are not a route around this:
   [ADR-0014](0014-shell-providers-and-per-source-retention.md) has them serving data *into*
   CanonCore, never receiving ours.
-- **What the GDPR export may carry is settled as policy, 16 August 2026: external identifiers
-  only, permanently.** The written approval that widened it is disregarded, and the published terms
-  are *silent* on a gratuitous copy (above) — so rather than rest on silence, the owner adopted the
-  conservative reading outright (CAN-115 Land the 16 August verification sweep: the decisions, the
-  corrections, and what they touch), with UK GDPR Article 15(4) and Recital 63 — the rights of
-  others, intellectual property included — noted as the withholding support for the values.
+- **What the GDPR export may carry is
+  [ADR-0015](0015-gdpr-export-owner-rows-and-source-identifiers.md)'s question, and the TMDB answer
+  to it is: external identifiers only, permanently.** The written approval that widened it is
+  disregarded, and the published terms are *silent* on a gratuitous copy (above) — so rather than
+  rest a shipped product on that gap, the owner adopted the conservative reading outright, as policy
+  (CAN-115 Land the 16 August verification sweep: the decisions, the corrections, and what they
+  touch). **The derivation is not here**, because the rule is a property of the Source rather than
+  of TMDB: ADR-0015 carries it, with UK GDPR Article 15(4) and Recital 63 — the rights of others,
+  intellectual property included — as the withholding support for the values, and
   [CAN-106 Decide what the GDPR export may contain under TMDB's published terms](https://linear.app/jacobrees-canoncore/issue/CAN-106)
-  records the derivation; [CAN-30 GDPR export and erasure](https://linear.app/jacobrees-canoncore/issue/CAN-30)
-  builds it. One thing survives either way: the
-  export is built from the composed read rather than by serialising Snapshot rows.
+  as where it was settled. [CAN-30 GDPR export and erasure](https://linear.app/jacobrees-canoncore/issue/CAN-30)
+  builds it.
 - **Identifier churn is real and already anticipated.** ADR-0004 records that TMDB loses roughly 2%
   of movie ids a year (a project estimate, not TMDB-published) with no merge model, serving a 301
   before a final 404. That is precisely why
