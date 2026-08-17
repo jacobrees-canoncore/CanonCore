@@ -42,7 +42,13 @@ function fixture({
   documents = {},
   untracked = [],
   tokenRows = ["| `the-release-token` | User | `2027-08-14` | **Live.** What CI holds |"],
-  securityRows = ["| Secret scanning | **enabled** | `security_and_analysis.secret_scanning.status` |"],
+  // All three calls, because the roster is now required to name each of them — a fixture short of
+  // one would fail every case on a rule none of them is about.
+  securityRows = [
+    "| Secret scanning | **enabled** | `security_and_analysis.secret_scanning.status` |",
+    "| Dependabot alerts | **enabled** | `vulnerability-alerts` → `204 No Content` |",
+    "| Dependency graph | **enabled** | `dependency-graph/sbom` → **696 packages** |",
+  ],
 }: {
   jobName: string;
   documentedContext: string;
@@ -316,7 +322,11 @@ test("a security roster row that records neither state fails before it reaches G
   const { run, gitOnly } = fixture({
     jobName: "the register's context",
     documentedContext: "the register's context",
-    securityRows: ["| Secret scanning | **on** | `security_and_analysis.secret_scanning.status` |"],
+    securityRows: [
+      "| Secret scanning | **on** | `security_and_analysis.secret_scanning.status` |",
+      "| Dependabot alerts | **enabled** | `vulnerability-alerts` → `204 No Content` |",
+      "| Dependency graph | **enabled** | `dependency-graph/sbom` → **696 packages** |",
+    ],
   });
   const { code, output } = run(gitOnly);
 

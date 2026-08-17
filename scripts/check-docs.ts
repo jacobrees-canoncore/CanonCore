@@ -95,22 +95,36 @@ function check(name: string, fn: () => string | void) {
   }
 }
 
-/** Run a command, or Skip if it is absent or refuses. */
-function source(cmd: string, args: string[], why: string): string {
+/**
+ * Run a command and report what it did, rather than deciding for the caller. Most callers want
+ * `source` below, which decides; the security settings cannot use it, because `gh api` exits
+ * non-zero on a `404` and a `404` is one of the two answers GitHub documents for two of its calls.
+ */
+function attempt(cmd: string, args: string[]): Attempt {
   try {
-    return execFileSync(cmd, args, {
-      encoding: "utf8",
-      stdio: ["ignore", "pipe", "pipe"],
-      timeout: 60_000,
-    });
+    return {
+      ok: true,
+      output: execFileSync(cmd, args, {
+        encoding: "utf8",
+        stdio: ["ignore", "pipe", "pipe"],
+        timeout: 60_000,
+      }),
+    };
   } catch (err) {
     // Where a CLI puts its diagnosis is its own business: `vercel` and `gh` use stderr, `orca`
     // exits with an empty stderr and a JSON envelope on stdout. Take the first that says
     // anything, and fall back to Node's own "Command failed: …", which names only the command.
     const e = err as { stderr?: string; stdout?: string; message?: string };
-    const output = e.stderr?.trim() || e.stdout?.trim() || e.message || "";
-    return skip(`${why}: \`${cmd} ${args.join(" ")}\` — ${explainFailure(output)}`);
+    return { ok: false, output: e.stderr?.trim() || e.stdout?.trim() || e.message || "" };
   }
+}
+
+/** Run a command, or Skip if it is absent or refuses. */
+function source(cmd: string, args: string[], why: string): string {
+  const ran = attempt(cmd, args);
+  return ran.ok
+    ? ran.output
+    : skip(`${why}: \`${cmd} ${args.join(" ")}\` — ${explainFailure(ran.output)}`);
 }
 
 // ---------------------------------------------------------------------------
@@ -365,47 +379,17 @@ check("the release token's expiry matches Vercel", () => {
 // ---------------------------------------------------------------------------
 // 6. The security settings.
 //
-// Seven rows of prose sitting beside four rosters that each have a check, which is how a row
-// that quietly stops being true goes unnoticed. These are security settings, so that costs more
-// than a stale variable name does.
+// Seven rows of prose sitting beside four rosters that each have a check, which is how a row that
+// quietly stops being true goes unnoticed. Three calls, because the settings live in three places
+// and none of them reaches all seven.
 //
-// Three calls, because the settings live in three places and none of them reaches all seven —
-// and the first is load-bearing well beyond its own five rows. `security_and_analysis` comes back
-// only to a caller with admin on the repository, and the other two calls each document `404` as
-// their *off*; admin is therefore what tells that `404` apart from an endpoint the caller may not
-// read at all. So it is read first, and where it is refused the check reports having read nothing
-// rather than five rows out of seven. The argument sits on the readers themselves, in
-// scripts/lib/doc-checks.ts.
-//
-// Which is also why this gates on a laptop and skips in CI, and that was confirmed rather than
-// assumed: `permissions:` accepts no scope that grants admin — `actions` through `statuses`, with
-// `vulnerability-alerts: read` reaching Dependabot's *alerts* rather than this setting — so the
-// workflow's own token cannot be granted it, whatever it is given. The same wall that keeps the
-// secret roster local, and the same answer. docs/agents/workflow.md -> The gates is the table.
+// `security_and_analysis` is read first, and not only for its own five rows: it comes back only to
+// a caller with admin, which is what tells the other two calls' `404` apart from an endpoint the
+// caller may not read at all. Where it is refused the check reports having read nothing rather
+// than five rows out of seven. The readers in scripts/lib/doc-checks.ts carry that argument with
+// its citations; why the roster gates on a laptop is docs/infrastructure.md -> Dependency and
+// secret scanning, and where every check gates is docs/agents/workflow.md -> The gates.
 // ---------------------------------------------------------------------------
-
-/**
- * Run a command and report what it did, rather than deciding for the caller. `source` above turns
- * every failure into a Skip, which the two calls below cannot accept: `gh api` exits non-zero on a
- * `404`, and a `404` is one of the two answers GitHub documents for each of them.
- */
-function attempt(cmd: string, args: string[]): Attempt {
-  try {
-    return {
-      ok: true,
-      output: execFileSync(cmd, args, {
-        encoding: "utf8",
-        stdio: ["ignore", "pipe", "pipe"],
-        timeout: 60_000,
-      }),
-    };
-  } catch (err) {
-    // `gh` writes the status to both streams and an absent binary to neither, so all three are
-    // handed on and `httpStatus` takes whichever is there.
-    const e = err as { stderr?: string; stdout?: string; message?: string };
-    return { ok: false, output: [e.stdout, e.stderr, e.message].filter(Boolean).join("\n") };
-  }
-}
 
 check("the security-settings roster matches the repository", () => {
   const documented = parseDocumentedSecuritySettings(read(CONTEXT_HOME));

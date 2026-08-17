@@ -333,6 +333,24 @@ test('a roster row read back from a field the repository does not carry is repor
   )
 })
 
+test('a source named by no row at all fails, because nothing would be left to notice', () => {
+  // Two of the three calls speak for a single row each. Delete that row and the call leaves the
+  // check with it, and the rows that remain agree — which reads from the report exactly like seven
+  // having been compared. The `security_and_analysis` half is covered the other way round, by the
+  // mirror that reports a live setting no row records.
+  assert.throws(
+    () =>
+      parseDocumentedSecuritySettings(
+        [
+          '| Setting | State | Read back by |',
+          '| --- | --- | --- |',
+          '| Secret scanning | **enabled** | `security_and_analysis.secret_scanning.status` |',
+        ].join('\n'),
+      ),
+    /names no row read back from `vulnerability-alerts`, `dependency-graph\/sbom`/,
+  )
+})
+
 test('a repository that answers with no security_and_analysis block is a skip, not a repository with nothing on', () => {
   // GitHub returns the block only to a caller with admin, so an empty answer is a refusal. It is
   // also this check's proof of entitlement — both readers below document `404` as their *off*,
@@ -351,6 +369,15 @@ test('a security_and_analysis status that is neither enabled nor disabled is a s
   assert.throws(() => parseSecurityAndAnalysis('not json'), Skip)
 })
 
+test('a block that parses to something other than an object skips rather than failing', () => {
+  // `null` is valid JSON, and `Object.entries(null)` throws a `TypeError` — which the report
+  // classifies FAIL, on the one path the whole design requires to SKIP. A refusal has to skip
+  // whichever way it arrives, and not only in the spelling this `gh` happens to use.
+  for (const answer of ['null', '"disabled"', '[]']) {
+    assert.throws(() => parseSecurityAndAnalysis(answer), Skip, `${answer} did not skip`)
+  }
+})
+
 test('the five security_and_analysis rows are read as GitHub prints them', () => {
   // `gh api repos/jacobrees-canoncore/CanonCore --jq .security_and_analysis`, captured from the
   // real CLI on 17 August 2026.
@@ -366,11 +393,12 @@ test('the five security_and_analysis rows are read as GitHub prints them', () =>
   assert.equal(live.get('secret_scanning_validity_checks'), false)
 })
 
-// `gh api` exits non-zero on a `404` and prints the status twice: its own line on stderr, and
-// GitHub's body on stdout. Both are handed to `httpStatus`, so either alone will do.
+// `gh api` exits non-zero on a `404` and prints the status twice, once per stream: its own line on
+// stderr and GitHub's body on stdout. `attempt` takes stderr first, so this is the shape that
+// actually reaches `httpStatus`; the body form is asserted separately below.
 const ghFailure = (status: number, message: string) => ({
   ok: false,
-  output: `{\n  "message": "${message}",\n  "status": "${status}"\n}\ngh: ${message} (HTTP ${status})`,
+  output: `gh: ${message} (HTTP ${status})`,
 })
 
 test('a status is read from either copy gh prints', () => {

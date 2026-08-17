@@ -367,6 +367,12 @@ export type SecuritySettingRow = { setting: string; enabled: boolean; source: Se
  * kept here. A row moved to a different source is then followed by the check, where a list here
  * would go on comparing it against the one it used to have.
  */
+const SECURITY_CALLS = {
+  analysis: "`security_and_analysis.<field>.status`",
+  alerts: "`vulnerability-alerts`",
+  graph: "`dependency-graph/sbom`",
+} as const;
+
 function securitySourceOf(setting: string, readBackBy: string): SecuritySource {
   const field = readBackBy.match(/security_and_analysis\.([a-z_]+)\.status/);
   if (field) return { kind: "analysis", field: field[1] };
@@ -374,14 +380,13 @@ function securitySourceOf(setting: string, readBackBy: string): SecuritySource {
   if (readBackBy.includes("dependency-graph/sbom")) return { kind: "graph" };
   fail(
     `the security roster's ${setting} row names no source this check can read: "${readBackBy}". ` +
-      "One of `security_and_analysis.<field>.status`, `vulnerability-alerts` or " +
-      "`dependency-graph/sbom` is what a row is compared against.",
+      `A row is compared against one of ${Object.values(SECURITY_CALLS).join(", ")}.`,
   );
 }
 
 /** The security-settings roster: every row's state, and which call speaks for it. */
 export function parseDocumentedSecuritySettings(markdown: string): SecuritySettingRow[] {
-  return parseTable(markdown, "Setting", "State", "Read back by").map((r) => {
+  const rows = parseTable(markdown, "Setting", "State", "Read back by").map((r) => {
     const setting = unbacktick(r.Setting);
     const state = norm(r.State);
     // A state that is neither is a row nothing can compare, and it decides on the document alone,
@@ -393,6 +398,19 @@ export function parseDocumentedSecuritySettings(markdown: string): SecuritySetti
       );
     return { setting, enabled: state === "enabled", source: securitySourceOf(setting, r["Read back by"]) };
   });
+  // Every one of the three calls has to be named by a row. Two of them speak for a single row
+  // each, so deleting that row takes its whole source out of the check — and what is left agrees,
+  // which reads from the report exactly like seven rows having been compared. The
+  // `security_and_analysis` half is covered the other way round, by the mirror in
+  // `compareSecuritySettings`; these two have nothing to be missing from.
+  const named = new Set(rows.map((r) => r.source.kind));
+  const absent = Object.entries(SECURITY_CALLS).filter(([kind]) => !named.has(kind as never));
+  if (absent.length)
+    fail(
+      `the security roster names no row read back from ${absent.map(([, call]) => call).join(", ")}, ` +
+        "so that source is compared by nothing. A row is how a setting stays under the check.",
+    );
+  return rows;
 }
 
 /** What a command did, for the calls whose failure is an answer rather than an outage. */
@@ -435,6 +453,14 @@ export function parseSecurityAndAnalysis(raw: string): Map<string, boolean> {
   } catch (err) {
     skip(`could not parse \`security_and_analysis\`: ${(err as Error).message}`);
   }
+  // `null` is valid JSON, and `Object.entries(null)` throws a `TypeError` — which the report
+  // classifies FAIL, on the very path that has to SKIP. `gh --jq` happens to print a bare newline
+  // for a missing key rather than `null`, so this rests on a guard instead of on that convention.
+  if (typeof parsed !== "object" || parsed === null)
+    skip(
+      `\`security_and_analysis\` came back as ${JSON.stringify(parsed)} rather than a block of ` +
+        "settings, so nothing was read back",
+    );
   const live = new Map<string, boolean>();
   for (const [field, value] of Object.entries(parsed as Record<string, unknown>)) {
     const status = (value as { status?: unknown } | null)?.status;
@@ -447,6 +473,10 @@ export function parseSecurityAndAnalysis(raw: string): Map<string, boolean> {
       );
     live.set(field, status === "enabled");
   }
+  // Empty is not agreement, the rule the secret roster states: a block carrying no settings is one
+  // this run did not read, and comparing against it would report every row as a setting the
+  // repository has dropped.
+  if (live.size === 0) skip("`security_and_analysis` carried no settings, so there was nothing to compare");
   return live;
 }
 
@@ -470,11 +500,17 @@ export function readVulnerabilityAlerts(attempt: Attempt): boolean {
  * `404` while off.
  *
  * A `404` is also what an endpoint nobody may read can answer, and telling those apart is the
- * whole difficulty. Two things separate them. GitHub documents `403` rather than `404` as this
- * endpoint's refusal [1], and the caller has already had to hold admin on the repository to reach
- * this function at all, since `parseSecurityAndAnalysis` skips the check otherwise — and admin is
- * *"at least read access to the repository"* [1] several times over. So a `404` arriving here is
- * the graph being off. Where neither holds, the check has already skipped saying so.
+ * whole difficulty. What separates them sits upstream rather than in the response: reaching this
+ * function at all means the caller held admin on the repository, since `parseSecurityAndAnalysis`
+ * skips the check otherwise, and admin is *"at least read access to the repository"* [1] several
+ * times over. So a `404` arriving here is the graph being off — which is also the only way it has
+ * been observed, the endpoint having answered `404` while off and a package count once on
+ * (docs/infrastructure.md → Dependency and secret scanning). Where the admin proof is missing the
+ * check has already skipped, saying so.
+ *
+ * The status list on [1] cannot settle it either way: it names `403 Forbidden` and `404 Resource
+ * not found` without saying which a refusal takes, so anything that is not a `404` is unread here
+ * rather than diagnosed.
  *
  * [1] https://docs.github.com/en/rest/dependency-graph/sboms
  */
@@ -502,7 +538,7 @@ export type LiveSecuritySettings = {
   graph: boolean
 }
 
-const state = (enabled: boolean) => (enabled ? "enabled" : "disabled");
+const stateWord = (enabled: boolean) => (enabled ? "enabled" : "disabled");
 
 /** Roster against repository. Returns a list of human-readable problems; empty means agreement. */
 export function compareSecuritySettings(
@@ -529,8 +565,8 @@ export function compareSecuritySettings(
     }
     if (actual !== row.enabled)
       problems.push(
-        `${row.setting}: the roster records ${state(row.enabled)}, the repository has ` +
-          `${state(actual)}`,
+        `${row.setting}: the roster records ${stateWord(row.enabled)}, the repository has ` +
+          `${stateWord(actual)}`,
       );
   }
   // A setting the repository carries and the roster does not is the mirror of a secret set but
