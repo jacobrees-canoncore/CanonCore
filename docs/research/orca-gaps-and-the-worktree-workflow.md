@@ -451,9 +451,26 @@ $ git switch main
 fatal: 'main' is already used by worktree at '/Users/jacobrees/orca/projects/CanonCore'
 ```
 
-Because the two commands are joined by `&&`, **the `orca worktree create` after it never runs**. That
-was harmless while lanes were created from the main checkout and is not harmless now that an agent
-lives in a lane and may be asked to open the next one. `git fetch origin` is the correct preamble and
+The `&&` joins the switch to the `git pull`, not to the `orca worktree create` a newline below, so
+**the create does still run** (*corrected 17 August 2026: this first read as the `&&` taking the
+create with it*). A newline-separated command runs regardless of what preceded it:
+
+```
+$ cat probe.sh
+false && echo "pull ran"
+echo "create ran"
+
+$ bash probe.sh
+create ran
+$ echo $?
+0
+```
+
+The block's own status is then the create's, because a script's is its last command's — so the
+`fatal:` is invisible to anything reading the status rather than the output. What the reader gets is
+a `fatal:` they did not cause, no pull, and a dead first line. That was harmless while lanes were
+created from the main checkout and is not harmless now that an agent lives in a lane and may be asked
+to open the next one. `git fetch origin` is the correct preamble and
 works from anywhere: Orca bases a new worktree on `refs/remotes/origin/main` regardless of where the
 local `main` ref sits, verified on this lane (`worktree show` → `baseRef: "refs/remotes/origin/main"`).
 Orca also refreshes that ref itself on create — the bundle carries
@@ -630,7 +647,9 @@ Filing is a separate call, per the commissioning ticket.
 2. **Fix the broken preamble in `docs/agents/workflow.md` → *Branches***, replacing
    `git switch main && git pull` with `git fetch origin`, and give the dispatch form with `--agent`,
    `--prompt` and an explicit `--base-branch origin/main`. This is a **defect**: the documented
-   command cannot run from where work now happens, and `&&` makes it take the create with it.
+   command cannot run from where work now happens, so its first line is dead and its `git pull` never
+   happens (*corrected 17 August 2026: this first read as `&&` taking the create with it; see
+   question two above for the probe*).
 3. **Record the lane workflow in `docs/agents/workflow.md`** — that lanes run in parallel, that a
    batch must be independent, and the `--base-branch origin/main` rule from question three. Could be
    one ticket with the item above.
@@ -638,9 +657,10 @@ Filing is a separate call, per the commissioning ticket.
    new. See below.
 
 5. **Give the bare identifier in `docs/agents/workflow.md` its title** — the `CAN-40 Give main a
-   ruleset that refuses an unchecked merge` reference at line 198. One line, and it is the rule in
-   `CLAUDE.md` → *Name every ticket you cite* being broken by the document that most agents read.
-   Found while quoting it; too small to be its own ticket, so fold it into item 2 or 3.
+   ruleset that refuses an unchecked merge` reference in *The loop*. One line, and it is
+   the rule in `CLAUDE.md` → *Name every ticket you cite* being broken by the document that most
+   agents read. Found while quoting it; too small to be its own ticket, so fold it into item 2 or 3.
+   (*Landed 17 August 2026 with item 2, and the file had three more bare citations than this one.*)
 
 And one thing to **watch rather than file**: the day a `.env.local` is needed locally, add
 `.worktreeinclude`. It is not a ticket yet because there is nothing to copy, and it will not announce
