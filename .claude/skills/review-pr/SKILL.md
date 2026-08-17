@@ -300,9 +300,10 @@ ran** — not whether a review happened. Ask rather than assume when this sessio
    correct and must be left alone. Anything else is a citation to fix.
 
    **This catches link texts only, and that is not the whole hazard.** A bare identifier in running
-   prose is linkified on save, roughly one time in five, which both creates this form and breaks any
-   emphasis run around it. Where an identifier in the body is a range or a count rather than a
-   citation, put it in a code span. (`docs/agents/issue-tracker.md` → *A bare identifier does not
+   prose is linkified on save — 26 of 31 measured, including the bold `**CAN-30 <title>**` form these
+   documents use — which both creates this form and breaks any emphasis run around it. So in a Linear
+   body put the title *inside* the link text, and put any identifier that is a range or a count in a
+   code span. (`docs/agents/issue-tracker.md` → *A bare identifier does not
    survive the sync*.)
 
    **Settle again, then confirm by reading** — same backgrounded form. Confirm this write by reading

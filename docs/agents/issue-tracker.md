@@ -162,7 +162,7 @@ has the evidence for each:
 - **One clean round trip is not proof of safety.** A bare `CAN-17` came back from the first pass as
   `[CAN-17](<url>)` with its text intact, and the second pass mangled it — so a body can be one save
   from damage while reading as untouched. What decides which bare identifiers decay was never isolated,
-  but the rate is not small: six of the 31 in one repair pass, about one in five.
+  and the rate is not small but the norm: 26 of the 31 in one repair pass, 84%.
 - **Any `save-issue` re-exposes the whole body**, because the description is replaced whole. A write
   that toggles one checkbox re-offers every bare identifier elsewhere in the body.
 

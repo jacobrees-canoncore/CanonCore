@@ -466,12 +466,20 @@ under it: "322 of them are followed by their own title and have survived repeate
 just the titled links being counted twice over. Excluding link text and hrefs as well as code, the
 real figures on 17 August 2026 are **43 bare prose identifiers across 19 issues**.
 
-**On the corrected denominator the hazard is not rare.** Of the **31** bare prose identifiers in the
-96 bodies the repair saved, **6 were linkified into the trigger form** — roughly one in five, and on
-CAN-97 Record the amendment rule, and what an ADR does when a decision changes it was four of that
-body's four. So a bare identifier in a Linear body is a live hazard on any save, not a background one.
-What it is *not* is an argument against the bold **CAN-30 GDPR export and erasure** form these
-documents use: nothing here measured that form, because the repo is not synced.
+**On the corrected denominator, and read after the sync had settled, it is not a hazard but the norm.**
+Of the **31** bare prose identifiers in the 96 bodies the repair saved, **26 were linkified into the
+trigger form — 84%**, leaving 5. An earlier read of the same bodies showed only 6, because it was taken
+while GitHub's webhooks were still degraded and the return pushes had not drained; the figure moved
+from 6 to 26 over about four hours with no further writes. **A bare identifier in a Linear body should
+be assumed to become `[CAN-n](url)`, and therefore to be mangled on the save after that.**
+
+**That includes the bold title-beside form, which is the important part.** These documents prescribe
+**CAN-30 GDPR export and erasure**, and this issue's own body used it. In a Linear body it does not
+hold: it came back as `[CAN-30](url) **GDPR export and erasure**` — the identifier pulled out into a
+bare link and the title left bolded beside it, which is exactly the trigger form the rule exists to
+avoid. So in a Linear body the **only** safe citation is the title *inside* the link text, and the only
+safe bare mention is a code span. The bold form remains correct in this repository, which is not
+synced — that is the whole of the difference.
 
 **The substituted number names a different ticket, and the drift is not arithmetic anyone can undo.**
 Across the 72 distinct targets currently mangled, the offset runs from `+3` at `CAN-6` to `-50` at
@@ -506,11 +514,15 @@ deliberately *about* the GitHub-side numbers. The repair only ever rewrote link 
 mechanically: every href preserved, no prose word lost outside an absorbed title, and no `****` run
 introduced. **A full re-read afterwards found 0 mangled links, against 237 before.**
 
-**It did not leave the tracker clean, and the residue is the finding below.** Six trigger-form links
-remain — four on CAN-97 Record the amendment rule, and what an ADR does when a decision changes, two
-on CAN-120 Five mirrored issue bodies are contradicted only by a comment the mirror never received —
-because Linear created them *during* the repair write by linkifying bare prose identifiers. They are
-not survivors of the old damage; they are new, and they are the next save's mangling if left.
+**It did not leave the tracker clean, and the residue is the finding below.** Twenty-six trigger-form
+links remain, across six issues — CAN-88 The GitHub sync rewrites bare CAN-n link text into GitHub
+numbers (10), CAN-45 Record what CAN-18 provisioned, and the two things it could not prove (5),
+CAN-43 Publish the reporting route the Online Safety Act requires (4), CAN-97 Record the amendment
+rule, and what an ADR does when a decision changes (4), CAN-120 Five mirrored issue bodies are
+contradicted only by a comment the mirror never received (2) and CAN-96 Record the architecture
+decisions of 15 August, and make the repository agree (1). Linear created every one of them *during*
+the repair write, by linkifying a bare prose identifier. They are not survivors of the old damage; they
+are new, and each is the next save's mangling if left.
 
 **The durability of that repair is not yet verified, and it is the one thing left open.** All 96 writes
 went out between `14:14Z` and `14:24Z`, inside the GitHub incident above — so whether every outbound
@@ -548,8 +560,8 @@ terms. `CAN-1` in that same run was left alone, which fits Linear only linkifyin
 resolve: `CAN-1` to `CAN-4` are archived onboarding templates.
 
 **So a bare identifier in a Linear body is not merely a citation hazard, it is a markup hazard**, and
-neither is fixed by the title-inside-brackets rule, which is about links. Six of 31 fired on one save —
-about one in five, and not predictable. **The reliable defence for a mention that is not a citation —
+neither is fixed by the title-inside-brackets rule, which is about links. 26 of 31 fired on one save,
+once the sync had settled. **The reliable defence for a mention that is not a citation —
 a range, a count, an identifier being discussed rather than cited — is a code span**, which came back
 untouched from both passes of the probe.
 
