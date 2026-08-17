@@ -9,6 +9,7 @@ Code; **this records what was not**, and what stands in its place.
 | Service name | CanonCore (`https://www.canoncore.com`) |
 | Completion date | 13 August 2026 |
 | Last revised | 14 August 2026 (substantive edits), revision row added 16 August 2026 per RKRG §2.7 |
+| Revised | 17 August 2026 — read alongside both risk assessments as redone by [CAN-108 Re-assess the illegal-content risk before a user can paste an arbitrary Provider URL](https://linear.app/jacobrees-canoncore/issue/CAN-108). **The measure not taken, the alternative and the `s.23(5)` areas are all unchanged.** What changed is the compliance argument: the reviewability limb now says what bounds a route that adds text without adding a functionality, and the list of what would break the argument covers text of any origin |
 | Next review date | 13 August 2027 — reviewed with the risk assessments, and immediately if the justification below stops holding |
 | Completed by | Jacob Rees |
 | Named person responsible | Jacob Rees |
@@ -66,6 +67,11 @@ Four things carry the argument, and each is checkable:
    control reachable only to signed-in users would serve them worse than the address does.
 3. **There is no volume for a per-item control to manage.** No upload, no messaging, no comments, no
    search across other users' content, so the corpus is small enough for the operator to read in full.
+   **The one route that adds text without adding a functionality is import through a Provider**, and
+   what bounds it is that v1 imports a record at a time, chosen by its owner. That is the same bound
+   finding 2c rests on in [`illegal-content-risk-assessment.md`](illegal-content-risk-assessment.md) →
+   *Finding 2c on the pasted-Provider route*, and it is the first item in the list below rather than an
+   assumption made quietly here.
    **That reviewability is the provider's own reasoning and is not attributed to Ofcom**, whose guidance
    makes proportionality turn on the size, capacity and risk of a service without saying that a readable
    corpus substitutes for a reporting control.
@@ -73,10 +79,11 @@ Four things carry the argument, and each is checkable:
    the item it is attached to; free-form contact does not, which is why D2.2(d) supporting information is
    satisfied without a field to type it into.
 
-**What would break this argument**, and make CAN-43 urgent rather than an improvement: user numbers
-growing past what one person can read; any upload; any messaging or commenting; linkified free text; or
-search across other users' content. Each is already listed as a change requiring the risk assessments to
-be redone.
+**What would break this argument**, and make CAN-43 urgent rather than an improvement: **importing from
+a Provider in bulk or on a schedule**, rather than a record at a time chosen by its owner; user numbers
+growing past what one person can read; any upload; any messaging or commenting; **linkified text of any
+origin**, which this list scoped to user free text until 17 August 2026; or search across other users'
+content. Each is already listed as a change requiring the risk assessments to be redone.
 
 ## `s.23(5)` — the areas in `s.10(4)` and `s.12(8)`
 

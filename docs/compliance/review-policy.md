@@ -28,8 +28,10 @@ so that such changes are noticed. Ofcom's own pages link superseded versions, so
 resolved through the [regulatory documents index](https://www.ofcom.org.uk/online-safety/illegal-and-harmful-content/online-safety-regulatory-documents).
 
 **Changes that require the risk assessment to be redone before they ship** are listed at the end of the
-risk assessment. In short: any user upload, any messaging or commenting, linkifying user free text,
-search across other users' content, a recommender, or a marketplace.
+risk assessment. In short: any user upload, any messaging or commenting, linkifying anything rendered
+whatever wrote it, search across other users' content, a recommender, a marketplace, or a further move
+along the Provider-ingress axis — accepting a pasted third-party Provider URL was itself one, and both
+assessments were redone for it on 17 August 2026 before it could ship.
 
 Ofcom's proportionality point is noted: "a relatively minor change on a large service is likely to have a
 significant impact, while it could take a much larger change on a smaller service to trigger the need to

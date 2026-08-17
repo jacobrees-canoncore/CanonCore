@@ -13,6 +13,7 @@ children's safety duties and Ofcom's *Protection of Children Codes of Practice*.
 | Completion date | 13 August 2026 — the same day as the children's access assessment it follows from, well inside the three months `s.11` allows |
 | Revised | 14 August 2026 — the Part 5 correction carried by [CAN-74 Rewrite ADR-0012 on Part 5 grounds](https://linear.app/jacobrees-canoncore/issue/CAN-74). No level or finding changed; the artwork constraint that holds the pornographic content finding is re-grounded in `s.81` rather than `s.12(5)`. The terms of service were amended in the same change, and Step 4 records what and why |
 | Revised | 14 August 2026 — the minimum age confirmed at 13 by [CAN-44 Make the Online Safety Act records live, and create the reporting address](https://linear.app/jacobrees-canoncore/issue/CAN-44). No level or finding changed, and the age itself did not move; what changed is that *Age groups* now records the decision and its reasoning instead of flagging the figure as owned by nobody |
+| Revised | 17 August 2026 — **redone under `s.11(4)`**, alongside the illegal content assessment and before the ingress it assesses can ship. Carried by [CAN-108 Re-assess the illegal-content risk before a user can paste an arbitrary Provider URL](https://linear.app/jacobrees-canoncore/issue/CAN-108). **No level moved and no risk factor was added.** What did: text imported through a *pasted* Provider is user-generated content, so every kind below was re-read against that route; the artwork constraint is re-derived for a Source whose classification arrives from a party this project cannot check; and [`childrens-access-assessment.md`](childrens-access-assessment.md) was re-read against the result |
 | Next review date | 13 August 2027 — at least annually |
 | Completed by | Jacob Rees |
 | Named person responsible | Jacob Rees |
@@ -34,6 +35,16 @@ assessment: user profiles; users without accounts; and child users. Fork is out 
 so the re-posting and forwarding factor does not apply at launch. The factors Ofcom most strongly associates with harm to children are **absent**: there is no
 recommender system, no group messaging, no direct messaging, no livestreaming, no commenting, and no
 image or video posting.
+
+> **The pasted-Provider route adds no risk factor, and the check is recorded rather than assumed.**
+> Ofcom's factors are functionalities — how users identify themselves, network, communicate,
+> transact, find content, and what recommends content to them. An ingress that fills a person's own
+> records is none of those: it opens no route from one user to another, adds nothing to search, and
+> ranks or suggests nothing. What it changes is **whose words** can end up on a public record, which
+> is a question about the findings in Step 2 rather than about the factor list. The discovery limb is
+> worked through in
+> [`illegal-content-risk-assessment.md`](illegal-content-risk-assessment.md) →
+> *Finding or encountering content, re-derived* and is not repeated here.
 
 ### Age groups
 
@@ -109,6 +120,32 @@ disseminate any kind of content harmful to children.
 > address" ([Ofcom, *Protection of children duties under the Online Safety Act*](https://www.ofcom.org.uk/online-safety/protecting-children/protection-of-children-duties-under-the-online-safety-act)). This is a duty specific to user-to-user services and is easy to
 > miss. [`review-policy.md`](review-policy.md) → *Review cycle* carries it as a standing obligation, with
 the address, so that a reader working through the review schedule meets it.
+
+### Every kind re-read against the pasted-Provider route
+
+**Redone on 17 August 2026 under `s.11(4)`.** No level moves, and the reasoning is common to the kinds
+above rather than different for each, so it is written once here instead of being pasted into fourteen
+cells.
+
+- **What arrives is text.** A Provider serves prose about works. For pornographic content that is
+  decisive rather than merely helpful: `s.61(6)` takes text-only content out of pornographic content
+  as primary priority content, which is the same ground the finding already stood on.
+- **Every "no linkification" in the tables above now covers more than it did.** Until this revision
+  the control was scoped to user free text, so a Provider's prose sat outside it; it now covers
+  everything rendered, whatever wrote it.
+- **The mechanisms the levels rest on are untouched.** No image or video, no recommender, no route
+  from one user to another. A Provider is a route from a *service* to one person's own records, and
+  it creates none of those. Bullying, in particular, still has nothing to be directed at a child
+  with.
+- **What genuinely differs is authorship and rate.** The words may be a stranger's, and they arrive
+  faster than anyone types. Both bear on the same control — a corpus one person can read — and both
+  are carried as reassessment triggers rather than as a level change, for the reasons the illegal
+  content assessment sets out under *Finding 2c on the pasted-Provider route*.
+
+**One kind is not disposed of by that common reasoning**, and it is the one the rest of this document
+turns on. See *Adult works in the catalogue, and why they do not change the finding* below, where the
+constraint holding pornographic content at low has to be re-derived for a Source whose classification
+this project cannot check.
 
 **Overall: low for every kind of content harmful to children, and no non-designated content identified.**
 
@@ -204,6 +241,38 @@ Two acceptance criteria follow, in tickets rather than here:
   must set `display_permitted = false` for artwork on adult-flagged records, and the public renderer must
   refuse to override it.
 
+### A pasted Provider's classification is a stranger's assertion
+
+**Added 17 August 2026.** The constraint above runs on a flag — TMDB's `adult`, carried onto the
+Snapshot by CAN-26 so the renderer has something to decide on. Under
+[ADR-0014](../adr/0014-shell-providers-and-per-source-retention.md) the application must no longer
+know that flag's name, so what it reads is a **content classification declared through the Provider
+contract**; and on the pasted route that declaration is made by a party this project has not reviewed
+and cannot check.
+
+**Absence is refusal, not permission.** A pasted Provider declaring no content classification must
+have no artwork displayed from it at all. That is
+[CAN-104 Read a Provider's capability declaration, and refuse what it does not serve](https://linear.app/jacobrees-canoncore/issue/CAN-104)'s
+rule, and
+[CAN-113 Add a Provider by pasting its URL](https://linear.app/jacobrees-canoncore/issue/CAN-113)
+already carries it as an acceptance criterion citing
+[ADR-0012](../adr/0012-adult-works-catalogued-artwork-never-displayed.md). **It is restated here
+because this is the record that would be wrong if it were dropped**, and a rule living only in the
+ticket that implements it is one nobody re-reads at the moment it is broken.
+
+**A false declaration is a real residual risk, and it is stated rather than argued away.** A
+stranger's Provider may assert that a work is not adult when it is, and nothing here can tell.
+Three things bound that rather than remove it, and none of them is a review of the Provider:
+
+- **v1 displays no artwork at all.** CAN-13 Artwork: uploads, rights and takedown is out of scope for
+  v1, so the exposure is not live on the change this revision gates.
+- **`display_permitted` is the renderer's flag, not the Provider's.** A takedown does not need the
+  Provider to agree, or even to still exist.
+- **The constraint never rested on a classification being complete.** ADR-0012 already records
+  TMDB's blind spot — hardcore pornography is flagged, 18+ erotic titles deliberately are not — and
+  holds the rule anyway. A stranger's declaration is less trustworthy in a way the rule was already
+  built to survive.
+
 **If adult artwork ever becomes publicly displayable, this assessment is wrong and must be redone**, and
 the `s.81` Part 5 duty comes into scope with it.
 
@@ -224,6 +293,17 @@ illegal content assessment:
 - Storing or serving media bytes, or streaming through CanonCore rather than handing off, either of which
   would reverse ADR-0006 and reopen this assessment entirely.
 - Lowering the minimum age below 13.
+- **Accepting a pasted third-party Provider URL**
+  ([CAN-113 Add a Provider by pasting its URL](https://linear.app/jacobrees-canoncore/issue/CAN-113))
+  — listed in the illegal content assessment, and listed again here for the reason specific to
+  children: it is the route by which a value this project cannot check would decide whether Artwork
+  is shown to one. **Discharged on 17 August 2026 for the change CAN-113 will make**, and left on the
+  list because the next move along the axis is not covered by that.
+- **Trusting a pasted Provider's content classification for anything but suppression** — reading an
+  absent or negative declaration as permission to display artwork. It is downstream of the artwork
+  trigger above rather than an alternative to it, and it reaches `s.81` by the same Part 5 route
+  ADR-0012 works through, with the extra step that the assertion came from a party this project
+  cannot check.
 
 > **The terms of service amendment of 14 August 2026, and why it is not the first item above.** The
 > terms gained a statement that keeping a catalogue record of a film or a programme is not posting that
