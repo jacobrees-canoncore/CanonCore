@@ -11,6 +11,12 @@
     "moduleResolution": "bundler",
     "resolveJsonModule": true,
     "isolatedModules": true,
+    // `scripts/purge-source.mts` is run by node with no build step, stripping the types as it
+    // reads it, and node resolves a relative specifier only when it names a real file. So that
+    // file names `../src/db/purge-source.ts` and that module names `./schema.ts`, which is what
+    // needs this flag; `next build` resolves both specifiers unchanged. The repo-root `scripts`
+    // package carries the same flag, in its own `tsconfig.json`, for the same reason.
+    "allowImportingTsExtensions": true,
     "jsx": "react-jsx",
     "incremental": true,
     "plugins": [

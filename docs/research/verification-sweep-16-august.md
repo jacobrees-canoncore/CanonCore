@@ -146,7 +146,12 @@ architecture decision, in the amended ADR itself.
    born gated rather than retrofitted.
 7. **`§1.D` purge-on-termination gets its own v1 ticket** — **CAN-118 Purge every Snapshot of a
    Source whose licence terminates, and tombstone what it touched** — because the one licence duty
-   with a deadline measured in days was owned by nothing.
+   with a deadline measured in days was owned by nothing. *Corrected 17 August 2026: `§1.D` states
+   no number of days. The obligation is to "promptly delete or otherwise purge all TMDB Content,
+   including any cached content" ([API Terms of Use](https://www.themoviedb.org/api-terms-of-use)).
+   The finding survives on stronger ground — a period judged after the event against how quickly you
+   could have acted is not a kinder one than a fixed window — and CAN-118 Purge every Snapshot of a
+   Source whose licence terminates, and tombstone what it touched carries the full correction.*
 
 ## False records corrected
 

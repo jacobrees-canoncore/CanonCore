@@ -1,0 +1,54 @@
+# The `§1.D` purge, dispatched by hand.
+#
+# **There is no other trigger, and that is the decision rather than a limitation.** A Source's
+# licence terminating is an event a person learns about — a notice on the Source's own site, a
+# message, or API access simply stopping — so there is nothing for a schedule to poll and no webhook
+# to listen to. docs/runbook.md -> A Source's licence terminates is the procedure: what to check
+# first, who runs this, and what the licence requires of the timing.
+#
+# **Why Actions rather than a laptop.** The credential this needs already lives here, as the secret
+# the release's migration step uses, so the operator fetches nothing while a clock runs; and a
+# dispatched run is itself a dated, immutable record that the purge happened, which is the evidence
+# "promptly" is judged against after the event. The same command runs locally for anyone holding
+# `canoncore_migrator`'s connection string — apps/web/scripts/purge-source.mts.
+name: Purge a Source
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_id:
+        description: The id of the Source to purge, read from the `source` table
+        required: true
+        type: string
+
+# Deliberately not a required status check and deliberately not one of ci.yml's jobs: it never runs
+# on a push, and docs/infrastructure.md -> The ruleset holds the one job that reports a context.
+jobs:
+  purge:
+    name: purge a Source
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+
+      # The id reaches the shell as an environment variable rather than as an expression pasted into
+      # the command: *"For inline scripts, the preferred approach to handling untrusted input is to
+      # set the value of the expression to an intermediate environment variable"*
+      # (https://docs.github.com/en/actions/reference/security/secure-use -> Use an intermediate
+      # environment variable, read 17 August 2026).
+      #
+      # No migration step, and no `db:migrate` before it: the purge acts on the schema production is
+      # actually carrying, which is the schema the duty is owed against. A run that could not account
+      # for every table in it exits non-zero and says which — apps/web/src/db/purge-source.ts, on
+      # `unclassifiedTables`.
+      - name: Purge every Snapshot of the named Source
+        run: pnpm --filter @canoncore/web db:purge-source "$SOURCE_ID"
+        env:
+          MIGRATION_DATABASE_URL: ${{ secrets.MIGRATION_DATABASE_URL }}
+          SOURCE_ID: ${{ inputs.source_id }}

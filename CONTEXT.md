@@ -213,7 +213,10 @@ _Avoid_: Status, health, deleted, stale
 **Tombstone**:
 What is left where a Story used to be once every Source's content has been dropped from it and the
 owner overrode nothing: the identity, what kind of thing it was, and when it went. It carries no
-value any Source supplied, which is the whole of why it may remain.
+value any Source supplied, which is the whole of why it may remain. **It replaces the Story's row
+rather than marking it**, in a table of its own
+([ADR-0014](docs/adr/0014-shell-providers-and-per-source-retention.md) → *Decision 8*, settled
+17 August 2026).
 _Avoid_: Soft delete, archived, hidden, placeholder, stub
 
 **Artwork**:

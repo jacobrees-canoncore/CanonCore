@@ -1,0 +1,14 @@
+-- The grant migration 0001 makes for `story`, for the table migration 0006 creates. A policy
+-- narrows what a role may read and grants nothing, so without this the application role is refused
+-- the table outright.
+--
+-- **SELECT only, and the application never writes one.** The purge writes tombstones and it runs as
+-- `canoncore_migrator` — `src/db/purge-source.ts`, and migration 0005 for why the application role
+-- holds no write privilege on anything. What reads them is CAN-111 Decide and build what a dropped
+-- Story renders as, which owns the 410.
+--
+-- **Granted now rather than with that reader**, because 0001's rule is that a privilege which exists
+-- is one a policy has to be written for — and 0006 carries the policy. A separate file from the table
+-- for the same reason 0003 and 0004 are separate: `drizzle-kit generate` writes the table, a grant is
+-- hand-written, and mixing them means editing generated SQL.
+GRANT SELECT ON TABLE "tombstone" TO "canoncore_app";
