@@ -217,7 +217,7 @@ test('a token listing that is not JSON, or carries no array, is a skip and not a
 const SECURITY_ROSTER = [
   '| Setting | State | Read back by |',
   '| --- | --- | --- |',
-  '| Dependency graph | **enabled** | `dependency-graph/sbom` → **696 packages**. It answered `404` while off |',
+  '| Dependency graph | **enabled** | `dependency-graph/sbom` → a package count while on. It answered `404` while off |',
   '| Dependabot alerts | **enabled** | `vulnerability-alerts` → `204 No Content` ([the documented *enabled*](https://x)) |',
   '| Secret scanning | **enabled** | `security_and_analysis.secret_scanning.status` |',
   '| Dependabot security updates | disabled | `security_and_analysis.dependabot_security_updates.status` |',
@@ -359,13 +359,20 @@ test('a repository that answers with no security_and_analysis block is a skip, n
   assert.throws(() => parseSecurityAndAnalysis('   \n'), /only to a caller with admin/)
 })
 
-test('a security_and_analysis status that is neither enabled nor disabled is a skip', () => {
-  // Half a block is worse than none: the field would drop out of the comparison and take its
-  // row's verdict with it, leaving agreement reported across a roster that was never fully read.
-  assert.throws(
-    () => parseSecurityAndAnalysis('{"secret_scanning":{"status":"pending"}}'),
-    /neither `enabled` nor `disabled`/,
-  )
+test('a status the run cannot read fails, because the source answered', () => {
+  // A SKIP says no source was reached. Here one was, and it said something this cannot read — so
+  // skipping would both misreport what happened and take all seven rows out of the gate on the one
+  // machine where the gate exists, an unknown status being reachable only once admin is proved.
+  // A control over security settings treats what it cannot read as a denial rather than a pass.
+  const unread = () => parseSecurityAndAnalysis('{"secret_scanning":{"status":"pending"}}')
+
+  assert.throws(unread, /roster is not being compared/)
+  assert.throws(unread, (err) => err instanceof Error && !(err instanceof Skip))
+})
+
+test('a source that could not be reached at all still skips', () => {
+  // The other half of the same rule, and the reason it is a rule rather than a preference: an
+  // outage must not read as a roster that disagreed.
   assert.throws(() => parseSecurityAndAnalysis('not json'), Skip)
 })
 
@@ -425,11 +432,19 @@ test('the dependency graph is read from the SBOM, which has no field of its own'
   assert.throws(() => readDependencyGraph(ghFailure(403, 'Forbidden')), Skip)
 })
 
-test('an SBOM answer that is not a package count is unread rather than read as on', () => {
-  // `--jq` producing anything but a number means the payload's shape moved. Treating it as
-  // truthy would report the graph enabled on the strength of not having read it.
-  assert.throws(() => readDependencyGraph({ ok: true, output: 'null\n' }), Skip)
-  assert.throws(() => readDependencyGraph({ ok: true, output: '' }), /where a package count was expected/)
+test('an SBOM answer that is not a package count fails rather than being read as on', () => {
+  // `--jq` producing anything but a number means the payload's shape moved. Treating it as truthy
+  // would report the graph enabled on the strength of not having read it, and skipping would call
+  // an endpoint that answered `200` unreachable. `Number("")` is `0`, so the empty case has to be
+  // caught before the parse rather than by it.
+  for (const answer of ['null\n', '', 'not a number']) {
+    assert.throws(
+      () => readDependencyGraph({ ok: true, output: answer }),
+      (err) => err instanceof Error && !(err instanceof Skip),
+      `${JSON.stringify(answer)} did not fail`,
+    )
+  }
+  assert.throws(() => readDependencyGraph({ ok: true, output: '' }), /not being compared/)
 })
 
 // --- The job summary --------------------------------------------------------------------------

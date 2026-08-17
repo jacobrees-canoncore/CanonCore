@@ -47,7 +47,7 @@ function fixture({
   securityRows = [
     "| Secret scanning | **enabled** | `security_and_analysis.secret_scanning.status` |",
     "| Dependabot alerts | **enabled** | `vulnerability-alerts` → `204 No Content` |",
-    "| Dependency graph | **enabled** | `dependency-graph/sbom` → **696 packages** |",
+    "| Dependency graph | **enabled** | `dependency-graph/sbom` → a package count while on |",
   ],
 }: {
   jobName: string;
@@ -325,7 +325,7 @@ test("a security roster row that records neither state fails before it reaches G
     securityRows: [
       "| Secret scanning | **on** | `security_and_analysis.secret_scanning.status` |",
       "| Dependabot alerts | **enabled** | `vulnerability-alerts` → `204 No Content` |",
-      "| Dependency graph | **enabled** | `dependency-graph/sbom` → **696 packages** |",
+      "| Dependency graph | **enabled** | `dependency-graph/sbom` → a package count while on |",
     ],
   });
   const { code, output } = run(gitOnly);

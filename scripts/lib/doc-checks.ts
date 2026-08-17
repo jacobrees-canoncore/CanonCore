@@ -464,12 +464,17 @@ export function parseSecurityAndAnalysis(raw: string): Map<string, boolean> {
   const live = new Map<string, boolean>();
   for (const [field, value] of Object.entries(parsed as Record<string, unknown>)) {
     const status = (value as { status?: unknown } | null)?.status;
-    // Half a block is worse than none, the rule `parseVercelEnv` states: a field this cannot read
-    // would drop out of the comparison and take its row's verdict with it.
+    // The source answered and this run cannot read what it said, which is not the unreachable
+    // source a SKIP reports. Skipping would claim nothing was reached when something was, and
+    // would take all seven rows out of the gate on the one machine where the gate exists — an
+    // unknown status is only reachable once admin has been proved, so CI has skipped at the wall
+    // long before here. A control over security settings treats what it cannot read as a denial
+    // rather than as permission, which is the same refusal the rest of this file makes when it
+    // declines to call an unread source agreement.
     if (status !== "enabled" && status !== "disabled")
-      skip(
-        `\`security_and_analysis.${field}.status\` came back as ${JSON.stringify(status)}, which ` +
-          "is neither `enabled` nor `disabled` — GitHub's shape for these settings may have moved",
+      fail(
+        `\`security_and_analysis.${field}.status\` came back as ${JSON.stringify(status)}, so the ` +
+          "roster is not being compared. GitHub's shape for these settings may have moved.",
       );
     live.set(field, status === "enabled");
   }
@@ -521,12 +526,16 @@ export function readDependencyGraph(attempt: Attempt): { enabled: boolean; packa
   }
   // `Number("")` is `0`, so the emptiness has to be caught before the parse rather than by it:
   // an answer nobody read would otherwise report the graph enabled and holding nothing.
+  //
+  // Failing rather than skipping for the same reason as the status above: `attempt` came back
+  // `ok`, so the endpoint answered, and a body this cannot read is a shape that moved rather than
+  // a source that was out of reach.
   const answer = attempt.output.trim();
   const packages = Number(answer);
   if (!answer || !Number.isInteger(packages))
-    skip(
-      `\`dependency-graph/sbom\` answered "${answer}" where a package count was expected, so ` +
-        "what it says about the graph is unread",
+    fail(
+      `\`dependency-graph/sbom\` answered "${answer}" where a package count was expected, so the ` +
+        "graph's row is not being compared. The SBOM payload's shape may have moved.",
     );
   return { enabled: true, packages };
 }
