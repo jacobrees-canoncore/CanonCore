@@ -261,8 +261,8 @@ too little — a required context that never reports blocks every merge for ever
 
 **A sixth step checks the documents against the sources they describe**, `node scripts/check-docs.ts`
 — the required contexts, the label roster, the variable roster, the Actions secrets, the release
-token's expiry, the repository's security settings, and every cross-document pointer. **Not all of it
-reaches CI, and the difference is not an oversight:**
+token's expiry, the repository's security settings, every cross-document pointer, and `CLAUDE.md`
+against its own line target. **Not all of it reaches CI, and the difference is not an oversight:**
 
 | Check | Where it gates | Why |
 | --- | --- | --- |
@@ -271,6 +271,7 @@ reaches CI, and the difference is not an oversight:**
 | Secret roster vs `gh secret list` | **Locally only** | The workflow's own token cannot be granted the secrets API, and every route that reaches a runner costs a credential |
 | Label roster vs the tracker | **Locally only** | `orca` drives a desktop app on Jacob's machine and cannot run on a runner. A Linear credential to reach it from CI was weighed and refused |
 | Security-settings roster vs the repository | **Locally only** | `security_and_analysis` comes back only to a caller with admin, and `permissions:` grants no such scope — the same wall as the secret roster. It is also what makes the other two calls' `404` an answer, so a runner reads none of the seven rather than some. [`../infrastructure.md`](../infrastructure.md) → *Dependency and secret scanning* |
+| `CLAUDE.md`'s loaded lines vs its own stated target | CI and locally | The only source that is the file being gated, so it can never skip. The number is read from that file's own maintainer comment rather than written into the script, and the count excludes the block comment because that is stripped before the content is loaded |
 | Release token's expiry vs `vercel tokens ls` | CI and locally | The same `VERCEL_TOKEN` as the variable roster. Listing an account's tokens is a user-level call rather than a project one, so this was recorded as unknown until a runner answered it: run `31964525778` on `6b03296` reported PASS, naming the expiry and the scope. A refused listing exits non-zero, which is a SKIP carrying whatever the CLI said rather than a failed build — reproduced on 16 August 2026 with an invalid token, `Error: Not authorized`, which is the nearest case available: the project-scoped token that would have been the real test is revoked |
 
 A check whose source is unreachable reports **SKIP with the reason** and does not fail the build: a
@@ -377,10 +378,11 @@ landing succeeds; the ruleset is what happens when the wait was skipped.
 
 **Drizzle migrations run in Actions, before the production deploy is promoted**, so a schema change
 that fails stops the release rather than shipping code against a database that never moved. Since
-CAN-23 One Story from Neon, behind row-level security that is enforced rather than intended: [`apps/web/vercel.json`](../../apps/web/vercel.json)
-turns Vercel's Git integration off for `main` alone, and the job migrates, then builds, then
-deploys. Nothing weaker would do — a push starts a Vercel build immediately, so leaving the
-integration on would mean a migration racing a deploy it cannot see.
+CAN-23 One Story from Neon, behind row-level security, that ordering is enforced rather than
+intended: [`apps/web/vercel.json`](../../apps/web/vercel.json) turns Vercel's Git integration off for `main`
+alone, and the job migrates, then builds, then deploys. **Why this job owns the release rather than
+Vercel, and why previews are deliberately left on Git, is
+[ADR-0019](../adr/0019-ci-owns-the-production-release.md)** — the argument lives there and not here.
 
 **Previews still deploy from Git and are not migrated.** A preview branch is a copy of Neon's
 `main` taken when the deployment starts, so it carries whatever schema `main` had *then*. A branch

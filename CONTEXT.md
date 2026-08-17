@@ -1,7 +1,7 @@
 # CanonCore
 
 A workspace for a media collection where one Story legitimately belongs in more than one place
-at once. The natural hierarchy of franchise, series, season and episode is real but not
+at once. The natural containment of franchise, series, season and episode is real but not
 sufficient, because an episode also sits in an in-universe chronology that disagrees with the
 broadcast one, and it must appear in both without being duplicated.
 
@@ -44,11 +44,16 @@ Each `_Avoid_` list names words not to use **for that concept**. The same word u
 different concept is fine: a Catalogue is never "a collection", but this is still a media
 collection.
 
+**A proper name is exempt.** An Ordering called "Broadcast order" is written as it is called — here,
+in the product, and in a ticket title — even though `order` is on the Ordering list. The lists ban
+the common noun for the concept, never the title of one particular thing. So "in broadcast order" is
+correct and "sorted into the right order" is not.
+
 ### The catalogue
 
 **Story**:
-The thing that happened, independent of how anyone consumes it. A Story may be part of other
-Stories, and may be part of more than one.
+The thing that happened, independent of how anyone watches, reads or listens to it. A Story may be
+part of other Stories, and may be part of more than one.
 _e.g._ Blink. Series 1. The Day of the Doctor.
 _Avoid_: Work, title, item, entry, media, content
 
@@ -79,8 +84,8 @@ release and unlicensed are others.
 _Avoid_: Kind, subtype, flags, category
 
 **Part of**:
-Unordered containment between Stories, many to many. It carries no position, because imposing an
-order on a set that has none would be a lie.
+Unordered containment between Stories, many to many. It carries no position, because inventing one
+for a set that has none would be a lie.
 _e.g._ Rose is part of Series 1; Series 1 is part of Doctor Who.
 _Avoid_: Parent, child, tree, hierarchy, folder, nesting
 
@@ -119,13 +124,15 @@ _Avoid_: Credit, link, mention, tag, cast, role
 **Ordering**:
 A named, authored sequence over Stories or Versions. It is a piece of work someone made and can
 be disagreed with, never a property of the things it orders.
-_e.g._ Broadcast order. An in-universe chronology. One character's own life, told out of order.
+_e.g._ Broadcast order. An in-universe chronology. One character's own life, told as they lived it.
 _Avoid_: List, order, sort, sequence, timeline, collection, playlist
 
 **Placement**:
-One Story's place in one Ordering, carrying its position, its entry type and its argument. A
-Placement may exist with no Story behind it, and one Story may have several Placements in the same
-Ordering.
+One Story's or one Version's place in one Ordering, carrying its position, its entry type and its
+argument. Which of the two it points at is how one Ordering lists a serial in a single Placement
+while another lists its episodes separately. A Placement may exist with neither behind it, because a
+chronology carries bridges that argue for what comes next without being a Story or a Version
+themselves, and one Story may have several Placements in the same Ordering.
 _e.g._ Blink follows The Family of Blood in broadcast order and Evolution of the Daleks in
 production order. One Story, two Placements, no duplication.
 _Avoid_: Item, member, node, link, row
@@ -292,6 +299,6 @@ _e.g._ Fourteen minutes into an episode. Page 143 of the Rose novelisation.
 _Avoid_: Status, history, bookmark, timestamp, page, offset, locator
 
 **Watched**:
-That a person has consumed a Story, which counts everywhere that Story appears. Distinct from
-Progress, which is about one Version.
+That a person has watched, read or listened to a Story in full, which counts everywhere that Story
+appears. Distinct from Progress, which is about one Version.
 _Avoid_: Seen, completed, done, consumed

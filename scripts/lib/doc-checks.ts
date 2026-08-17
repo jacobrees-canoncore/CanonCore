@@ -924,6 +924,95 @@ export function resolvePointer(
   }
 }
 
+/**
+ * Each line of a document, paired with whether a block-level HTML comment owns it.
+ *
+ * One walk, because two readers need the same answer from opposite sides: what a document costs to
+ * load is the lines a comment does *not* own, and the target it publishes is stated in the lines a
+ * comment does. Splitting them into two scanners is how the two would come to disagree.
+ *
+ * Inside a fenced block everything is an example, marker included — and a file explaining its own
+ * maintainer comment is the one most likely to quote an unclosed one.
+ */
+function* classified(body: string): Generator<{ line: string; inComment: boolean }> {
+  const lines = body.split("\n");
+  // A file ending in a newline has no line after it, and `split` says otherwise.
+  if (lines.at(-1) === "") lines.pop();
+  let inComment = false;
+  let inFence = false;
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!inComment && trimmed.startsWith("```")) {
+      inFence = !inFence;
+      yield { line, inComment: false };
+      continue;
+    }
+    if (inFence) {
+      yield { line, inComment: false };
+      continue;
+    }
+    if (inComment) {
+      const closed = trimmed.indexOf("-->");
+      if (closed === -1) {
+        yield { line, inComment: true };
+        continue;
+      }
+      inComment = false;
+      // Text after the close is content, so the line loads despite having started inside.
+      yield { line, inComment: trimmed.slice(closed + "-->".length).trim() === "" };
+      continue;
+    }
+    if (!trimmed.startsWith("<!--")) {
+      yield { line, inComment: false };
+      continue;
+    }
+    const closed = trimmed.indexOf("-->", "<!--".length);
+    if (closed === -1) {
+      inComment = true;
+      yield { line, inComment: true };
+      continue;
+    }
+    // Opened and closed on one line: block-level only if it left nothing behind.
+    yield { line, inComment: trimmed.slice(closed + "-->".length).trim() === "" };
+  }
+}
+
+/**
+ * What a document costs to load, which is not its length on disk.
+ *
+ * *"Block-level HTML comments (`<!-- maintainer notes -->`) in CLAUDE.md files are stripped before
+ * the content is injected into Claude's context"* [1], so a maintainer note is free — and counting
+ * it would report a file as over its target while the content actually loaded was under it.
+ * `docs/research/document-length-for-agents.md` is where that rests.
+ *
+ * [1] https://code.claude.com/docs/en/memory
+ */
+export function loadedLines(body: string): number {
+  let loaded = 0;
+  for (const { inComment } of classified(body)) if (!inComment) loaded++;
+  return loaded;
+}
+
+/**
+ * The line target the document itself publishes, so the number has one home and the check can never
+ * disagree with the file it gates. It is read **only from the maintainer comment**, which is both
+ * where it belongs — that part of the file costs nothing to carry — and what stops a sentence
+ * elsewhere in the document quietly raising the ceiling.
+ *
+ * Absent, this fails rather than skipping: the source is a tracked file and so is always reachable,
+ * which makes a missing target drift rather than an outage. Defaulting instead would make deleting
+ * the comment the cheapest way to pass.
+ */
+export function parseDocumentedLineTarget(body: string): number {
+  const commented = [...classified(body)].filter((l) => l.inComment).map((l) => l.line).join("\n");
+  const found = commented.match(/Target:\s*under\s*(\d+)\s*lines/i);
+  if (!found)
+    return fail(
+      "no line target is stated: expected `Target: under N lines` in the document's own comment",
+    );
+  return Number(found[1]);
+}
+
 /** A pointer may shorten a long heading, so a title prefix counts as a resolution. */
 export const pointerResolves = (section: string, titles: string[]) =>
   titles.some((t) => t === section || t.startsWith(section));

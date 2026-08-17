@@ -25,6 +25,8 @@ import {
   readVulnerabilityAlerts,
   renderJobSummary,
   lastUsedTokenNamed,
+  loadedLines,
+  parseDocumentedLineTarget,
   resolvePointer,
 } from './doc-checks.ts'
 
@@ -863,4 +865,83 @@ test('a CLI that reports its error as JSON on stdout still explains itself', () 
   )
 
   assert.equal(explainFailure(stdout), "No connected Linear workspace matched bogus.")
+})
+
+// ---------------------------------------------------------------------------------------------
+// `CLAUDE.md`'s length: the one document here with a published number to fail against, and one that
+// has drifted both ways unnoticed (docs/research/document-length-for-agents.md).
+// ---------------------------------------------------------------------------------------------
+
+test('a maintainer comment does not count towards what a document costs to load', () => {
+  // Seven lines on disk. `Block-level HTML comments ... are stripped before the content is injected
+  // into Claude's context` (code.claude.com/docs/en/memory), so four of them are free.
+  const body = ['# Title', '<!--', 'a note', 'to a maintainer', '-->', '', 'A rule.'].join('\n')
+
+  assert.equal(loadedLines(body), 3)
+})
+
+test('a comment that opens and closes on one line does not swallow the rest', () => {
+  const body = ['<!-- one line -->', '# Title', 'A rule.'].join('\n')
+
+  assert.equal(loadedLines(body), 2)
+})
+
+test('the newline a file ends with is not a line of its own', () => {
+  // Every tracked document here ends with one, so getting this wrong reads every file as a line
+  // longer than it is — and this check exists to compare against a number.
+  assert.equal(loadedLines('# Title\nA rule.\n'), 2)
+})
+
+test('the target is read from the document that has to meet it', () => {
+  // Written here rather than in the checker so the number has one home, and stated inside the
+  // comment because that is the part of the file that costs nothing to load.
+  const body = ['# CanonCore', '<!--', 'Loaded every request. Target: under 200 lines (docs).', '-->'].join('\n')
+
+  assert.equal(parseDocumentedLineTarget(body), 200)
+})
+
+test('a document stating no target fails saying what it expected, rather than defaulting to one', () => {
+  // Defaulting to 200 would make deleting the comment the cheapest way to pass. It FAILS rather
+  // than skipping because the source is a tracked file and so is always reachable: a missing target
+  // is drift, not an outage.
+  assert.throws(
+    () => parseDocumentedLineTarget('# CanonCore\n\nNo comment at all.'),
+    (err: unknown) =>
+      err instanceof Error &&
+      !(err instanceof Skip) &&
+      /Target: under N lines/.test(err.message),
+  )
+})
+
+test('a comment closing mid-line leaves the text beside it counted, and does not swallow the rest', () => {
+  // The failure this guards runs the wrong way: an over-long file would be reported as short, so
+  // the gate goes quiet rather than noisy.
+  const body = ['# Title', '<!-- an aside --> and a rule', 'Another rule.'].join('\n')
+
+  assert.equal(loadedLines(body), 3)
+})
+
+test('a comment marker inside a fenced block is an example, not a comment', () => {
+  // A file explaining its own maintainer comment is exactly the file likely to quote one. Read as
+  // real, an unclosed marker drops every line below it and the count comes back short — quiet, and
+  // in the direction that passes.
+  const body = ['# Title', '```markdown', '<!--', 'how to write one', '```', 'A rule.'].join('\n')
+
+  assert.equal(loadedLines(body), 6)
+})
+
+test('prose that reads like a target does not become one', () => {
+  // The docstring, the failure message and the gate all say the number lives in the document's own
+  // comment. Prose matching first would let a sentence anywhere in the file raise the ceiling.
+  // Deliberately *above* the comment, because first-match-wins would otherwise pass this by
+  // accident rather than by scoping.
+  const body = [
+    '# CanonCore',
+    'An earlier draft said Target: under 900 lines. It is quoted here and is not the rule.',
+    '<!--',
+    'Target: under 200 lines (code.claude.com/docs/en/memory).',
+    '-->',
+  ].join('\n')
+
+  assert.equal(parseDocumentedLineTarget(body), 200)
 })

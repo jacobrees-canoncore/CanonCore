@@ -113,6 +113,10 @@ whose entire thesis is publicly readable Orderings, this is a product gap rather
 
 ## Observability
 
+> **The decision is [ADR-0018](../adr/0018-observability-sentry-and-an-uptime-monitor-outside-it.md),
+> settled 17 August 2026**: Sentry for errors, a monitor outside it for liveness, and Sentry's own
+> single free monitor left unspent. What is below is the free-tier evidence under it.
+
 **Error tracking: Sentry, wired through `instrumentation.ts`.** The free Developer plan is 5k
 errors, 5M spans, 50 replays, 1 uptime monitor, 1 cron monitor, 5 GB logs, one user
 ([Sentry pricing](https://sentry.io/pricing/)). Retention on Developer is **30 days** for errors,
@@ -394,6 +398,10 @@ Do not gate:
 
 ## UK PECR, and why a cookie banner is probably not needed
 
+> **The decision is [ADR-0020](../adr/0020-no-cookie-consent-banner.md), settled 17 August 2026**,
+> and it drops this section's "probably": there is no banner, and the two conditions the exception
+> rests on are obligations rather than options. What is below is the reading and its sources.
+
 The ICO's finalised guidance on storage and access technologies, updated for the Data (Use and
 Access) Act, lists **five** exceptions rather than two. Alongside 'communication' and 'strictly
 necessary' there is now a **'statistical purposes' exception**, applying where storage or access is
@@ -464,7 +472,8 @@ Named here so the boundary is recorded rather than implied, and so a later revie
 each gap as an oversight.
 
 - **A cookie consent banner.** The statistical purposes exception covers analytics and auth cookies
-  are strictly necessary, so a modal is legally unnecessary and costs conversion. See PECR above.
+  are strictly necessary, so a modal is legally unnecessary and costs conversion. Now
+  [ADR-0020](../adr/0020-no-cookie-consent-banner.md) rather than a finding here.
 - **Nonce-based strict CSP.** Disables static optimization, ISR and PPR, converting every cached
   anonymous read into an invocation against a 1,000,000-invocation ceiling. Revisit if
   `experimental.sri` stabilises, which is the version that is actually free.

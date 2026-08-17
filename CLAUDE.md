@@ -1,6 +1,6 @@
 # CanonCore
 <!--
-Loaded on every request. Target: under 200 lines (code.claude.com/docs/en/memory).
+Loaded on every request. Target: under 200 lines (code.claude.com/docs/en/memory); the gate treats 200 as meeting it.
 To add a line, cut one, or put it in a pointer doc instead. The seam is change cadence:
   a standing rule           -> docs/agents/*.md          (policy: changes rarely)
   a step that executes one  -> .claude/skills/*/SKILL.md (procedure: changes with the command)
@@ -14,10 +14,9 @@ Evidence for the target: docs/research/document-length-for-agents.md
 ## Name every ticket you cite
 
 Never write a bare ticket identifier. Every reference to a Linear issue carries its title as well as
-its number, in conversation, in commit messages, in pull request bodies and in these documents:
-**CAN-30 GDPR export and erasure**, never `CAN-30`. A bare number forces a lookup to follow the
-sentence, and with sixty-plus issues here, several differing only in scope, it is easy to misread as
-a neighbouring ticket.
+its number — in conversation, commit messages, pull request bodies and these documents:
+**CAN-30 GDPR export and erasure**, never `CAN-30`. With sixty-plus issues here, several differing
+only in scope, a bare number is easy to misread as a neighbouring ticket.
 
 ## Prior repositories are off limits
 
@@ -26,9 +25,9 @@ archive, not a local clone, not "just to check how it was done before". This inc
 matching `canoncore*`, `Canoncore*`, `CanonCore*` or `universora*` under any account or org,
 whatever it is named or however it is described.
 
-This is absolute and does not need justifying case by case. Do not ask for an exception, do not
-quote from one, and do not let a search result from one influence a recommendation. If a search
-surfaces one, discard it and say that you did. Nothing here is derived from them.
+This is absolute and needs no case-by-case justification: do not ask for an exception, do not quote
+from one, do not let one shape a recommendation. If one surfaces, discard it and say you did.
+Nothing here derives from them.
 
 ## Engineering principles
 
@@ -82,10 +81,9 @@ and the Playwright suite are in `docs/agents/workflow.md`; `node scripts/check-d
 documents against the live sources and runs in CI. Coding standards, and what overrides a reviewer's
 default heuristics: `CODING_STANDARDS.md`.
 
-**Production is `https://www.canoncore.com`**, apex 301s to it. What is provisioned, and where each
-credential lives: `docs/infrastructure.md` — read it before touching deployment, environment
-variables or the database connection, and note the items it flags as unverified. What to do when it
-is down, and the weekly usage check Hobby cannot automate: `docs/runbook.md`.
+**Production is `https://www.canoncore.com`**. What is provisioned and where each credential lives:
+`docs/infrastructure.md` — read before touching deployment, environment variables or the database,
+and note what it flags as unverified. When it is down, and the weekly Hobby usage check: `docs/runbook.md`.
 
 **The URL is deployed and deliberately not shared.** `docs/infrastructure.md` → *The URL-sharing gate*
 holds both gates, lawfulness and readiness, and what opens each. **`docs/compliance/` holds the statutory
@@ -106,8 +104,7 @@ such a change ships, not after.
   `docs/agents/triage-labels.md`.
 - **Domain docs.** One `CONTEXT.md`, one `docs/adr/`. How to consume them: `CONTEXT.md` → *Using these documents*.
 - **Branches and landing.** Trunk-based and solo: one `main`, a branch per ticket carrying its
-  `CAN-n`, squash-merge to land. `docs/agents/workflow.md` names the gates, the preview environment
-  and which artefacts a merge carries; since CAN-22 those gates run in GitHub Actions on every push.
+  `CAN-n`, squash-merge to land. Gates, preview and merge artefacts: `docs/agents/workflow.md`.
 - **Incidents.** Dates, SHAs and run ids live once in `docs/incidents.md`. Cite it, never retell it.
 
 ## Which tool owns what
@@ -146,7 +143,9 @@ Installed skills, and general habit, default to options the ADRs deliberately re
 suggestion as a proposal to reopen a closed decision, not as advice. Each bullet names the settled
 answer first, then what will offer you something else.
 
-- **better-auth** ([ADR-0005](docs/adr/0005-stack.md)) — `vercel:auth` offers Clerk, Descope, Auth0.
+- **better-auth, users in our own Postgres** ([ADR-0005](docs/adr/0005-stack.md)) — `vercel:auth` offers
+  Clerk, Descope, Auth0; the `neon` MCP's `provision_neon_auth` is one call to a *hosted* better-auth,
+  which keeps the library and moves session issuance and a `neon_auth` schema off our deployment.
 - **Drizzle** (ADR-0005) — habit will offer Prisma.
 - **Plain pnpm workspaces, no orchestrator** (ADR-0005) — `vercel:next-forge` installs a `@repo/*`
   Turborepo layout. `vercel:turbopack` is unrelated and fine: Turbopack is Next's bundler.
@@ -156,9 +155,17 @@ answer first, then what will offer you something else.
   table, a "master" catalogue or an edit-approval queue all reintroduce the shared catalogue this avoids.
 - **`www.canoncore.com` canonical, apex 301ing to it** ([ADR-0010](docs/adr/0010-canonical-host-www.md))
   — `vercel:auth` and most better-auth examples suggest a `Domain`-scoped cookie, or the apex itself.
-- **Resend for transactional email, the Marketplace integration declined** ([ADR-0011](docs/adr/0011-transactional-email-resend.md))
-  — the *only* email provider on the Vercel Marketplace, so installing it reads as obvious. Refuse: it
-  provisions a billable resource on a Hobby account and takes ownership of the environment variable.
+- **A plain API key for every vendor, the Marketplace for Neon alone** ([ADR-0016](docs/adr/0016-provisioning-plain-api-keys-neon-excepted.md),
+  and Resend refused by [ADR-0011](docs/adr/0011-transactional-email-resend.md)) — `vercel:marketplace`,
+  `vercel:vercel-storage` and `vercel:bootstrap` all route through the Marketplace. Neon earns it with
+  per-deployment preview branching; nothing else buys anything, and an integration owns the variable.
+- **One row per (record, Source), never an upsert onto the record** ([ADR-0004](docs/adr/0004-layered-overlay-for-sources-and-edits.md))
+  — every tool's reflex is to write fetched values onto the row, which destroys the Override beside them.
+- **Undo works on Operations; `deleted_at` is storage, not the undo model** ([ADR-0008](docs/adr/0008-operations-and-undo.md))
+  — undo a row at a time reads as the simple answer, and makes a fifty-episode import fifty restores.
+- **CI releases `main`, and Vercel's Git deploys are off for it** ([ADR-0019](docs/adr/0019-ci-owns-the-production-release.md))
+  — `vercel:deploy` and every dashboard nudge assume Git deploys, which is a promotion no migration
+  preceded. Previews stay on Git: turning them off would block every merge.
 - **Adult works catalogued, their artwork never displayed**
   ([ADR-0012](docs/adr/0012-adult-works-catalogued-artwork-never-displayed.md)) — Trakt filters adult
   titles out of its TMDB import, so "just exclude them" reads as obvious. It is not: recording that a
@@ -168,10 +175,13 @@ answer first, then what will offer you something else.
   and reads as fatal. The reflex is a second Source as a floor, which ADR-0014 refuses outright.
 - **`apps/web` holds no source-specific code and no *Source* credential** (ADR-0014) — ask any tool
   for a TMDB client and it lands in `apps/web`. Bound to *Source*: `RESEND_API_KEY` is not one.
-- **Three reachability classes, not two** (ADR-0014) — a keyless Provider reads as safe to self-host;
-  `provider-tardis-wiki` is keyless and is not, because its permission is ours personally.
+- **Reachability splits by credential: authenticated closed, keyless open** (ADR-0014) — habit offers
+  one class for all Providers. The old third class is spent: no permission is load-bearing since 16 August.
 - **Hand-written CSS, no framework and no component library** ([ADR-0013](docs/adr/0013-hand-written-css-no-framework.md))
   — `vercel:shadcn` and `vercel:next-forge` both propose one, and Next's own CSS page recommends Tailwind twice.
+- **Two test runners, and Playwright off the gate** (ADR-0017) — habit offers Jest and a `webServer`.
+- **Uptime watched from outside Sentry** (ADR-0018) — its own free monitor reads as the easy answer.
+- **No cookie consent banner** (ADR-0020) — the UK analytics exception is newer than most advice.
 
 ## Working practice
 

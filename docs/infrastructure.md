@@ -158,20 +158,20 @@ installing it displaced nothing
 
 ### `main` does not deploy from Git
 
-Since CAN-23 One Story from Neon, behind row-level security,
-[`apps/web/vercel.json`](../apps/web/vercel.json) sets
-`git.deploymentEnabled: { "main": false }`, and GitHub Actions builds and promotes production
-instead — migrations first, promotion after. Why the order has to be enforced rather than trusted
-is `docs/agents/workflow.md` → *What a merge carries*.
+| | |
+| --- | --- |
+| Setting | [`apps/web/vercel.json`](../apps/web/vercel.json) sets `git.deploymentEnabled: { "main": false }` |
+| Who releases `main` | GitHub Actions: migrate, build, promote, in that order |
+| Previews | **Untouched.** Every branch but `main` still deploys from Git |
+| Set by | CAN-23 One Story from Neon, behind row-level security, on **14 August 2026** |
 
-**Unlike the settings above, this one is in the repository**, which is the reason it was done this
-way rather than by unticking auto-assignment of the production domain in the project. The file is
-read from the Root Directory, confirmed on 14 August 2026 by putting a header in it and finding
-that header in `.vercel/output/config.json` after `vercel build`.
+*The file is read from the Root Directory, confirmed 14 August 2026 by putting a header in it and
+finding that header in `.vercel/output/config.json` after `vercel build`.*
 
-**Previews are untouched and still deploy from Git.** That is not incidental: the `Vercel` required
-context comes from the GitHub App, so a change that stopped previews deploying would stop every
-pull request reporting it and block every merge.
+**Why CI owns the release rather than Vercel, why the runner-up — a project setting instead of a file
+— lost, and why turning previews off would block every merge:
+[ADR-0019](adr/0019-ci-owns-the-production-release.md).** The procedure is
+`docs/agents/workflow.md` → *What a merge carries*.
 
 ## The repository, and what `main` refuses
 
@@ -627,7 +627,7 @@ whatever noticed can mint the replacement, is wrong in one direction only.
 | Preview branches | One `preview/<git-branch>` per git branch with a preview deployment, created automatically |
 | Region | `eu-west-2` (London) |
 | Plan | Launch, billed through Vercel |
-| Neon Auth | **Disabled.** ADR-0005 settled on better-auth; the integration would otherwise provision a competing auth system |
+| Neon Auth | **Disabled**, recorded 10 August 2026 by CAN-18 Provision the Vercel project, the Neon database and the production domain and unchanged since. The reason is [ADR-0016](adr/0016-provisioning-plain-api-keys-neon-excepted.md) → *What will try to reopen it*, which also records why the reason this row used to give stopped being true |
 | Create Database Branch For Deployment | **`Preview` only.** `Production` deliberately unchecked |
 | Require Active Resource Before Deploy | **Required** — the prerequisite that ungreys the checkbox above |
 

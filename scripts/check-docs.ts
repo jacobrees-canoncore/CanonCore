@@ -18,6 +18,7 @@
 //                            link for check 7 to follow. That shape is how CAN-76 Restructure the
 //                            agent documents: policy, procedure and incidents get their own homes
 //                            replaced the duplication: one owning module, N one-line pointers
+//   9. always-loaded size -  CLAUDE.md  vs  the target its own maintainer comment states
 //
 // Run:  node scripts/check-docs.ts [--verbose]
 //
@@ -52,6 +53,7 @@ import {
   parseCiJobNames,
   parseDocumentedContexts,
   parseDocumentedLabels,
+  parseDocumentedLineTarget,
   parseDocumentedReleaseTokens,
   parseDocumentedSecuritySettings,
   parseDocumentedVariables,
@@ -69,6 +71,7 @@ import {
   setEq,
   skip,
   lastUsedTokenNamed,
+  loadedLines,
   tally,
 } from "./lib/doc-checks.ts";
 
@@ -79,6 +82,7 @@ const CONTEXT_HOME = "docs/infrastructure.md";
 const CI_WORKFLOW = ".github/workflows/ci.yml";
 const LABEL_HOME = "docs/agents/triage-labels.md";
 const REPOSITORY = "jacobrees-canoncore/CanonCore";
+const ALWAYS_LOADED = "CLAUDE.md";
 
 const results: Result[] = [];
 const read = (p: string) => readFileSync(join(ROOT, p), "utf8");
@@ -519,6 +523,34 @@ check('every "file → *Section*" pointer resolves', () => {
 });
 
 // ---------------------------------------------------------------------------
+// 9. The always-loaded document's length.
+//
+// `CLAUDE.md` is read on every request, so a line changing no behaviour is a real cost
+// (CODING_STANDARDS.md -> Documents are the artefact here). It is the only document here with a
+// published number to fail against, and it has drifted both ways without anyone noticing:
+// docs/research/document-length-for-agents.md holds both episodes and the measurements.
+//
+// Two things make this check different from the eight above. Its source is the file it gates, so it
+// can never be a SKIP. And the target is read out of that file's own maintainer comment rather than
+// written here, so the number has one home - the same rule the job-name check enforces for the
+// required status check context.
+// ---------------------------------------------------------------------------
+
+check(`${ALWAYS_LOADED} is within its own stated line target`, () => {
+  const body = read(ALWAYS_LOADED);
+  const target = parseDocumentedLineTarget(body);
+  const loaded = loadedLines(body);
+  // "under 200" is the published wording and 200 exactly is where this file was deliberately
+  // landed, so the boundary passes rather than failing the spot that was chosen on purpose.
+  if (loaded > target)
+    fail(
+      `${ALWAYS_LOADED} is ${loaded} loaded lines against its stated target of ${target}. ` +
+        "Cut a line to add one, or move the content to a pointer document - the seam to move it " +
+        "along is in that file's own comment. Raising the number is a decision to argue in " +
+        "docs/research/document-length-for-agents.md, not an edit to make here.",
+    );
+  return `${loaded} loaded of ${target}`;
+});
 
 const width = Math.max(...results.map((r) => r.name.length));
 for (const r of results) {
