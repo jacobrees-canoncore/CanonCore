@@ -234,8 +234,14 @@ including documentation-only ones
 ([incident](incidents.md#both-required-contexts-report-on-documentation-only-pull-requests)).
 
 **The check contexts are one, not three.** CAN-22 asked for the three gate commands as three
-contexts; `ci.yml` runs all four in one job so the first failure stops the rest, which means the
-pull request reports one check. Requiring three names that nothing emits is the trap above.
+contexts; `ci.yml` runs every one of them in one job so the first failure stops the rest, which
+means the pull request reports one check. Requiring three names that nothing emits is the trap above.
+
+**The job's name does not change when a step joins**, so it is a summary of what the job runs rather
+than a manifest of it — six steps have joined without it changing. That matters here because a
+rename is an edit to this table *and* to the live ruleset. `ci.yml` carries the argument, at the name
+itself, where a rename would be typed. Settled by **CAN-54 Fail a push that adds a known-vulnerable
+dependency** on 16 August 2026.
 
 **`Vercel Preview Comments` is deliberately not required.** Vercel posts it as a third check, but it
 records that a comment was written, not that a deployment succeeded.
@@ -254,6 +260,48 @@ Here that means a green pull request can still break `main`, and a push to `main
 job that follows it is green. CI is `on: push`, so the merge commit is tested too, and `docs/agents/workflow.md` →
 *After the merge* is the step that looks. Turn strict on if a second person starts landing work, or
 if two branches are ever routinely open at once.
+
+### Dependency and secret scanning
+
+Read back on 16 August 2026 by **CAN-54 Fail a push that adds a known-vulnerable dependency**, with
+the calls beside each row. **Three of the seven were flipped by that ticket** — the dependency graph,
+secret scanning and push protection. Dependabot alerts were already on. The last three rows were
+already off and are recorded so that "off" is a decision rather than a gap.
+
+| Setting | State | Read back by |
+| --- | --- | --- |
+| Dependency graph | **enabled** | `dependency-graph/sbom` → **696 packages**. It answered `404` while off |
+| Dependabot alerts | **enabled** | `vulnerability-alerts` → `204 No Content` ([the documented *enabled*](https://docs.github.com/en/rest/repos/repos#check-if-vulnerability-alerts-are-enabled-for-a-repository)) |
+| Secret scanning | **enabled** | `security_and_analysis.secret_scanning.status` |
+| Secret scanning push protection | **enabled** | `security_and_analysis.secret_scanning_push_protection.status` |
+| Dependabot security updates | disabled | `security_and_analysis.dependabot_security_updates.status` |
+| Secret scanning validity checks | disabled | `security_and_analysis.secret_scanning_validity_checks.status` |
+| Secret scanning non-provider patterns | disabled | `security_and_analysis.secret_scanning_non_provider_patterns.status` |
+
+```bash
+gh api repos/jacobrees-canoncore/CanonCore --jq .security_and_analysis
+gh api -i repos/jacobrees-canoncore/CanonCore/vulnerability-alerts | head -1
+gh api repos/jacobrees-canoncore/CanonCore/dependency-graph/sbom --jq '.sbom.packages | length'
+```
+
+**Three commands, because these settings live in three places and the first reaches only five of
+them.** Alerts are not in `security_and_analysis`; the dependency graph is in neither, and no REST
+route to it was found. **Read all three, or the answer is partial in the row that matters most** —
+the graph is what the two Dependabot rows match against, and with it off they report nothing while
+still reading as enabled ([incident](incidents.md#dependabot-alerts-were-enabled-and-blind)).
+
+One alert is open: `GHSA-67mh-4wv8-2f99`, a moderate `esbuild` development-server advisory reaching
+us through `drizzle-kit`, which nothing here can fix.
+
+**Why the three disabled rows are off.** *Security updates* raise fix pull requests, which is
+dependency updating rather than dependency alerting, and belongs to **CAN-61 Keep the codebase and
+its dependencies from silting up** with Renovate. *Validity checks* send a candidate secret to its
+issuer to ask whether it is live, which is a disclosure decision of its own that nothing here needs.
+*Non-provider patterns* widen scanning to shapes no issuer vouches for, and their false positives are
+what push protection would then be enforcing.
+
+**None of this is the gate.** Alerts arrive after a merge, on GitHub's schedule. The gate is a step
+in the CI job, and [`docs/agents/workflow.md`](agents/workflow.md) → *The gates* owns it.
 
 ## Environment variables
 

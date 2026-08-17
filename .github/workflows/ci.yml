@@ -14,13 +14,21 @@ jobs:
     # This name IS the required status check context on `main`'s ruleset. Renaming it
     # blocks every merge for ever ("Expected — Waiting for status to be reported") until
     # the ruleset is updated too, so the two are changed together or not at all.
-    # `scripts/check-docs.ts` fails the build if they ever disagree, which is also why
-    # the name is added to rather than replaced when a step joins the job.
+    # `scripts/check-docs.ts` fails the build if they ever disagree.
     #
-    # The release steps at the end are in this job rather than a job of their own, and the
-    # name is unchanged for them, because they never run on a pull request: a job that
-    # cannot report on a pull request cannot be a required context, and this repository's
-    # documented model is one job, one context. docs/infrastructure.md -> The ruleset.
+    # It is a summary of this job rather than a manifest of it, and deliberately so. Role
+    # creation, the `vercel` install, the documents check, the migration and the promotion
+    # had all joined without it changing, and the audit below makes six. Each rename would
+    # cost a coordinated ruleset edit, with a window in which the required context is missing
+    # and the pull request cannot merge, to buy a longer string — so a step joins on its
+    # merits and the name stays put. Settled by CAN-54 Fail a push that adds a
+    # known-vulnerable dependency, against an earlier wording here ("added to rather than
+    # replaced when a step joins") that those five steps had already contradicted.
+    #
+    # The release steps at the end are in this job rather than a job of their own because
+    # they never run on a pull request: a job that cannot report on a pull request cannot be
+    # a required context, and this repository's documented model is one job, one context.
+    # docs/infrastructure.md -> The ruleset.
     name: test, typecheck, lint, build
     runs-on: ubuntu-latest
 
@@ -76,6 +84,13 @@ jobs:
       # client component, a page that throws during static generation — and
       # without it the first machine to find out is the deploy.
       - run: pnpm -r build
+
+      # A known-vulnerable dependency, failing the push rather than sitting unnoticed. Three
+      # things about this line are decisions rather than defaults — that it runs after the four
+      # above rather than before them, that the threshold is `high`, and that
+      # `--ignore-registry-errors` is not passed. All three are argued once, in
+      # docs/agents/workflow.md -> The gates.
+      - run: pnpm audit --audit-level=high
 
       # The documents, checked against the sources they describe. Last of the gates, so that a
       # drift in prose is never the first thing to fail while the build is broken.
