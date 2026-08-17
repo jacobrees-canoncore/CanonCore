@@ -243,7 +243,7 @@ implementors exist from the start.
 
 > **All five landed 17 August 2026** as
 > [`docs/provider-contract/v1/openapi.yaml`](../provider-contract/v1/openapi.yaml), under CAN-7
-> Provider contract: define and publish it. [ADR-0021](0021-the-provider-contract.md) is the
+> Provider contract: define and publish it. [ADR-0022](0022-the-provider-contract.md) is the
 > argument and holds the table mapping each item above to the field that carries it. Two things
 > this section left open are settled there rather than here: **absence is refusal** — an
 > undeclared block means the Provider does not do that thing and the consumer withholds, rather

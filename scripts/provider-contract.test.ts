@@ -10,10 +10,10 @@ import addFormats from "ajv-formats";
 
 // The gate on the published Provider contract, which is a machine-readable artefact rather than
 // prose: docs/provider-contract/v1/openapi.yaml. The argument for every shape asserted here is
-// docs/adr/0021-the-provider-contract.md, and what the contract has to carry at all is
+// docs/adr/0022-the-provider-contract.md, and what the contract has to carry at all is
 // ADR-0014 -> Extended: the capability endpoint carries five things it was never sized for.
 //
-// Why this is a test rather than a `check-docs` check: ADR-0021 -> Where the contract lives, and
+// Why this is a test rather than a `check-docs` check: ADR-0022 -> Where the contract lives, and
 // what publishing it means.
 //
 // **What that leaves to say here is why it reads the real tree**, where `check-docs.test.ts`

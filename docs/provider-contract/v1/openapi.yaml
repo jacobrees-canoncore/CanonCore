@@ -1,7 +1,7 @@
 # The CanonCore Provider contract, version 1.
 #
 # This file is the contract: it is normative, and nothing else is. The argument for each decision
-# in it — and what was rejected — is ADR-0021, linked from `info.description` below. The gate that
+# in it — and what was rejected — is ADR-0022, linked from `info.description` below. The gate that
 # keeps this document honest is `scripts/provider-contract.test.ts`, which runs in `pnpm -r test`.
 #
 # OpenAPI 3.1.1 rather than 3.2.0, which was released in September 2025: nothing 3.2 adds is used
@@ -34,7 +34,7 @@ info:
     them, and a **Placement** is one entry in one Ordering. The definitions are in
     [`CONTEXT.md`](https://github.com/jacobrees-canoncore/CanonCore/blob/main/CONTEXT.md), and the
     reasoning behind this contract's shape is in
-    [ADR-0021](https://github.com/jacobrees-canoncore/CanonCore/blob/main/docs/adr/0021-the-provider-contract.md).
+    [ADR-0022](https://github.com/jacobrees-canoncore/CanonCore/blob/main/docs/adr/0022-the-provider-contract.md).
 
     ## The rules a conformant Provider follows
 
