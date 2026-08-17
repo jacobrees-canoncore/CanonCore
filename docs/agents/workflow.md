@@ -291,19 +291,27 @@ later commit replaces the earlier one as the thing being judged, which is true o
 on `main`, where every push is its own release and a cancelled run is not a passing one.
 
 **One check is not optional, because its failure mode is silence: every row-level-security-protected
-table has a test asserting that a cross-tenant read returns zero rows.** A misconfigured RLS policy
-returns an empty result rather than an error, so it is indistinguishable from "no data" in the UI
-and cannot be caught by looking. `story`, `snapshot`, `tombstone` and — since CAN-24 A signed-in and a
-signed-out path — better-auth's own `user` and `session` are those tables today, and
-every one of them is tested from [`apps/web/src/db/rls.test.ts`](../../apps/web/src/db/rls.test.ts) — one file
-rather than one per table, for the reason that file's own header gives and cites. ADR-0005 rule 2 is what requires it.
+table the application can read has a test asserting that a cross-tenant read returns zero rows.** A
+misconfigured RLS policy returns an empty result rather than an error, so it is indistinguishable from
+"no data" in the UI and cannot be caught by looking. `story`, `snapshot` and `tombstone` are those tables
+today, and every one of them is tested from
+[`apps/web/src/db/rls.test.ts`](../../apps/web/src/db/rls.test.ts) — one file rather than one per table,
+for the reason that file's own header gives and cites. ADR-0005 rule 2 is what requires it.
 
-**The reader in those tests is always `canoncore_app`, and since CAN-24 that is a choice rather than the
-only option.** better-auth connects as a third role, `canoncore_auth`, which reads every row of its own
-five tables and has to — [`apps/web/src/auth/auth.ts`](../../apps/web/src/auth/auth.ts) holds the
-argument. So the tenant question is only ever asked of the role every page runs as, and what bounds the
-other role is asserted separately: a fifth tripwire pins what `canoncore_auth` may do to **every** table,
-because it has no policy at all on the four product tables and only the absent grant refuses a write there.
+**Since CAN-24 A signed-in and a signed-out path there is a second shape of answer, and it is the
+stronger one.** better-auth's five tables — `user`, `session`, `account`, `verification`, `rate_limit` —
+are ones `canoncore_app` is granted **nothing** on, because nothing in the application reads them. So the
+test is a *refusal* rather than a zero-row read: `permission denied for table "user"` is a loud error
+where an empty result is the silence rule 2 is about. **Prefer that shape wherever it is available** —
+a table the application never reads should not be granted to it in order to be tested. Migration 0009
+records the reasoning, including why an earlier draft did the opposite.
+
+**The reader in either shape is `canoncore_app`, never `canoncore_auth`.** better-auth connects as a
+third role which reads every row of its own five tables and has to —
+[`apps/web/src/auth/auth.ts`](../../apps/web/src/auth/auth.ts) holds the argument. So the tenant question
+is only ever asked of the role every page runs as, and what bounds the other role is asserted separately:
+a fifth tripwire pins what `canoncore_auth` may do to **every** table, because it has no policy at all on
+the four product tables and only the absent grant refuses a write there.
 
 **A table deliberately left unprotected still owes the gate three tripwires**, because an exclusion
 nothing enforces is indistinguishable from a table somebody forgot: one asserting that every table

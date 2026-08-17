@@ -723,9 +723,9 @@ and no privilege at all on the other four.
 #### What each role may do to a table, and the default privileges there are not
 
 **`canoncore_app` holds `SELECT` and nothing else, on every table it holds anything on** — and since
-17 August 2026 there are three it holds nothing on. `canoncore_migrator` needs no
-grant at all — it owns each table, and an owner bypasses row security, which is why ownership sits
-with it rather than with the application's role.
+17 August 2026 there are five it holds nothing on at all, which are better-auth's own.
+`canoncore_migrator` needs no grant at all — it owns each table, and an owner bypasses row security,
+which is why ownership sits with it rather than with the application's role.
 
 **The full matrix, as migrations 0008 and 0009 leave it**, and `apps/web/src/db/rls.test.ts` asserts every
 cell of it for both roles:
@@ -733,15 +733,29 @@ cell of it for both roles:
 | Table | `canoncore_app` | `canoncore_auth` |
 | --- | --- | --- |
 | `story`, `source`, `snapshot`, `tombstone` | `SELECT` | **nothing** |
-| `user`, `session` | `SELECT`, under a policy keyed on the session user | `SELECT`, `INSERT`, `UPDATE`, `DELETE` |
-| `account`, `verification`, `rate_limit` | **nothing** | `SELECT`, `INSERT`, `UPDATE`, `DELETE` |
+| `user`, `session`, `account`, `verification`, `rate_limit` | **nothing** | `SELECT`, `INSERT`, `UPDATE`, `DELETE` |
 
-**Both sets of blanks are controls, not omissions.** `canoncore_auth` has no policy on the four
-product tables, so a read returns nothing — but **a write would succeed**, because no policy at all is not
-the same as a restrictive one, and only the absent grant refuses it. And `canoncore_app` is refused
-`account` outright rather than being given a policy that returns no rows: `account` holds the scrypt
-password hash, and a refusal is a loud error where an empty result is the silence ADR-0005 rule 2 exists
-to avoid. A grant added to any blank cell fails a test rather than passing unnoticed.
+**The two sets of blanks are controls, and they are controls of different kinds.**
+
+**`canoncore_auth` has no policy on the four product tables**, so a read returns nothing — but **a write
+would succeed**, because no policy at all is not the same as a restrictive one, and only the absent grant
+refuses it. That grant is the whole of what keeps better-auth's role out of the catalogue.
+
+**`canoncore_app` is refused all five of better-auth's tables outright**, and that is a decision taken on
+17 August 2026 rather than an accident of scope. An earlier draft of migration 0009 granted it `SELECT`
+on `user` and `session` under a policy keyed on the session user; a review asked what read them, and the
+answer was nothing — pages read Stories, and `apps/web/src/auth/viewer.ts` resolves the cookie through
+the auth role. The grant existed only so a cross-tenant read test had something to exercise, which is a
+production privilege bought to make a test runnable. **The refusal is both cheaper and stronger**:
+`permission denied for table "user"` is a loud error, where a policy returning no rows is
+indistinguishable from an empty table, and that silence is what ADR-0005 rule 2 is entirely about.
+`account` is the sharpest case, holding the scrypt password hash.
+
+**Row-level security is on for all five regardless**, because a policy is what turns it on and migration
+0008 wrote one per table for the auth role. So the first real reader — CAN-57 Make a public Ordering
+discoverable and shareable, which needs an author attribution — can add a grant knowing that without a
+matching policy it reads zero rows rather than everything. A grant added to any blank cell above fails a
+test rather than passing unnoticed.
 
 **There are no default privileges, and the absence is the decision.** Until 16 August 2026 two
 `ALTER DEFAULT PRIVILEGES` grants existed here and in no other place:
