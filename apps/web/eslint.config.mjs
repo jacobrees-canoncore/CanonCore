@@ -1,3 +1,4 @@
+import canoncore from "@canoncore/config/eslint";
 import { defineConfig, globalIgnores } from "eslint/config";
 import nextVitals from "eslint-config-next/core-web-vitals";
 import nextTs from "eslint-config-next/typescript";
@@ -5,6 +6,10 @@ import nextTs from "eslint-config-next/typescript";
 const eslintConfig = defineConfig([
   ...nextVitals,
   ...nextTs,
+  // After the `eslint-config-next` entries, never before. A later entry wins, and the shared
+  // config is where a rule Next sets at `warn` is raised to `error` — put it first and Next's
+  // own severity is what survives, leaving a violation reported and the run green.
+  ...canoncore,
   // Override default ignores of eslint-config-next.
   globalIgnores([
     // Default ignores of eslint-config-next:
