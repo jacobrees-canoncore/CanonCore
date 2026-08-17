@@ -97,23 +97,47 @@ landed:
 | --- | --- |
 | Retention policy | `retention`, an ISO 8601 duration or `indefinite`, **required** |
 | Required attribution, including a logo | `attribution` (**required**) and `licence`, plus `authors` and `sourceUrl` on each record |
-| Usage restrictions | `restrictions`, an open vocabulary reserving `non-commercial` and `no-ai-training` |
-| Content classification | `classification.vocabulary`, reserving `adult` |
-| A source-scoped identifier with liveness semantics | `Record.id` and `Record.liveness`, with `liveness.confirmsDeletion` saying what `gone` is worth here |
+| Usage restrictions | `restrictions` (**required**, `[]` for none), an open vocabulary reserving `non-commercial` and `no-ai-training` |
+| Content classification | `classification.vocabulary`, each term declaring what it obliges |
+| A source-scoped identifier with liveness semantics | **Split across both halves** — see below |
 
-**Four members are required and the feature blocks are not.** `source` and `licence` say who is
-being served and under what terms, which no Provider can be conformant without; `retention` and
-`attribution` are required because they are the two whose absence a consumer would otherwise fill
-with a permissive default — no limit, and no credit. `classification`, `orderings` and `liveness`
-are optional because a Provider may genuinely not classify, not serve Orderings, and not be able to
-confirm a deletion, and in each of those cases the consumer's answer is to withhold something rather
-than to assume something.
+**The fifth item is the only one that is not a single field, and the split is deliberate.** An
+identifier is per record and cannot live in a declaration, so what the declaration carries is the
+*semantics*: `source.id`, which scopes the identifier space and says a consumer must not read two
+Providers' identifiers as the same, and `liveness.confirmsDeletion`, which says what the strongest
+liveness value is worth here. The identifier itself is `Record.id` and the value is
+`Record.liveness`. Read as "five fields on `/capabilities`" the item is unsatisfiable; read as
+"five things that arrive through the contract" it is discharged, and the second is what ADR-0014's
+own sentence says — *anything the application must honour has to arrive through the contract*.
+
+**What is required is what the Source's terms say; what is optional is what the Provider does.**
+That is the whole rule, and it puts `restrictions` with `retention` and `attribution` rather than
+with the feature blocks. All three are facts about the terms, and for all three the absence a
+consumer would have to interpret resolves the permissive way: no limit, no credit, nothing
+forbidden. So each is stated, and each has an explicit way to say nothing — `indefinite`,
+`required: false`, `[]`. `classification`, `orderings` and `liveness` are optional because a
+Provider may genuinely not classify, not serve Orderings, and not be able to confirm a deletion —
+and in each of those cases the consumer's answer is to withhold something rather than assume
+something, so silence costs the Provider rather than the reader.
 
 **Attribution must be able to say `required: false`, and that is a design constraint rather than a
-nicety.** Open Library and MusicBrainz core are CC0 and oblige nothing (ADR-0014 → *Decision 9*), so
-a schema demanding a notice would make every Provider invent one. Where attribution *is* required
-the schema then demands the notice and the link, conditionally, so "required" cannot be a claim with
-nothing behind it.
+nicety.** MusicBrainz's core data is CC0 and obliges nothing (ADR-0014 → *Decision 9*), so a schema
+demanding a notice would make its Provider invent one. Open Library is the *other* reason the field
+has to exist and cannot be cited as a CC0 case: the same passage records its designation as
+unverifiable on any live page, so its row reads **unverified** — a third posture, and one a
+contract that only knew "credit" and "no credit" could not represent honestly either.
+
+Where attribution *is* required the schema then demands the notices and the link, conditionally, so
+"required" cannot be a claim with nothing behind it.
+
+**`notices` is a list because one Source can prescribe more than one text.** TMDB is that Source:
+`§3` prescribes a notice, and its FAQ separately requires an About or Credits section whose wording
+differs — recorded on CAN-105 Carry each Source's attribution obligation through to every surface
+that displays it, which says the declaration must carry the notice verbatim per Source rather than
+assume one canonical string. A single slot would have pushed the second text into the prose
+`conditions` field, which a consumer is not obliged to render, so the obligation would have been
+declared and undischargeable at once. Each notice carries its own condition, because the two differ
+in placement as well as in wording.
 
 **`licence.shareAlike` is declared rather than derived.** A consumer cannot compute it from a
 `LicenseRef-` identifier it has never seen, and CC BY-SA 3.0 and 4.0 differ materially — only 4.0's
@@ -122,15 +146,34 @@ nothing behind it.
 a licence table into the application, which is source knowledge by another name.
 
 **Nobody else has built this.** Plex, Stremio, Stash and Navidrome all have capability discovery and
-none of them carries a rights field of any kind (research §7). The two precedents worth stealing are
-OPDS 1.2's per-entry `atom:rights` and Wikimedia Commons' `extmetadata`, whose field set —
-`License`, `UsageTerms`, `AttributionRequired`, `Artist`, `Credit`, `Permission`, `Restrictions` —
-is most of the shape above, arrived at independently for the same reason.
+none of them carries a rights field of any kind
+([research](../research/source-licence-risk-and-decoupling.md) §7). The two precedents worth
+stealing are OPDS 1.2's per-entry `atom:rights` and Wikimedia Commons' `extmetadata`, whose field
+set — `License`, `LicenseShortName`, `UsageTerms`, `AttributionRequired`, `Artist`, `Credit`,
+`Permission`, `Restrictions`, as ADR-0014 → *What survives of ADR-0007* lists it — is most of the
+shape above, arrived at independently for the same reason.
+
+**A classification term declares what it obliges, so a consumer matches no word.** The vocabulary is
+a list of terms each carrying `suppressesArtwork`, rather than a list of strings with `adult`
+reserved. ADR-0014's item 4 asks for a flag "the application must no longer know the name of", and
+CAN-104 Read a Provider's capability declaration, and refuse what it does not serve makes it a
+criterion in terms — *no TMDB-specific field name anywhere in this path, `adult` included*. A
+reserved string would have failed that on its own wording, because `adult` **is** TMDB's field
+name, and a consumer would have had to hardcode it to run ADR-0012's rule. Reading a boolean beside
+the term costs nothing and generalises: a Source classifying something else that also must not be
+shown says so without the contract being revised.
 
 **Rejected: the declaration as advice.** A consumer that reads the obligations and then applies its
 own defaults has a decorative capability endpoint. The refusals are what make it load-bearing, and
 [CAN-104 Read a Provider's capability declaration, and refuse what it does not serve](https://linear.app/jacobrees-canoncore/issue/CAN-104)
 is where they become code.
+
+**The declaration carries `declaredAt`, so two reads can be ordered.** CAN-104 requires that what
+the application stored under an old declaration is not silently re-interpreted under a new one.
+Comparing whole payloads detects that something changed; it cannot say which read is later, and a
+consumer holding two declarations with no order between them has to guess. It is the Provider's own
+clock rather than `fetchedAt`'s meaning, and the two are deliberately different: one is when the
+terms were last restated, the other when the Source was last read.
 
 **A declared `source.id` is scoped to the Provider that declared it**, and the contract says so.
 Anyone may stand up a service claiming `id: tmdb`; the identifier says what a Provider calls its
@@ -143,13 +186,14 @@ has to keep visible.
 `GET /records/{recordId}` returns the record, **every** Story it is contained by transitively, the
 Versions of it, and a page of its direct parts.
 
-**`containers` is complete and is never paginated.** [ADR-0012](0012-adult-works-catalogued-artwork-never-displayed.md)
+**`containers` is complete and is never paginated**, which is the one place this contract spends
+response size to buy a guarantee. [ADR-0012](0012-adult-works-catalogued-artwork-never-displayed.md)
 records that an episode's classification has to be derived through `part of` from its series,
-because the flag sits on the series and not on the episode — so a response that drops a container
-makes the derivation impossible **and the rule then fails silently**, displaying an image because a
-flag was absent rather than because it said no. A page boundary in that array is the same defect
-wearing a different hat, which is why the completeness is written into the contract rather than left
-to a Provider's judgement.
+because the flag sits on the series and not on the episode. **A dropped container does not make
+that derivation fail — it makes it succeed with the wrong answer**, and the rule then fails
+silently: an image is displayed because a flag was absent rather than because it said no. A page
+boundary in the array is the same defect wearing a different hat, which is why completeness is
+written into the contract rather than left to a Provider's judgement.
 
 **`parts` is paged and `versions` is not.** Direct parts are unbounded — a franchise node can carry
 hundreds — and the Versions of one Story are bounded by the domain.
@@ -255,21 +299,23 @@ Each of these replaces something this contract would otherwise have made up, and
 is a place a consumer's existing tooling already works.
 
 - **OpenAPI 3.1.1**, not 3.2.0 (September 2025). Nothing 3.2 adds — structured tags, streaming
-  media types, new OAuth flows — is used here, and the validators this repository checks the
-  document with support 3.1.x. 3.1 is also where OpenAPI's schemas became JSON Schema 2020-12, which
-  is what lets the test validate an example against the schema beside it.
+  media types, new OAuth flows — is used here. 3.1 is where OpenAPI's schemas became JSON Schema
+  2020-12, which is what lets the gate validate an example against the schema beside it, and 3.2
+  keeps that rather than extending it. **Tooling is not the reason**: the validator this
+  repository checks the document with reports `3.2` among its supported versions, so moving would
+  cost nothing and buy nothing.
 - **[RFC 9457](https://www.rfc-editor.org/rfc/rfc9457.html) problem details** for every error.
-  Audiobookshelf declares `{ "error": string }` and its own client discards the body, which is what
-  an invented error format is worth.
-- **SPDX identifiers** for the licence, including `LicenseRef-` for terms that are not on the list,
-  which is what SPDX reserves it for. The identifier carries the version, and the version is the
-  part that changes the obligation.
-- **ISO 8601 durations** for `retention` and `runtime`. Audiobookshelf's `duration` is an integer of
-  minutes in a field that says so nowhere; `PT45M` needs no agreement kept somewhere else.
-- **BCP 47** for language, and a partial-date string (`2007`, `2007-06`, `2007-06-09`) for
-  `released`. A year-only field is fatal for a magazine issue, where the date *is* the identity.
-- **`Authorization: Bearer`**, rather than Audiobookshelf's verbatim header value, so a credential
-  looks the same at every Provider.
+- **SPDX identifiers** for the licence, including `LicenseRef-` for terms not on the list.
+- **ISO 8601 durations** for `retention` and `runtime`.
+- **BCP 47** for language, and a partial-date string for `released`.
+- **`Authorization: Bearer`** for the credential.
+
+Each field says at its own definition what it would otherwise have invented, so the reasons are not
+repeated here. The one worth stating twice is the pattern behind them: **every one of these replaces
+a decision Audiobookshelf made for itself** — an ad-hoc error body its own client discards, an
+integer of minutes in a field named neither, a verbatim header string no two providers agree on
+([research](../research/audiobookshelf-provider-contract.md)). None of those is a bad decision in
+isolation; together they are why nothing else can read that contract.
 
 ## What version 1 deliberately cannot express
 
@@ -291,8 +337,26 @@ Each of these is absent because nothing in v1 needs it, and each can arrive addi
 - **Bulk export and batch fetch.** The retention sweep is O(users × records) against one Provider
   (ADR-0014 → *Decision 6*), so a batch endpoint is a plausible addition — after something has run
   the sweep and can say what it costs, rather than before.
-- **A relevance score on a search result.** A number a consumer cannot compare across Providers is
-  worse than no number.
+- **A relevance score on a search result**, for the reason `/records` gives at its own definition.
+- **A Version's Nature and Version reason.** Both are `CONTEXT.md` concepts and both are open
+  vocabularies, so each is a new optional member the day something reads one. Nothing does:
+  CAN-26 Import a series from TMDB, with the overlay behind it imports Stories, Versions, `part of`
+  edges and a runtime. **`Story.adaptedFrom` is kept while those two go**, and the asymmetry is the
+  point — it is a structural edge between records rather than a descriptive string, and
+  [ADR-0001](0001-two-levels-story-and-version.md)'s boundary rule turns on it: new authored text
+  is a new Story, so a Provider with nowhere to say what a novelisation derives from cannot express
+  the distinction that ADR draws at all.
+- **Discovery across major versions.** Every path sits under `/v1`, so a Provider speaking only a
+  later major is indistinguishable from a service that is not a Provider at all: both answer `404`.
+  CAN-113 Add a Provider by pasting its URL has a criterion this bears on — a URL that "answers a
+  version the application does not speak" must be refused with a reason the person can act on — and
+  its refusal cannot currently say which of the two it met.
+
+  **It costs nothing today and is recorded so that it is chosen rather than rediscovered.** v1 is
+  the only major that exists, so no Provider can yet answer a version this application does not
+  speak. An unversioned discovery endpoint is a *new endpoint*, which this contract admits at any
+  time, so the answer is available the day a second major is designed — and designing it now would
+  mean every Provider implementing a route with nothing to discover.
 
 ## Consequences
 

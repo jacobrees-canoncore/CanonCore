@@ -5,7 +5,8 @@
 # keeps this document honest is `scripts/provider-contract.test.ts`, which runs in `pnpm -r test`.
 #
 # OpenAPI 3.1.1 rather than 3.2.0, which was released in September 2025: nothing 3.2 adds is used
-# here, and the validators that check this file support 3.1.x and not yet 3.2.
+# here. 3.1 is where OpenAPI's schemas became JSON Schema 2020-12, which is what the gate needs to
+# validate an example against the schema beside it, and 3.2 adds nothing this document reaches for.
 openapi: 3.1.1
 
 info:
@@ -152,6 +153,7 @@ paths:
                     fetch because the Source publishes its live identifiers daily
                     ([ADR-0014](https://github.com/jacobrees-canoncore/CanonCore/blob/main/docs/adr/0014-shell-providers-and-per-source-retention.md)).
                   value:
+                    declaredAt: "2026-08-17T08:00:00Z"
                     source:
                       id: tmdb
                       name: TMDB
@@ -164,23 +166,34 @@ paths:
                       shareAlike: false
                     attribution:
                       required: true
-                      notice: >-
-                        This product uses TMDB and the TMDB APIs but is not endorsed, certified, or
-                        otherwise approved by TMDB.
+                      notices:
+                        - text: >-
+                            This product uses TMDB and the TMDB APIs but is not endorsed,
+                            certified, or otherwise approved by TMDB.
+                          conditions: Displayed prominently wherever this Source's values appear.
+                        - text: This product uses the TMDB API.
+                          conditions: >-
+                            In an About or Credits section, beside the logo. A second prescribed
+                            text rather than a restatement of the first, which is why one notice
+                            slot could not hold this Source's obligation.
                       link: https://www.themoviedb.org
                       logo:
                         url: https://provider.example/logos/tmdb.svg
                         alt: TMDB
-                      conditions: >-
-                        The logo is displayed less prominently than the consumer's own, and the
-                        notice appears in an About or Credits section.
+                        conditions: Displayed less prominently than the consumer's own logo.
                       perRecord: false
                     restrictions:
                       - non-commercial
                       - no-ai-training
                     classification:
                       vocabulary:
-                        - adult
+                        - term: adult
+                          label: Pornographic
+                          description: >-
+                            The Source classifies the work as hardcore pornography. It is narrower
+                            than "adult-oriented" and under-covers deliberately, which is a
+                            property of the Source rather than of this contract.
+                          suppressesArtwork: true
                     liveness:
                       confirmsDeletion: true
                       evidence: >-
@@ -195,6 +208,7 @@ paths:
                     work rather than the Source's own sequence, so they are declared
                     `canonical: false` and a consumer must not import them as though they were.
                   value:
+                    declaredAt: "2026-08-16T00:00:00Z"
                     source:
                       id: tardis-wiki
                       name: tardis.wiki
@@ -207,9 +221,11 @@ paths:
                       shareAlike: true
                     attribution:
                       required: true
-                      notice: Text from tardis.wiki, licensed CC BY-SA 3.0.
+                      notices:
+                        - text: Text from tardis.wiki, licensed CC BY-SA 3.0.
                       link: https://tardis.wiki
                       perRecord: true
+                    restrictions: []
                     orderings:
                       canonical: false
                     liveness:
@@ -226,6 +242,7 @@ paths:
                     owed. It declares no classification, so its artwork is refused: absence is
                     refusal even here.
                   value:
+                    declaredAt: "2026-08-17T08:00:00Z"
                     source:
                       id: musicbrainz
                       name: MusicBrainz
@@ -238,6 +255,7 @@ paths:
                       shareAlike: false
                     attribution:
                       required: false
+                    restrictions: []
                     liveness:
                       confirmsDeletion: false
         "401":
@@ -444,6 +462,8 @@ paths:
                     containers: []
                     versions: []
                     parts: []
+        "400":
+          $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "404":
@@ -484,6 +504,8 @@ paths:
                         liveness: present
                         fetchedAt: "2026-08-17T09:14:02Z"
                         sourceUrl: https://tardis.wiki/wiki/Timeline
+        "400":
+          $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "404":
@@ -568,6 +590,8 @@ paths:
                           Nothing in the story fixes when it happens, so it stays visible and
                           unplaced rather than being given a position it has not earned.
                     nextPlacementsCursor: b3BhcXVl
+        "400":
+          $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "404":
@@ -697,11 +721,23 @@ components:
         **Each optional block means "this Provider does not do this" by its absence**, and a
         consumer refuses accordingly rather than assuming a default.
       required:
+        - declaredAt
         - source
         - retention
         - licence
         - attribution
+        - restrictions
       properties:
+        declaredAt:
+          type: string
+          format: date-time
+          description: |
+            When this declaration last changed. A consumer stores what a Source declared and must
+            not re-read what it already holds under a newer declaration without noticing; comparing
+            whole payloads detects a change but cannot order two reads, and this can.
+
+            It is the Provider's own clock — when its operator last altered what it declares —
+            which is a different thing from `fetchedAt`, the moment the *Source* was read.
         source:
           $ref: "#/components/schemas/SourceIdentity"
         retention:
@@ -714,14 +750,20 @@ components:
           type: array
           description: |
             What the Source's terms forbid, as an open vocabulary. Two terms are reserved because
-            they bind on the roster today: `non-commercial`, and `no-ai-training`. Anything else is
-            a term this Provider defines, and a consumer surfaces it verbatim rather than
-            interpreting it.
+            they bind on this project's own roster today: `non-commercial`, and `no-ai-training`.
+            Anything else is a term this Provider defines, and a consumer surfaces it verbatim
+            rather than interpreting it.
+
+            **Required, and `[]` is how to say "nothing".** This is a fact about the Source's terms
+            rather than something a Provider does, so it belongs with `retention` and `attribution`
+            rather than with the feature blocks below. Left optional, its absence would be silence
+            read as permission — the one reading this contract refuses everywhere else.
           items:
             type: string
           examples:
             - - non-commercial
               - no-ai-training
+            - []
         classification:
           $ref: "#/components/schemas/ClassificationDeclaration"
         orderings:
@@ -818,24 +860,25 @@ components:
         required:
           type: boolean
           description: Whether any credit is owed. `false` is a complete answer.
-        notice:
-          type: string
+        notices:
+          type: array
+          minItems: 1
           description: |
-            The exact words to display. A consumer renders them verbatim and never paraphrases:
-            where a Source prescribes wording, an approximation of it is a breach of the same
-            clause as omitting it.
+            The texts that must be displayed, each with the condition attached to it.
+
+            **A list rather than one string, because one Source can prescribe more than one.**
+            TMDB is the case on this project's own roster: `§3` prescribes a notice, and the FAQ
+            separately requires an About or Credits section, and the two texts differ
+            ([ADR-0009](https://github.com/jacobrees-canoncore/CanonCore/blob/main/docs/adr/0009-external-source-tmdb.md)).
+            A single slot would force the second into prose a consumer is not obliged to render.
+          items:
+            $ref: "#/components/schemas/Notice"
         link:
           type: string
           format: uri
           description: Where the credit links.
         logo:
           $ref: "#/components/schemas/Logo"
-        conditions:
-          type: string
-          description: |
-            Any further condition on how the credit appears — placement, prominence, the section
-            it belongs in. Prose, because these conditions are written in prose and flattening
-            them into flags loses the ones nobody anticipated.
         perRecord:
           type: boolean
           default: false
@@ -851,7 +894,26 @@ components:
           required:
             const: true
       then:
-        required: [notice, link]
+        required: [notices, link]
+
+    Notice:
+      type: object
+      title: Notice
+      description: |
+        One text a consumer must display, and where.
+      required: [text]
+      properties:
+        text:
+          type: string
+          description: |
+            The exact words. A consumer renders them verbatim and never paraphrases: where a Source
+            prescribes wording, an approximation of it breaches the same clause as omitting it.
+        conditions:
+          type: string
+          description: |
+            Any condition on how this text appears — placement, prominence, the section it belongs
+            in. Prose, because these conditions are written in prose and flattening them into flags
+            loses the ones nobody anticipated.
 
     Logo:
       type: object
@@ -865,6 +927,12 @@ components:
         alt:
           type: string
           description: Alternative text, so the credit is readable by someone who cannot see it.
+        conditions:
+          type: string
+          description: |
+            Any condition on how the logo appears. Prominence relative to the consumer's own mark
+            is the one a Source actually prescribes, and it is prose for the same reason a
+            notice's conditions are.
 
     ClassificationDeclaration:
       type: object
@@ -880,18 +948,42 @@ components:
           type: array
           minItems: 1
           description: |
-            Every term this Provider can put on a record. `adult` is reserved and means the Source
-            classifies the work as pornographic: a consumer must not publicly display any image it
-            holds for such a record. Version 1 serves no artwork at all, and the term is here
-            anyway so that the refusal is in place before the first image is — a rule added
-            alongside the thing it governs arrives one release too late.
+            Every term this Provider can put on a record, each saying what a consumer must do about
+            it. **A term is a Source's own word and a consumer never matches on the word** — it
+            reads the flags beside it — which is what lets the rule run without the consumer
+            knowing any Source's vocabulary.
 
-            Anything else is this Provider's own term, which a consumer records but acts on only
-            where it has been told what it means.
+            Version 1 serves no artwork at all, and `suppressesArtwork` is here anyway: a refusal
+            added alongside the first image it governs arrives one release too late.
           items:
-            type: string
+            $ref: "#/components/schemas/ClassificationTerm"
+
+    ClassificationTerm:
+      type: object
+      title: Classification term
+      description: One term in a Provider's classification vocabulary, and what it obliges.
+      required: [term, suppressesArtwork]
+      properties:
+        term:
+          type: string
+          description: |
+            The Source's own word for this classification, as it appears in a record's
+            `classification`. Shown to a person as-is; never matched against a list a consumer
+            carries.
           examples:
-            - - adult
+            - adult
+        label:
+          type: string
+          description: What to call this term to a person, where the term itself does not read well.
+        description:
+          type: string
+          description: What the Source means by it, which is rarely obvious from the word alone.
+        suppressesArtwork:
+          type: boolean
+          description: |
+            Whether a consumer must refuse to publicly display any image it holds for a record
+            carrying this term. The whole of what a consumer acts on, and the reason it needs no
+            vocabulary of its own.
 
     OrderingsDeclaration:
       type: object
@@ -1092,23 +1184,6 @@ components:
                 serves its own word for it rather than flattening it into a near-miss.
               examples:
                 - television
-            nature:
-              type: array
-              description: |
-                What this Version is besides its Medium, where that is a property of the thing
-                itself — a magazine strip, a charity release, an unlicensed production. An open
-                vocabulary, and a Version may be several at once.
-              items:
-                type: string
-            versionReason:
-              type: array
-              description: |
-                Why this Version differs from the others of its Story — `extended`, `shortened`,
-                `omnibus`, `censored`, `restored`, `colourised`, `reconstruction`, `abridged`,
-                `translated`, `re-narrated`. An open vocabulary, and a Version may have several.
-                Runtime is a consequence rather than a reason, and is not one of these.
-              items:
-                type: string
             runtime:
               type: string
               format: duration

@@ -13,15 +13,13 @@ import addFormats from "ajv-formats";
 // docs/adr/0021-the-provider-contract.md, and what the contract has to carry at all is
 // ADR-0014 -> Extended: the capability endpoint carries five things it was never sized for.
 //
-// **Why a test rather than a `check-docs` check.** Every check in that script compares a document
-// against a source that can be unreachable, so each one can report SKIP and a skip must not fail
-// the build. This compares a file against a JSON Schema shipped inside a dependency: it can never
-// skip, and a failure is never transient. It also has to be red on a laptop before the branch
-// exists, which the gates list makes true of `pnpm -r test` and not of the documents check.
+// Why this is a test rather than a `check-docs` check: ADR-0021 -> Where the contract lives, and
+// what publishing it means.
 //
-// **And why it reads the real tree**, where `check-docs.test.ts` deliberately runs against a
-// fixture: the file below *is* the thing under test. There is no unrelated prose to drift, and a
-// spec that stops meeting the assertions here is exactly the failure this file exists to catch.
+// **What that leaves to say here is why it reads the real tree**, where `check-docs.test.ts`
+// deliberately runs against a fixture. That file's cases are about how the checker behaves, so
+// pointing them at this repository would make an unrelated prose edit fail the unit suite. Here
+// the file below *is* the thing under test, and there is nothing else for it to drift against.
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -35,7 +33,12 @@ const document = parse(source) as OpenApiDocument;
 type Schema = { $ref?: string; enum?: string[]; [key: string]: unknown };
 type MediaType = { schema?: Schema; examples?: Record<string, { value: unknown }> };
 type Response = { $ref?: string; content?: Record<string, MediaType> };
-type Operation = { operationId?: string; responses?: Record<string, Response> };
+type Parameter = { $ref?: string; name?: string };
+type Operation = {
+  operationId?: string;
+  parameters?: Parameter[];
+  responses?: Record<string, Response>;
+};
 type OpenApiDocument = {
   openapi: string;
   info: { version: string };
@@ -85,15 +88,16 @@ function* bodies(): Generator<{
  * document is an OpenAPI specification rather than a schema: the check that it is a well-formed
  * one is the first test below, against the real meta-schema.
  */
-function validatorFor(schema: string) {
-  const ajv = new Ajv({ strict: false, validateSchema: false });
-  addFormats(ajv);
-  ajv.addSchema(document, "openapi.yaml");
-  return ajv.compile({ $ref: `openapi.yaml#/components/schemas/${schema}` });
-}
+const ajv = new Ajv({ strict: false, validateSchema: false });
+addFormats(ajv);
+ajv.addSchema(document, "openapi.yaml");
+
+const validatorFor = (schema: string) =>
+  ajv.compile({ $ref: `openapi.yaml#/components/schemas/${schema}` });
 
 /** A conformant capability declaration, as the minimum every case below varies from. */
 const capabilities = {
+  declaredAt: "2026-08-17T08:00:00Z",
   source: { id: "example", name: "An example Source", url: "https://example.invalid" },
   retention: "indefinite",
   licence: {
@@ -103,6 +107,7 @@ const capabilities = {
     shareAlike: false,
   },
   attribution: { required: false },
+  restrictions: [],
 };
 
 test("the published contract is a valid OpenAPI document", async () => {
@@ -217,38 +222,100 @@ test("the capability declaration carries the five things the application cannot 
     assert.ok(declaration in properties, `the declaration carries no ${declaration}`);
   }
 
-  // Absence is refusal rather than permission (CAN-104 Read a Provider's capability declaration,
-  // and refuse what it does not serve), so the two that would otherwise be read as a permissive
-  // default are the two a conformant Provider must state.
-  assert.ok(required.includes("retention"));
-  assert.ok(required.includes("attribution"));
+  // What a Provider does is optional; what its Source's terms say is not. Absence is refusal
+  // rather than permission (CAN-104 Read a Provider's capability declaration, and refuse what it
+  // does not serve), so a member whose absence a consumer would fill with a permissive default —
+  // no limit, no credit, nothing forbidden — has to be stated.
+  for (const stated of ["retention", "attribution", "restrictions"]) {
+    assert.ok(required.includes(stated), `${stated} may be left unsaid`);
+  }
 });
 
-test("a declaration may state that no attribution is required at all", () => {
-  // Open Library and MusicBrainz core are CC0, which requires no attribution: the obligation has
-  // to be able to say none (ADR-0014 -> Decision 9). A schema that made the notice mandatory
-  // would force every Provider to invent one.
+test("a declaration may state that no attribution and no restriction apply at all", () => {
+  // MusicBrainz's core data is CC0, which requires no attribution: the obligation has to be able
+  // to say none (ADR-0014 -> Decision 9). A schema that made a notice mandatory would force every
+  // Provider to invent one, and the same argument runs for terms that forbid nothing.
   assert.equal(validatorFor("Capabilities")(capabilities), true);
 });
 
-test("an attribution obligation carries the notice it obliges", () => {
+test("an attribution obligation carries the notices it obliges", () => {
   const validate = validatorFor("Capabilities");
 
   assert.equal(validate({ ...capabilities, attribution: { required: true } }), false);
   assert.equal(
     validate({
       ...capabilities,
-      attribution: { required: true, notice: "Data from Somewhere", link: "https://example.invalid" },
+      attribution: {
+        required: true,
+        notices: [{ text: "Data from Somewhere" }],
+        link: "https://example.invalid",
+      },
+    }),
+    true,
+  );
+});
+
+test("one Source may prescribe more than one notice", () => {
+  // TMDB is the case: `§3` prescribes a notice and the FAQ separately requires an About or
+  // Credits section, and the two texts differ — CAN-105 Carry each Source's attribution
+  // obligation through to every surface that displays it records it. A single slot would push the
+  // second into prose no consumer is obliged to render.
+  assert.equal(
+    validatorFor("Capabilities")({
+      ...capabilities,
+      attribution: {
+        required: true,
+        link: "https://example.invalid",
+        notices: [
+          { text: "First prescribed wording", conditions: "Displayed prominently." },
+          { text: "A different prescribed wording", conditions: "In an About section." },
+        ],
+      },
     }),
     true,
   );
 });
 
 test("a Provider that declares no retention has not declared indefinite retention", () => {
-  const { retention, ...withoutRetention } = capabilities;
-  void retention;
+  const withoutRetention = { ...capabilities, retention: undefined };
 
   assert.equal(validatorFor("Capabilities")(withoutRetention), false);
   assert.equal(validatorFor("Capabilities")({ ...capabilities, retention: "P6M" }), true);
   assert.equal(validatorFor("Capabilities")({ ...capabilities, retention: "6 months" }), false);
+});
+
+test("a consumer acts on a classification term's flags, never on the term itself", () => {
+  // ADR-0014 item 4 wants the rule to run on "a flag the application must no longer know the name
+  // of", and CAN-104 Read a Provider's capability declaration, and refuse what it does not serve
+  // makes it a criterion: no TMDB-specific field name anywhere in that path, `adult` included. So
+  // a term declares what it obliges and a consumer reads that, rather than matching a word.
+  const term = document.components.schemas.ClassificationTerm as {
+    required: string[];
+    properties: Record<string, Schema>;
+  };
+
+  assert.ok(term.required.includes("suppressesArtwork"));
+  assert.equal(
+    validatorFor("ClassificationTerm")({ term: "a-source-specific-word" }),
+    false,
+    "a term may declare no consequence, leaving a consumer to guess from the word",
+  );
+
+  // And the term itself is left open, because a closed list of terms is a list a consumer comes to
+  // match against — which is the hardcoding this shape exists to remove.
+  assert.equal(term.properties.term.enum, undefined, "the vocabulary is closed after all");
+});
+
+test("an operation that takes a parameter says what refusing one looks like", () => {
+  // The contract requires a Provider to refuse a parameter it cannot honour, and an unrecognised
+  // cursor, with `400`. An operation taking parameters and declaring no `400` contradicts its own
+  // document — which the example tests cannot see, because they only ever read what *is*
+  // declared.
+  for (const { path, method, operation } of operations()) {
+    if (!operation.parameters?.length) continue;
+    assert.ok(
+      "400" in (operation.responses ?? {}),
+      `${method.toUpperCase()} ${path} takes parameters and declares no 400`,
+    );
+  }
 });
