@@ -175,7 +175,11 @@ nothing. No credential to fetch: the workflow below already holds one.
    one of the four routes above. `macos-mail-mcp` reads it; note the standing rule that it may be
    used for nothing but mail this project sent or received.
 2. **The Source's own site**, for a publicly posted notice.
-3. **The credential, by hand.** Whether the key still answers is the difference between (iv) and an
+3. **The credential, by hand — once one exists to try.** No Source credential is held anywhere yet:
+   [`infrastructure.md`](infrastructure.md) → *Where a Source credential lives* records the TMDB
+   token as held nowhere **until `provider-tmdb` exists**, which is what **CAN-101 Create the
+   provider-tmdb repository, and give it the TMDB credential** does. So this step is the procedure
+   for the world after that ticket and cannot be followed before it. Whether the key still answers is the difference between (iv) and an
    ordinary outage, and *"TMDB revocation is eventual"* — regenerating our own key left the old one
    answering sixteen minutes later
    ([incident](incidents.md#regenerating-a-tmdb-key-does-not-revoke-the-old-one-promptly)) — so a
@@ -207,9 +211,21 @@ gh run list --workflow purge-source.yml --limit 1        # its id, and whether i
 gh run view <run-id> --log                               # what it removed
 ```
 
-The run prints what it removed: Snapshots deleted, Stories tombstoned, Stories left standing because
-another Source still says something about them. **A Story it emptied is now a tombstone** — the
-identity, what kind of thing it was, and when it went, and no value any Source supplied
+**Three ways the purge can end, plus the case where it never ran, and only one of the four is green.**
+Read the log, never the exit code: three of these are red and one of the three means the duty is
+already discharged. **Grep for the line** rather than reading from the top — the job's log opens with
+`pnpm` and `node` output, so the purge's own first line is some way down it.
+
+| Grep for | Exit | What it touched | Duty discharged? |
+| --- | --- | --- | --- |
+| `Purged Source` | 0 | Snapshots gone, the Stories it emptied are tombstones, the Source's own row taken with them | **Yes** |
+| `PARTIAL PURGE of Source` | 1 | Snapshots gone and tombstones written, the Source's row **kept** | **No** — below |
+| `Refusing to purge` | 1 | **Nothing whatsoever** | Below — it may already have been |
+| None of those three | non-zero | Nothing committed — one transaction, so a failure part-way through rolls back | **No.** Treat it as owed |
+
+Under whichever of those lines it printed, the run itemises what it removed. **A Story it emptied is
+now a tombstone** — the identity, what kind of thing it was, and when it went, and no value any Source
+supplied
 ([ADR-0014](adr/0014-shell-providers-and-per-source-retention.md) → *Decision 8*). Its own row is
 gone, title included: today a title has no provenance to prove it was not the Source's, and a purge
 that leaves one behind is not a purge.
@@ -236,7 +252,7 @@ select (select count(*) from story     where id = any($1)) as should_be_zero,
        (select count(*) from tombstone where id = any($1)) as should_match_the_report;
 ```
 
-Three things about these queries rather than the queries themselves:
+Two things about these queries rather than the queries themselves:
 
 - **The application role would answer `0` whether or not it is true.** `snapshot` is behind a policy
   keyed on the Story's owner, so a count run as `canoncore_app` with no session user returns only
@@ -248,8 +264,8 @@ Three things about these queries rather than the queries themselves:
   by something other than that command.
 
 **If the run says `PARTIAL PURGE`, it did part of the job and named the rest.** It prints
-`NOT REACHED:` and one or more table names, keeps the Source's own row, and exits non-zero. That
-means the schema has grown a table nothing has classified — `supersededValue` and the audit payloads
+`NOT REACHED:` and one or more table names, which means the schema has grown a table nothing has
+classified — `supersededValue` and the audit payloads
 are the two expected ones, and both are Source content living outside `snapshot`
 ([ADR-0014](adr/0014-shell-providers-and-per-source-retention.md) → *Decision 6*, unresolved items 2
 and 3). **The duty is not discharged until that is finished**, and finishing it is two steps:
@@ -263,6 +279,46 @@ and 3). **The duty is not discharged until that is finished**, and finishing it 
 
 Do not read past a `NOT REACHED` line, and do not treat the first run as the record: the two runs
 together are.
+
+**A refusal is not a failure, and it cannot tell you which of two things it is.** `Refusing to purge:
+there is no Source with id …` means nothing was touched — and **not** that the purge did not happen. A
+complete purge takes the `source` row with it, so re-dispatching one that already succeeded lands on
+this exact error. The message says as much itself, because from inside the transaction the two are the
+same fact. Before concluding you still owe the duty, look for an earlier run:
+
+```bash
+gh run list --workflow purge-source.yml --limit 5    # a green run here is a completed purge
+gh run view <id> --log                               # which Source it was: the list cannot say
+```
+
+**A green run of this workflow is a completed purge, and nothing else can be green** — a partial purge
+and a refusal both exit non-zero, so `success` in that list has exactly one meaning and you do not have
+to open the log to know it happened. You do have to open it to know *which Source*: the workflow sets
+no `run-name`, so every run is titled `Purge a Source` and the id appears only in the log.
+
+If a green run purged this id, **that run is the record** and there is nothing left to do. If there is
+none, the id was wrong — read it back from the `source` table and dispatch again. A typo and a
+completed purge are indistinguishable from the error alone, and only the run history separates them.
+
+**A red run in this workflow's history is not by itself evidence of a problem.** Its first one is a
+refusal, dispatched deliberately on 17 August 2026 against an id that does not exist
+([run 32019861146](https://github.com/jacobrees-canoncore/CanonCore/actions/runs/32019861146)), to
+prove that the workflow, the secret, the runner and a live database connection work together. With no
+`source` row in production there is nothing to purge, so a refusal is the only end-to-end check this
+route has, and a red run was the only way to get it.
+
+**Anything else red is owed, and the log says which.** None of these reach the purge, so nothing was
+deleted and the clock is still running. Every line below was produced on purpose and read back rather
+than reasoned about; a wrong *password* is deliberately absent, because the only PostgreSQL available
+to try it on trusts local connections and answered anyway, so nothing here can say what production
+would print:
+
+| Grep for | What happened |
+| --- | --- |
+| `MIGRATION_DATABASE_URL is not set` | The Actions secret is missing or empty. It is write-only, so it cannot be read back — reissue it from Neon, with `sslmode=verify-full` ([`infrastructure.md`](infrastructure.md) → *The SSL mode every connection asks for*) |
+| `Name the Source to purge` | Dispatched with an empty `source_id` |
+| `Error: connect` | The database did not answer — `ECONNREFUSED` against a closed port, checked 17 August 2026. It is the same database as [The database does not answer](#the-database-does-not-answer), so **its second and third checks apply**: the Neon branch's compute, then Neon's status page. Its first does not — Vercel's runtime logs are a deployment's, and this runs on an Actions runner that never touches the application's connection code |
+| None of the above | Read the run's own error line: it may have failed before the purge (the runner, the install) or inside it (a statement timeout, a dropped connection). **Either way nothing was committed** — the purge is one transaction, so a failure part-way through rolls back rather than leaving half a purge |
 
 **And today there is nothing to purge.** No Provider exists yet (**CAN-101 Create the provider-tmdb
 repository, and give it the TMDB credential**), nothing writes a `source` row, and no Snapshot has
