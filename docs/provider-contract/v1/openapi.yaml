@@ -1,0 +1,1486 @@
+# The CanonCore Provider contract, version 1.
+#
+# This file is the contract: it is normative, and nothing else is. The argument for each decision
+# in it — and what was rejected — is ADR-0022, linked from `info.description` below. The gate that
+# keeps this document honest is `scripts/provider-contract.test.ts`, which runs in `pnpm -r test`.
+#
+# OpenAPI 3.1.1 rather than 3.2.0, which was released in September 2025: nothing 3.2 adds is used
+# here. 3.1 is where OpenAPI's schemas became JSON Schema 2020-12, which is what the gate needs to
+# validate an example against the schema beside it, and 3.2 adds nothing this document reaches for.
+openapi: 3.1.1
+
+info:
+  title: The CanonCore Provider contract
+  summary: One read-only HTTP interface between CanonCore and any source of catalogue data.
+  version: 1.0.0
+
+  # MIT, deliberately and unambiguously: implement this contract, copy this document, fork it.
+  # Audiobookshelf's specification carries `info.license: MIT` with its scope stated nowhere, so
+  # whether the document or merely the API is licensed is unverifiable
+  # (docs/research/audiobookshelf-provider-contract.md). This file is covered by the repository's
+  # own LICENSE, and that sentence is the difference.
+  license:
+    name: MIT
+    identifier: MIT
+
+  description: |
+    A **Provider** is a service that stands between CanonCore and one **Source** of catalogue
+    data. The application holds no source-specific code and no Source credential, so everything it
+    knows about any Source arrives through this contract — including the obligations it must
+    honour to display what arrives.
+
+    The vocabulary is CanonCore's own: a **Story** is the thing that happened, a **Version** is one
+    way of watching, reading or listening to it, an **Ordering** is an authored sequence over
+    them, and a **Placement** is one entry in one Ordering. The definitions are in
+    [`CONTEXT.md`](https://github.com/jacobrees-canoncore/CanonCore/blob/main/CONTEXT.md), and the
+    reasoning behind this contract's shape is in
+    [ADR-0022](https://github.com/jacobrees-canoncore/CanonCore/blob/main/docs/adr/0022-the-provider-contract.md).
+
+    ## The rules a conformant Provider follows
+
+    **Absence is refusal, never permission.** A declaration this document marks optional is
+    optional because a Provider may genuinely not do that thing — not because a consumer may
+    assume a default. A Provider that declares no content classification gets its artwork refused;
+    one that declares no retention limit is not conformant at all, because "nobody has said" and
+    "this Source imposes none" are opposite answers and only one of them is safe.
+
+    **Values are verbatim.** A Provider translates the Source's *shape* into this one. It never
+    edits, merges, corrects, enriches or infers the content, because what a consumer stores is
+    what the Source said and nothing else.
+
+    **`fetchedAt` is when the Source was read**, not when this response was assembled. The two
+    differ the moment a Provider serves anything it already held, and the first is the one a
+    retention term limits. A Provider serving a cached value serves the cached timestamp with it.
+
+    **A parameter this Provider cannot honour is refused with `400`**, naming it — whether the
+    parameter is one this contract defines and the Provider does not serve, or one the contract
+    does not define at all. Silently ignoring either makes a consumer believe a filter applied when
+    it did not, and an unfiltered result set that looks filtered is worse than a refusal.
+
+    **Unknown response members are ignored.** That is what makes this contract additive: a
+    consumer that rejects a member it does not recognise will break on the next revision.
+
+    ## Reaching a Provider
+
+    A Provider is identified by a base URL — an origin, optionally with a path prefix. A consumer
+    strips any trailing slash from it and appends `/v1/…`, so `https://example.com/` and
+    `https://example.com` address the same Provider. The version is part of the URI and always has
+    been; there is no negotiation, no header and no default.
+
+    **Authentication is optional and is `Authorization: Bearer <token>`.** A Provider serving a
+    Source that needs no credential requires none. One that does answers `401` without it. The
+    token authenticates the *consumer to the Provider*, and is never a Source's own credential.
+
+    ## Versioning, and the one exception to a codebase rule
+
+    CanonCore removes obsolete paths rather than carrying compatibility layers. This contract is
+    the single bounded exception, because the code implementing it is self-hostable: someone may
+    be running a Provider we wrote on their own schedule, and a self-hosted copy is a fork nobody
+    can upgrade.
+
+    So **version 1 evolves additive-only**:
+
+    - New endpoints, new optional members and new terms in an *open* vocabulary may arrive at any
+      time. A consumer must tolerate all three.
+    - A *closed* vocabulary — `liveness`, `rank`, and a record's `type` — never gains a value
+      within a major version. Each is marked as closed where it is defined.
+    - Removing a member, renaming one, making an optional member required, or narrowing a type is
+      a new major version at a new URI. There is no other way to make one.
+    - `info.version` above is this document's own revision and moves with each addition; the major
+      is the one in the URI.
+
+    **Deprecation.** A member this contract stops wanting is marked `deprecated: true` here and
+    keeps working for the life of the major version. A *Provider* retiring an endpoint announces
+    it on the response, with
+    [`Deprecation`](https://www.rfc-editor.org/rfc/rfc9745.html) from the date it is deprecated and
+    [`Sunset`](https://www.rfc-editor.org/rfc/rfc8594.html) for the date it stops answering.
+
+    ## Errors
+
+    Every error is [RFC 9457](https://www.rfc-editor.org/rfc/rfc9457.html) problem details, served
+    as `application/problem+json`. A consumer reads `status` and `title`; `detail` is for a person
+    reading a log.
+
+servers:
+  - url: "{provider}/v1"
+    description: |
+      Any Provider. `provider` is the base URL a person pastes in or that CanonCore's own list
+      holds, with no trailing slash.
+    variables:
+      provider:
+        default: https://provider.example
+        description: The Provider's base URL, origin and optional path prefix, no trailing slash.
+
+# Either form is conformant: `{}` is a Provider that needs no credential, and `bearer` one that
+# does. Which of the two applies is a property of the Provider, not of the endpoint, so it is
+# declared once here rather than on each operation.
+security:
+  - {}
+  - bearer: []
+
+paths:
+  /capabilities:
+    get:
+      operationId: getCapabilities
+      summary: What this Provider serves, and what its Source obliges
+      description: |
+        The declaration a consumer reads before anything else, and re-reads whenever it wants to
+        know what it is talking to. Everything in it is a fact about the *Source*, except the
+        `liveness` block, which is a fact about what this Provider can find out.
+
+        A consumer stores what was declared, per Source, and honours it. A Provider that declares
+        less than it did before has narrowed what a consumer may do with it, and the consumer
+        degrades rather than carrying on with the old declaration.
+      responses:
+        "200":
+          description: |
+            The declaration. The three examples are the three postures the surveyed Sources
+            actually take — proprietary terms, share-alike, and nothing owed at all — drawn as
+            shapes rather than as statements of fact about any of them. What is true of each
+            Source is recorded in this repository's decisions and research, cited beneath each.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Capabilities"
+              examples:
+                proprietaryTermsWithAPrescribedNotice:
+                  summary: A Source whose terms cap the age of a copy and prescribe the credit
+                  description: |
+                    TMDB's shape. Its licence caps the age of any cached copy at six months
+                    (`§1.C`), lists attribution among its conditions (`§1.B`), and prescribes both
+                    the notice and the logo — so failing it is a licence breach rather than a
+                    discourtesy
+                    ([ADR-0009](https://github.com/jacobrees-canoncore/CanonCore/blob/main/docs/adr/0009-external-source-tmdb.md)).
+                    It classifies pornographic works, and it can tell a deletion from a failed
+                    fetch because the Source publishes its live identifiers daily
+                    ([ADR-0014](https://github.com/jacobrees-canoncore/CanonCore/blob/main/docs/adr/0014-shell-providers-and-per-source-retention.md)).
+                  value:
+                    declaredAt: "2026-08-17T08:00:00Z"
+                    source:
+                      id: tmdb
+                      name: TMDB
+                      url: https://www.themoviedb.org
+                    retention: P6M
+                    licence:
+                      spdx: LicenseRef-tmdb-api-terms
+                      name: TMDB API Terms of Use
+                      url: https://www.themoviedb.org/api-terms-of-use
+                      shareAlike: false
+                    attribution:
+                      required: true
+                      notices:
+                        - text: >-
+                            This product uses TMDB and the TMDB APIs but is not endorsed,
+                            certified, or otherwise approved by TMDB.
+                          conditions: Displayed prominently wherever this Source's values appear.
+                        - text: This product uses the TMDB API.
+                          conditions: >-
+                            In an About or Credits section, beside the logo. A second prescribed
+                            text rather than a restatement of the first, which is why one notice
+                            slot could not hold this Source's obligation.
+                      link: https://www.themoviedb.org
+                      logo:
+                        url: https://provider.example/logos/tmdb.svg
+                        alt: TMDB
+                        conditions: Displayed less prominently than the consumer's own logo.
+                      perRecord: false
+                    restrictions:
+                      - non-commercial
+                      - no-ai-training
+                    classification:
+                      vocabulary:
+                        - term: adult
+                          label: Pornographic
+                          description: >-
+                            The Source classifies the work as hardcore pornography. It is narrower
+                            than "adult-oriented" and under-covers deliberately, which is a
+                            property of the Source rather than of this contract.
+                          suppressesArtwork: true
+                    liveness:
+                      confirmsDeletion: true
+                      evidence: >-
+                        The Source publishes its live identifiers daily, so an identifier absent
+                        from today's exports is genuinely gone rather than momentarily unreachable.
+                shareAlikeProseAndAChronology:
+                  summary: A wiki under a share-alike licence, serving Orderings as well as records
+                  description: |
+                    tardis.wiki's shape. Nothing but the licence governs it, and that licence wants
+                    the author and the page credited beside the prose rather than once in a footer
+                    — which is what `perRecord` says. Its chronologies are one fan community's
+                    work rather than the Source's own sequence, so they are declared
+                    `canonical: false` and a consumer must not import them as though they were.
+                  value:
+                    declaredAt: "2026-08-16T00:00:00Z"
+                    source:
+                      id: tardis-wiki
+                      name: tardis.wiki
+                      url: https://tardis.wiki
+                    retention: indefinite
+                    licence:
+                      spdx: CC-BY-SA-3.0
+                      name: Creative Commons Attribution-ShareAlike 3.0 Unported
+                      url: https://creativecommons.org/licenses/by-sa/3.0/
+                      shareAlike: true
+                    attribution:
+                      required: true
+                      notices:
+                        - text: Text from tardis.wiki, licensed CC BY-SA 3.0.
+                      link: https://tardis.wiki
+                      perRecord: true
+                    restrictions: []
+                    orderings:
+                      canonical: false
+                    liveness:
+                      confirmsDeletion: false
+                publicDomainWithNoObligationAtAll:
+                  summary: A Source that requires no attribution whatsoever
+                  description: |
+                    MusicBrainz's **core** data is CC0, which asks for nothing, while its
+                    supplementary data is CC BY-NC-SA 3.0
+                    ([source survey](https://github.com/jacobrees-canoncore/CanonCore/blob/main/docs/research/source-licence-risk-and-decoupling.md))
+                    — so this is a Provider serving the core alone, and one serving both would
+                    declare something else entirely. A contract that could not say **none** would
+                    force it to invent an obligation, and a consumer to render a credit nobody is
+                    owed. It declares no classification, so its artwork is refused: absence is
+                    refusal even here.
+                  value:
+                    declaredAt: "2026-08-17T08:00:00Z"
+                    source:
+                      id: musicbrainz
+                      name: MusicBrainz
+                      url: https://musicbrainz.org
+                    retention: indefinite
+                    licence:
+                      spdx: CC0-1.0
+                      name: CC0 1.0 Universal
+                      url: https://creativecommons.org/publicdomain/zero/1.0/
+                      shareAlike: false
+                    attribution:
+                      required: false
+                    restrictions: []
+                    liveness:
+                      confirmsDeletion: false
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "503":
+          $ref: "#/components/responses/Unavailable"
+
+  /records:
+    get:
+      operationId: searchRecords
+      summary: Find candidate Stories and Versions
+      description: |
+        Free-text search, narrowed by the parameters below. A Provider that cannot honour a
+        parameter refuses the request rather than ignoring it, so a consumer never mistakes an
+        unfiltered result set for a filtered one.
+
+        Results are ordered by the Provider's own judgement of relevance and carry no score: a
+        number a consumer cannot compare across Providers is worse than no number.
+      parameters:
+        - name: q
+          in: query
+          required: true
+          description: What to search for. A Provider matches it however its Source allows.
+          schema:
+            type: string
+            minLength: 1
+          example: Blink
+        - name: type
+          in: query
+          description: Return only Stories, or only Versions.
+          schema:
+            $ref: "#/components/schemas/RecordType"
+        - name: medium
+          in: query
+          description: |
+            Return only Versions of this Medium. An open vocabulary — see `Version.medium`.
+          schema:
+            type: string
+          example: television
+        - name: year
+          in: query
+          description: Return only records first released in this year.
+          schema:
+            type: integer
+          example: 2007
+        - name: language
+          in: query
+          description: |
+            The language the values are wanted in, as a BCP 47 tag. A Provider serving a Source
+            with one language answers in it whatever this says, and every record states the
+            language it is actually in.
+          schema:
+            type: string
+          example: en
+        - $ref: "#/components/parameters/limit"
+        - $ref: "#/components/parameters/cursor"
+      responses:
+        "200":
+          description: The matches, most relevant first.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RecordPage"
+              examples:
+                oneEpisodeAndTheSeriesItIsPartOf:
+                  summary: Two matches — an episode, and the series it is part of
+                  value:
+                    records:
+                      - id: tv/57243/season/3/episode/10
+                        type: story
+                        title: Blink
+                        summary: >-
+                          Sally Sparrow finds messages from 1969 addressed to her, and statues that
+                          move when nobody is looking at them.
+                        released: "2007-06-09"
+                        language: en
+                        liveness: present
+                        fetchedAt: "2026-08-17T09:14:02Z"
+                        sourceUrl: https://www.themoviedb.org/tv/57243/season/3/episode/10
+                        partOf:
+                          - tv/57243/season/3
+                      - id: tv/57243
+                        type: story
+                        title: Doctor Who
+                        released: "2005-03-26"
+                        language: en
+                        liveness: present
+                        fetchedAt: "2026-08-17T09:14:02Z"
+                        sourceUrl: https://www.themoviedb.org/tv/57243
+                        classification: []
+                    nextCursor: b3BhcXVl
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "503":
+          $ref: "#/components/responses/Unavailable"
+
+  /records/{recordId}:
+    get:
+      operationId: getRecord
+      summary: One record, everything it hangs from, and what hangs from it
+      description: |
+        The import's endpoint. It answers with the record itself, **every** record it is contained
+        by, the Versions of it, and a page of its direct parts.
+
+        **`containers` is complete and is never paginated**, and that is load-bearing rather than
+        a convenience. A consumer derives a record's classification through containment — an
+        episode is pornographic because its series is — so a response that drops a container makes
+        that derivation impossible, and the rule it feeds fails **silently**: an image is
+        displayed because a flag was absent rather than because it said no.
+
+        `limit` and `cursor` page `parts` and nothing else.
+      parameters:
+        - name: recordId
+          in: path
+          required: true
+          description: The record's source-scoped identifier, as `Record.id` gives it.
+          schema:
+            type: string
+          example: tv/57243/season/3/episode/10
+        - $ref: "#/components/parameters/limit"
+        - $ref: "#/components/parameters/cursor"
+      responses:
+        "200":
+          description: |
+            The record and its neighbourhood. Answered even when the record is `gone`, because
+            "this Source no longer carries it" is an answer and `404` would mean the Provider has
+            never heard of it.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RecordGraph"
+              examples:
+                anEpisodeWithItsSeasonSeriesAndVersion:
+                  summary: An episode, its season and series above it, and its broadcast Version
+                  description: |
+                    **Only the series carries a `classification`**, and that is the ordinary case
+                    rather than an omission: this Source flags a series and says nothing about its
+                    episodes, so the episode's answer is derived from the chain above it. Drop
+                    either container from this response and there is no answer to derive.
+                  value:
+                    record:
+                      id: tv/57243/season/3/episode/10
+                      type: story
+                      title: Blink
+                      summary: >-
+                        Sally Sparrow finds messages from 1969 addressed to her, and statues that
+                        move when nobody is looking at them.
+                      released: "2007-06-09"
+                      language: en
+                      liveness: present
+                      fetchedAt: "2026-08-17T09:14:02Z"
+                      sourceUrl: https://www.themoviedb.org/tv/57243/season/3/episode/10
+                      partOf:
+                        - tv/57243/season/3
+                      canonicalVersion: tv/57243/season/3/episode/10/television
+                    containers:
+                      - id: tv/57243/season/3
+                        type: story
+                        title: Series 3
+                        released: "2007"
+                        language: en
+                        liveness: present
+                        fetchedAt: "2026-08-17T09:14:02Z"
+                        partOf:
+                          - tv/57243
+                      - id: tv/57243
+                        type: story
+                        title: Doctor Who
+                        released: "2005-03-26"
+                        language: en
+                        classification: []
+                        liveness: present
+                        fetchedAt: "2026-08-17T09:14:02Z"
+                    versions:
+                      - id: tv/57243/season/3/episode/10/television
+                        type: version
+                        title: Blink
+                        versionOf: tv/57243/season/3/episode/10
+                        medium: television
+                        runtime: PT45M
+                        released: "2007-06-09"
+                        language: en
+                        liveness: present
+                        fetchedAt: "2026-08-17T09:14:02Z"
+                    parts: []
+                aRecordTheSourceNoLongerHas:
+                  summary: A record confirmed deleted at the Source
+                  description: |
+                    `gone` rather than `missing`, which this Provider may only say because its
+                    capability declaration claims `confirmsDeletion`. No values are served with
+                    it: there is nothing left at the Source to serve.
+                  value:
+                    record:
+                      id: tv/57243/season/3/episode/99
+                      type: story
+                      liveness: gone
+                      fetchedAt: "2026-08-17T09:14:02Z"
+                    containers: []
+                    versions: []
+                    parts: []
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "503":
+          $ref: "#/components/responses/Unavailable"
+
+  /orderings:
+    get:
+      operationId: listOrderings
+      summary: The Orderings this Provider serves
+      description: |
+        Only a Provider whose capability declaration carries an `orderings` block serves these; one
+        that does not answers `404` here.
+      parameters:
+        - $ref: "#/components/parameters/limit"
+        - $ref: "#/components/parameters/cursor"
+      responses:
+        "200":
+          description: The Orderings, without their Placements.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrderingPage"
+              examples:
+                oneChronology:
+                  summary: A fan-authored chronology
+                  value:
+                    orderings:
+                      - id: timeline/the-doctor
+                        name: The Doctor's own timeline
+                        description: >-
+                          Every televised story in the order the Doctor experiences it, which is
+                          not the order it was broadcast in.
+                        canonical: false
+                        liveness: present
+                        fetchedAt: "2026-08-17T09:14:02Z"
+                        sourceUrl: https://tardis.wiki/wiki/Timeline
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "503":
+          $ref: "#/components/responses/Unavailable"
+
+  /orderings/{orderingId}:
+    get:
+      operationId: getOrdering
+      summary: One Ordering, its Phases and a page of its Placements
+      description: |
+        The shape Audiobookshelf's contract cannot express, and the reason its schema is not the
+        one used here: a sequence someone authored, whose entries carry an Argument and can be
+        disagreed with.
+
+        `limit` and `cursor` page `placements`. `phases` is complete.
+      parameters:
+        - name: orderingId
+          in: path
+          required: true
+          description: The Ordering's source-scoped identifier.
+          schema:
+            type: string
+          example: timeline/the-doctor
+        - $ref: "#/components/parameters/limit"
+        - $ref: "#/components/parameters/cursor"
+      responses:
+        "200":
+          description: The Ordering.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Ordering"
+              examples:
+                aChronologyWithAnArgumentABridgeAndAnUnplacedEntry:
+                  summary: Four Placements, showing what a sorted list cannot hold
+                  value:
+                    id: timeline/the-doctor
+                    name: The Doctor's own timeline
+                    canonical: false
+                    liveness: present
+                    fetchedAt: "2026-08-17T09:14:02Z"
+                    sourceUrl: https://tardis.wiki/wiki/Timeline
+                    phases:
+                      - id: phase/meeting-martha
+                        name: Meeting Martha
+                        position: 3
+                    placements:
+                      - id: placement/1
+                        position: 41
+                        record: tv/57243/season/3/episode/10
+                        entryType: full
+                        rank: preferred
+                        argument: >-
+                          The Doctor and Martha are trapped in 1969 for the whole story, so it
+                          sits after their arrival and before they recover the TARDIS.
+                        phase: phase/meeting-martha
+                      - id: placement/2
+                        position: 41.5
+                        title: The Doctor writes the Timey-Wimey Detector
+                        argument: >-
+                          Nothing dramatises the gap, but the device exists in the next story and
+                          did not before this one.
+                        phase: phase/meeting-martha
+                      - id: placement/3
+                        position: 12
+                        record: tv/57243/season/3/episode/10
+                        entryType: flashback
+                        rank: discredited
+                        validity: non-canon
+                        argument: >-
+                          One account places the recording earlier. It is placed where the
+                          flashback occurs rather than where the events did, and this community
+                          does not accept the account.
+                      - id: placement/4
+                        record: tv/57243/season/3/episode/11
+                        rank: ordinary
+                        argument: >-
+                          Nothing in the story fixes when it happens, so it stays visible and
+                          unplaced rather than being given a position it has not earned.
+                    nextPlacementsCursor: b3BhcXVl
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "503":
+          $ref: "#/components/responses/Unavailable"
+
+components:
+  securitySchemes:
+    bearer:
+      type: http
+      scheme: bearer
+      description: |
+        The consumer's own credential for this Provider, sent as `Authorization: Bearer <token>`.
+
+        A named scheme rather than a raw header value. Audiobookshelf's contract sends the stored
+        string verbatim as the `Authorization` header, with "no `Bearer` prefix, no scheme"
+        ([research](https://github.com/jacobrees-canoncore/CanonCore/blob/main/docs/research/audiobookshelf-provider-contract.md)),
+        so what a credential looks like is left to each provider to decide rather than settled by
+        the contract.
+
+  parameters:
+    limit:
+      name: limit
+      in: query
+      description: How many items to return. A Provider may return fewer, never more.
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+    cursor:
+      name: cursor
+      in: query
+      description: |
+        The cursor the previous page returned, opaque to the consumer. A response names it for
+        what it pages — `nextCursor` where the whole body is one page, `nextPartsCursor` and
+        `nextPlacementsCursor` where the body carries several collections and only one of them is
+        paged.
+
+        A cursor is valid only for the request that produced it; a Provider refuses one it does not
+        recognise with `400`.
+      schema:
+        type: string
+
+  responses:
+    BadRequest:
+      description: |
+        The request is malformed, or names a parameter this Provider does not serve. Refusing is
+        the point: a Provider that ignores a parameter it cannot honour lets a consumer believe a
+        filter applied.
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+          examples:
+            anUnservedParameter:
+              value:
+                type: about:blank
+                title: Unknown parameter
+                status: 400
+                detail: This Provider does not serve the "medium" parameter.
+    Unauthorized:
+      description: The Provider requires a credential, and none was presented or it was refused.
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+          examples:
+            noCredential:
+              value:
+                title: Unauthorized
+                status: 401
+    NotFound:
+      description: |
+        No such record or Ordering here — including a Provider that serves no Ordering at all. It
+        does **not** mean a record the Source has deleted: that is a `200` carrying
+        `liveness: gone`, because the two are different facts and only one of them is safe to act
+        on.
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+          examples:
+            neverHeardOfIt:
+              value:
+                title: Not found
+                status: 404
+    TooManyRequests:
+      description: |
+        The Provider, or the Source behind it, is rate limiting. `Retry-After` says for how long,
+        and a consumer waits rather than retrying immediately: the limit is usually the Source's,
+        and spending it is how a Provider loses its access.
+      headers:
+        Retry-After:
+          description: Seconds to wait, or an HTTP date.
+          schema:
+            type: string
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+          examples:
+            slowDown:
+              value:
+                title: Too many requests
+                status: 429
+                detail: The Source's own rate limit has been reached.
+    Unavailable:
+      description: |
+        The Provider cannot reach its Source. This is never evidence that anything was deleted —
+        see `Liveness`.
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+          examples:
+            sourceUnreachable:
+              value:
+                title: Source unavailable
+                status: 503
+
+  schemas:
+    Capabilities:
+      type: object
+      title: Capabilities
+      description: |
+        What this Provider serves and what its Source obliges. Five of these carry things the
+        application cannot learn any other way, because it holds no source-specific code: how long
+        a copy may be kept, what attribution is owed and under which licence, what the terms
+        restrict, how content is classified, and whether a missing record is genuinely gone.
+
+        **Each optional block means "this Provider does not do this" by its absence**, and a
+        consumer refuses accordingly rather than assuming a default.
+      required:
+        - declaredAt
+        - source
+        - retention
+        - licence
+        - attribution
+        - restrictions
+      properties:
+        declaredAt:
+          type: string
+          format: date-time
+          description: |
+            When this declaration last changed. A consumer stores what a Source declared and must
+            not re-read what it already holds under a newer declaration without noticing; comparing
+            whole payloads detects a change but cannot order two reads, and this can.
+
+            It is the Provider's own clock — when its operator last altered what it declares —
+            which is a different thing from `fetchedAt`, the moment the *Source* was read.
+        source:
+          $ref: "#/components/schemas/SourceIdentity"
+        retention:
+          $ref: "#/components/schemas/Retention"
+        licence:
+          $ref: "#/components/schemas/Licence"
+        attribution:
+          $ref: "#/components/schemas/Attribution"
+        restrictions:
+          type: array
+          description: |
+            What the Source's terms forbid, as an open vocabulary. Two terms are reserved because
+            they bind on this project's own roster today: `non-commercial`, and `no-ai-training`.
+            Anything else is a term this Provider defines, and a consumer surfaces it verbatim
+            rather than interpreting it.
+
+            **Required, and `[]` is how to say "nothing".** This is a fact about the Source's terms
+            rather than something a Provider does, so it belongs with `retention` and `attribution`
+            rather than with the feature blocks below. Left optional, its absence would be silence
+            read as permission — the one reading this contract refuses everywhere else.
+          items:
+            type: string
+          examples:
+            - - non-commercial
+              - no-ai-training
+            - []
+        classification:
+          $ref: "#/components/schemas/ClassificationDeclaration"
+        orderings:
+          $ref: "#/components/schemas/OrderingsDeclaration"
+        liveness:
+          $ref: "#/components/schemas/LivenessDeclaration"
+
+    SourceIdentity:
+      type: object
+      title: Source identity
+      description: |
+        Which Source this Provider answers for.
+
+        **A consumer scopes `id` to the Provider that declared it.** Anyone may stand up a
+        Provider claiming `id: tmdb`; the identifier says what a Provider calls its Source, never
+        that two Providers are serving the same one.
+      required: [id, name, url]
+      properties:
+        id:
+          type: string
+          pattern: "^[a-z0-9][a-z0-9-]*$"
+          description: A stable, lower-case identifier for the Source, as this Provider names it.
+        name:
+          type: string
+          description: The Source's name as it should be shown to a person.
+        url:
+          type: string
+          format: uri
+          description: The Source's own address, which is where a credit links.
+
+    Retention:
+      title: Retention
+      description: |
+        How long a copy of anything this Source served may be kept, measured from `fetchedAt`.
+        Either an ISO 8601 duration, or `indefinite` where the Source imposes no limit at all.
+
+        **There is no third value and no absence**: a Provider that says nothing has not said
+        "indefinite", and a conformant declaration always carries this.
+      oneOf:
+        - type: string
+          format: duration
+          description: An ISO 8601 duration, such as `P6M` for six months.
+        - const: indefinite
+          description: The Source's terms cap nothing.
+      examples:
+        - P6M
+        - indefinite
+
+    Licence:
+      type: object
+      title: Licence
+      description: |
+        The terms the Source's content is under. The identity carries the *version*, because two
+        versions of one licence differ materially: CC BY-SA 4.0's §4(b) deems a database holding a
+        substantial portion of the licensed contents to be Adapted Material
+        ([legal code](https://creativecommons.org/licenses/by-sa/4.0/legalcode.en)) and 3.0 has no
+        such clause, so the two are not interchangeable for a consumer working out what it owes.
+      required: [spdx, name, url, shareAlike]
+      properties:
+        spdx:
+          type: string
+          description: |
+            An [SPDX licence identifier](https://spdx.org/licenses/), such as `CC-BY-SA-4.0`. Where
+            the terms are not on that list — a proprietary API's own terms of use — a
+            `LicenseRef-` identifier the Provider coins, which is what SPDX reserves that prefix
+            for: it exists to "provide a locally unique identifier to refer to licenses that are
+            not found on the SPDX License List"
+            ([SPDX 2.3, other licensing information detected](https://spdx.github.io/spdx-spec/v2.3/other-licensing-information-detected/)).
+          examples:
+            - CC-BY-SA-4.0
+            - LicenseRef-tmdb-api-terms
+        name:
+          type: string
+          description: The licence's name, as a person should read it.
+        url:
+          type: string
+          format: uri
+          description: Where the terms themselves are published.
+        shareAlike:
+          type: boolean
+          description: |
+            Whether the licence obliges a consumer to release what it builds on this content under
+            the same terms. Declared rather than derived: a consumer cannot infer it from a
+            `LicenseRef-` identifier, and this is not a question to get wrong quietly.
+
+    Attribution:
+      type: object
+      title: Attribution
+      description: |
+        What must be displayed wherever this Source's values are, **including nothing at all**.
+        Public-domain Sources oblige no credit, and a contract that could not say so would make
+        every Provider invent one.
+      required: [required]
+      properties:
+        required:
+          type: boolean
+          description: Whether any credit is owed. `false` is a complete answer.
+        notices:
+          type: array
+          minItems: 1
+          description: |
+            The texts that must be displayed, each with the condition attached to it.
+
+            **A list rather than one string, because one Source can prescribe more than one.**
+            TMDB is the case on this project's own roster: `§3` prescribes a notice, and the FAQ
+            separately requires an About or Credits section, and the two texts differ
+            ([ADR-0009](https://github.com/jacobrees-canoncore/CanonCore/blob/main/docs/adr/0009-external-source-tmdb.md)).
+            A single slot would force the second into prose a consumer is not obliged to render.
+          items:
+            $ref: "#/components/schemas/Notice"
+        link:
+          type: string
+          format: uri
+          description: Where the credit links.
+        logo:
+          $ref: "#/components/schemas/Logo"
+        perRecord:
+          type: boolean
+          default: false
+          description: |
+            Whether every record must carry its own credit — its `authors` and its `sourceUrl` —
+            rather than one credit covering the Source. An attribution licence that asks for the
+            author, the title and the source URI of each work used requires this. CC BY-SA 3.0's
+            §4(c) is the case on this project's own roster: it asks for the Original Author's name
+            "if supplied", the title "if supplied", and "to the extent reasonably practicable, the
+            URI, if any, that Licensor specifies"
+            ([legal code](https://creativecommons.org/licenses/by-sa/3.0/legalcode)). Each item is
+            conditional, which is why this is a Provider's declaration rather than a rule a
+            consumer could derive — and one Source-level credit cannot discharge any of them.
+
+            **Declaring it binds the Provider's own records.** Where this is `true`, every record
+            this Provider serves carries `sourceUrl`, and carries `authors` wherever the Source
+            knows them. Those two members stay optional in the schema because most Sources owe
+            neither, and a schema cannot make a field conditional on a value in a different
+            response — so this sentence is the obligation, and a Provider declaring `perRecord`
+            while serving records without a `sourceUrl` is not conformant.
+      if:
+        required: [required]
+        properties:
+          required:
+            const: true
+      then:
+        required: [notices, link]
+
+    Notice:
+      type: object
+      title: Notice
+      description: |
+        One text a consumer must display, and where.
+      required: [text]
+      properties:
+        text:
+          type: string
+          description: |
+            The exact words. A consumer renders them verbatim and never paraphrases: where a Source
+            prescribes wording, an approximation of it breaches the same clause as omitting it.
+        conditions:
+          type: string
+          description: |
+            Any condition on how this text appears — placement, prominence, the section it belongs
+            in. Prose, because these conditions are written in prose and flattening them into flags
+            loses the ones nobody anticipated.
+
+            **A consumer must honour this, and it is not free text it may ignore.** What separates
+            it from `text` is only that `text` is rendered verbatim to a reader while this is an
+            instruction about *where*, which the consumer satisfies with its own surfaces — a
+            Provider cannot know what pages exist.
+
+    Logo:
+      type: object
+      title: Logo
+      description: An image that must appear with the credit.
+      required: [url, alt]
+      properties:
+        url:
+          type: string
+          format: uri
+        alt:
+          type: string
+          description: Alternative text, so the credit is readable by someone who cannot see it.
+        conditions:
+          type: string
+          description: |
+            Any condition on how the logo appears. Prominence relative to the consumer's own mark
+            is the one a Source actually prescribes, and it is prose for the same reason a
+            notice's conditions are.
+
+    ClassificationDeclaration:
+      type: object
+      title: Classification declaration
+      description: |
+        That this Provider classifies content, and in what terms. **Its absence means it does not,
+        and a consumer must then refuse to display any artwork from it** — a rule that runs on a
+        flag cannot run on a Provider that has no flag, and an image displayed because the flag was
+        absent is the silent failure this declaration exists to prevent.
+      required: [vocabulary]
+      properties:
+        vocabulary:
+          type: array
+          minItems: 1
+          description: |
+            Every term this Provider can put on a record, each saying what a consumer must do about
+            it. **A term is a Source's own word and a consumer never matches on the word** — it
+            reads the flags beside it — which is what lets the rule run without the consumer
+            knowing any Source's vocabulary.
+
+            Version 1 serves no artwork at all, and `suppressesArtwork` is here anyway: a refusal
+            added alongside the first image it governs arrives one release too late.
+          items:
+            $ref: "#/components/schemas/ClassificationTerm"
+
+    ClassificationTerm:
+      type: object
+      title: Classification term
+      description: One term in a Provider's classification vocabulary, and what it obliges.
+      required: [term, suppressesArtwork]
+      properties:
+        term:
+          type: string
+          description: |
+            The Source's own word for this classification, as it appears in a record's
+            `classification`. Shown to a person as-is; never matched against a list a consumer
+            carries.
+          examples:
+            - adult
+        label:
+          type: string
+          description: What to call this term to a person, where the term itself does not read well.
+        description:
+          type: string
+          description: What the Source means by it, which is rarely obvious from the word alone.
+        suppressesArtwork:
+          type: boolean
+          description: |
+            Whether a consumer must refuse to publicly display any image it holds for a record
+            carrying this term. The whole of what a consumer acts on, and the reason it needs no
+            vocabulary of its own.
+
+    OrderingsDeclaration:
+      type: object
+      title: Orderings declaration
+      description: |
+        That this Provider serves Orderings. Its absence means it does not, and `/orderings`
+        answers `404`.
+      required: [canonical]
+      properties:
+        canonical:
+          type: boolean
+          description: |
+            Whether an Ordering from this Provider can be the Source's own sequence — a broadcast
+            order the Source publishes — rather than one community's reading. Where this is
+            `false`, a consumer treats every `Ordering.canonical` it serves as `false` too.
+
+    LivenessDeclaration:
+      type: object
+      title: Liveness declaration
+      description: |
+        Whether this Provider can tell a record that is genuinely gone from one it merely failed to
+        fetch. Its absence means it cannot.
+      required: [confirmsDeletion]
+      properties:
+        confirmsDeletion:
+          type: boolean
+          description: |
+            `true` only where the Provider has evidence independent of the fetch that failed — a
+            published list of live identifiers, a listing endpoint, an export. A Provider that
+            declares `false` never serves `liveness: gone`, because it has no way to know.
+        evidence:
+          type: string
+          description: What that evidence is, so a person can judge the claim.
+
+    Liveness:
+      title: Liveness
+      description: |
+        What the Source is currently saying about a record. **A closed vocabulary**: it does not
+        gain a value within version 1.
+
+        - `present` — the Source served it just now.
+        - `missing` — the Source did not, and this Provider cannot tell why. **Never a reason to
+          delete anything.** An outage, a revoked credential, a rate-limit wall and a genuine
+          deletion all look like this, and acting on it is how a catalogue deletes itself.
+        - `gone` — the Source genuinely no longer has it, on evidence beyond the failed fetch. Only
+          a Provider declaring `confirmsDeletion` may say it.
+      type: string
+      enum:
+        - present
+        - missing
+        - gone
+
+    RecordType:
+      title: Record type
+      description: |
+        Which of the two levels a record is. **A closed vocabulary**: there is no third level, and
+        a record that is neither is not representable here on purpose.
+      type: string
+      enum:
+        - story
+        - version
+
+    RecordFields:
+      type: object
+      title: Fields every record carries
+      description: The members shared by a Story and a Version. Not served on its own.
+      required: [id, type, liveness, fetchedAt]
+      properties:
+        id:
+          type: string
+          description: |
+            This record's identifier at this Source: opaque, stable, and unique within the Source.
+            A consumer stores it against the Snapshot rather than against its own record, because
+            Sources renumber and a local identity must survive that.
+        type:
+          $ref: "#/components/schemas/RecordType"
+        title:
+          type: string
+          description: |
+            What the Source calls it.
+
+            **Absent where `liveness` is `gone`, along with every other value.** A Provider that
+            still holds a title for a record the Source has deleted does not serve it: what
+            survives a deletion is the identity and the fact of it, which is the same rule a
+            consumer follows when the record becomes a tombstone. It is optional rather than
+            required for that reason, and a Source that genuinely titles nothing is the other.
+        summary:
+          type: string
+          description: |
+            The Source's own prose about it, as plain text. A consumer displays it as text and
+            never as a link, whatever it contains.
+        released:
+          type: string
+          pattern: "^\\d{4}(-\\d{2}(-\\d{2})?)?$"
+          description: |
+            When it first appeared, to whatever precision the Source knows: `2007`, `2007-06` or
+            `2007-06-09`. A date rather than a year, because for a magazine issue the date is the
+            identity, and a year-only field cannot hold it.
+          examples:
+            - "2007-06-09"
+            - "2007"
+        language:
+          type: string
+          description: The BCP 47 tag of the language these values are actually in.
+          examples:
+            - en
+        classification:
+          type: array
+          description: |
+            The terms this Source puts on this work, from the vocabulary the capability declaration
+            names. Three states, and they mean different things:
+
+            - **Absent** — the Source says nothing about *this record*, which is ordinary rather
+              than exceptional: a Source may carry the flag on a series and not on its episodes. A
+              consumer derives the answer through `containers`, which is the derivation their
+              completeness exists to protect.
+            - **Empty** — the Source classified it and found nothing to say.
+            - **Populated** — these terms, from the declared vocabulary.
+
+            A Provider that does not classify at all omits this member everywhere *and* declares no
+            vocabulary, and a consumer then refuses to display its artwork.
+          items:
+            type: string
+        liveness:
+          $ref: "#/components/schemas/Liveness"
+        fetchedAt:
+          type: string
+          format: date-time
+          description: |
+            When the **Source** was read for these values — not when this response was assembled.
+            A cached value carries the timestamp of the read that filled the cache, because that
+            is the age a retention term limits.
+        sourceUrl:
+          type: string
+          format: uri
+          description: |
+            This record's own page at the Source. Attribution licences require the source URI
+            alongside the value, so this is an obligation rather than a convenience.
+        authors:
+          type: array
+          description: |
+            Who the licence requires crediting for these values, where it requires anybody. A
+            wiki page has authors; a database row generally does not.
+          items:
+            type: string
+
+    Story:
+      title: Story
+      description: |
+        The thing that happened, independent of how anyone watches, reads or listens to it.
+      allOf:
+        - $ref: "#/components/schemas/RecordFields"
+        - type: object
+          properties:
+            type:
+              const: story
+            partOf:
+              type: array
+              description: |
+                The Stories this one is part of, by identifier. **Unordered**, and no position is
+                carried anywhere on it: a set with no inherent order is not given one here, and an
+                Ordering is where sequence lives.
+              items:
+                type: string
+            adaptedFrom:
+              type: array
+              description: |
+                The Stories this one is derived from by new authored text rather than by a change
+                of form — a novelisation of a television story, not a recording of it.
+              items:
+                type: string
+            canonicalVersion:
+              type: string
+              description: |
+                The Version whose details best represent this Story, where the Source has a view.
+                Optional, and a Source with no view leaves it out rather than picking.
+
+    Version:
+      title: Version
+      description: |
+        One specific way a Story can be watched, read or listened to. Versions of one Story are not
+        interchangeable: they differ in length and content, and some cover only part of it.
+      allOf:
+        - $ref: "#/components/schemas/RecordFields"
+        - type: object
+          required: [versionOf, medium]
+          properties:
+            type:
+              const: version
+            versionOf:
+              type: string
+              description: The Story this is a Version of, by identifier.
+            medium:
+              type: string
+              description: |
+                The form this Version takes — `television`, `prose`, `audio`, `comic`, `webcast`,
+                `game`, `stage`. **An open vocabulary**: a Source serving a form nobody listed
+                serves its own word for it rather than flattening it into a near-miss.
+              examples:
+                - television
+            runtime:
+              type: string
+              format: duration
+              description: |
+                How long this Version is, as an ISO 8601 duration. A duration rather than a number,
+                because a number needs a unit agreed somewhere else: Audiobookshelf's own field is
+                an integer of minutes, and nothing in its name says so.
+              examples:
+                - PT45M
+
+    Record:
+      title: Record
+      description: |
+        A Story or a Version, told apart by `type`. The discriminator is the first thing
+        Audiobookshelf's schema has no answer for: everything there is a book, so an episode, an
+        issue and a film all flatten into one shape.
+      oneOf:
+        - $ref: "#/components/schemas/Story"
+        - $ref: "#/components/schemas/Version"
+      discriminator:
+        propertyName: type
+        mapping:
+          story: "#/components/schemas/Story"
+          version: "#/components/schemas/Version"
+
+    RecordPage:
+      type: object
+      title: A page of records
+      required: [records]
+      properties:
+        records:
+          type: array
+          items:
+            $ref: "#/components/schemas/Record"
+        nextCursor:
+          type: string
+          description: |
+            Pass as `cursor` for the next page. Absent means this is the last one — a consumer
+            reads its absence rather than counting the page against `limit`.
+
+    RecordGraph:
+      type: object
+      title: A record and its neighbourhood
+      description: |
+        One record with everything a consumer needs to place it.
+
+        **Only `parts` is paged**, and its cursor sits beside the collection rather than wrapping
+        it, named for what it pages: a response carrying three collections cannot have one
+        anonymous cursor between them. `containers` and `versions` are complete — the first because
+        a partial answer breaks a derivation that then fails silently, the second because the
+        Versions of one Story are bounded by the domain. That second bound is the one that could
+        turn out wrong, and the shape here is what keeps it cheap: a cursor beside an array is a
+        new optional member, so `versions` can gain one without breaking anything, where a page
+        object wrapping it could never have been introduced at all.
+      required: [record, containers, versions, parts]
+      properties:
+        record:
+          $ref: "#/components/schemas/Record"
+        containers:
+          type: array
+          description: |
+            Every Story this record is contained by, transitively, to the outermost. Complete, and
+            never a page: a partial answer here breaks a derivation that then fails silently.
+
+            For a Version, the chain starts at the Story it is a Version of.
+          items:
+            $ref: "#/components/schemas/Record"
+        versions:
+          type: array
+          description: The Versions of this record, where it is a Story. Empty for a Version.
+          items:
+            $ref: "#/components/schemas/Record"
+        parts:
+          type: array
+          description: |
+            The Stories directly contained by this one, one page at a time. Direct parts are
+            unbounded — a franchise node can carry hundreds — which is why this is the collection
+            with a cursor.
+          items:
+            $ref: "#/components/schemas/Record"
+        nextPartsCursor:
+          type: string
+          description: Pass as `cursor` for the next page of `parts`. Absent on the last one.
+
+    Ordering:
+      title: Ordering
+      description: |
+        A named, authored sequence over Stories or Versions — a broadcast order, an in-universe
+        chronology, one character's life told as they lived it. It is a piece of work someone made
+        and can be disagreed with, never a property of the things it orders.
+      allOf:
+        - $ref: "#/components/schemas/OrderingSummary"
+        - type: object
+          required: [placements]
+          properties:
+            phases:
+              type: array
+              description: |
+                The Ordering's own named groups, complete. They are the author's structure and
+                correspond to no season or broadcast run.
+              items:
+                $ref: "#/components/schemas/Phase"
+            placements:
+              type: array
+              description: The Ordering's entries, one page at a time.
+              items:
+                $ref: "#/components/schemas/Placement"
+            nextPlacementsCursor:
+              type: string
+              description: Pass as `cursor` for the next page of `placements`. Absent on the last one.
+
+    OrderingSummary:
+      type: object
+      title: Ordering summary
+      description: An Ordering without its Placements, as the list endpoint serves it.
+      required: [id, canonical, liveness, fetchedAt]
+      properties:
+        id:
+          type: string
+          description: |
+            The Ordering's identifier at this Source: opaque, stable, and unique within it.
+        name:
+          type: string
+          description: |
+            What it is called. A proper name, used as the Source gives it.
+
+            **Absent where `liveness` is `gone`**, for the reason a record's `title` is: an Ordering
+            the Source has deleted has no name left to serve, and a Provider still holding one does
+            not serve it.
+        description:
+          type: string
+          description: What the Ordering is for, in the author's words.
+        canonical:
+          type: boolean
+          description: |
+            Whether this is the Source's own sequence rather than one reading of it. A consumer
+            treats it as `false` unless the capability declaration says this Provider may serve a
+            canonical Ordering at all.
+        liveness:
+          $ref: "#/components/schemas/Liveness"
+        fetchedAt:
+          type: string
+          format: date-time
+        sourceUrl:
+          type: string
+          format: uri
+        authors:
+          type: array
+          description: Who authored the Ordering, where the licence requires crediting them.
+          items:
+            type: string
+
+    Phase:
+      type: object
+      title: Phase
+      description: A named group of Placements within one Ordering.
+      required: [id, name]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        position:
+          type: number
+          description: Where this Phase sits among the others.
+
+    Rank:
+      title: Rank
+      description: |
+        How strongly a Placement is held. **A closed vocabulary.**
+
+        Rank and entry type are orthogonal and both are needed: a Story appears twice in one
+        Ordering either because it genuinely happens twice — a framing device, a split serial,
+        which entry type says — or because nobody knows which position is right, which rank says.
+        Conflating them makes a chronology unreadable.
+      type: string
+      enum:
+        - preferred
+        - ordinary
+        - discredited
+
+    Placement:
+      type: object
+      title: Placement
+      description: |
+        One Story's or one Version's place in one Ordering. It may point at either, which is how
+        one Ordering lists a serial as a single entry while another lists its episodes separately —
+        and it may point at **neither**, because a chronology carries bridges that argue for what
+        comes next without being a Story themselves.
+      required: [id]
+      properties:
+        id:
+          type: string
+          description: The Placement's identifier within this Ordering, so a page is stable.
+        position:
+          type: number
+          description: |
+            Where it sits. Fractional positions are meaningful and are how a Source slots an entry
+            between two others. **Absent means Unplaced** — it belongs to the Ordering but the
+            evidence settles no position, which is a state to show rather than a row to hide.
+        record:
+          type: string
+          description: |
+            The Story or Version placed here, by identifier. Absent for a bridge, which carries an
+            Argument and a title and nothing behind them.
+        title:
+          type: string
+          description: What to call this entry where no record stands behind it.
+        entryType:
+          type: string
+          description: |
+            What kind of appearance this records — `full`, `reference`, `flashback`, `framing`,
+            `segment`, `prologue`, `epilogue`, `cameo`. **An open vocabulary**, deliberately: the
+            set of ways a story can appear in a sequence is not one anybody has finished writing
+            down. A flashback is placed where the flashback occurs, not where the events did.
+        rank:
+          $ref: "#/components/schemas/Rank"
+        validity:
+          type: string
+          description: |
+            Whether what this Placement records counts within this Ordering, as the Source's own
+            label. Carried and filtered on, never adjudicated — the product does not decide it, and
+            neither does this contract. The value is whatever word the Source uses, which is data
+            rather than a term from this vocabulary.
+        argument:
+          type: string
+          description: |
+            Why it sits here, in terms of evidence from the stories themselves. This is the thing
+            fan chronologies are made of and no other contract carries: a position without an
+            argument cannot be agreed or disagreed with.
+        phase:
+          type: string
+          description: The Phase this Placement belongs to, by identifier.
+
+    OrderingPage:
+      type: object
+      title: A page of Orderings
+      required: [orderings]
+      properties:
+        orderings:
+          type: array
+          items:
+            $ref: "#/components/schemas/OrderingSummary"
+        nextCursor:
+          type: string
+          description: Pass as `cursor` for the next page. Absent means this is the last one.
+
+    Problem:
+      type: object
+      title: Problem details
+      description: |
+        An error, as [RFC 9457](https://www.rfc-editor.org/rfc/rfc9457.html) defines it. A standard
+        shape rather than one of this contract's own: Audiobookshelf declares `{ "error": string }`
+        and its own client discards it, which is what an invented error format is worth.
+      properties:
+        type:
+          type: string
+          format: uri
+          default: about:blank
+          description: A URI identifying the problem type. `about:blank` where there is nothing to point at.
+        title:
+          type: string
+          description: A short, human-readable summary, the same for every occurrence of this type.
+        status:
+          type: integer
+          description: The HTTP status code, repeated here for a consumer that has only the body.
+        detail:
+          type: string
+          description: What went wrong this time, for a person reading a log.
+        instance:
+          type: string
+          format: uri
+          description: A URI identifying this specific occurrence.

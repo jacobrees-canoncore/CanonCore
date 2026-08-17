@@ -241,6 +241,14 @@ Wikimedia Commons' `extmetadata`, which already has the field set — `License`,
 decision 4 of CAN-96 Record the architecture decisions of 15 August, because third-party
 implementors exist from the start.
 
+> **All five landed 17 August 2026** as
+> [`docs/provider-contract/v1/openapi.yaml`](../provider-contract/v1/openapi.yaml), under CAN-7
+> Provider contract: define and publish it. [ADR-0022](0022-the-provider-contract.md) is the
+> argument and holds the table mapping each item above to the field that carries it. Two things
+> this section left open are settled there rather than here: **absence is refusal** — an
+> undeclared block means the Provider does not do that thing and the consumer withholds, rather
+> than a default being assumed — and the deprecation policy ADR-0007 promised and never wrote.
+
 ## Decision 6 — retention is a property of the Source
 
 **Decided.** `source.retention` and `snapshot.fetched_at`; refresh before expiry; **drop what cannot

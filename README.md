@@ -59,7 +59,7 @@ not built yet**: nothing in the product creates a record, so an account can hold
 nothing with it, and there is still no way to add a second Story.
 
 What that means concretely: roughly 900 lines of application code under `apps/web/src`, ignoring
-tests, blank lines and comments — a little over twice that with the comments — against twenty
+tests, blank lines and comments — a little over twice that with the comments — against twenty-two
 architecture decision records and a domain model. The design work ran ahead of the implementation on
 purpose, and the ratio will correct itself as vertical slices land, not by adding more planning.
 
@@ -108,7 +108,8 @@ Nothing here is derived from any earlier attempt at this product. It was built f
 | Where | What |
 | --- | --- |
 | [`CONTEXT.md`](CONTEXT.md) | The domain vocabulary. Read this first |
-| [`docs/adr/`](docs/adr/) | Fifteen decisions, each naming its rejected alternatives and what would reverse it |
+| [`docs/adr/`](docs/adr/) | Twenty-two decisions, each naming its rejected alternatives and what would reverse it |
+| [`docs/provider-contract/`](docs/provider-contract/) | The contract every Provider speaks, as an OpenAPI document. Normative, and additive-only |
 | [`docs/research/`](docs/research/) | The evidence under the decisions, cited to the page that owns each claim |
 | [`docs/compliance/`](docs/compliance/) | Online Safety Act duties: risk assessments, reporting, review policy |
 | [`docs/infrastructure.md`](docs/infrastructure.md) | The register: what is provisioned right now, and what is unverified |
