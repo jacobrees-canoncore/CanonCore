@@ -187,7 +187,8 @@ own defaults has a decorative capability endpoint. The refusals are what make it
 [CAN-104 Read a Provider's capability declaration, and refuse what it does not serve](https://linear.app/jacobrees-canoncore/issue/CAN-104)
 is where they become code.
 
-**The declaration carries `declaredAt`, so two reads can be ordered.** CAN-104 requires that what
+**The declaration carries `declaredAt`, so two reads can be ordered.** CAN-104 Read a Provider's
+capability declaration, and refuse what it does not serve requires that what
 the application stored under an old declaration is not silently re-interpreted under a new one.
 Comparing whole payloads detects that something changed; it cannot say which read is later, and a
 consumer holding two declarations with no order between them has to guess. It is the Provider's own
@@ -345,7 +346,7 @@ Each of these is absent because nothing in v1 needs it, and each can arrive addi
   ([CAN-26 Import a series from TMDB, with the overlay behind it](https://linear.app/jacobrees-canoncore/issue/CAN-26))
   imports Stories, Versions and `part of` edges only. They arrive as new endpoints when
   [CAN-14 Entity pages with prose](https://linear.app/jacobrees-canoncore/issue/CAN-14) needs them.
-- **Artwork.** CAN-26 imports none, and
+- **Artwork.** CAN-26 Import a series from TMDB, with the overlay behind it imports none, and
   [CAN-13 Artwork: uploads, rights and takedown](https://linear.app/jacobrees-canoncore/issue/CAN-13)
   is out of scope for v1. The classification vocabulary is here *before* the images it governs on
   purpose: it is the declaration whose absence must already be a refusal on the day artwork lands.
