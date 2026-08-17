@@ -31,7 +31,10 @@
 # Run from the repository root:
 #   ./scripts/apply-migrations-ahead-of-merge.sh
 #
-# Safe to re-run: Drizzle skips any migration its journal already records.
+# Safe to re-run for one branch: everything it carries is at or below the newest timestamp already
+# applied, so a second run applies nothing. That is a consequence of drizzle comparing timestamps
+# rather than of it recognising what it has already recorded, and the difference matters as soon as
+# two branches share a database — *What drizzle decides on*, beside the migration step below.
 
 set -euo pipefail
 
@@ -197,8 +200,38 @@ PREVIEW_URL=$(
 ok "Target: $PREVIEW_HOST/$PREVIEW_DATABASE"
 
 # --- Apply, to the preview branch and to nothing else. ---
+#
+# **What drizzle decides on, because the obvious description of it is wrong and the error is not
+# harmless.** It does not skip migrations the journal already records. `drizzle-orm`'s
+# `pg-core/dialect.cjs` reads the newest `created_at` **once, at line 58, before the loop**, and at
+# line 64 applies every migration whose `folderMillis` exceeds it. `hash` is selected on line 58 and
+# never compared:
+#
+#   select id, hash, created_at from drizzle.__drizzle_migrations order by created_at desc limit 1
+#   if (!lastDbMigration || Number(lastDbMigration.created_at) < migration.folderMillis) { … }
+#
+# So it is a high-water mark on a timestamp, not a set-membership test — and the two readings differ
+# only when a database has seen a migration this branch does not carry.
+#
+# **Against one database and one branch they agree**, which is why the wrong description survived:
+# every migration this branch carries is at or below the newest already applied, so a second run
+# applies nothing. Re-running remains safe, for that reason rather than the one previously given.
+#
+# **Against a database two branches share they part company, and one direction is silent.** A
+# migration whose timestamp is *earlier* than the newest already applied is skipped, no row is
+# inserted for it, and it can therefore never apply to that database — while drizzle reports
+# success. Check 1 below cannot see it: it compares the *number* of migrations, and both branches
+# carry the same number. The count catches only the opposite ordering, where somebody else's
+# migration is present and the total runs high.
+#
+# Every preview reads one shared branch today, so this is reachable now. **One branch at a time may
+# apply a migration here** until CAN-138 Give every Orca worktree its own preview database, so
+# parallel schema work stops colliding gives each worktree a database of its own.
+# docs/research/per-worktree-preview-databases.md quotes the source and holds the orderings.
 head1 "Applying to \`preview\`"
-note "drizzle-kit skips any migration its journal already records, so this is re-runnable."
+note "Re-running this branch's own migrations applies nothing, so this is safe to repeat."
+note "Do not run it for two branches at once: a migration older than the newest already on the"
+note "branch is skipped for ever, and reports success. See the comment above this line."
 if ! MIGRATION_DATABASE_URL="$PREVIEW_URL" pnpm --filter @canoncore/web db:migrate; then
   bad "The migration failed. Nothing below ran."
   note "Read the error above before re-running: a partly-applied migration is not a state"
