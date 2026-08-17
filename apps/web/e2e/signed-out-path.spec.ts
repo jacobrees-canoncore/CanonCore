@@ -106,9 +106,17 @@ test("a failed sign-in comes back as a page, with a sentence of our own", async 
  * **It is asserted in [`../src/db/rls.test.ts`](../src/db/rls.test.ts) instead**, on the `Set-Cookie`
  * header of a real successful sign-in against a real PostgreSQL, which is where an account can exist.
  *
- * **What is genuinely out of reach from here is the deployed half** — the attributes as a browser
- * receives them, past the CDN — because seeing them needs a signed-in session and this suite runs
- * against production by default. Buying it would mean creating an account in production, which is what
- * the header of this file refuses. CAN-30 GDPR export and erasure is what would make such an account
- * disposable, and until then this is a recorded gap rather than a hidden one.
+ * **What is out of reach from an automated run here is the deployed half** — the attributes as a
+ * browser receives them, past the CDN — because seeing them needs a signed-in session and this suite
+ * runs against production by default. Buying it would mean creating an account in production, which is
+ * what the header of this file refuses. CAN-30 GDPR export and erasure is what would make such an
+ * account disposable, and until then this is a recorded gap rather than a hidden one.
+ *
+ * **It was read by hand once, against the preview, on 17 August 2026:**
+ * `__Secure-better-auth.session_token=…; Max-Age=604800; Path=/; HttpOnly; Secure; SameSite=Lax` —
+ * **no `Domain`**, which is the ADR-0010 property, and `Secure` because the preview is HTTPS. Two
+ * things that reading settled that no local run could: the name carries a `__Secure-` prefix over
+ * HTTPS and not over HTTP, which [`../src/db/rls.test.ts`](../src/db/rls.test.ts) now allows for; and
+ * the attributes survive the CDN unchanged. A one-off observation is not a test, and it is written
+ * down here because the next person to wonder should not have to sign up on a preview to find out.
  */

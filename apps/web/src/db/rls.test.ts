@@ -1135,14 +1135,21 @@ describe.skipIf(noDatabase)("the schema, against a real PostgreSQL", () => {
       expect(response.status).toBe(303);
       expect(response.headers.get("location")).toBe("/");
 
+      // **The name carries a `__Secure-` prefix over HTTPS and not over HTTP**, so the match ignores
+      // it. This suite runs against a local PostgreSQL with an `http` origin and sees
+      // `better-auth.session_token`; the deployed preview sends `__Secure-better-auth.session_token`,
+      // read off a real response on 17 August 2026. Matching the bare name would still have failed
+      // loudly rather than silently, but it would have failed for the wrong reason.
       const sessionCookie = response.headers
         .getSetCookie()
-        .find((cookie) => cookie.startsWith("better-auth.session_token="));
+        .find((cookie) => /^(__Secure-)?better-auth\.session_token=/.test(cookie));
       expect(sessionCookie).toBeDefined();
 
       // ADR-0010's reason for `www` being canonical is a host-only cookie. `Domain=` is what
       // `vercel:auth` and most better-auth examples suggest, and it is the thing not to add — so its
-      // absence is asserted rather than trusted to a default.
+      // absence is asserted rather than trusted to a default. **Confirmed on the deployed preview
+      // too**, past the CDN: `Max-Age=604800; Path=/; HttpOnly; Secure; SameSite=Lax`, and no
+      // `Domain`. `Secure` appears only there, which is why it is not asserted here.
       expect(sessionCookie).not.toMatch(/;\s*Domain=/i);
       expect(sessionCookie).toMatch(/;\s*HttpOnly/i);
       expect(sessionCookie).toMatch(/;\s*SameSite=Lax/i);
