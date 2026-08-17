@@ -47,6 +47,8 @@ is what the rule was built on.
 - [The holding page was first deployed straight to production](#the-holding-page-was-first-deployed-straight-to-production)
 - [Both required contexts report on documentation-only pull requests](#both-required-contexts-report-on-documentation-only-pull-requests)
 - [A failing check reaches the phone, a recovering one may not](#a-failing-check-reaches-the-phone-a-recovering-one-may-not)
+- [Dependabot alerts were enabled, and blind](#dependabot-alerts-were-enabled-and-blind)
+- [The audit gate was proved by a critical advisory, then reverted](#the-audit-gate-was-proved-by-a-critical-advisory-then-reverted)
 
 **Database**
 - [Preview branching was switched off, so no preview ever got a branch](#preview-branching-was-switched-off-so-no-preview-ever-got-a-branch)
@@ -522,6 +524,72 @@ implemented (`…/dist/docs/01-app/03-api-reference/03-file-conventions/route.md
 unsupported method returns 405 (`…/dist/docs/01-app/01-getting-started/15-route-handlers.md`), so a
 reader checking the guide alone concludes the opposite. **Check the implementation before adding a
 `HEAD` export to satisfy the monitor.**
+
+---
+
+## Dependabot alerts were enabled, and blind
+
+**16 August 2026, CAN-54 Fail a push that adds a known-vulnerable dependency.** The ticket's first
+criterion was that Dependabot alerts be enabled. They already read as enabled, and were seeing
+nothing at all, because **the dependency graph they match against was off** — a second setting, in a
+second place, that no reading of the first could reveal.
+
+What each source said before anything was changed:
+
+| Read | Answer |
+| --- | --- |
+| `gh api -i repos/…/vulnerability-alerts` | `HTTP/2.0 204 No Content` — the documented *enabled* |
+| `gh api repos/…/dependabot/alerts?state=open` | `[]` |
+| `gh api repos/…/dependency-graph/sbom` | `404 Not Found`, three times |
+| The same SBOM call against `cli/cli` | `500`, *"Failed to generate SBOM: Request timed out"* |
+| `github.com/…/network/dependencies` | **"Dependency graph is disabled"**, with an *Enable* button |
+
+**The 404 is the reading that matters, and only the fifth row makes it legible.** A 404 from that
+endpoint is indistinguishable from a token that cannot reach it; the `cli/cli` call is what
+separates the two, because a 500 out of the generator proves the endpoint answers this credential.
+So the repository genuinely had no graph, and `[]` meant *nothing was parsed* rather than *nothing
+is vulnerable* — the two readings a green tick cannot tell apart.
+
+**There is no REST route to the setting, and the API says otherwise by staying quiet.** `PATCH
+/repos/{owner}/{repo}` with `security_and_analysis[dependency_graph][status]=enabled` returned
+**200** and a body in which the field simply does not appear. Nothing failed, nothing changed, and
+the page still said disabled. The field is not part of that payload and is discarded without
+comment, so the call reads exactly like a successful one. It was flipped through the UI instead.
+
+**What flipping it changed, within a minute.** The SBOM went from `404` to **696 packages**. The
+open alert list went from `[]` to `GHSA-67mh-4wv8-2f99` (esbuild, moderate) — the same advisory
+`pnpm audit` had been reporting locally the whole time. The next `git push` printed *"GitHub found 1
+vulnerability on jacobrees-canoncore/CanonCore's default branch (1 moderate)"*, which no earlier push
+to this repository had ever printed.
+
+**The general lesson is the one the ticket was already carrying about secret scanning: a criterion
+that can be ticked from a setting's own name is not yet evidence.** Two of the four things CAN-54
+turned on live in `security_and_analysis`, one lives behind `/vulnerability-alerts`, and one lives
+in neither and is reachable only by a button. `docs/infrastructure.md` → *Dependency and secret
+scanning* records all four with the call that reads each one back.
+
+---
+
+## The audit gate was proved by a critical advisory, then reverted
+
+**16 August 2026, CAN-54 Fail a push that adds a known-vulnerable dependency.** `minimist@0.0.8`
+(GHSA-xvch-5gv4-984h, critical prototype pollution) was added to `apps/web` as a devDependency,
+imported by nothing, and pushed as [`5b1b590`](https://github.com/jacobrees-canoncore/CanonCore/commit/5b1b590b30d698709ba9f0a3888346e738b3f1a7).
+
+Run [`31975102269`](https://github.com/jacobrees-canoncore/CanonCore/actions/runs/31975102269)
+failed, and **failed in the right place**: `pnpm -r test`, `pnpm -r typecheck`, `pnpm -r lint` and
+`pnpm -r build` all reported `success`, `pnpm audit --audit-level=high` reported `failure` with
+`Process completed with exit code 1`, and every step after it — the documents check and both release
+steps — reported `skipped`. The log names the advisory: *"critical │ Prototype Pollution in
+minimist"*, `Paths: apps__web>minimist`.
+
+The dependency was removed in the next commit, and `apps/web/package.json` and `pnpm-lock.yaml` are
+byte-identical to `main` again.
+
+**A local exit code would not have shown this.** `pnpm audit --audit-level=high` exits 1 on a laptop
+as readily, and proves only that the command works; what needed proving was that the step is wired
+into the job GitHub runs, in an order where a dependency advisory stops the release rather than
+being reported after it. `docs/agents/workflow.md` → *The gates* is where that ordering is stated.
 
 ---
 

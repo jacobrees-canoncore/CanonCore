@@ -14,13 +14,21 @@ jobs:
     # This name IS the required status check context on `main`'s ruleset. Renaming it
     # blocks every merge for ever ("Expected — Waiting for status to be reported") until
     # the ruleset is updated too, so the two are changed together or not at all.
-    # `scripts/check-docs.ts` fails the build if they ever disagree, which is also why
-    # the name is added to rather than replaced when a step joins the job.
+    # `scripts/check-docs.ts` fails the build if they ever disagree.
     #
-    # The release steps at the end are in this job rather than a job of their own, and the
-    # name is unchanged for them, because they never run on a pull request: a job that
-    # cannot report on a pull request cannot be a required context, and this repository's
-    # documented model is one job, one context. docs/infrastructure.md -> The ruleset.
+    # It is a summary of this job rather than a manifest of it, and deliberately so. The
+    # documents check, the audit, the migration and both release steps have all joined
+    # without it changing. Each rename would cost a coordinated ruleset edit, with a window
+    # in which the required context is missing and the pull request cannot merge, to buy a
+    # longer string — so a step joins on its merits and the name stays put. CAN-54 Fail a
+    # push that adds a known-vulnerable dependency settled that, having found the earlier
+    # wording ("added to rather than replaced when a step joins") already contradicted by
+    # four steps that had joined silently.
+    #
+    # The release steps at the end are in this job rather than a job of their own because
+    # they never run on a pull request: a job that cannot report on a pull request cannot be
+    # a required context, and this repository's documented model is one job, one context.
+    # docs/infrastructure.md -> The ruleset.
     name: test, typecheck, lint, build
     runs-on: ubuntu-latest
 
@@ -83,8 +91,8 @@ jobs:
       #
       # After the four above rather than before them, for the reason the documents check is after
       # them too: a dependency's advisory is not a broken build, and the first failure stops the
-      # rest, so a moderate-to-high advisory published overnight must not be what hides a genuine
-      # compile error from the person who caused it.
+      # rest, so a high advisory published overnight must not be what hides a genuine compile
+      # error from the person who caused it.
       #
       # `high`, not `low` or `moderate`, is a threshold rather than a preference: `drizzle-kit`
       # carries a moderate `esbuild` advisory (GHSA-67mh-4wv8-2f99, a development-server one) that

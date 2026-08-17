@@ -229,14 +229,26 @@ generation, an environment variable nobody set ([`apps/web/src/env.ts`](../../ap
 — and without it the first machine to find out is the one doing the deploy. The three are what
 CAN-22 required; this one is ours.
 
-**All four run in one Actions job, in that order, so the first failure stops the rest.** That job is
+**A fifth step audits the dependency tree**, `pnpm audit --audit-level=high`, added by **CAN-54 Fail
+a push that adds a known-vulnerable dependency**. It runs *after* the four, for the same reason the
+documents check runs after those: an advisory published overnight is not a broken build, and with the
+first failure stopping the rest, a red audit must not be what hides a genuine compile error from the
+person who caused it. `high` rather than `low` is a threshold — `drizzle-kit` carries a moderate
+`esbuild` advisory nothing here can fix, and a gate that is red on arrival is a gate that gets
+ignored. `--ignore-registry-errors` is deliberately not passed: it exits 0 when the registry is
+unreachable, which would make an outage indistinguishable from a clean audit, and a red run that can
+be re-run is the better failure. **This one is a gate; Dependabot alerts are not** — they arrive
+after the merge, on GitHub's schedule. Both, and what each is worth, are in
+[`../infrastructure.md`](../infrastructure.md) → *Dependency and secret scanning*.
+
+**All of them run in one Actions job, in that order, so the first failure stops the rest.** That job is
 the single check a pull request reports and one of the two contexts `main`'s ruleset requires;
 [`docs/infrastructure.md`](../infrastructure.md) → *The ruleset* is the only document that names it,
 and `scripts/check-docs.ts` fails the build if that name and `ci.yml` ever disagree. Requiring the
 three commands as three contexts would require names nothing emits, which is worse than requiring
 too little — a required context that never reports blocks every merge for ever.
 
-**A fifth step checks the documents against the sources they describe**, `node scripts/check-docs.ts`
+**A sixth step checks the documents against the sources they describe**, `node scripts/check-docs.ts`
 — the required contexts, the label roster, the variable roster, the Actions secrets, the release
 token's expiry, and every cross-document pointer. **Not all of it reaches CI, and the difference is
 not an oversight:**

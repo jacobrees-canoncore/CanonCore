@@ -237,6 +237,13 @@ including documentation-only ones
 contexts; `ci.yml` runs all four in one job so the first failure stops the rest, which means the
 pull request reports one check. Requiring three names that nothing emits is the trap above.
 
+**The job's name is a summary of what it runs, not a manifest of it, and does not change when a step
+joins.** The documents check, the dependency audit, the migration and both release steps have all
+joined without it changing. A rename buys a longer string and costs a coordinated edit to this table
+and to the live ruleset, with a window in which the required context is missing and nothing can
+merge. Settled by **CAN-54 Fail a push that adds a known-vulnerable dependency** on 16 August 2026,
+against a `ci.yml` comment that said the opposite and that four steps had already contradicted.
+
 **`Vercel Preview Comments` is deliberately not required.** Vercel posts it as a third check, but it
 records that a comment was written, not that a deployment succeeded.
 
@@ -254,6 +261,51 @@ Here that means a green pull request can still break `main`, and a push to `main
 job that follows it is green. CI is `on: push`, so the merge commit is tested too, and `docs/agents/workflow.md` →
 *After the merge* is the step that looks. Turn strict on if a second person starts landing work, or
 if two branches are ever routinely open at once.
+
+### Dependency and secret scanning
+
+Turned on by **CAN-54 Fail a push that adds a known-vulnerable dependency** on 16 August 2026, and
+read back the same day with the calls beneath the table. Four settings were flipped; the last three
+rows were already as they stand and are recorded so that "off" is a decision rather than a gap.
+
+| Setting | State | Read back by |
+| --- | --- | --- |
+| Dependency graph | **enabled** | `dependency-graph/sbom`, which answers `404` when off and **696 packages** when on |
+| Dependabot alerts | **enabled** | `vulnerability-alerts`, `204` when on and `404` when off |
+| Secret scanning | **enabled** | `security_and_analysis.secret_scanning.status` |
+| Secret scanning push protection | **enabled** | `security_and_analysis.secret_scanning_push_protection.status` |
+| Dependabot security updates | disabled | `security_and_analysis.dependabot_security_updates.status` |
+| Secret scanning validity checks | disabled | `security_and_analysis.secret_scanning_validity_checks.status` |
+| Secret scanning non-provider patterns | disabled | `security_and_analysis.secret_scanning_non_provider_patterns.status` |
+
+```bash
+gh api repos/jacobrees-canoncore/CanonCore --jq .security_and_analysis
+gh api -i repos/jacobrees-canoncore/CanonCore/vulnerability-alerts | head -1
+gh api repos/jacobrees-canoncore/CanonCore/dependency-graph/sbom --jq '.sbom.packages | length'
+```
+
+**Three settings, three different places, and the first command reaches only one of them.** Alerts
+are not in `security_and_analysis`, and the dependency graph is in neither — it has no REST route at
+all, and `PATCH`ing it into that payload returns 200 while changing nothing. All three calls, or the
+answer is partial. Both halves of that were found rather than assumed
+([incident](incidents.md#dependabot-alerts-were-enabled-and-blind)).
+
+**The dependency graph is the row the other two rest on.** It was off until CAN-54, which made
+Dependabot alerts *enabled and blind*: the alert list was empty because nothing had been parsed, not
+because nothing was vulnerable. One open alert exists now, `GHSA-67mh-4wv8-2f99` — a moderate
+`esbuild` development-server advisory reaching us through `drizzle-kit`, which nothing here can fix.
+
+**The three disabled rows.** *Security updates* raise fix pull requests, which is dependency
+updating rather than dependency alerting, and belongs to **CAN-61 Keep the codebase and its
+dependencies from silting up** with Renovate. *Validity checks* send a candidate secret to its issuer
+to ask whether it is live, which is a disclosure decision on its own and nothing here needs.
+*Non-provider patterns* widen scanning to shapes no issuer vouches for, and their false-positive rate
+is what push protection would then be enforcing.
+
+**None of this is the gate.** Alerts arrive after a merge, on GitHub's schedule, in a tab nobody has
+open; the gate is `pnpm audit --audit-level=high` in the CI job, and
+[`docs/agents/workflow.md`](agents/workflow.md) → *The gates* owns it. These settings are the
+after-the-fact half, and the reason the ticket wanted both.
 
 ## Environment variables
 
