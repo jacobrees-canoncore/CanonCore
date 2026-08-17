@@ -185,6 +185,69 @@ feature requests in the triage queue; `/triage` reads this flag.)_
 - **Attach a PR link**: `orca linear attach CAN-123 --url <pr-url> --title "PR/MR link" --json`.
 - **Close**: there is no close command. Move to a completed state with `status set --to Done`.
 
+Every write that carries prose is subject to *Keep an emphasis run on one line, and grep the stored
+body*, below: `create` and `comment add` here, and the `save-issue` description write.
+
+### Keep an emphasis run on one line, and grep the stored body
+
+**An emphasis run must never cross a newline in the text you send** — bold and italic alike. Linear
+stores rich text, not your markdown, so a newline inside the run becomes a hard break *inside* the
+mark, and serialising that back to markdown is a known bug class in `prosemirror-markdown`, the
+library behind Linear's editor: its changelog fixed "Hard breaks at the end of an emphasized or strong
+mark are no longer serialized to invalid Markdown text" in 1.2.2 and has repaired the same area since
+(https://github.com/ProseMirror/prosemirror-markdown/blob/master/CHANGELOG.md). The library is named
+because it explains the shape; what is recorded here is the tracker's own behaviour, observed. What
+comes back is the run closed and reopened around the break, leaving a stray `****` at each end. Read
+back verbatim on 17 August 2026 from CAN-83 The variable roster check has never gated in CI, though
+the docs say it does:
+
+```text
+(31722153282), which skips identically. Found while landing **CAN-23 One Story from Neon, behind****
+****row-level security**, whose PR added a `DATABASE_PRODUCTION_HOST` row to that very roster — so the
+```
+
+A bold run wrapped at the margin is the shape that produces it, but that direction is inference: the
+authored markdown is not recoverable from here, and `orca linear issue CAN-83 --activity` returns only
+relation, assignee and state changes for it (read 17 August 2026). The read-back is the evidence.
+
+The reformatting was first recorded as a hazard to verification probes, and that evidence stays where
+it is rather than being repeated here:
+`docs/research/verification-sweep-16-august.md` → *Method notes, for the next sweep*. Its probe advice
+holds. Its "rewrapped lines", read as the cause of this effect, does not, and the measurement below is
+what supersedes it — the archive is a dated record and is deliberately left standing.
+
+**Line length is irrelevant, and a long line is a legitimate fix.** Linear does not rewrap what you
+send. Measured 17 August 2026 across all 134 team `CAN` bodies — a total that needs
+`--include-archived`, per *A listing is bounded, and only half of that is signalled* below — all 29
+mangled occurrences sat at a line boundary and **none mid-line**, while every emphasis run lying
+wholly inside a single stored line survived, upwards of 1,600 of them, the longest on a line of 5,564
+columns. A line that long coming back whole is what rules rewrapping out. So the wrap this repository
+uses for prose is what puts the break there: either keep the run short enough to fit the line, or let
+that one line run past the margin. Both work, and nothing else does.
+
+**After any body write, re-read the stored body and grep it — stripping code spans first.**
+
+```bash
+orca linear issue CAN-<n> --workspace ad2669ec-93a5-4ce1-97fa-c7d9247a1452 --json \
+  | jq -r '.result.issue.description' \
+  | perl -0pe 's/\x60{3}.*?\x60{3}//gs; s/`[^`\n]*`//g' \
+  | grep -n -F '****'
+```
+
+**The strip is what makes the check runnable.** A body may quote `****` deliberately as the very
+thing to look for, and a plain grep then reports the ticket documenting the check as failing it —
+which is how a check stops being run. On the same sweep a naive grep flagged 13 bodies and the
+stripped grep 12; the one it removed was this rule's own ticket. No output means clean. Pair this
+with the waits in *A description write must not be bundled with anything else* above, which is a
+separate failure and the reason a re-read can be inconclusive.
+
+**A run split around inline code is a different effect, and not one to repair.** Emphasis wrapping a
+code span can come back as three fragments with the code outside the marks, as `**Do not** ` +
+`` `await` `` + ` **the send.**`. Nothing is corrupted, it renders the same, and the grep above will
+not see it. Nothing downstream minds either: `node scripts/check-docs.ts` reads tracked markdown and
+never a ticket body, and its pointer comparison strips backticks and asterisks and accepts a title
+prefix, so even a pointer copied out of a ticket in this shape still resolves.
+
 ### A listing is bounded, and only half of that is signalled
 
 Every list-shaped command stops at `--limit`, which defaults to **50 for `list-issues`, 20 for
