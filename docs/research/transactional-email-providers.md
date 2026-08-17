@@ -1,6 +1,6 @@
 # Transactional email providers
 
-**Researched 2026-08-10**, for [CAN-20](https://linear.app/jacobrees-canoncore/issue/CAN-20). Every
+**Researched 2026-08-10**, for [CAN-20 Send from mail.canoncore.com and revoke the two DKIM keys](https://linear.app/jacobrees-canoncore/issue/CAN-20). Every
 price, limit, DNS record and legal quotation below was read from the page that owns it on that date —
 provider pricing pages, terms, AUPs, DPAs, sub-processor lists, status pages and API references;
 Google's, Yahoo's and Microsoft's own sender pages; Namecheap's knowledgebase; the RFCs; and the
