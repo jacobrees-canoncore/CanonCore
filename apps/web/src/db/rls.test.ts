@@ -81,6 +81,10 @@ const onlyTheTerminatedSource = { id: "77777777-7777-4777-8777-777777777777", ow
 const bothSources = { id: "88888888-8888-4888-8888-888888888888", owner: "user-c" };
 const onlyTheSurvivingSource = { id: "99999999-9999-4999-8999-999999999999", owner: "user-c" };
 
+/** A fifth Source and a fourth owner's Story, for the purge that runs against a grown schema. */
+const unclassifiedTableSource = { id: "0a0a0a0a-0a0a-4a0a-8a0a-0a0a0a0a0a0a" };
+const purgedWhileUnclassified = { id: "0b0b0b0b-0b0b-4b0b-8b0b-0b0b0b0b0b0b", owner: "user-d" };
+
 describe.skipIf(!migratorUrl || !applicationUrl)("the schema, against a real PostgreSQL", () => {
   let migrator: Client;
   let withSession: typeof import("./session").withSession;
@@ -400,7 +404,7 @@ describe.skipIf(!migratorUrl || !applicationUrl)("the schema, against a real Pos
     // ever grows a title 'so the page reads better', the decision has been reversed by accident".
     // The whole column list, for `source`'s reason below — a column called `former_title` reverses
     // it exactly as much as one called `title`, and only an exact list catches both.
-    test("a tombstone carries the identity, the kind and the time, and nothing else", async () => {
+    test("a tombstone carries the identity, the kind, the time and its policy's two, and nothing else", async () => {
       const { rows } = await migrator.query<{ column_name: string }>(
         `select column_name from information_schema.columns
           where table_schema = 'public' and table_name = 'tombstone'
@@ -587,14 +591,11 @@ describe.skipIf(!migratorUrl || !applicationUrl)("the schema, against a real Pos
   // one of these Stories is public, and a tombstone of it outliving the suite would join them.
   describe("purging a Source whose licence has terminated", () => {
     let purgeSource: typeof import("./purge-source").purgeSource;
-    let assertEveryTableIsClassified: typeof import("./purge-source").assertEveryTableIsClassified;
     let howThePurgeTreatsEachTable: typeof import("./purge-source").howThePurgeTreatsEachTable;
     let report: Awaited<ReturnType<typeof purgeSource>>;
 
     beforeAll(async () => {
-      ({ purgeSource, assertEveryTableIsClassified, howThePurgeTreatsEachTable } = await import(
-        "./purge-source"
-      ));
+      ({ purgeSource, howThePurgeTreatsEachTable } = await import("./purge-source"));
 
       await migrator.query(
         `insert into source (id, retention) values ($1, '6 months'), ($2, '6 months')
@@ -748,22 +749,14 @@ describe.skipIf(!migratorUrl || !applicationUrl)("the schema, against a real Pos
       ).rejects.toThrow(/no Source/);
     });
 
-    // The tripwire, and the reason this ticket can land while two of the things a `§1.D` purge must
-    // reach do not exist yet: `supersededValue` and the audit payloads
-    // (docs/adr/0014-shell-providers-and-per-source-retention.md -> Decision 6, unresolved items 2
-    // and 3). A purge that silently skipped either would report success and leave Source content
-    // behind, so the shape of the schema itself is checked before anything is deleted.
-    test("refuses to run at all in a schema carrying a table nothing has classified", async () => {
-      await migrator.query("begin");
-      await migrator.query('create table "audit_payload" (id uuid primary key)');
-
-      await expect(assertEveryTableIsClassified(migrator)).rejects.toThrow(/audit_payload/);
-
-      await migrator.query("rollback");
+    test("reports nothing unreached, because every table that exists is classified", () => {
+      expect(report.tablesNotReached).toEqual([]);
     });
 
-    // The same list, stated where a reader can check it against the schema rather than only being
-    // enforced. Adding a table means answering the question this record asks.
+    // The pressure the purge itself no longer applies, applied here instead — in the pull request
+    // that adds a table rather than during an incident. Adding one means answering the question this
+    // record asks: docs/adr/0014-shell-providers-and-per-source-retention.md -> Decision 6, items 2
+    // and 3, for the two that are known and unresolved.
     test("says what the purge does with every table that exists", () => {
       expect(Object.keys(howThePurgeTreatsEachTable).sort()).toEqual([
         "snapshot",
@@ -771,6 +764,81 @@ describe.skipIf(!migratorUrl || !applicationUrl)("the schema, against a real Pos
         "story",
         "tombstone",
       ]);
+    });
+  });
+
+  // What happens when the day the tripwire exists for arrives: `supersededValue` or an audit payload
+  // lands, nothing says what the purge should do with it, and a termination is owed a purge anyway.
+  //
+  // **A real table, created and committed**, because that is the only way to see what a dispatched
+  // purge would see. It is dropped again in `afterAll` — the two table tripwires above assert the
+  // exact contents of `public`, so a leaked fixture table would fail them on the next run rather
+  // than here.
+  describe("purging while a table nothing has classified exists", () => {
+    let purgeSource: typeof import("./purge-source").purgeSource;
+    let partial: Awaited<ReturnType<typeof purgeSource>>;
+
+    beforeAll(async () => {
+      ({ purgeSource } = await import("./purge-source"));
+
+      await migrator.query('drop table if exists "audit_payload"');
+      await migrator.query('create table "audit_payload" (id uuid primary key)');
+      await migrator.query(`insert into source (id, retention) values ($1, '6 months')`, [
+        unclassifiedTableSource.id,
+      ]);
+      await migrator.query(
+        `insert into story (id, title, owner_id, visibility)
+         values ($1, 'A Story purged while the schema had grown', $2, 'private')`,
+        [purgedWhileUnclassified.id, purgedWhileUnclassified.owner],
+      );
+      await migrator.query(
+        `insert into snapshot (story_id, source_id, fetched_at) values ($1, $2, $3)`,
+        [purgedWhileUnclassified.id, unclassifiedTableSource.id, readLongAgo],
+      );
+
+      partial = await purgeSource(migrator, unclassifiedTableSource.id);
+    });
+
+    afterAll(async () => {
+      await migrator?.query('drop table if exists "audit_payload"');
+      await migrator?.query("delete from tombstone where owner_id = $1", [
+        purgedWhileUnclassified.owner,
+      ]);
+      await migrator?.query("delete from story where id = $1", [purgedWhileUnclassified.id]);
+      await migrator?.query("delete from source where id = $1", [unclassifiedTableSource.id]);
+    });
+
+    // The part it could discharge, discharged. Refusing outright would have left the Snapshots as
+    // well, which is a worse licence position than leaving one table nobody has classified.
+    test("purges what it is sure of, and names what it could not account for", async () => {
+      expect(partial.tablesNotReached).toEqual(["audit_payload"]);
+      expect(partial.snapshotsDeleted).toBe(1);
+      expect(partial.storiesTombstoned).toEqual([purgedWhileUnclassified.id]);
+    });
+
+    // The row is the handle a re-run takes, so a partial purge keeps it. Deleting it would also be
+    // claiming a completeness this run cannot claim.
+    test("keeps the Source's own row, so the purge can be finished rather than restarted", async () => {
+      const { rowCount } = await migrator.query("select 1 from source where id = $1", [
+        unclassifiedTableSource.id,
+      ]);
+
+      expect(rowCount).toBe(1);
+    });
+
+    test("completes on a second run once the schema is one it recognises again", async () => {
+      await migrator.query('drop table "audit_payload"');
+
+      const finished = await purgeSource(migrator, unclassifiedTableSource.id);
+
+      expect(finished.tablesNotReached).toEqual([]);
+      // Nothing left to delete: the Snapshot went on the first run. What the second run adds is the
+      // one statement the first withheld.
+      expect(finished.snapshotsDeleted).toBe(0);
+      const { rowCount } = await migrator.query("select 1 from source where id = $1", [
+        unclassifiedTableSource.id,
+      ]);
+      expect(rowCount).toBe(0);
     });
   });
 

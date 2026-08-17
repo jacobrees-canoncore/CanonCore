@@ -4,13 +4,9 @@ import type { Client } from "pg";
 import { snapshot, source, story, tombstone } from "./schema.ts";
 
 /**
- * What a purge did, so that the run itself is the evidence it happened.
- *
- * **The counts are the point rather than a convenience.** TMDB's `§1.D` obliges us to "promptly
- * delete or otherwise purge all TMDB Content, including any cached content"
- * ([API Terms of Use](https://www.themoviedb.org/api-terms-of-use)), and *prompt* with no figure
- * attached is judged after the event against how quickly we could have acted. A dispatched run
- * printing what it removed is what makes that answerable.
+ * What a purge did, so that the run itself is the evidence it happened — which is what a duty owed
+ * "promptly", with no figure attached, is answered with. `docs/runbook.md` → *A Source's licence
+ * terminates* holds the obligation and its wording.
  */
 export type PurgeReport = {
   readonly sourceId: string;
@@ -19,22 +15,24 @@ export type PurgeReport = {
   readonly storiesTombstoned: readonly string[];
   /** Touched, and left standing because another Source still says something about them. */
   readonly storiesKeptForAnotherSource: number;
+  /**
+   * Tables this purge could not account for, empty on a complete one. Non-empty means **partial**:
+   * everything the counts above describe still happened, the Source's own row was kept, and the
+   * caller must fail rather than report a discharge — `unclassifiedTables` says why that is the
+   * shape.
+   */
+  readonly tablesNotReached: readonly string[];
 };
 
 /**
  * Every table in the schema, and what a purge does with it.
  *
- * **This exists because two of the things a `§1.D` purge has to reach do not exist yet.**
- * [ADR-0014](../../../../docs/adr/0014-shell-providers-and-per-source-retention.md) → *Decision 6*
- * names them as unresolved: `supersededValue`, which is by construction a verbatim copy of Source
- * content sitting in the **override** table, and ADR-0008's audit payloads, which a purge is a
- * second reason to scrub on a different trigger. Neither table is written yet, so neither can be
- * purged yet — and a purge that quietly skipped them would report success while leaving Source
- * content behind, which is the failure the whole ticket exists to prevent.
- *
- * So the schema is checked before anything is deleted, and a table nobody has classified stops the
- * purge. Adding a table means answering the question here; it is the same device
- * `rls.test.ts` uses to stop a table arriving with nobody having decided whether it needs a policy.
+ * **It exists because two of the things a `§1.D` purge must reach do not exist yet** —
+ * `supersededValue` and the audit payloads, named as unresolved by
+ * `docs/adr/0014-shell-providers-and-per-source-retention.md` -> Decision 6, items 2 and 3, which
+ * holds why each is Source content and why neither is settled. What this file adds is that the gap
+ * cannot go quiet: a table missing from this record is reported by `unclassifiedTables` rather than
+ * skipped.
  *
  * **The answer is not always "delete it".** A store held under a statutory retention duty is a
  * conflict rather than an omission: `docs/compliance/csea-reporting-procedure.md` -> What a report
@@ -46,9 +44,11 @@ export const howThePurgeTreatsEachTable = {
   snapshot:
     "Deleted, every row whose Source is the purged one. This is where a Source's content lives.",
   source:
-    "Deleted last, in the same transaction. `snapshot.source_id` references it `on delete no " +
-    "action`, so that statement can only succeed if no Snapshot of it survived anywhere — " +
-    "including rows this transaction never selected.",
+    "Deleted last, in the same transaction, and only on a complete purge. `snapshot.source_id` " +
+    "references it `on delete no action`, so that statement can only succeed if no Snapshot of it " +
+    "survived anywhere — including rows this transaction never selected. A partial purge keeps the " +
+    "row, because it is the handle the second run takes and because the proof would be a claim " +
+    "that run cannot make.",
   story:
     "Deleted where the purge emptied it, and replaced by a tombstone. A Story another Source " +
     "still says something about is left standing (ADR-0014 decision 8).",
@@ -58,35 +58,38 @@ export const howThePurgeTreatsEachTable = {
 } as const;
 
 /**
- * Refuse to purge a schema this module does not recognise.
+ * The tables in this database that `howThePurgeTreatsEachTable` says nothing about.
  *
  * Asked of `pg_class` rather than of `schema.ts`, because what has to be complete is the purge's
- * coverage of the **database**: a table created by a migration nobody thought about here is exactly
- * the case a list in TypeScript cannot see.
+ * coverage of the **database**. A migration nobody thought about here is one case; a table created
+ * by hand in production is the other, and it is not hypothetical — `docs/infrastructure.md` →
+ * *Roles* records a privilege that existed in production and in no file, which no reading of the
+ * migrations could have shown. Only a live read sees that.
  *
- * Exported so that a test can create a table and watch this refuse. `purgeSource` calls it before
- * opening its transaction.
+ * **It reports rather than refuses, and that is deliberate.** An earlier draft threw, which made the
+ * duty undischargeable exactly when it was owed: the first purge after such a table landed would
+ * delete nothing at all, and the code would have to be changed while the licence clock ran. Leaving
+ * everything is a worse position than leaving everything-but-the-Snapshots. So the purge runs, keeps
+ * the Source's row, and hands this list back for the caller to fail on — and the pressure to decide
+ * before any of that happens sits in `rls.test.ts`, which fails in the pull request that adds an
+ * unclassified table rather than during an incident.
  */
-export async function assertEveryTableIsClassified(client: Client): Promise<void> {
+export async function unclassifiedTables(client: Client): Promise<string[]> {
+  // Four `relkind`s rather than the ordinary-table `'r'` that `rls.test.ts` asks about, because the
+  // question here is "could rows be sitting in it" and three other kinds answer yes: `'p'`
+  // partitioned, `'f'` foreign, `'m'` materialised view. A materialised view over Snapshot values
+  // would be cached content in the sense `§1.D` names, and an audit payload table is a plausible
+  // thing to partition. Plain views (`'v'`) are excluded because they store no rows of their own.
+  // The kinds are PostgreSQL's own (https://www.postgresql.org/docs/17/catalog-pg-class.html).
   const { rows } = await client.query<{ relname: string }>(
     `select relname from pg_class
-      where relnamespace = 'public'::regnamespace and relkind = 'r'
+      where relnamespace = 'public'::regnamespace and relkind in ('r', 'p', 'f', 'm')
       order by relname`,
   );
 
-  const unclassified = rows
+  return rows
     .map((row) => row.relname)
     .filter((table) => !(table in howThePurgeTreatsEachTable));
-
-  if (unclassified.length > 0) {
-    throw new Error(
-      `Refusing to purge: nothing says what this purge should do with ${unclassified.join(", ")}. ` +
-        "A table holding a Source's content that the purge does not reach is a breach that " +
-        "reports success. Classify it in howThePurgeTreatsEachTable in src/db/purge-source.ts — " +
-        "docs/adr/0014-shell-providers-and-per-source-retention.md -> Decision 6 lists the two " +
-        "known cases, `supersededValue` and the audit payloads.",
-    );
-  }
 }
 
 /**
@@ -99,16 +102,22 @@ export async function assertEveryTableIsClassified(client: Client): Promise<void
  * than going through `session.ts`.
  *
  * **One transaction, and it is not an Operation.** Nothing here is undoable and nothing should be:
- * `CONTEXT.md` → *Operation* says that what the product does unbidden — a retention sweep, a purge
- * — is never one, and an undo buffer holding purged Source content would be the breach again with
- * a nicer name.
+ * `CONTEXT.md`'s glossary says that what the product does unbidden — a retention sweep, a purge — is
+ * never an Operation, and an undo buffer holding purged Source content would be the breach again
+ * with a nicer name.
  */
 export async function purgeSource(client: Client, sourceId: string): Promise<PurgeReport> {
-  await assertEveryTableIsClassified(client);
-
   const database = drizzle(client);
 
   return database.transaction(async (transaction) => {
+    // Inside the transaction rather than before it. `drizzle(client)` runs every statement on the
+    // client it was given, so a raw query here reads `pg_class` between this transaction's `begin`
+    // and its deletes — checked rather than assumed: a `create table` issued this way was taken back
+    // by rolling the drizzle transaction back, on PostgreSQL 17.11, 17 August 2026. It narrows the
+    // window rather than closing it, because no lock this transaction holds prevents another session
+    // committing DDL a moment later.
+    const tablesNotReached = await unclassifiedTables(client);
+
     // `for update` on the Source's own row, which is what makes this atomic against an import
     // running at the same time. A foreign key check on `insert into snapshot` needs a key-share
     // lock on the row it references, and `for update` "prevents them from being locked, modified or
@@ -130,9 +139,11 @@ export async function purgeSource(client: Client, sourceId: string): Promise<Pur
     // evidence the duty was discharged. So a Source that is not there is a refusal, not a zero.
     if (!locked) {
       throw new Error(
-        `Refusing to purge: there is no Source with id ${sourceId}. Read the ids from the ` +
-          "database rather than from anywhere else — docs/runbook.md -> A Source's licence " +
-          "terminates says what identifies which Source an id is, and what does not.",
+        `Refusing to purge: there is no Source with id ${sourceId}. **This does not distinguish ` +
+          "never-existed from already-purged**, and it cannot: a purge takes the row with it, so " +
+          "a second run of a successful purge lands here. The run that did it is the record — " +
+          "docs/runbook.md -> A Source's licence terminates says where to read it, and what " +
+          "identifies which Source an id is.",
       );
     }
 
@@ -190,15 +201,24 @@ export async function purgeSource(client: Client, sourceId: string): Promise<Pur
       );
     }
 
-    // Last, and load-bearing: see `source` in howThePurgeTreatsEachTable above. If this succeeds,
-    // no Snapshot of this Source exists anywhere in the database.
-    await transaction.delete(source).where(eq(source.id, sourceId));
+    // Last, and load-bearing: see `source` in howThePurgeTreatsEachTable above. If this succeeds, no
+    // Snapshot of this Source exists anywhere in the database.
+    //
+    // **Skipped when the purge is partial**, for two reasons that point the same way. The delete
+    // would be claiming a completeness this run cannot claim — it proves only that `snapshot` is
+    // clear, and an unclassified table is exactly the case where that is not the whole question. And
+    // the row is the handle: with it gone, the re-run after the new table is classified would be
+    // refused for naming a Source that is not there. A partial purge has to stay re-runnable.
+    if (tablesNotReached.length === 0) {
+      await transaction.delete(source).where(eq(source.id, sourceId));
+    }
 
     return {
       sourceId,
       snapshotsDeleted: deleted.length,
       storiesTombstoned: emptied.map((emptiedStory) => emptiedStory.id).sort(),
       storiesKeptForAnotherSource: touched.length - emptied.length,
+      tablesNotReached,
     };
   });
 }

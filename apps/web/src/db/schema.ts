@@ -193,13 +193,8 @@ export const formerType = pgEnum("former_type", ["story"]);
  *
  * **Its own table, and the Story's row is deleted rather than flagged** — settled 17 August 2026 by
  * CAN-118 Purge every Snapshot of a Source whose licence terminates, and tombstone what it touched,
- * against columns on `story`. Both shapes destroy the title, since a purge that leaves it behind is
- * not a purge; what separates them is what happens *next*. Decision 8 names one way it can be
- * reversed by accident — "if the shape ever grows a title 'so the page reads better', the decision
- * has been reversed by accident" — and a table with no title column can only grow one by a
- * migration, where a `story` row keeping its own nullable title grows one by deleting a line. It is
- * also what ActivityPub describes: the object is *replaced* by a `Tombstone`. `CONTEXT.md` →
- * *Placement* already allows a Placement with no Story behind it, so an Ordering survives the hole.
+ * against columns on `story`. Decision 8's amendment holds the argument; what it comes to here is
+ * that this table has no title column to grow, which is the accidental reversal that decision names.
  *
  * **Nothing in the application writes one.** The purge does, as `canoncore_migrator` —
  * `purge-source.ts` — because the application role holds `SELECT` and nothing else. What reads one

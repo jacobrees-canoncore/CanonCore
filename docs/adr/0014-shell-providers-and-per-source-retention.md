@@ -321,12 +321,16 @@ they need their own decision and their own tickets.
 >   terminates* — which is a procedure rather than a detector, and the distinction is left standing
 >   rather than papered over.
 > - **Items 2 and 3 stand, and are no longer silent.** Neither the override table nor an audit
->   payload exists, so neither can be purged yet; the purge **refuses to run at all** against a
->   schema carrying a table nothing has classified
->   ([`purge-source.ts`](../../apps/web/src/db/purge-source.ts)). The day `supersededValue` or a
->   payload lands, a dispatched purge stops instead of reporting success over content it never
->   reached. It is a tripwire, not an answer: what the purge should *do* with `supersededValue` is
->   still item 2's question, and ADR-0004's disjoint-tables property is still what makes it hard.
+>   payload exists, so neither can be purged yet. What the purge adds is that the gap cannot pass for
+>   a discharge: it reads the live schema, and a table it cannot account for makes the run a **partial
+>   purge** — the Snapshots go, the Source's own row is kept, the run names the table and exits
+>   non-zero ([`purge-source.ts`](../../apps/web/src/db/purge-source.ts)). **Deliberately not a
+>   refusal**, which was the first draft: refusing would make the duty undischargeable exactly when it
+>   is owed, since leaving everything is worse than leaving everything-but-the-Snapshots, and the code
+>   would then be written under the clock. The pressure to decide sits earlier instead, in
+>   `rls.test.ts`, which fails in the pull request that adds the table. It is a tripwire and not an
+>   answer: what the purge should *do* with `supersededValue` is still item 2's question, and
+>   ADR-0004's disjoint-tables property is still what makes it hard.
 > - **Item 4 is built.** The purge is the cross-tenant delete it describes, keyed on the Source and
 >   run as `canoncore_migrator` because the application role holds no write privilege on anything
 >   (**CAN-123 Revoke the application role's write privileges, and decide whether the blanket
@@ -508,8 +512,8 @@ how an Ordering reads, and what the interface calls its parts** owns it.
 > object is replaced by a `Tombstone`"* is what ActivityPub describes anyway. It carries `owner_id`
 > and `visibility` as well, because a policy needs them and neither is a value a Source supplied;
 > `schema.ts` holds that argument and `rls.test.ts` asserts the whole column list against this
-> paragraph. **CAN-111 Decide and build what a dropped Story renders as still owns the 410** and
-> everything a reader sees.
+> paragraph. **CAN-111 Decide and build what a dropped Story renders as still owns the 410 and the
+> Ordering's behaviour around the hole**; what it looks like stays CAN-90's, as above.
 
 ## Decision 9 — per-field provenance on every displayed value
 

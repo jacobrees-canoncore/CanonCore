@@ -238,13 +238,22 @@ Both must be `0`. Two things about this query rather than the query itself:
   have succeeded with no Snapshot of it left anywhere. What the query adds is a check on rows written
   by something other than that command.
 
-**What this does not yet reach, and what stops that going quiet.** `supersededValue` and the audit
-payloads are both Source content living outside `snapshot`, and neither table exists yet
+**If the run says `PARTIAL PURGE`, it did part of the job and named the rest.** It prints
+`NOT REACHED:` and one or more table names, keeps the Source's own row, and exits non-zero. That
+means the schema has grown a table nothing has classified — `supersededValue` and the audit payloads
+are the two expected ones, and both are Source content living outside `snapshot`
 ([ADR-0014](adr/0014-shell-providers-and-per-source-retention.md) → *Decision 6*, unresolved items 2
-and 3). **The command refuses to run at all against a schema carrying a table nothing has
-classified** — `apps/web/src/db/purge-source.ts` — so the day one of them lands, the purge stops
-rather than silently under-purging. If a dispatch fails that way, the fix is to decide what the purge
-does with the new table, not to reach past it.
+and 3). **The duty is not discharged until that is finished**, and finishing it is two steps:
+
+1. Decide what the purge does with the named table and record it in
+   `howThePurgeTreatsEachTable`, in [`purge-source.ts`](../apps/web/src/db/purge-source.ts). Not
+   always a delete: a store held under a statutory retention duty is a genuine conflict, and that
+   file says where the same conflict is already recorded against erasure.
+2. **Dispatch the same command again.** It is re-runnable by design — that is why a partial run keeps
+   the `source` row — and the second run finishes what the first withheld.
+
+Do not read past a `NOT REACHED` line, and do not treat the first run as the record: the two runs
+together are.
 
 **And today there is nothing to purge.** No Provider exists yet (**CAN-101 Create the provider-tmdb
 repository, and give it the TMDB credential**), nothing writes a `source` row, and no Snapshot has

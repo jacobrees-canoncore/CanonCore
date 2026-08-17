@@ -43,10 +43,10 @@ jobs:
       # (https://docs.github.com/en/actions/reference/security/secure-use -> Use an intermediate
       # environment variable, read 17 August 2026).
       #
-      # No migration step, and no `db:migrate` before it. The purge acts on the schema production is
-      # actually carrying, and `src/db/purge-source.ts` refuses outright if that schema holds a table
-      # nothing has classified — which is the one case where running a migration first would turn a
-      # refusal into a silent partial purge.
+      # No migration step, and no `db:migrate` before it: the purge acts on the schema production is
+      # actually carrying, which is the schema the duty is owed against. A run that could not account
+      # for every table in it exits non-zero and says which — apps/web/src/db/purge-source.ts, on
+      # `unclassifiedTables`.
       - name: Purge every Snapshot of the named Source
         run: pnpm --filter @canoncore/web db:purge-source "$SOURCE_ID"
         env:

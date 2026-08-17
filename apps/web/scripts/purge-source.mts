@@ -42,18 +42,34 @@ const client = new Client({ connectionString: url });
 await client.connect();
 try {
   const report = await purgeSource(client, sourceId);
+  const partial = report.tablesNotReached.length > 0;
 
   // Printed rather than returned, because the run's own log is the evidence. Every line is a fact
-  // about what was removed; the last one is what the database proved rather than what this asserts.
-  console.info(`Purged Source ${report.sourceId}`);
+  // about what was removed.
+  console.info(`${partial ? "PARTIAL PURGE of" : "Purged"} Source ${report.sourceId}`);
   console.info(`  Snapshots deleted: ${report.snapshotsDeleted}`);
   console.info(`  Stories tombstoned: ${report.storiesTombstoned.length}`);
   for (const id of report.storiesTombstoned) console.info(`    ${id}`);
   console.info(`  Stories left standing for another Source: ${report.storiesKeptForAnotherSource}`);
-  console.info(
-    "  The Source's own row was deleted, which the foreign key from snapshot allows only if no " +
-      "Snapshot of it survives anywhere.",
-  );
+
+  // **The two endings are not variations on one another.** A complete purge can say something the
+  // database proved; a partial one has discharged part of a duty and must not read as having
+  // discharged it, so it names the gap and exits non-zero — a green run is a claim, and this run
+  // cannot make it.
+  if (partial) {
+    console.error(`  NOT REACHED: ${report.tablesNotReached.join(", ")}`);
+    console.error(
+      "  Nothing says what this purge should do with those, so they were left untouched and the " +
+        "Source's own row was kept — classify them in src/db/purge-source.ts and dispatch again. " +
+        "docs/runbook.md -> A Source's licence terminates has the step.",
+    );
+    process.exitCode = 1;
+  } else {
+    console.info(
+      "  The Source's own row was deleted, which the foreign key from snapshot allows only if no " +
+        "Snapshot of it survives anywhere.",
+    );
+  }
 } finally {
   await client.end();
 }
