@@ -52,8 +52,10 @@ info:
     differ the moment a Provider serves anything it already held, and the first is the one a
     retention term limits. A Provider serving a cached value serves the cached timestamp with it.
 
-    **Unknown request parameters are refused with `400`**, naming the parameter. Silently ignoring
-    one makes a consumer believe a filter applied when it did not.
+    **A parameter this Provider cannot honour is refused with `400`**, naming it — whether the
+    parameter is one this contract defines and the Provider does not serve, or one the contract
+    does not define at all. Silently ignoring either makes a consumer believe a filter applied when
+    it did not, and an unfiltered result set that looks filtered is worse than a refusal.
 
     **Unknown response members are ignored.** That is what makes this contract additive: a
     consumer that rejects a member it does not recognise will break on the next revision.
@@ -626,8 +628,13 @@ components:
       name: cursor
       in: query
       description: |
-        The `nextCursor` from the previous page, opaque to the consumer. A cursor is valid only
-        for the request that produced it; a Provider refuses one it does not recognise with `400`.
+        The cursor the previous page returned, opaque to the consumer. A response names it for
+        what it pages — `nextCursor` where the whole body is one page, `nextPartsCursor` and
+        `nextPlacementsCursor` where the body carries several collections and only one of them is
+        paged.
+
+        A cursor is valid only for the request that produced it; a Provider refuses one it does not
+        recognise with `400`.
       schema:
         type: string
 
@@ -885,9 +892,20 @@ components:
           description: |
             Whether every record must carry its own credit — its `authors` and its `sourceUrl` —
             rather than one credit covering the Source. An attribution licence that asks for the
-            author, the title and the source URI of each work used requires this: CC BY-SA 3.0's
-            §4(c) ([legal code](https://creativecommons.org/licenses/by-sa/3.0/legalcode)) is the
-            case on this project's own roster, and one Source-level credit cannot discharge it.
+            author, the title and the source URI of each work used requires this. CC BY-SA 3.0's
+            §4(c) is the case on this project's own roster: it asks for the Original Author's name
+            "if supplied", the title "if supplied", and "to the extent reasonably practicable, the
+            URI, if any, that Licensor specifies"
+            ([legal code](https://creativecommons.org/licenses/by-sa/3.0/legalcode)). Each item is
+            conditional, which is why this is a Provider's declaration rather than a rule a
+            consumer could derive — and one Source-level credit cannot discharge any of them.
+
+            **Declaring it binds the Provider's own records.** Where this is `true`, every record
+            this Provider serves carries `sourceUrl`, and carries `authors` wherever the Source
+            knows them. Those two members stay optional in the schema because most Sources owe
+            neither, and a schema cannot make a field conditional on a value in a different
+            response — so this sentence is the obligation, and a Provider declaring `perRecord`
+            while serving records without a `sourceUrl` is not conformant.
       if:
         required: [required]
         properties:
@@ -914,6 +932,11 @@ components:
             Any condition on how this text appears — placement, prominence, the section it belongs
             in. Prose, because these conditions are written in prose and flattening them into flags
             loses the ones nobody anticipated.
+
+            **A consumer must honour this, and it is not free text it may ignore.** What separates
+            it from `text` is only that `text` is rendered verbatim to a reader while this is an
+            instruction about *where*, which the consumer satisfies with its own surfaces — a
+            Provider cannot know what pages exist.
 
     Logo:
       type: object
@@ -1299,7 +1322,7 @@ components:
       type: object
       title: Ordering summary
       description: An Ordering without its Placements, as the list endpoint serves it.
-      required: [id, name, canonical, liveness, fetchedAt]
+      required: [id, canonical, liveness, fetchedAt]
       properties:
         id:
           type: string
@@ -1307,7 +1330,12 @@ components:
             The Ordering's identifier at this Source: opaque, stable, and unique within it.
         name:
           type: string
-          description: What it is called. A proper name, used as the Source gives it.
+          description: |
+            What it is called. A proper name, used as the Source gives it.
+
+            **Absent where `liveness` is `gone`**, for the reason a record's `title` is: an Ordering
+            the Source has deleted has no name left to serve, and a Provider still holding one does
+            not serve it.
         description:
           type: string
           description: What the Ordering is for, in the author's words.

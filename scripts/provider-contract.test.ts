@@ -95,6 +95,22 @@ ajv.addSchema(document, "openapi.yaml");
 const validatorFor = (schema: string) =>
   ajv.compile({ $ref: `openapi.yaml#/components/schemas/${schema}` });
 
+/**
+ * One term's definition from `CONTEXT.md`, from its bold heading down to its `_Avoid_` line.
+ *
+ * The glossary is the authority on every closed vocabulary this contract carries, so the tests
+ * below read it rather than only quoting it in a comment — a quotation goes stale silently and a
+ * read does not. Throws when the term is absent, since a vocabulary whose concept the glossary has
+ * dropped is the failure this is here to catch.
+ */
+function glossaryEntry(term: string): string {
+  const glossary = readFileSync(join(ROOT, "CONTEXT.md"), "utf8");
+  const found = glossary.match(new RegExp(`^\\*\\*${term}\\*\\*:\\n([\\s\\S]*?)^_Avoid_:`, "m"));
+
+  assert.ok(found, `CONTEXT.md defines no term "${term}"`);
+  return found[1];
+}
+
 /** A conformant capability declaration, as the minimum every case below varies from. */
 const capabilities = {
   declaredAt: "2026-08-17T08:00:00Z",
@@ -188,12 +204,28 @@ test("an error is always RFC 9457 problem details", () => {
 test("the closed vocabularies are the ones CONTEXT.md defines", () => {
   const { schemas } = document.components;
 
-  // Liveness: "What a Source is currently saying about a record it used to have: present,
-  // missing, or gone." A fourth value is a change to the glossary before it is a change here.
+  // Pinned as literals *and* read back against the glossary, which are two different guards. The
+  // literal is what makes widening a closed vocabulary a deliberate edit here; the glossary read
+  // is what stops the two drifting apart silently, since a term renamed in `CONTEXT.md` would
+  // otherwise leave this file pinning a word the domain no longer uses.
   assert.deepEqual(schemas.Liveness.enum, ["present", "missing", "gone"]);
-
-  // Rank: "How strongly a Placement is held: preferred, ordinary, or discredited."
   assert.deepEqual(schemas.Rank.enum, ["preferred", "ordinary", "discredited"]);
+
+  for (const [concept, schema] of [
+    ["Liveness", schemas.Liveness],
+    ["Rank", schemas.Rank],
+  ] as const) {
+    const defined = glossaryEntry(concept);
+    for (const term of schema.enum!) {
+      assert.match(defined, new RegExp(`\\b${term}\\b`), `CONTEXT.md → *${concept}* omits ${term}`);
+    }
+  }
+
+  // The two levels are concepts in their own right rather than words inside one entry, so this
+  // one asks whether the glossary defines each of them at all.
+  for (const level of schemas.RecordType.enum!) {
+    glossaryEntry(level.replace(/^./, (c) => c.toUpperCase()));
+  }
 
   // Two levels and no third: ADR-0001. The type discriminator is the first thing ADR-0007 says
   // Audiobookshelf's schema has no answer for.

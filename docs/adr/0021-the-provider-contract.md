@@ -54,7 +54,8 @@ The gate opening is what would reverse this, not a new argument.
 **Its gate is a test rather than a `check-docs` check.**
 [`scripts/provider-contract.test.ts`](../../scripts/provider-contract.test.ts) validates the
 document against the OpenAPI meta-schema, validates every example against the schema it
-illustrates, and asserts the closed vocabularies against `CONTEXT.md`. Every check in
+illustrates, and reads `CONTEXT.md` to check that every closed vocabulary is still the one the
+glossary defines. Every check in
 `check-docs.ts` compares a document against a source that can be unreachable and therefore reports
 SKIP; this one compares a file against a schema shipped inside a dependency, so it can never skip
 and a skip would be the wrong outcome.
@@ -77,6 +78,15 @@ parameter would leave a consumer believing a filter applied.
 **Rejected: one endpoint, as Audiobookshelf has.** Its `GET /search` is the whole contract, which is
 why a client cannot discover anything, cannot fetch a record it already knows the identifier of, and
 cannot walk a containment chain.
+
+**And the upside of matching it is smaller than it reads, which the audit of 13 August 2026 asked to
+have restated before anything was designed for it.** "Inherit its community providers" means fewer
+than thirteen self-hosted providers, two with public addresses, every one of them book-domain
+([audit](../research/tracker-and-repository-audit.md) §5). None of them serves television, comics or
+audio drama, and none can express an Ordering, so what compatibility would inherit is a set of
+Sources this product does not catalogue. It is not a reason to shape anything here — and where an
+Audiobookshelf-compatible Provider is still wanted, ADR-0014 puts it in a repository of its own like
+every other, translating that contract into this one rather than this one bending toward it.
 
 **Rejected: GraphQL.** It answers the graph-shaped question well and costs a Provider a schema
 server, resolvers and query-cost defence to implement — against a consumer that asks four questions
@@ -129,6 +139,15 @@ contract that only knew "credit" and "no credit" could not represent honestly ei
 
 Where attribution *is* required the schema then demands the notices and the link, conditionally, so
 "required" cannot be a claim with nothing behind it.
+
+**Two obligations are prose in the contract rather than schema, and the boundary is not arbitrary.**
+JSON Schema binds one document; `perRecord` is declared on `/capabilities` and discharged on every
+record `/records` serves, and no `if`/`then` reaches across two responses. The same holds for a
+notice's placement, which a Provider states and only the consumer's own pages can satisfy. So both
+are written as normative sentences — a Provider declaring `perRecord` and serving records without a
+`sourceUrl` is not conformant — and the gate cannot catch either. **That is the real cost of the
+capability declaration**: what a Provider says about itself binds it in places the schema cannot
+check, and the honest response is to say so rather than to pretend the shape is self-enforcing.
 
 **`notices` is a list because one Source can prescribe more than one text.** TMDB is that Source:
 `§3` prescribes a notice, and its FAQ separately requires an About or Credits section whose wording
