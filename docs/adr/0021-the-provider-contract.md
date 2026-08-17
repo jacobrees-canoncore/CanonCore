@@ -163,9 +163,10 @@ declared and undischargeable at once. Each notice carries its own condition, bec
 in placement as well as in wording.
 
 **`licence.shareAlike` is declared rather than derived.** A consumer cannot compute it from a
-`LicenseRef-` identifier it has never seen, and CC BY-SA 3.0 and 4.0 differ materially: ADR-0014 →
-*Decision 9* records that the two versions' share-alike "differ materially" and that only 4.0 has
-the §4(b) database deeming. Deriving it would mean shipping a licence table into the application,
+`LicenseRef-` identifier it has never seen, and the two versions of one licence are not
+interchangeable: ADR-0014 → *Decision 9* records that share-alike "under 4.0 and 3.0 differ
+materially", and its amendment to *Decision 3* names the difference — "3.0 has no §4(b) database
+deeming". Deriving it would mean shipping a licence table into the application,
 which is source knowledge by another name.
 
 **Nobody else has built this.** Plex, Stremio, Stash and Navidrome all have capability discovery and
