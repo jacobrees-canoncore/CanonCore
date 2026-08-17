@@ -4,19 +4,25 @@ import assert from 'node:assert/strict'
 import {
   Skip,
   anchorsOf,
+  compareSecuritySettings,
   compareVariables,
   explainFailure,
   findLinks,
   findPointers,
   expiryDay,
+  httpStatus,
   parseActionsSecrets,
   parseCiJobNames,
   parseDocumentedReleaseTokens,
+  parseDocumentedSecuritySettings,
   parseSecretNames,
+  parseSecurityAndAnalysis,
   parseUncheckedVariables,
   parseVercelTokens,
   parseVercelEnv,
   pointerResolves,
+  readDependencyGraph,
+  readVulnerabilityAlerts,
   renderJobSummary,
   lastUsedTokenNamed,
   resolvePointer,
@@ -199,6 +205,203 @@ test('a token listing that is not JSON, or carries no array, is a skip and not a
   // disagreed. `vercel` changing its output format is an outage, not a stale roster.
   assert.throws(() => parseVercelTokens('Error: not logged in'), Skip)
   assert.throws(() => parseVercelTokens('{"error":{"code":"forbidden"}}'), Skip)
+})
+
+// --- The security settings --------------------------------------------------------------------
+// Seven rows in three places, and the roster's own claim is that "off" here is a decision rather
+// than a gap — which holds only while every row is compared and every setting is named.
+
+// The roster as docs/infrastructure.md writes it, read back from the live repository on 17 August
+// 2026. Every row's source is read off its own third column, so this fixture is also the record of
+// which three shapes that column takes.
+const SECURITY_ROSTER = [
+  '| Setting | State | Read back by |',
+  '| --- | --- | --- |',
+  '| Dependency graph | **enabled** | `dependency-graph/sbom` → **696 packages**. It answered `404` while off |',
+  '| Dependabot alerts | **enabled** | `vulnerability-alerts` → `204 No Content` ([the documented *enabled*](https://x)) |',
+  '| Secret scanning | **enabled** | `security_and_analysis.secret_scanning.status` |',
+  '| Dependabot security updates | disabled | `security_and_analysis.dependabot_security_updates.status` |',
+].join('\n')
+
+const LIVE = {
+  analysis: new Map([
+    ['secret_scanning', true],
+    ['dependabot_security_updates', false],
+  ]),
+  alerts: true,
+  graph: true,
+}
+
+test('each row is routed to the source the roster names beside it', () => {
+  // Which call speaks for a row is read off the document rather than off a list in the checker.
+  // A row moved to a different source is then followed; a list would go on comparing it against
+  // the one it used to have, and agree.
+  assert.deepEqual(
+    parseDocumentedSecuritySettings(SECURITY_ROSTER).map((r) => [r.setting, r.enabled, r.source]),
+    [
+      ['Dependency graph', true, { kind: 'graph' }],
+      ['Dependabot alerts', true, { kind: 'alerts' }],
+      ['Secret scanning', true, { kind: 'analysis', field: 'secret_scanning' }],
+      ['Dependabot security updates', false, { kind: 'analysis', field: 'dependabot_security_updates' }],
+    ],
+  )
+})
+
+test('a roster row that is neither enabled nor disabled fails on the document alone', () => {
+  // It decides without reaching a source, so it holds where `gh` is unreachable too — the same
+  // shape as two rows claiming to be the live release token.
+  assert.throws(
+    () =>
+      parseDocumentedSecuritySettings(
+        [
+          '| Setting | State | Read back by |',
+          '| --- | --- | --- |',
+          '| Secret scanning | **on** | `security_and_analysis.secret_scanning.status` |',
+        ].join('\n'),
+      ),
+    /neither \*\*enabled\*\* nor disabled/,
+  )
+})
+
+test('a roster row naming a source nothing can read fails rather than being skipped past', () => {
+  // A row nothing compares is a row that has left the check without leaving the document, which
+  // is the silence the whole script exists to remove.
+  assert.throws(
+    () =>
+      parseDocumentedSecuritySettings(
+        [
+          '| Setting | State | Read back by |',
+          '| --- | --- | --- |',
+          '| Private vulnerability reporting | disabled | the Settings page |',
+        ].join('\n'),
+      ),
+    /names no source this check can read/,
+  )
+})
+
+test('a roster that agrees with the repository reports no problems', () => {
+  assert.deepEqual(compareSecuritySettings(parseDocumentedSecuritySettings(SECURITY_ROSTER), LIVE), [])
+})
+
+test('a setting flipped under the roster is reported, whichever source answers for it', () => {
+  // One row from each of the three sources, so a source wired to the wrong reading cannot pass
+  // by agreeing with itself.
+  assert.deepEqual(
+    compareSecuritySettings(parseDocumentedSecuritySettings(SECURITY_ROSTER), {
+      analysis: new Map([
+        ['secret_scanning', false],
+        ['dependabot_security_updates', false],
+      ]),
+      alerts: false,
+      graph: false,
+    }),
+    [
+      'Dependency graph: the roster records enabled, the repository has disabled',
+      'Dependabot alerts: the roster records enabled, the repository has disabled',
+      'Secret scanning: the roster records enabled, the repository has disabled',
+    ],
+  )
+})
+
+test('a setting the repository carries and the roster does not is reported', () => {
+  // The mirror of a secret set but undocumented, and the harder half to notice: GitHub adds
+  // settings to this block, and an unrecorded one is off by omission rather than by decision.
+  assert.deepEqual(
+    compareSecuritySettings(parseDocumentedSecuritySettings(SECURITY_ROSTER), {
+      ...LIVE,
+      analysis: new Map([...LIVE.analysis, ['secret_scanning_validity_checks', false]]),
+    }),
+    [
+      '`security_and_analysis.secret_scanning_validity_checks.status` is a setting the repository ' +
+        'carries and the roster does not record, so whether it is off by decision or by omission is unsaid',
+    ],
+  )
+})
+
+test('a roster row read back from a field the repository does not carry is reported', () => {
+  // A field GitHub renamed or withdrew. Reading it as `undefined` and comparing would make every
+  // such row disagree in the same direction, which reads as the setting having been turned off.
+  assert.deepEqual(
+    compareSecuritySettings(parseDocumentedSecuritySettings(SECURITY_ROSTER), {
+      ...LIVE,
+      analysis: new Map([['dependabot_security_updates', false]]),
+    }),
+    [
+      'Secret scanning is read back from `security_and_analysis.secret_scanning.status`, which the ' +
+        'repository does not carry',
+    ],
+  )
+})
+
+test('a repository that answers with no security_and_analysis block is a skip, not a repository with nothing on', () => {
+  // GitHub returns the block only to a caller with admin, so an empty answer is a refusal. It is
+  // also this check's proof of entitlement — both readers below document `404` as their *off*,
+  // and a `404` returned to a caller who could not read them either way is not an answer.
+  assert.throws(() => parseSecurityAndAnalysis('   \n'), Skip)
+  assert.throws(() => parseSecurityAndAnalysis('   \n'), /only to a caller with admin/)
+})
+
+test('a security_and_analysis status that is neither enabled nor disabled is a skip', () => {
+  // Half a block is worse than none: the field would drop out of the comparison and take its
+  // row's verdict with it, leaving agreement reported across a roster that was never fully read.
+  assert.throws(
+    () => parseSecurityAndAnalysis('{"secret_scanning":{"status":"pending"}}'),
+    /neither `enabled` nor `disabled`/,
+  )
+  assert.throws(() => parseSecurityAndAnalysis('not json'), Skip)
+})
+
+test('the five security_and_analysis rows are read as GitHub prints them', () => {
+  // `gh api repos/jacobrees-canoncore/CanonCore --jq .security_and_analysis`, captured from the
+  // real CLI on 17 August 2026.
+  const live = parseSecurityAndAnalysis(
+    '{"dependabot_security_updates":{"status":"disabled"},"secret_scanning":{"status":"enabled"},' +
+      '"secret_scanning_non_provider_patterns":{"status":"disabled"},' +
+      '"secret_scanning_push_protection":{"status":"enabled"},' +
+      '"secret_scanning_validity_checks":{"status":"disabled"}}',
+  )
+
+  assert.equal(live.size, 5)
+  assert.equal(live.get('secret_scanning_push_protection'), true)
+  assert.equal(live.get('secret_scanning_validity_checks'), false)
+})
+
+// `gh api` exits non-zero on a `404` and prints the status twice: its own line on stderr, and
+// GitHub's body on stdout. Both are handed to `httpStatus`, so either alone will do.
+const ghFailure = (status: number, message: string) => ({
+  ok: false,
+  output: `{\n  "message": "${message}",\n  "status": "${status}"\n}\ngh: ${message} (HTTP ${status})`,
+})
+
+test('a status is read from either copy gh prints', () => {
+  assert.equal(httpStatus('gh: Not Found (HTTP 404)'), 404)
+  assert.equal(httpStatus('{\n  "message": "Forbidden",\n  "status": "403"\n}'), 403)
+  assert.equal(httpStatus('spawnSync gh ENOENT'), undefined)
+})
+
+test("Dependabot alerts read 204 as on and 404 as off, and anything else as unread", () => {
+  // GitHub documents exactly those two answers for this endpoint, which is what lets the `404`
+  // `gh` exits non-zero on be a reading rather than a failure.
+  assert.equal(readVulnerabilityAlerts({ ok: true, output: '' }), true)
+  assert.equal(readVulnerabilityAlerts(ghFailure(404, 'Not Found')), false)
+  assert.throws(() => readVulnerabilityAlerts(ghFailure(403, 'Forbidden')), Skip)
+  assert.throws(() => readVulnerabilityAlerts({ ok: false, output: 'spawnSync gh ENOENT' }), Skip)
+})
+
+test('the dependency graph is read from the SBOM, which has no field of its own', () => {
+  // A package count while on, `404` while off. The refusal this could be confused with is a
+  // `403` here, and a caller without admin has already skipped the whole check upstream — so a
+  // `404` arriving is the graph being off.
+  assert.deepEqual(readDependencyGraph({ ok: true, output: '696\n' }), { enabled: true, packages: 696 })
+  assert.deepEqual(readDependencyGraph(ghFailure(404, 'Not Found')), { enabled: false, packages: 0 })
+  assert.throws(() => readDependencyGraph(ghFailure(403, 'Forbidden')), Skip)
+})
+
+test('an SBOM answer that is not a package count is unread rather than read as on', () => {
+  // `--jq` producing anything but a number means the payload's shape moved. Treating it as
+  // truthy would report the graph enabled on the strength of not having read it.
+  assert.throws(() => readDependencyGraph({ ok: true, output: 'null\n' }), Skip)
+  assert.throws(() => readDependencyGraph({ ok: true, output: '' }), /where a package count was expected/)
 })
 
 // --- The job summary --------------------------------------------------------------------------

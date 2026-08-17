@@ -290,6 +290,30 @@ route to it was found. **Read all three, or the answer is partial in the row tha
 the graph is what the two Dependabot rows match against, and with it off they report nothing while
 still reading as enabled ([incident](incidents.md#dependabot-alerts-were-enabled-and-blind)).
 
+**`scripts/check-docs.ts` compares all seven rows against those three calls on every run**, added by
+**CAN-124 Compare the security-settings roster to the live repository in check-docs**, so a row that
+stops being true fails a run rather than reading as prose beside four rosters that each have a check.
+It also fails a setting the repository carries and no row records, because "off is a decision rather
+than a gap" holds only while the seven are all of them. The package count is reported and never
+compared: it moves with every dependency change, and a gate that is red on arrival is one that gets
+ignored.
+
+**It gates on a laptop and skips in CI**, and that wall was confirmed rather than assumed.
+`security_and_analysis` comes back only to a caller with **admin on the repository** — *"you must have
+admin permissions for the repository or be an owner or security manager for the organization that owns
+the repository"* ([Get a repository](https://docs.github.com/en/rest/repos/repos#get-a-repository)) —
+and `permissions:` accepts no scope that grants it. `vulnerability-alerts: read` is the nearest thing
+there is and reaches Dependabot's *alerts* rather than this setting
+([Workflow syntax](https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax#permissions)),
+so the workflow's own token cannot be given admin however it is written.
+
+**That block is load-bearing well past its own five rows.** The other two calls each document `404`
+as their *off*, and a `404` is also what an endpoint nobody may read can answer. Admin is what tells
+those apart, so the check reads `security_and_analysis` first and, where it is refused, reports
+having read nothing rather than five rows out of seven. The same wall as the secret roster below, and
+the same answer; the row for it sits beside every other check's in
+[`docs/agents/workflow.md`](agents/workflow.md) → *The gates*.
+
 One alert is open: `GHSA-67mh-4wv8-2f99`, a moderate `esbuild` development-server advisory reaching
 us through `drizzle-kit`, which nothing here can fix.
 

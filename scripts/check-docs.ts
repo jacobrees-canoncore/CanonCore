@@ -11,10 +11,11 @@
 //   3. variable roster    -  docs/infrastructure.md  vs  vercel env ls
 //   4. secret roster      -  docs/infrastructure.md  vs  the GitHub Actions secrets
 //   5. release token      -  docs/infrastructure.md  vs  the expiry of the token CI last used
-//   6. links and anchors  -  every relative markdown link, across every tracked document
-//   7. section pointers   -  every `file -> *Section*` reference: both the document it names and
+//   6. security settings  -  docs/infrastructure.md  vs  the repository's own three sources
+//   7. links and anchors  -  every relative markdown link, across every tracked document
+//   8. section pointers   -  every `file -> *Section*` reference: both the document it names and
 //                            the section within it, since a pointer written as prose carries no
-//                            link for check 5 to follow. That shape is how CAN-76 Restructure the
+//                            link for check 7 to follow. That shape is how CAN-76 Restructure the
 //                            agent documents: policy, procedure and incidents get their own homes
 //                            replaced the duplication: one owning module, N one-line pointers
 //
@@ -34,10 +35,11 @@ import { appendFileSync, readFileSync, existsSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
-import type { Result } from "./lib/doc-checks.ts";
+import type { Attempt, Result } from "./lib/doc-checks.ts";
 import {
   Skip,
   anchorsOf,
+  compareSecuritySettings,
   compareVariables,
   describeDisagreement,
   describeTarget,
@@ -51,13 +53,17 @@ import {
   parseDocumentedContexts,
   parseDocumentedLabels,
   parseDocumentedReleaseTokens,
+  parseDocumentedSecuritySettings,
   parseDocumentedVariables,
   parseLinearLabels,
   parseSecretNames,
+  parseSecurityAndAnalysis,
   parseUncheckedVariables,
   parseVercelEnv,
   parseVercelTokens,
   pointerResolves,
+  readDependencyGraph,
+  readVulnerabilityAlerts,
   renderJobSummary,
   resolvePointer,
   setEq,
@@ -72,6 +78,7 @@ const WORKSPACE = "ad2669ec-93a5-4ce1-97fa-c7d9247a1452";
 const CONTEXT_HOME = "docs/infrastructure.md";
 const CI_WORKFLOW = ".github/workflows/ci.yml";
 const LABEL_HOME = "docs/agents/triage-labels.md";
+const REPOSITORY = "jacobrees-canoncore/CanonCore";
 
 const results: Result[] = [];
 const read = (p: string) => readFileSync(join(ROOT, p), "utf8");
@@ -178,7 +185,7 @@ check("the live ruleset requires the documented contexts", () => {
     "gh",
     [
       "api",
-      "repos/jacobrees-canoncore/CanonCore/rules/branches/main",
+      `repos/${REPOSITORY}/rules/branches/main`,
       "--jq",
       '.[] | select(.type == "required_status_checks") | .parameters.required_status_checks[].context',
     ],
@@ -356,7 +363,87 @@ check("the release token's expiry matches Vercel", () => {
 });
 
 // ---------------------------------------------------------------------------
-// 6 & 7. The pointers.
+// 6. The security settings.
+//
+// Seven rows of prose sitting beside four rosters that each have a check, which is how a row
+// that quietly stops being true goes unnoticed. These are security settings, so that costs more
+// than a stale variable name does.
+//
+// Three calls, because the settings live in three places and none of them reaches all seven —
+// and the first is load-bearing well beyond its own five rows. `security_and_analysis` comes back
+// only to a caller with admin on the repository, and the other two calls each document `404` as
+// their *off*; admin is therefore what tells that `404` apart from an endpoint the caller may not
+// read at all. So it is read first, and where it is refused the check reports having read nothing
+// rather than five rows out of seven. The argument sits on the readers themselves, in
+// scripts/lib/doc-checks.ts.
+//
+// Which is also why this gates on a laptop and skips in CI, and that was confirmed rather than
+// assumed: `permissions:` accepts no scope that grants admin — `actions` through `statuses`, with
+// `vulnerability-alerts: read` reaching Dependabot's *alerts* rather than this setting — so the
+// workflow's own token cannot be granted it, whatever it is given. The same wall that keeps the
+// secret roster local, and the same answer. docs/agents/workflow.md -> The gates is the table.
+// ---------------------------------------------------------------------------
+
+/**
+ * Run a command and report what it did, rather than deciding for the caller. `source` above turns
+ * every failure into a Skip, which the two calls below cannot accept: `gh api` exits non-zero on a
+ * `404`, and a `404` is one of the two answers GitHub documents for each of them.
+ */
+function attempt(cmd: string, args: string[]): Attempt {
+  try {
+    return {
+      ok: true,
+      output: execFileSync(cmd, args, {
+        encoding: "utf8",
+        stdio: ["ignore", "pipe", "pipe"],
+        timeout: 60_000,
+      }),
+    };
+  } catch (err) {
+    // `gh` writes the status to both streams and an absent binary to neither, so all three are
+    // handed on and `httpStatus` takes whichever is there.
+    const e = err as { stderr?: string; stdout?: string; message?: string };
+    return { ok: false, output: [e.stdout, e.stderr, e.message].filter(Boolean).join("\n") };
+  }
+}
+
+check("the security-settings roster matches the repository", () => {
+  const documented = parseDocumentedSecuritySettings(read(CONTEXT_HOME));
+  const analysis = parseSecurityAndAnalysis(
+    source(
+      "gh",
+      ["api", `repos/${REPOSITORY}`, "--jq", ".security_and_analysis"],
+      "cannot read the repository",
+    ),
+  );
+  const alerts = readVulnerabilityAlerts(
+    attempt("gh", ["api", `repos/${REPOSITORY}/vulnerability-alerts`]),
+  );
+  const graph = readDependencyGraph(
+    attempt("gh", [
+      "api",
+      `repos/${REPOSITORY}/dependency-graph/sbom`,
+      "--jq",
+      ".sbom.packages | length",
+    ]),
+  );
+  const problems = compareSecuritySettings(documented, { analysis, alerts, graph: graph.enabled });
+  if (problems.length)
+    fail(
+      `the security-settings roster in ${CONTEXT_HOME} disagrees with the repository:\n    - ` +
+        problems.join("\n    - "),
+    );
+  // The package count is reported and never compared: it moves with every dependency change, and
+  // a gate that is red on arrival is a gate that gets ignored. What it is evidence of is the graph
+  // answering at all, which is the row that has no field of its own to read back.
+  return (
+    `${documented.length} settings agree` +
+    (graph.enabled ? `, ${graph.packages} packages in the graph` : "")
+  );
+});
+
+// ---------------------------------------------------------------------------
+// 7 & 8. The pointers.
 //
 // The restructure of CAN-76 Restructure the agent documents: policy, procedure and incidents get
 // their own homes gave each rule one owning module and N one-line pointers. A pointer that rots is
