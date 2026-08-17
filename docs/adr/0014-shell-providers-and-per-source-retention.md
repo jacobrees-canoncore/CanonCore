@@ -326,15 +326,16 @@ they need their own decision and their own tickets.
 >   purge** — the Snapshots go, the Source's own row is kept, the run names the table and exits
 >   non-zero ([`purge-source.ts`](../../apps/web/src/db/purge-source.ts)). **Deliberately not a
 >   refusal**, which was the first draft: refusing would make the duty undischargeable exactly when it
->   is owed, since leaving everything is worse than leaving everything-but-the-Snapshots, and the code
->   would then be written under the clock. The pressure to decide sits earlier instead, in
+>   is owed, and that module holds the argument. The pressure to decide sits earlier instead, in
 >   `rls.test.ts`, which fails in the pull request that adds the table. It is a tripwire and not an
 >   answer: what the purge should *do* with `supersededValue` is still item 2's question, and
 >   ADR-0004's disjoint-tables property is still what makes it hard.
-> - **Item 4 is built.** The purge is the cross-tenant delete it describes, keyed on the Source and
->   run as `canoncore_migrator` because the application role holds no write privilege on anything
+> - **Item 4 stops being prospective.** It is an observation about cost rather than a thing to build,
+>   and the cross-tenant delete it describes now exists: keyed on the Source, run as
+>   `canoncore_migrator` because the application role holds no write privilege on anything
 >   (**CAN-123 Revoke the application role's write privileges, and decide whether the blanket
->   default privilege should exist**).
+>   default privilege should exist**). The obligation cost the item names is now a command somebody
+>   runs.
 
 ### The `/tv/changes` trap: refreshing only what changed is prohibited
 
@@ -508,12 +509,16 @@ how an Ordering reads, and what the interface calls its parts** owns it.
 > `former_type` and `deleted` columns on a `story` row that stays. Both shapes destroy the title,
 > because a purge that leaves it behind is not a purge; what separates them is which one makes the
 > accidental reversal above cheap. A table with no title column can only grow one by a migration,
-> where a surviving `story` row keeping a nullable title grows one by deleting a line — and *"the
-> object is replaced by a `Tombstone`"* is what ActivityPub describes anyway. It carries `owner_id`
+> where a surviving `story` row keeping a nullable title grows one by deleting a line. ActivityPub
+> permits the shape rather than requiring it — a server *"MAY replace the `object` with a `Tombstone`
+> of the object that will be displayed in activities which reference the deleted object"*
+> ([ActivityPub §6.4](https://www.w3.org/TR/activitypub/#delete-activity-outbox), read 17 August
+> 2026) — so this is a permission taken up, not a requirement met. It carries `owner_id`
 > and `visibility` as well, because a policy needs them and neither is a value a Source supplied;
 > `schema.ts` holds that argument and `rls.test.ts` asserts the whole column list against this
 > paragraph. **CAN-111 Decide and build what a dropped Story renders as still owns the 410 and the
-> Ordering's behaviour around the hole**; what it looks like stays CAN-90's, as above.
+> Ordering's behaviour around the hole**; what it looks like stays with CAN-90 Decide how an Ordering
+> reads, and what the interface calls its parts, as above.
 
 ## Decision 9 — per-field provenance on every displayed value
 

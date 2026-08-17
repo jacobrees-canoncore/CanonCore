@@ -227,7 +227,16 @@ select (select count(*) from source   where id        = '<id>') as source_rows,
        (select count(*) from snapshot where source_id = '<id>') as snapshot_rows;
 ```
 
-Both must be `0`. Two things about this query rather than the query itself:
+Both must be `0`. **To check the run's report rather than trust it**, take the ids it printed under
+`Stories tombstoned` and ask for them in both tables — each must be absent from the first and present
+in the second:
+
+```sql
+select (select count(*) from story     where id = any($1)) as should_be_zero,
+       (select count(*) from tombstone where id = any($1)) as should_match_the_report;
+```
+
+Three things about these queries rather than the queries themselves:
 
 - **The application role would answer `0` whether or not it is true.** `snapshot` is behind a policy
   keyed on the Story's owner, so a count run as `canoncore_app` with no session user returns only

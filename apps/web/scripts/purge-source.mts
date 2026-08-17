@@ -52,10 +52,9 @@ try {
   for (const id of report.storiesTombstoned) console.info(`    ${id}`);
   console.info(`  Stories left standing for another Source: ${report.storiesKeptForAnotherSource}`);
 
-  // **The two endings are not variations on one another.** A complete purge can say something the
-  // database proved; a partial one has discharged part of a duty and must not read as having
-  // discharged it, so it names the gap and exits non-zero — a green run is a claim, and this run
-  // cannot make it.
+  // A partial purge has discharged part of a duty and must not read as having discharged it: a green
+  // run is a claim this one cannot make. Why it is partial rather than refused is `unclassifiedTables`
+  // in ../src/db/purge-source.ts.
   if (partial) {
     console.error(`  NOT REACHED: ${report.tablesNotReached.join(", ")}`);
     console.error(

@@ -34,12 +34,20 @@ export type PurgeReport = {
  * cannot go quiet: a table missing from this record is reported by `unclassifiedTables` rather than
  * skipped.
  *
+ * **Two bounds, stated because neither is obvious.** It is *table*-granular, so a Source-derived
+ * column added to a table classified as kept — `story` is the only one a purge leaves standing —
+ * trips nothing here. What forbids that is ADR-0004: the displayed record is derived and never
+ * written directly, so a Source value has no business on `story` in the first place. And it reads
+ * `public`, which is where every migration creates; an object in another schema is outside it.
+ *
  * **The answer is not always "delete it".** A store held under a statutory retention duty is a
  * conflict rather than an omission: `docs/compliance/csea-reporting-procedure.md` -> What a report
  * must contain, and what this service actually holds records the same shape against GDPR erasure,
  * where Reg. 8 keeps a report's content for a year and the erasure job cannot. Such a table has to
  * be decided, not swept into the list below.
  */
+// The values are read by people rather than by code, which is the point of them: a bare list of
+// names would let a table be added without anybody writing down what the purge does with it.
 export const howThePurgeTreatsEachTable = {
   snapshot:
     "Deleted, every row whose Source is the purged one. This is where a Source's content lives.",
@@ -155,9 +163,13 @@ export async function purgeSource(client: Client, sourceId: string): Promise<Pur
 
     // Decision 8's condition, asked of the database after the delete rather than worked out from
     // what was deleted: a Story is emptied when **no** Snapshot of it remains, whichever Source it
-    // came from. When Overrides exist this gains a second clause — a Story carrying a value its
-    // owner typed degrades to it rather than becoming a tombstone (ADR-0004) — and the tripwire
-    // above is what will make that a decision rather than an omission.
+    // came from.
+    //
+    // **It owes a second clause the moment a Story can carry a value its owner typed** — such a
+    // Story degrades to that value rather than becoming a tombstone (ADR-0004) — and that is not
+    // only when the Override table lands. `story.title` is the case today: nothing writes one, and
+    // the moment anything does, this condition is wrong before any new table exists to notice.
+    // docs/runbook.md -> A Source's licence terminates says what a purge does to a title now.
     const emptied =
       touched.length === 0
         ? []
@@ -180,7 +192,9 @@ export async function purgeSource(client: Client, sourceId: string): Promise<Pur
               ),
             );
 
-    if (emptied.length > 0) {
+    const emptiedIds = emptied.map((emptiedStory) => emptiedStory.id);
+
+    if (emptiedIds.length > 0) {
       // `deleted` is left to its column default, so the moment recorded is this transaction's own.
       // Owner and Visibility are carried across: they are the product's facts about the record
       // rather than any Source's, and they are what the tombstone's policy reads.
@@ -193,12 +207,7 @@ export async function purgeSource(client: Client, sourceId: string): Promise<Pur
         })),
       );
 
-      await transaction.delete(story).where(
-        inArray(
-          story.id,
-          emptied.map((emptiedStory) => emptiedStory.id),
-        ),
-      );
+      await transaction.delete(story).where(inArray(story.id, emptiedIds));
     }
 
     // Last, and load-bearing: see `source` in howThePurgeTreatsEachTable above. If this succeeds, no
@@ -216,7 +225,7 @@ export async function purgeSource(client: Client, sourceId: string): Promise<Pur
     return {
       sourceId,
       snapshotsDeleted: deleted.length,
-      storiesTombstoned: emptied.map((emptiedStory) => emptiedStory.id).sort(),
+      storiesTombstoned: [...emptiedIds].sort(),
       storiesKeptForAnotherSource: touched.length - emptied.length,
       tablesNotReached,
     };

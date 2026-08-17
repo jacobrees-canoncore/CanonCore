@@ -150,8 +150,8 @@ architecture decision, in the amended ADR itself.
    no number of days. The obligation is to "promptly delete or otherwise purge all TMDB Content,
    including any cached content" ([API Terms of Use](https://www.themoviedb.org/api-terms-of-use)).
    The finding survives on stronger ground — a period judged after the event against how quickly you
-   could have acted is not a kinder one than a fixed window — and CAN-118 carries the full
-   correction.*
+   could have acted is not a kinder one than a fixed window — and CAN-118 Purge every Snapshot of a
+   Source whose licence terminates, and tombstone what it touched carries the full correction.*
 
 ## False records corrected
 

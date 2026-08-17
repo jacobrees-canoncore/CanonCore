@@ -15,6 +15,12 @@
 // what the application role may do to each table. A fourth test asserts that no default
 // privilege exists at all — it guards tables nobody has created yet rather than `source`, so it
 // is not one of the three.
+//
+// **The two that enumerate `public` ask for four `relkind`s**, not the ordinary-table `'r'` alone:
+// `'p'` partitioned, `'f'` foreign and `'m'` materialised view can all hold rows, and a matview over
+// Snapshot values would be exactly the cached content a licence purge has to reach. They are the
+// same four `purge-source.ts` asks for, and deliberately so — that module says the pressure to
+// classify a new table lands here rather than at purge time, and it only does if the two agree.
 import { fileURLToPath } from "node:url";
 import { sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/node-postgres";
@@ -430,7 +436,7 @@ describe.skipIf(!migratorUrl || !applicationUrl)("the schema, against a real Pos
   test("every table is classified as protected or deliberately not", async () => {
     const { rows } = await migrator.query<{ relname: string; relrowsecurity: boolean }>(
       `select relname, relrowsecurity from pg_class
-        where relnamespace = 'public'::regnamespace and relkind = 'r'
+        where relnamespace = 'public'::regnamespace and relkind in ('r', 'p', 'f', 'm')
         order by relname`,
     );
 
@@ -464,7 +470,7 @@ describe.skipIf(!migratorUrl || !applicationUrl)("the schema, against a real Pos
               has_table_privilege('canoncore_app', c.oid, 'UPDATE') as may_update,
               has_table_privilege('canoncore_app', c.oid, 'DELETE') as may_delete
          from pg_class c
-        where c.relnamespace = 'public'::regnamespace and c.relkind = 'r'
+        where c.relnamespace = 'public'::regnamespace and c.relkind in ('r', 'p', 'f', 'm')
         order by c.relname`,
     );
 
@@ -757,7 +763,10 @@ describe.skipIf(!migratorUrl || !applicationUrl)("the schema, against a real Pos
     // that adds a table rather than during an incident. Adding one means answering the question this
     // record asks: docs/adr/0014-shell-providers-and-per-source-retention.md -> Decision 6, items 2
     // and 3, for the two that are known and unresolved.
-    test("says what the purge does with every table that exists", () => {
+    //
+    // The record's contents rather than a live read: the test above is the live one, and this is why
+    // a new table has to be written down here by hand.
+    test("classifies exactly four tables, and names each of them", () => {
       expect(Object.keys(howThePurgeTreatsEachTable).sort()).toEqual([
         "snapshot",
         "source",
