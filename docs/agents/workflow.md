@@ -50,8 +50,9 @@ the deployment rather than the review:
   Neon, behind row-level security the release is the tail of the CI job rather than Vercel's own build, so the gates run first — but they run
   on a commit that is already on `main`, and a red gate leaves `main` red rather than unreleased.
   The branch is where a change can still be wrong for free.
-- **`main` refuses anything else.** Since CAN-40 its ruleset requires the checks by name, so a
-  commit that has not been through them cannot land by any route.
+- **`main` refuses anything else.** Since
+  **CAN-40 Give main a ruleset that refuses an unchecked merge**, that ruleset requires the checks by
+  name, so a commit that has not been through them cannot land by any route.
 
 So the states mean: **draft** is "not yet checked against the gates", **ready** is "the gates are
 green and it works". Nobody is being signalled — the states are for you.
@@ -113,9 +114,18 @@ production database and releases whatever passed. `/draft-pr` refuses to run the
 commits already exist and you are recovering rather than opening a PR.
 
 ```bash
-git switch main && git pull                       # start from what production has
+git fetch origin                                  # refresh the ref the worktree is based on
 orca worktree create --name CAN-11-welcome-email-queue --linear-issue CAN-11
 ```
+
+**Fetch, never `git switch main`.** The switch fails from inside a worktree, which is where work now
+happens — `main` cannot be checked out twice, and *The local `main` is permanently stale in a
+worktree* below says where it already is. Nor is the local ref what a new worktree is based on: Orca
+uses `refs/remotes/origin/main`, and refreshes that ref itself only where a per-machine setting says
+so, so the explicit fetch is what makes the base current wherever the recipe is run.
+[`../research/orca-gaps-and-the-worktree-workflow.md`](../research/orca-gaps-and-the-worktree-workflow.md)
+→ *Question two: should worktree-off-`main` be the documented default?* has both, with the commands
+that checked them.
 
 `--linear-issue` is the part that matters: Orca keeps the issue as worktree metadata rather than
 reading it off the branch, and that is what makes the `--current` form work — the only form that
@@ -195,8 +205,9 @@ is that a loaded skill echoes its own instructions.
 **No review step sits between those two.** `/implement` already ran it; reach for a review only in
 the three cases named above.
 
-- **Squash-merge only.** One ticket, one branch, one commit on `main`. Since CAN-40 the repository
-  offers no other merge method.
+- **Squash-merge only.** One ticket, one branch, one commit on `main`. Since
+  **CAN-40 Give main a ruleset that refuses an unchecked merge**, the repository offers no other
+  merge method.
 - **Commit subjects are prose, not Conventional Commits.** `Send the welcome email from the queue
   instead of the request`, not `feat(email): send from queue`. Nothing enforces it — the subject
   says what changed about the product, the body says why. A single-commit PR squashes under its
@@ -227,7 +238,7 @@ and is not — pnpm passes words after the script name to that script as argumen
 see — a server-only API reached from a client component, a page that throws during static
 generation, an environment variable nobody set ([`apps/web/src/env.ts`](../../apps/web/src/env.ts))
 — and without it the first machine to find out is the one doing the deploy. The three are what
-CAN-22 required; this one is ours.
+**CAN-22 A page on a public URL, deployed, with CI** required; this one is ours.
 
 **A fifth step audits the dependency tree**, `pnpm audit --audit-level=high`, added by **CAN-54 Fail
 a push that adds a known-vulnerable dependency**. **This file owns the three decisions in that line**,
@@ -401,11 +412,12 @@ principles* explicitly allows.
 
 ## What `main` refuses
 
-The gates are a wait, and a wait is a step that can be skipped — which is what CAN-40 fixed, by
-moving the last word from the skill to the repository. A waiting skill is a convention and a ruleset
-is an enforcement, and only the second survives the skill being edited, skipped or run by something
-else. The provisioned form is in [`docs/infrastructure.md`](../infrastructure.md) → *The repository,
-and what `main` refuses*, because it is repository configuration and no file here can assert it.
+The gates are a wait, and a wait is a step that can be skipped — which is what
+**CAN-40 Give main a ruleset that refuses an unchecked merge** fixed, by moving the last word from
+the skill to the repository. A waiting skill is a convention and a ruleset is an enforcement, and
+only the second survives the skill being edited, skipped or run by something else. The provisioned
+form is in [`docs/infrastructure.md`](../infrastructure.md) → *The repository, and what `main`
+refuses*, because it is repository configuration and no file here can assert it.
 What belongs here is what it means for the loop:
 
 - **Squash is no longer a convention.** Merge commits and rebase merges are off, and
