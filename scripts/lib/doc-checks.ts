@@ -346,6 +346,250 @@ export function lastUsedTokenNamed(tokens: VercelToken[], name: string): VercelT
 export const expiryDay = (ms: number | null): string =>
   ms === null ? "never" : new Date(ms).toISOString().slice(0, 10);
 
+// --- The security settings --------------------------------------------------------------------
+//
+// Seven rows in three places, and no one call reaches them all: five are fields of
+// `security_and_analysis`, Dependabot alerts are a status code of their own, and the dependency
+// graph has no read-back field anywhere — the SBOM endpoint's answer stands in for it.
+// docs/infrastructure.md → Dependency and secret scanning holds the rows and the three calls.
+
+/** Which of the three calls can answer a row, read off the source the roster names beside it. */
+export type SecuritySource =
+  | { kind: "analysis"; field: string }
+  | { kind: "alerts" }
+  | { kind: "graph" }
+
+/** One row of the security-settings roster: what it records, and what can read it back. */
+export type SecuritySettingRow = { setting: string; enabled: boolean; source: SecuritySource }
+
+/**
+ * Which call answers a row, read off the source the roster writes beside it rather than off a list
+ * kept here. A row moved to a different source is then followed by the check, where a list here
+ * would go on comparing it against the one it used to have.
+ */
+const SECURITY_CALLS = {
+  analysis: "`security_and_analysis.<field>.status`",
+  alerts: "`vulnerability-alerts`",
+  graph: "`dependency-graph/sbom`",
+} as const;
+
+function securitySourceOf(setting: string, readBackBy: string): SecuritySource {
+  const field = readBackBy.match(/security_and_analysis\.([a-z_]+)\.status/);
+  if (field) return { kind: "analysis", field: field[1] };
+  if (readBackBy.includes("vulnerability-alerts")) return { kind: "alerts" };
+  if (readBackBy.includes("dependency-graph/sbom")) return { kind: "graph" };
+  fail(
+    `the security roster's ${setting} row names no source this check can read: "${readBackBy}". ` +
+      `A row is compared against one of ${Object.values(SECURITY_CALLS).join(", ")}.`,
+  );
+}
+
+/** The security-settings roster: every row's state, and which call speaks for it. */
+export function parseDocumentedSecuritySettings(markdown: string): SecuritySettingRow[] {
+  const rows = parseTable(markdown, "Setting", "State", "Read back by").map((r) => {
+    const setting = unbacktick(r.Setting);
+    const state = norm(r.State);
+    // A state that is neither is a row nothing can compare, and it decides on the document alone,
+    // so it fails where `gh` is unreachable too.
+    if (state !== "enabled" && state !== "disabled")
+      fail(
+        `the security roster records ${setting} as "${r.State.trim()}", which is neither ` +
+          "**enabled** nor disabled, so there is nothing to compare the repository against.",
+      );
+    return { setting, enabled: state === "enabled", source: securitySourceOf(setting, r["Read back by"]) };
+  });
+  // Every one of the three calls has to be named by a row. Two of them speak for a single row
+  // each, so deleting that row takes its whole source out of the check — and what is left agrees,
+  // which reads from the report exactly like seven rows having been compared. The
+  // `security_and_analysis` half is covered the other way round, by the mirror in
+  // `compareSecuritySettings`; these two have nothing to be missing from.
+  const named = new Set(rows.map((r) => r.source.kind));
+  const absent = Object.entries(SECURITY_CALLS).filter(([kind]) => !named.has(kind as never));
+  if (absent.length)
+    fail(
+      `the security roster names no row read back from ${absent.map(([, call]) => call).join(", ")}, ` +
+        "so that source is compared by nothing. A row is how a setting stays under the check.",
+    );
+  return rows;
+}
+
+/** What a command did, for the calls whose failure is an answer rather than an outage. */
+export type Attempt = { ok: boolean; output: string }
+
+/**
+ * The HTTP status `gh api` failed with. It prints the status twice and on different streams —
+ * `gh: Not Found (HTTP 404)`, and GitHub's own body carrying `"status": "404"` — so either will
+ * do, which is what lets the caller hand over whatever it caught without sorting the two out.
+ */
+export function httpStatus(output: string): number | undefined {
+  const matched = output.match(/\(HTTP (\d{3})\)/) ?? output.match(/"status":\s*"(\d{3})"/);
+  return matched ? Number(matched[1]) : undefined;
+}
+
+/**
+ * The five `security_and_analysis` rows.
+ *
+ * GitHub returns the block only to a caller with admin: *"In order to see the
+ * security_and_analysis block for a repository you must have admin permissions for the repository
+ * or be an owner or security manager for the organization that owns the repository"* [1]. So an
+ * empty answer is a refusal rather than a repository holding no settings — and it is also this
+ * check's own proof of entitlement, which the two readers below lean on: both document `404` as
+ * their *off*, and a `404` returned to a caller who could not have read them either way is not an
+ * answer. Skipping here is therefore what keeps the other two honest, rather than five rows lost
+ * out of seven.
+ *
+ * [1] https://docs.github.com/en/rest/repos/repos#get-a-repository
+ */
+export function parseSecurityAndAnalysis(raw: string): Map<string, boolean> {
+  const text = raw.trim();
+  if (!text)
+    skip(
+      "the repository carried no `security_and_analysis` block, which GitHub returns only to a " +
+        "caller with admin on it — so none of the three sources could be read as an answer",
+    );
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(text);
+  } catch (err) {
+    skip(`could not parse \`security_and_analysis\`: ${(err as Error).message}`);
+  }
+  // `null` is valid JSON, and `Object.entries(null)` throws a `TypeError` — which the report
+  // classifies FAIL, on the very path that has to SKIP. `gh --jq` happens to print a bare newline
+  // for a missing key rather than `null`, so this rests on a guard instead of on that convention.
+  if (typeof parsed !== "object" || parsed === null)
+    skip(
+      `\`security_and_analysis\` came back as ${JSON.stringify(parsed)} rather than a block of ` +
+        "settings, so nothing was read back",
+    );
+  const live = new Map<string, boolean>();
+  for (const [field, value] of Object.entries(parsed as Record<string, unknown>)) {
+    const status = (value as { status?: unknown } | null)?.status;
+    // The source answered and this run cannot read what it said, which is not the unreachable
+    // source a SKIP reports. Skipping would claim nothing was reached when something was, and
+    // would take all seven rows out of the gate on the one machine where the gate exists — an
+    // unknown status is only reachable once admin has been proved, so CI has skipped at the wall
+    // long before here. A control over security settings treats what it cannot read as a denial
+    // rather than as permission, which is the same refusal the rest of this file makes when it
+    // declines to call an unread source agreement.
+    if (status !== "enabled" && status !== "disabled")
+      fail(
+        `\`security_and_analysis.${field}.status\` came back as ${JSON.stringify(status)}, so the ` +
+          "roster is not being compared. GitHub's shape for these settings may have moved.",
+      );
+    live.set(field, status === "enabled");
+  }
+  // Empty is not agreement, the rule the secret roster states: a block carrying no settings is one
+  // this run did not read, and comparing against it would report every row as a setting the
+  // repository has dropped.
+  if (live.size === 0) skip("`security_and_analysis` carried no settings, so there was nothing to compare");
+  return live;
+}
+
+/**
+ * Dependabot alerts. GitHub documents exactly two answers — *"204 ... if repository is enabled
+ * with vulnerability alerts"* and *"404 Not Found if repository is not enabled with vulnerability
+ * alerts"* [1] — so the `404` that makes `gh api` exit non-zero is the *off* reading rather than a
+ * failure. Anything else was not read, and says so.
+ *
+ * [1] https://docs.github.com/en/rest/repos/repos#check-if-vulnerability-alerts-are-enabled-for-a-repository
+ */
+export function readVulnerabilityAlerts(attempt: Attempt): boolean {
+  if (attempt.ok) return true;
+  if (httpStatus(attempt.output) === 404) return false;
+  skip(`could not read \`vulnerability-alerts\`: ${explainFailure(attempt.output)}`);
+}
+
+/**
+ * The dependency graph, which has no read-back field of its own: it is absent from
+ * `security_and_analysis`, and the SBOM endpoint stands in for it — a package count while on, and
+ * `404` while off.
+ *
+ * A `404` is also what an endpoint nobody may read can answer, and telling those apart is the
+ * whole difficulty. What separates them sits upstream rather than in the response: reaching this
+ * function at all means the caller held admin on the repository, since `parseSecurityAndAnalysis`
+ * skips the check otherwise, and admin is *"at least read access to the repository"* [1] several
+ * times over. So a `404` arriving here is the graph being off — which is also the only way it has
+ * been observed, the endpoint having answered `404` while off and a package count once on
+ * (docs/infrastructure.md → Dependency and secret scanning). Where the admin proof is missing the
+ * check has already skipped, saying so.
+ *
+ * The status list on [1] cannot settle it either way: it names `403 Forbidden` and `404 Resource
+ * not found` without saying which a refusal takes, so anything that is not a `404` is unread here
+ * rather than diagnosed.
+ *
+ * [1] https://docs.github.com/en/rest/dependency-graph/sboms
+ */
+export function readDependencyGraph(attempt: Attempt): { enabled: boolean; packages: number } {
+  if (!attempt.ok) {
+    if (httpStatus(attempt.output) === 404) return { enabled: false, packages: 0 };
+    skip(`could not read \`dependency-graph/sbom\`: ${explainFailure(attempt.output)}`);
+  }
+  // `Number("")` is `0`, so the emptiness has to be caught before the parse rather than by it:
+  // an answer nobody read would otherwise report the graph enabled and holding nothing.
+  //
+  // Failing rather than skipping for the same reason as the status above: `attempt` came back
+  // `ok`, so the endpoint answered, and a body this cannot read is a shape that moved rather than
+  // a source that was out of reach.
+  const answer = attempt.output.trim();
+  const packages = Number(answer);
+  if (!answer || !Number.isInteger(packages))
+    fail(
+      `\`dependency-graph/sbom\` answered "${answer}" where a package count was expected, so the ` +
+        "graph's row is not being compared. The SBOM payload's shape may have moved.",
+    );
+  return { enabled: true, packages };
+}
+
+/** The three sources' answers, named as the roster's own Read back by column names them. */
+export type LiveSecuritySettings = {
+  analysis: Map<string, boolean>
+  alerts: boolean
+  graph: boolean
+}
+
+const stateWord = (enabled: boolean) => (enabled ? "enabled" : "disabled");
+
+/** Roster against repository. Returns a list of human-readable problems; empty means agreement. */
+export function compareSecuritySettings(
+  documented: SecuritySettingRow[],
+  live: LiveSecuritySettings,
+): string[] {
+  const problems: string[] = [];
+  const named = new Set<string>();
+  for (const row of documented) {
+    let actual: boolean;
+    if (row.source.kind === "analysis") {
+      named.add(row.source.field);
+      const status = live.analysis.get(row.source.field);
+      if (status === undefined) {
+        problems.push(
+          `${row.setting} is read back from \`security_and_analysis.${row.source.field}.status\`, ` +
+            "which the repository does not carry",
+        );
+        continue;
+      }
+      actual = status;
+    } else {
+      actual = row.source.kind === "alerts" ? live.alerts : live.graph;
+    }
+    if (actual !== row.enabled)
+      problems.push(
+        `${row.setting}: the roster records ${stateWord(row.enabled)}, the repository has ` +
+          `${stateWord(actual)}`,
+      );
+  }
+  // A setting the repository carries and the roster does not is the mirror of a secret set but
+  // undocumented, and it is the harder one to notice: the roster's claim is that "off" here is a
+  // decision rather than a gap, and that only holds while it names every setting there is.
+  for (const field of live.analysis.keys())
+    if (!named.has(field))
+      problems.push(
+        `\`security_and_analysis.${field}.status\` is a setting the repository carries and the ` +
+          "roster does not record, so whether it is off by decision or by omission is unsaid",
+      );
+  return problems;
+}
+
 const ENVIRONMENTS = /Production|Preview|Development/g;
 // A row of `vercel env ls`: leading space, the name, a value column, the sensitivity, the
 // environments. The name matches what Vercel itself accepts, not the all-capitals convention

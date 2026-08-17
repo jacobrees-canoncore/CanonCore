@@ -42,12 +42,20 @@ function fixture({
   documents = {},
   untracked = [],
   tokenRows = ["| `the-release-token` | User | `2027-08-14` | **Live.** What CI holds |"],
+  // All three calls, because the roster is now required to name each of them — a fixture short of
+  // one would fail every case on a rule none of them is about.
+  securityRows = [
+    "| Secret scanning | **enabled** | `security_and_analysis.secret_scanning.status` |",
+    "| Dependabot alerts | **enabled** | `vulnerability-alerts` → `204 No Content` |",
+    "| Dependency graph | **enabled** | `dependency-graph/sbom` → a package count while on |",
+  ],
 }: {
   jobName: string;
   documentedContext: string;
   documents?: Record<string, string>;
   untracked?: string[];
   tokenRows?: string[];
+  securityRows?: string[];
 }): Fixture {
   const dir = mkdtempSync(join(tmpdir(), "check-docs-"));
   const write = (rel: string, body: string) => {
@@ -87,6 +95,12 @@ function fixture({
       "| Token | Scope | Expires | State |",
       "| --- | --- | --- | --- |",
       ...tokenRows,
+      "",
+      "## Dependency and secret scanning",
+      "",
+      "| Setting | State | Read back by |",
+      "| --- | --- | --- |",
+      ...securityRows,
     ].join("\n"),
   );
   write(
@@ -298,6 +312,27 @@ test("a register naming two live release tokens fails before it reaches Vercel",
   assert.equal(code, 1, output);
   assert.match(output, /^FAIL {2}the release token's expiry matches Vercel/m);
   assert.match(output, /marks 2 release tokens \*\*Live\*\*/);
+});
+
+test("a security roster row that records neither state fails before it reaches GitHub", () => {
+  // The seven rows are security settings, so a row nothing can compare is worse than a stale
+  // variable name. Like the two-live-tokens case this decides on the document alone, which is
+  // what makes it the half of the check that gates wherever the script runs — `gh` reaches
+  // `security_and_analysis` only with admin on the repository, and CI has no way to hold it.
+  const { run, gitOnly } = fixture({
+    jobName: "the register's context",
+    documentedContext: "the register's context",
+    securityRows: [
+      "| Secret scanning | **on** | `security_and_analysis.secret_scanning.status` |",
+      "| Dependabot alerts | **enabled** | `vulnerability-alerts` → `204 No Content` |",
+      "| Dependency graph | **enabled** | `dependency-graph/sbom` → a package count while on |",
+    ],
+  });
+  const { code, output } = run(gitOnly);
+
+  assert.equal(code, 1, output);
+  assert.match(output, /^FAIL {2}the security-settings roster matches the repository/m);
+  assert.match(output, /neither \*\*enabled\*\* nor disabled/);
 });
 
 test("the job summary carries the same verdicts as the console report", () => {

@@ -270,7 +270,7 @@ already off and are recorded so that "off" is a decision rather than a gap.
 
 | Setting | State | Read back by |
 | --- | --- | --- |
-| Dependency graph | **enabled** | `dependency-graph/sbom` → **696 packages**. It answered `404` while off |
+| Dependency graph | **enabled** | `dependency-graph/sbom` → a package count while on. It answered `404` while off |
 | Dependabot alerts | **enabled** | `vulnerability-alerts` → `204 No Content` ([the documented *enabled*](https://docs.github.com/en/rest/repos/repos#check-if-vulnerability-alerts-are-enabled-for-a-repository)) |
 | Secret scanning | **enabled** | `security_and_analysis.secret_scanning.status` |
 | Secret scanning push protection | **enabled** | `security_and_analysis.secret_scanning_push_protection.status` |
@@ -289,6 +289,29 @@ them.** Alerts are not in `security_and_analysis`; the dependency graph is in ne
 route to it was found. **Read all three, or the answer is partial in the row that matters most** —
 the graph is what the two Dependabot rows match against, and with it off they report nothing while
 still reading as enabled ([incident](incidents.md#dependabot-alerts-were-enabled-and-blind)).
+
+**`scripts/check-docs.ts` compares all seven rows against those three calls on every run** —
+**CAN-124 Compare the security-settings roster to the live repository in check-docs**. It fails a row
+that has stopped being true, a row whose source no call can read, and a setting the repository
+carries that no row records: "off is a decision rather than a gap" holds only while the seven are all
+of them. **A value the run cannot read fails rather than skips** — the source answered, so calling it
+unreachable would claim nothing was reached when something was.
+
+**The row records the shape of the SBOM's answer rather than a count**, and the count is reported on
+every run instead. A number written down here is one nothing compares, so it goes stale between
+dependency changes with nothing to catch it, which is the drift this whole section now has a check
+against. It read 696 on 16 August 2026 and 697 on 17 August.
+
+**It gates on a laptop and skips in CI**, the same wall as the secret roster below.
+`security_and_analysis` comes back only to a caller with **admin on the repository** — *"you must have
+admin permissions for the repository or be an owner or security manager for the organization that owns
+the repository"* ([Get a repository](https://docs.github.com/en/rest/repos/repos#get-a-repository)) —
+and `permissions:` accepts no scope that grants it, `vulnerability-alerts: read` reaching Dependabot's
+*alerts* rather than this setting
+([Workflow syntax](https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax#permissions)).
+Admin is also what makes a `404` from the other two calls an answer rather than an ambiguity, so a run
+without it reports having read nothing. Where it gates, beside every other check:
+[`docs/agents/workflow.md`](agents/workflow.md) → *The gates*.
 
 One alert is open: `GHSA-67mh-4wv8-2f99`, a moderate `esbuild` development-server advisory reaching
 us through `drizzle-kit`, which nothing here can fix.

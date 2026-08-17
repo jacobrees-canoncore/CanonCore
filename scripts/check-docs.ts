@@ -11,10 +11,11 @@
 //   3. variable roster    -  docs/infrastructure.md  vs  vercel env ls
 //   4. secret roster      -  docs/infrastructure.md  vs  the GitHub Actions secrets
 //   5. release token      -  docs/infrastructure.md  vs  the expiry of the token CI last used
-//   6. links and anchors  -  every relative markdown link, across every tracked document
-//   7. section pointers   -  every `file -> *Section*` reference: both the document it names and
+//   6. security settings  -  docs/infrastructure.md  vs  the repository's own three sources
+//   7. links and anchors  -  every relative markdown link, across every tracked document
+//   8. section pointers   -  every `file -> *Section*` reference: both the document it names and
 //                            the section within it, since a pointer written as prose carries no
-//                            link for check 5 to follow. That shape is how CAN-76 Restructure the
+//                            link for check 7 to follow. That shape is how CAN-76 Restructure the
 //                            agent documents: policy, procedure and incidents get their own homes
 //                            replaced the duplication: one owning module, N one-line pointers
 //
@@ -34,10 +35,11 @@ import { appendFileSync, readFileSync, existsSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
-import type { Result } from "./lib/doc-checks.ts";
+import type { Attempt, Result } from "./lib/doc-checks.ts";
 import {
   Skip,
   anchorsOf,
+  compareSecuritySettings,
   compareVariables,
   describeDisagreement,
   describeTarget,
@@ -51,13 +53,17 @@ import {
   parseDocumentedContexts,
   parseDocumentedLabels,
   parseDocumentedReleaseTokens,
+  parseDocumentedSecuritySettings,
   parseDocumentedVariables,
   parseLinearLabels,
   parseSecretNames,
+  parseSecurityAndAnalysis,
   parseUncheckedVariables,
   parseVercelEnv,
   parseVercelTokens,
   pointerResolves,
+  readDependencyGraph,
+  readVulnerabilityAlerts,
   renderJobSummary,
   resolvePointer,
   setEq,
@@ -72,6 +78,7 @@ const WORKSPACE = "ad2669ec-93a5-4ce1-97fa-c7d9247a1452";
 const CONTEXT_HOME = "docs/infrastructure.md";
 const CI_WORKFLOW = ".github/workflows/ci.yml";
 const LABEL_HOME = "docs/agents/triage-labels.md";
+const REPOSITORY = "jacobrees-canoncore/CanonCore";
 
 const results: Result[] = [];
 const read = (p: string) => readFileSync(join(ROOT, p), "utf8");
@@ -88,22 +95,36 @@ function check(name: string, fn: () => string | void) {
   }
 }
 
-/** Run a command, or Skip if it is absent or refuses. */
-function source(cmd: string, args: string[], why: string): string {
+/**
+ * Run a command and report what it did, rather than deciding for the caller. Most callers want
+ * `source` below, which decides; the security settings cannot use it, because `gh api` exits
+ * non-zero on a `404` and a `404` is one of the two answers GitHub documents for two of its calls.
+ */
+function attempt(cmd: string, args: string[]): Attempt {
   try {
-    return execFileSync(cmd, args, {
-      encoding: "utf8",
-      stdio: ["ignore", "pipe", "pipe"],
-      timeout: 60_000,
-    });
+    return {
+      ok: true,
+      output: execFileSync(cmd, args, {
+        encoding: "utf8",
+        stdio: ["ignore", "pipe", "pipe"],
+        timeout: 60_000,
+      }),
+    };
   } catch (err) {
     // Where a CLI puts its diagnosis is its own business: `vercel` and `gh` use stderr, `orca`
     // exits with an empty stderr and a JSON envelope on stdout. Take the first that says
     // anything, and fall back to Node's own "Command failed: …", which names only the command.
     const e = err as { stderr?: string; stdout?: string; message?: string };
-    const output = e.stderr?.trim() || e.stdout?.trim() || e.message || "";
-    return skip(`${why}: \`${cmd} ${args.join(" ")}\` — ${explainFailure(output)}`);
+    return { ok: false, output: e.stderr?.trim() || e.stdout?.trim() || e.message || "" };
   }
+}
+
+/** Run a command, or Skip if it is absent or refuses. */
+function source(cmd: string, args: string[], why: string): string {
+  const ran = attempt(cmd, args);
+  return ran.ok
+    ? ran.output
+    : skip(`${why}: \`${cmd} ${args.join(" ")}\` — ${explainFailure(ran.output)}`);
 }
 
 // ---------------------------------------------------------------------------
@@ -178,7 +199,7 @@ check("the live ruleset requires the documented contexts", () => {
     "gh",
     [
       "api",
-      "repos/jacobrees-canoncore/CanonCore/rules/branches/main",
+      `repos/${REPOSITORY}/rules/branches/main`,
       "--jq",
       '.[] | select(.type == "required_status_checks") | .parameters.required_status_checks[].context',
     ],
@@ -356,7 +377,57 @@ check("the release token's expiry matches Vercel", () => {
 });
 
 // ---------------------------------------------------------------------------
-// 6 & 7. The pointers.
+// 6. The security settings.
+//
+// Seven rows of prose sitting beside four rosters that each have a check, which is how a row that
+// quietly stops being true goes unnoticed. Three calls, because the settings live in three places
+// and none of them reaches all seven.
+//
+// `security_and_analysis` is read first, and not only for its own five rows: it comes back only to
+// a caller with admin, which is what tells the other two calls' `404` apart from an endpoint the
+// caller may not read at all. Where it is refused the check reports having read nothing rather
+// than five rows out of seven. The readers in scripts/lib/doc-checks.ts carry that argument with
+// its citations; why the roster gates on a laptop is docs/infrastructure.md -> Dependency and
+// secret scanning, and where every check gates is docs/agents/workflow.md -> The gates.
+// ---------------------------------------------------------------------------
+
+check("the security-settings roster matches the repository", () => {
+  const documented = parseDocumentedSecuritySettings(read(CONTEXT_HOME));
+  const analysis = parseSecurityAndAnalysis(
+    source(
+      "gh",
+      ["api", `repos/${REPOSITORY}`, "--jq", ".security_and_analysis"],
+      "cannot read the repository",
+    ),
+  );
+  const alerts = readVulnerabilityAlerts(
+    attempt("gh", ["api", `repos/${REPOSITORY}/vulnerability-alerts`]),
+  );
+  const graph = readDependencyGraph(
+    attempt("gh", [
+      "api",
+      `repos/${REPOSITORY}/dependency-graph/sbom`,
+      "--jq",
+      ".sbom.packages | length",
+    ]),
+  );
+  const problems = compareSecuritySettings(documented, { analysis, alerts, graph: graph.enabled });
+  if (problems.length)
+    fail(
+      `the security-settings roster in ${CONTEXT_HOME} disagrees with the repository:\n    - ` +
+        problems.join("\n    - "),
+    );
+  // The package count is reported and never compared: it moves with every dependency change, and
+  // a gate that is red on arrival is a gate that gets ignored. What it is evidence of is the graph
+  // answering at all, which is the row that has no field of its own to read back.
+  return (
+    `${documented.length} settings agree` +
+    (graph.enabled ? `, ${graph.packages} packages in the graph` : "")
+  );
+});
+
+// ---------------------------------------------------------------------------
+// 7 & 8. The pointers.
 //
 // The restructure of CAN-76 Restructure the agent documents: policy, procedure and incidents get
 // their own homes gave each rule one owning module and N one-line pointers. A pointer that rots is
