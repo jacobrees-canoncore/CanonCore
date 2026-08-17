@@ -695,6 +695,15 @@ Neon's `neondb_owner` has `rolbypassrls = true` and is therefore never the appli
 role has to be run by somebody holding that role's password, and is what
 [`../scripts/apply-can-24-migration.sh`](../scripts/apply-can-24-migration.sh) exists for.*
 
+> **What was proven against production rather than inferred, on 17 August 2026**, by connecting as the role
+> itself with `sslmode=verify-full`: it signs in to `neondb` on PostgreSQL 17.10, and it is refused
+> `story`, `source`, `snapshot` and `tombstone` with `permission denied for table …` and refused
+> `CREATE TABLE` with `permission denied for schema public`. **The refusals are the half worth observing**:
+> the role has no policy on those four tables, so a read returning nothing would look identical whether the
+> grant was absent or merely narrow, and only the error distinguishes them. What is *not* yet observed is
+> the other direction — that it can write its own five — because those tables do not exist on `main` until
+> the migration runs, and `apply-can-24-migration.sh` checks it there.
+
 #### Why there are three, and why the third is not a hole in ADR-0005 rule 1
 
 **The thing that authenticates cannot be constrained by the identity it is establishing.**
