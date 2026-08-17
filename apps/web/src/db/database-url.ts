@@ -68,10 +68,13 @@ function hostOf(url: string, name: string): string {
 
 export function resolveDatabaseConnection(environment: DatabaseEnvironment): DatabaseConnection {
   if (environment.VERCEL_ENV === "preview") {
-    // Composed, never read whole. Neon injects a branch's own variables per deployment, but the
-    // connection string among them carries the *owner* role, which has BYPASSRLS and is
-    // therefore the one role this application may never be (ADR-0005, rule 1). So the branch
-    // supplies where, and our own two variables supply who.
+    // Composed, never read whole. `NEON_PGHOST` and `NEON_PGDATABASE` address the shared
+    // schema-only `preview` branch, and they are ordinary project-level Preview variables since
+    // CAN-79 Previews clone production rows, and the integration has no switch to stop it —
+    // ADR-0023 has why one shared branch replaced one branch per deployment. What they must not
+    // become is a whole connection string: Neon's own carries the *owner* role, which has
+    // BYPASSRLS and is therefore the one role this application may never be (ADR-0005, rule 1).
+    // So these two supply where, and our own two supply who.
     //
     // DATABASE_URL is not consulted here even if something sets it: in preview it could only be
     // the static, project-level, production string, which is the exact failure below.
@@ -83,8 +86,10 @@ export function resolveDatabaseConnection(environment: DatabaseEnvironment): Dat
 
     if (computeOf(host) === computeOf(productionHost)) {
       throw new Error(
-        `This preview resolved production's database host (${host}). Preview branching is off, ` +
-          "or a project-level NEON_PGHOST is shadowing the branch's injected one — " +
+        `This preview resolved production's database host (${host}). The Preview-scoped ` +
+          "NEON_PGHOST should address the shared schema-only `preview` branch; either it was " +
+          "set to production's host, or the Neon integration's preview branching has been " +
+          "switched back on and its per-deployment value has overridden ours — " +
           "docs/infrastructure.md -> Database. Refusing to connect: a preview that reaches " +
           "production reads and would eventually write production's rows.",
       );

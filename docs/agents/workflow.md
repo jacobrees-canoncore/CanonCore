@@ -417,29 +417,41 @@ failed*, and neither of those from *finished, and its record never closed*
 that wait and carries the commands.
 
 **A deployed preview works.** The value of a preview is that it is a real environment rather than a
-smoke screen, so a preview must point at its own Neon branch rather than at production's data.
+smoke screen, so a preview must point at a database that is not production's.
 
-**A schema change therefore has a step before the gates, not after them.** A preview branch is a copy of
-Neon's `main` taken when its deployment starts, so a migration this branch adds has to be applied to
-`main` *before* the preview deploys — otherwise the preview's reads fail, the required `Vercel` context
-goes red, and the pull request cannot merge. [`../infrastructure.md`](../infrastructure.md) → *Schema*
-records CAN-23 One Story from Neon, behind row-level security establishing that order.
+**A schema change therefore has a step before the gates, not after them.** Every preview reads the
+shared, schema-only `preview` Neon branch, and nothing ever copies `main` onto it, so a migration this
+branch adds has to be applied to `preview` *before* the preview deploys — otherwise the preview's reads
+fail, the required `Vercel` context goes red, and the pull request cannot merge.
+[`../infrastructure.md`](../infrastructure.md) → *The shared preview branch* is what that branch is, and
+[ADR-0023](../adr/0023-one-shared-schema-only-preview-branch.md) is why it is one branch rather than one
+per deployment.
 
 [`../../scripts/apply-migrations-ahead-of-merge.sh`](../../scripts/apply-migrations-ahead-of-merge.sh)
 is that step. **A human runs it and no agent can**: it needs `canoncore_migrator`'s connection string,
 which lives in the `MIGRATION_DATABASE_URL` Actions secret and cannot be read back, and Neon grants
 `neondb_owner` membership in that role with `set_option = false`, so `SET ROLE` is refused — while every
 table has to be owned by it, because an owner bypasses row security. The script reads the credential
-with hidden input, applies whatever the journal is missing, and then checks six invariants it reads from
-the repository and the database rather than carrying: the journal matches `_journal.json`, no table is
-owned by anything else, neither application role has `BYPASSRLS`, `canoncore_app` can write nothing, no
-table without a policy is reachable by anybody except `source`, and no default privilege exists. It
-prints the privilege matrix for a human to compare against *Roles*, which is the one comparison no test
-can make — [`../infrastructure.md`](../infrastructure.md) → *Roles* says why.
+with hidden input, asks separately for the `preview` branch's host, and **refuses if that host is
+production's own compute** — a Neon role is project-level, so the pasted credential opens every branch
+and the host is the only thing keeping the two apart.
 
-**The release still runs the migrations at merge**, where Drizzle's journal makes them a no-op. Applying
-early is a widening that lasts one deploy interval, which is the case `CLAUDE.md` → *Engineering
-principles* explicitly allows.
+**It applies to `preview` and reads production back without writing to it**, which is a narrowing
+CAN-79 Previews clone production rows, and the integration has no switch to stop it made deliberately:
+the only reason it ever wrote to `main` was that previews were cloned from it. Production is migrated by
+the release and by nothing else — [ADR-0019](../adr/0019-ci-owns-the-production-release.md) — so **a
+preview is now the rehearsal for that migration**, run against a faithful copy of production's schema
+and read by a person before the release runs it for real.
+
+Five invariants are checked on **both** branches, read from the repository and the database rather than
+carried: no table is owned by anything else, neither application role has `BYPASSRLS`, `canoncore_app`
+can write nothing, no table without a policy is reachable by anybody except `source`, and no default
+privilege exists. On `preview` it also requires the journal to match `_journal.json` exactly, and
+asserts that `preview` holds **none** of production's `story` rows — a row count rather than a settings
+field, because only a row count would notice the branch having been replaced by a clone. On production
+the journal is allowed to lag and refused only when it is *ahead*, which would mean a migration nothing
+here carries. It prints both privilege matrices for a human to compare against *Roles*, which is the one
+comparison no test can make — [`../infrastructure.md`](../infrastructure.md) → *Roles* says why.
 
 ## What `main` refuses
 
@@ -477,10 +489,17 @@ alone, and the job migrates, then builds, then deploys. **Why this job owns the 
 Vercel, and why previews are deliberately left on Git, is
 [ADR-0019](../adr/0019-ci-owns-the-production-release.md)** — the argument lives there and not here.
 
-**Previews still deploy from Git and are not migrated.** A preview branch is a copy of Neon's
-`main` taken when the deployment starts, so it carries whatever schema `main` had *then*. A branch
-whose code reads a table its migration has not yet put on `main` will therefore 500 in preview and
-work in production, and the fix is the one below: land the widening first.
+**Previews still deploy from Git and are not migrated.** Every preview reads the shared `preview`
+Neon branch, which carries whatever schema somebody last applied to it. A branch whose code reads a
+table its migration has not yet put on `preview` will therefore 500 in preview, and the fix is *The
+gates* above: run the ahead-of-merge script before pushing.
+
+**What that no longer means is a widening on production.** Until 17 August 2026 the same step wrote
+the migration to `main`, so a schema change was briefly live on production before its code was, and
+this section treated that as the one-deploy-interval widening `CLAUDE.md` → *Engineering principles*
+allows. Previews no longer branch from `main`, so the write stopped and the widening with it —
+production takes a migration only from the release, on a commit that passed the gates
+([ADR-0023](../adr/0023-one-shared-schema-only-preview-branch.md)).
 
 Any other out-of-band artefact — a scheduled job, a queue, a permission,
 an environment variable — is hand-run and must be named in the PR body.

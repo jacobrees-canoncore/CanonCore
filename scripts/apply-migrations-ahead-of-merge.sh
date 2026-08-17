@@ -1,15 +1,24 @@
 #!/usr/bin/env bash
 #
-# Apply this branch's Drizzle migrations to Neon's `main`, ahead of the merge.
+# Apply this branch's Drizzle migrations to Neon's shared `preview` branch, ahead of the merge, and
+# read production's invariants back without writing to it.
 #
-# **Why this exists at all, and why it is not a step in CI.** The release in
-# `.github/workflows/ci.yml` runs migrations on merge, and for a *schema* change that is too late: a
-# Neon preview branch is a copy of `main` taken when its deployment starts, so `main` must already
-# carry the schema before the code that reads it deploys anywhere. Otherwise the preview 500s, the
-# required `Vercel` check goes red, and the pull request cannot merge. `docs/infrastructure.md` ->
-# Schema records CAN-23 One Story from Neon, behind row-level security establishing that order, and
-# `docs/agents/workflow.md` -> What a merge carries treats it as the standing procedure. Drizzle's
-# journal makes the release's re-run a no-op.
+# **Why this exists at all, and why it is not a step in CI.** Every preview deployment reads the
+# shared, schema-only `preview` branch — one branch, no production rows, addressed by a Preview-scoped
+# `NEON_PGHOST` (ADR-0023, and `docs/infrastructure.md` -> How a preview reaches its own database).
+# That branch is never re-copied from anything, so a migration reaches it only because somebody
+# applies it; and it has to be applied *before* the code that reads it deploys, or the preview 500s,
+# the required `Vercel` check goes red, and the pull request cannot merge.
+#
+# **What changed on CAN-79 Previews clone production rows, and the integration has no switch to stop
+# it, and why it is a narrowing.** This script used to apply the same migrations to Neon's `main`,
+# for one reason only: a preview branch was a copy-on-write clone of `main` taken when its deployment
+# started, so `main` had to carry the schema first. Nothing branches from `main` any more, so that
+# reason is spent — and applying to production from an unmerged branch is a write nothing now asks
+# for. **`main` is therefore read, never written.** The release in `.github/workflows/ci.yml` is the
+# only thing that migrates production, on a commit that passed the gates, and it does so having
+# already had the same migrations rehearsed on a faithful copy of production's schema. That is a
+# better guarantee than the one it replaces, not a weaker one.
 #
 # **Why a human runs it.** It needs `canoncore_migrator`'s connection string, which lives in the
 # `MIGRATION_DATABASE_URL` GitHub Actions secret and cannot be read back. An agent cannot work
@@ -47,7 +56,7 @@ head1() { printf '\n%s%s▸ %s%s\n' "$BOLD" "$BLUE" "$1" "$RESET"; }
 
 cd "$(dirname "$0")/.."
 
-head1 "Apply this branch's migrations to Neon's \`main\`, ahead of the merge"
+head1 "Apply this branch's migrations to Neon's \`preview\` branch, ahead of the merge"
 
 # Read from the journal rather than named here, so this stays true as migrations are added.
 EXPECTED_MIGRATIONS=$(node -e '
@@ -55,34 +64,37 @@ EXPECTED_MIGRATIONS=$(node -e '
   console.log(j.entries.length);
 ')
 say "This branch carries ${EXPECTED_MIGRATIONS} migrations in apps/web/drizzle/meta/_journal.json."
-note "Whichever of them Neon's \`main\` has not yet seen will be applied, in order."
+note "Whichever of them the \`preview\` branch has not yet seen will be applied, in order."
+note "Production is read back afterwards and never written — the release migrates it at merge."
 printf '\n'
 git --no-pager log --oneline "$(git merge-base HEAD main)..HEAD" -- apps/web/drizzle \
   | sed 's/^/  /' || true
 printf '\n'
 warn "Any database role a migration references must already exist on the project."
 note "Roles are not created by migrations — docs/infrastructure.md -> Roles says why, and"
-note "src/db/roles.sql is the local equivalent for a throwaway PostgreSQL."
+note "src/db/roles.sql is the local equivalent for a throwaway PostgreSQL. Neon roles are"
+note "project-level, so the three exist on every branch with the same passwords."
 printf '\n'
 
 # --- The credential, read with hidden input so it reaches neither the transcript nor the history.
 # ---
 head1 "canoncore_migrator's connection string"
-note "This is the value of the MIGRATION_DATABASE_URL GitHub Actions secret."
+note "This is the value of the MIGRATION_DATABASE_URL GitHub Actions secret. It addresses"
+note "production; the \`preview\` branch's string is composed from it below, because a Neon role"
+note "is project-level and carries the same password on every branch."
 note "Input is hidden. It is not written to disk, exported beyond this process, or echoed."
 printf '  %sPaste it, then press Enter:%s ' "$BOLD" "$RESET"
-read -rs MIGRATION_DATABASE_URL || true
+read -rs MAIN_URL || true
 printf '\n'
 
-if [[ -z "${MIGRATION_DATABASE_URL:-}" ]]; then
+if [[ -z "${MAIN_URL:-}" ]]; then
   bad "Nothing was pasted. Stopping without changing anything."
   exit 1
 fi
-export MIGRATION_DATABASE_URL
 
 # Two properties worth refusing on rather than discovering afterwards. Neither is a guess about the
 # password: both are readable from the string's own shape.
-if [[ "$MIGRATION_DATABASE_URL" != *"canoncore_migrator"* ]]; then
+if [[ "$MAIN_URL" != *"canoncore_migrator"* ]]; then
   bad "That string does not name canoncore_migrator."
   note "Every table must be owned by that role — docs/infrastructure.md -> Roles, and check 2 below."
   exit 1
@@ -90,7 +102,7 @@ fi
 # `verify-full` rather than `require`: the two mean the same thing under pg 8 and stop meaning it
 # under pg 9, which is CAN-84 A preview's composed sslmode=require silently stops verifying
 # certificates under pg 9. docs/infrastructure.md -> The SSL mode every connection asks for.
-if [[ "$MIGRATION_DATABASE_URL" != *"sslmode=verify-full"* ]]; then
+if [[ "$MAIN_URL" != *"sslmode=verify-full"* ]]; then
   warn "That string does not ask for sslmode=verify-full."
   note "docs/infrastructure.md -> The SSL mode every connection asks for says why it must."
   printf '  %s? Continue anyway%s [y/N] ' "$YELLOW" "$RESET"
@@ -99,13 +111,83 @@ if [[ "$MIGRATION_DATABASE_URL" != *"sslmode=verify-full"* ]]; then
 fi
 ok "String names canoncore_migrator"
 
-# --- Apply. ---
-head1 "Applying"
+# --- Which branch to apply to. ---
+#
+# **The host is asked for and the credential is not**, which is the whole shape of this prompt: a
+# Neon role is project-level, so the password that reaches production reaches every branch, and the
+# only thing that distinguishes one branch from another is where it answers. Asking for a second
+# whole connection string would be a second secret to mishandle for one differing field.
+#
+# It is also the one field that can be *shown*. `NEON_PGHOST` is a Non-sensitive Vercel variable
+# precisely so it can be read back and caught going stale
+# (docs/infrastructure.md -> Environment variables), so this echoes what it is about to use.
+head1 "The \`preview\` branch's host"
+note "The value of the Preview-scoped NEON_PGHOST variable. Either of:"
+note "  vercel env pull --environment=preview   (then read NEON_PGHOST)"
+note "  the Neon console -> Branches -> preview -> Connect"
+printf '  %sPaste the host, then press Enter:%s ' "$BOLD" "$RESET"
+read -r PREVIEW_HOST || true
+printf '\n'
+
+if [[ -z "${PREVIEW_HOST:-}" ]]; then
+  bad "Nothing was pasted. Stopping without changing anything."
+  note "There is no default worth guessing: the wrong host here is a migration applied to the"
+  note "wrong database."
+  exit 1
+fi
+
+# A whole connection string pasted where a host was asked for would otherwise be used as a
+# hostname, and the failure would be a confusing connection error rather than this.
+if [[ "$PREVIEW_HOST" == *"://"* || "$PREVIEW_HOST" == *"@"* || "$PREVIEW_HOST" == *"/"* ]]; then
+  bad "That looks like a connection string rather than a host."
+  note "Paste only the hostname, as NEON_PGHOST holds it: ep-….eu-west-2.aws.neon.tech"
+  exit 1
+fi
+
+# The Neon compute a hostname addresses, which is what "the same database" actually means. One
+# compute answers to both a pooled and an unpooled name, so comparing whole hostnames would call
+# two names for one database different — and the direction that matters is exactly that one:
+# production reached by its unpooled name is still production.
+# apps/web/src/db/database-url.ts holds the same function and the same argument, for the check the
+# running application makes.
+compute_of() { local h="${1%%.*}"; printf '%s' "${h%-pooler}"; }
+
+MAIN_HOST=$(MAIN_URL="$MAIN_URL" node -e '
+  process.stdout.write(new URL(process.env.MAIN_URL).hostname);
+')
+
+# **The refusal that makes the rest of this run mean anything.** Paste production's host here — by
+# reflex, or by pasting the same clipboard twice — and every migration below lands on production
+# from an unmerged branch, which is the single thing this script was rewritten to stop doing. It
+# would also report success, because migrating production is a thing that works.
+if [[ "$(compute_of "$PREVIEW_HOST")" == "$(compute_of "$MAIN_HOST")" ]]; then
+  bad "That host is production's own compute. Stopping without changing anything."
+  note "  given:      $PREVIEW_HOST"
+  note "  production: $MAIN_HOST"
+  note "The two names Neon gives one compute differ only by a -pooler suffix, so this compares"
+  note "computes rather than hostnames. Production is migrated by the release and by nothing else"
+  note "— docs/adr/0019-ci-owns-the-production-release.md."
+  exit 1
+fi
+ok "Host addresses a compute that is not production's"
+
+# Composed with `URL` rather than by string surgery, so a password containing `:`, `@`, `/` or `?`
+# survives, and passed through the environment rather than argv, which `ps` can read.
+PREVIEW_URL=$(MAIN_URL="$MAIN_URL" PREVIEW_HOST="$PREVIEW_HOST" node -e '
+  const u = new URL(process.env.MAIN_URL);
+  u.hostname = process.env.PREVIEW_HOST;
+  process.stdout.write(u.toString());
+')
+
+# --- Apply, to the preview branch and to nothing else. ---
+head1 "Applying to \`preview\`"
 note "drizzle-kit skips any migration its journal already records, so this is re-runnable."
-if ! pnpm --filter @canoncore/web db:migrate; then
+if ! MIGRATION_DATABASE_URL="$PREVIEW_URL" pnpm --filter @canoncore/web db:migrate; then
   bad "The migration failed. Nothing below ran."
   note "Read the error above before re-running: a partly-applied migration is not a state"
   note "this script can reason about, and drizzle applies each file in one transaction."
+  note "A first-run failure of \`relation already exists\` means the branch's Drizzle journal is"
+  note "empty while its schema is not — docs/infrastructure.md -> The shared preview branch."
   exit 1
 fi
 ok "drizzle-kit reported success"
@@ -116,10 +198,13 @@ ok "drizzle-kit reported success"
 # here. An earlier version hard-coded the table list, both privilege matrices and the migration
 # count, which made the script wrong the moment a migration was added. What is checked instead are
 # the invariants that hold whatever the schema grows into.
-head1 "Verifying what is actually there"
+#
+# **Both branches are put through the same checks**, and that is the point rather than thoroughness:
+# the `preview` branch is only worth anything as a rehearsal if it is the same shape as production,
+# and two matrices printed side by side is the only way a person sees that it is.
 
 if ! command -v psql >/dev/null 2>&1; then
-  warn "psql is not installed, so the checks below are skipped."
+  warn "psql is not installed, so every check below is skipped."
   note "The migration itself succeeded. To verify by hand, read docs/infrastructure.md -> Roles"
   note "and compare the privilege matrix there against the database."
   exit 0
@@ -134,10 +219,17 @@ FAILED=0
 # the migration applied and every check below then failed to connect.
 #
 # Appended only when absent, so a string that already carries it is left alone.
-PSQL_URL="$MIGRATION_DATABASE_URL"
-if [[ "$PSQL_URL" == *"sslmode=verify-full"* && "$PSQL_URL" != *"sslrootcert="* ]]; then
-  PSQL_URL="${PSQL_URL}&sslrootcert=system"
-fi
+psql_url_for() {
+  local url="$1"
+  if [[ "$url" == *"sslmode=verify-full"* && "$url" != *"sslrootcert="* ]]; then
+    printf '%s' "${url}&sslrootcert=system"
+  else
+    printf '%s' "$url"
+  fi
+}
+
+MAIN_PSQL=$(psql_url_for "$MAIN_URL")
+PREVIEW_PSQL=$(psql_url_for "$PREVIEW_URL")
 
 # **A query that fails must never look like an answer.** The first version of this returned whatever
 # `psql` printed, which is the empty string when the connection is refused — and one check below
@@ -150,8 +242,8 @@ fi
 # discarded. The first version printed the explanation there and the run aborted with nothing on
 # screen — a loud failure made silent by the shell.
 psql_q() {
-  local out
-  if ! out=$(psql "$PSQL_URL" -tAX -c "$1" 2>&1); then
+  local url="$1" sql="$2" out
+  if ! out=$(psql "$url" -tAX -c "$sql" 2>&1); then
     {
       bad "Could not read the database, so nothing below was verified."
       note "$out"
@@ -175,88 +267,147 @@ verify() {
   fi
 }
 
-# 1. The journal agrees with the repository. This is the check that makes the release's re-run a
-#    no-op: a row short and the release re-applies a migration whose tables already exist.
-verify "the journal records every migration this branch carries" \
-  "$EXPECTED_MIGRATIONS" \
-  "$(psql_q "select count(*) from drizzle.__drizzle_migrations")"
+# The five invariants that hold on any branch carrying this schema, whatever its migration state.
+# Checked on both, because an invariant true of production and false of the rehearsal makes the
+# rehearsal worthless, and one true of the rehearsal and false of production is a production finding.
+verify_invariants() {
+  local url="$1"
 
-# 2. Ownership, which is the whole reason a human runs this rather than an agent. Asked as "how many
-#    are owned by anybody else", so it needs no list of table names.
-verify "no table in public is owned by anything but canoncore_migrator" \
-  "0" \
-  "$(psql_q "select count(*) from pg_class
-              where relnamespace = 'public'::regnamespace and relkind in ('r','p','f','m')
-                and pg_get_userbyid(relowner) <> 'canoncore_migrator'")"
+  # Ownership, which is the whole reason a human runs this rather than an agent. Asked as "how many
+  # are owned by anybody else", so it needs no list of table names.
+  verify "no table in public is owned by anything but canoncore_migrator" \
+    "0" \
+    "$(psql_q "$url" "select count(*) from pg_class
+                where relnamespace = 'public'::regnamespace and relkind in ('r','p','f','m')
+                  and pg_get_userbyid(relowner) <> 'canoncore_migrator'")"
 
-# 3. ADR-0005 rule 1, asked of every role the application or better-auth connects as.
-verify "neither application role can bypass row-level security" \
-  "0" \
-  "$(psql_q "select count(*) from pg_roles
-              where rolname in ('canoncore_app', 'canoncore_auth') and rolbypassrls")"
+  # ADR-0005 rule 1, asked of every role the application or better-auth connects as.
+  verify "neither application role can bypass row-level security" \
+    "0" \
+    "$(psql_q "$url" "select count(*) from pg_roles
+                where rolname in ('canoncore_app', 'canoncore_auth') and rolbypassrls")"
 
-# 4. Migration 0005's rule, as an invariant rather than a matrix: the application role reads, and
-#    never writes. Any table it can write is a finding whatever the table is.
-verify "canoncore_app can write no table at all" \
-  "0" \
-  "$(psql_q "select count(*) from pg_class c
-              where c.relnamespace = 'public'::regnamespace and c.relkind in ('r','p','f','m')
-                and (has_table_privilege('canoncore_app', c.oid, 'INSERT')
-                  or has_table_privilege('canoncore_app', c.oid, 'UPDATE')
-                  or has_table_privilege('canoncore_app', c.oid, 'DELETE'))")"
+  # Migration 0005's rule, as an invariant rather than a matrix: the application role reads, and
+  # never writes. Any table it can write is a finding whatever the table is.
+  verify "canoncore_app can write no table at all" \
+    "0" \
+    "$(psql_q "$url" "select count(*) from pg_class c
+                where c.relnamespace = 'public'::regnamespace and c.relkind in ('r','p','f','m')
+                  and (has_table_privilege('canoncore_app', c.oid, 'INSERT')
+                    or has_table_privilege('canoncore_app', c.oid, 'UPDATE')
+                    or has_table_privilege('canoncore_app', c.oid, 'DELETE'))")"
 
-# 5. **Every table either has a policy or is granted to nobody.** This is the general form of the
-# two tripwires in src/db/rls.test.ts: a table reachable by a role with no policy over it is
-# readable in full, which is the failure docs/infrastructure.md -> Roles records against `source`.
-# `source` itself is the one deliberate exception, and it is named because ADR-0014 decision 6 names
-# it.
-verify "every table with no policy is reachable by nobody, apart from source" \
-  "" \
-  "$(psql_q "select string_agg(c.relname, ',' order by c.relname)
-               from pg_class c
-              where c.relnamespace = 'public'::regnamespace and c.relkind in ('r','p','f','m')
-                and not c.relrowsecurity
-                and c.relname <> 'source'
-                and (has_table_privilege('canoncore_app', c.oid, 'SELECT')
-                  or has_table_privilege('canoncore_auth', c.oid, 'SELECT'))")"
+  # **Every table either has a policy or is granted to nobody.** This is the general form of the
+  # two tripwires in src/db/rls.test.ts: a table reachable by a role with no policy over it is
+  # readable in full, which is the failure docs/infrastructure.md -> Roles records against `source`.
+  # `source` itself is the one deliberate exception, and it is named because ADR-0014 decision 6
+  # names it.
+  verify "every table with no policy is reachable by nobody, apart from source" \
+    "" \
+    "$(psql_q "$url" "select string_agg(c.relname, ',' order by c.relname)
+                 from pg_class c
+                where c.relnamespace = 'public'::regnamespace and c.relkind in ('r','p','f','m')
+                  and not c.relrowsecurity
+                  and c.relname <> 'source'
+                  and (has_table_privilege('canoncore_app', c.oid, 'SELECT')
+                    or has_table_privilege('canoncore_auth', c.oid, 'SELECT'))")"
 
-# 6. What made check 4 false in production once already: a default privilege arms every table the
-#    migration role creates, and it exists in no file. docs/infrastructure.md -> Roles.
-verify "no default privilege reaches either application role" \
-  "0" \
-  "$(psql_q "select count(*) from pg_default_acl d, aclexplode(d.defaclacl) a
-              where a.grantee in ('canoncore_app'::regrole, 'canoncore_auth'::regrole)")"
+  # What made the write check false in production once already: a default privilege arms every table
+  # the migration role creates, and it exists in no file. docs/infrastructure.md -> Roles.
+  verify "no default privilege reaches either application role" \
+    "0" \
+    "$(psql_q "$url" "select count(*) from pg_default_acl d, aclexplode(d.defaclacl) a
+                where a.grantee in ('canoncore_app'::regrole, 'canoncore_auth'::regrole)")"
+}
 
 # The matrix itself is printed rather than asserted: which role may do what to which table is a
 # decision recorded in docs/infrastructure.md -> Roles and asserted exactly by src/db/rls.test.ts
-# against a container. Printing it here is what lets a human compare production to that record,
+# against a container. Printing it here is what lets a human compare a live database to that record,
 # which is the one comparison no test can make.
-head1 "The privilege matrix on production, to compare against docs/infrastructure.md -> Roles"
-psql "$PSQL_URL" -X -c "
-  select c.relname as table,
-         case when c.relrowsecurity then 'yes' else 'NO' end as rls,
-         case when has_table_privilege('canoncore_app', c.oid, 'SELECT') then 'r' else '-' end ||
-         case when has_table_privilege('canoncore_app', c.oid, 'INSERT') then 'w' else '-' end ||
-         case when has_table_privilege('canoncore_app', c.oid, 'UPDATE') then 'u' else '-' end ||
-         case when has_table_privilege('canoncore_app', c.oid, 'DELETE') then 'd' else '-' end
-           as canoncore_app,
-         case when has_table_privilege('canoncore_auth', c.oid, 'SELECT') then 'r' else '-' end ||
-         case when has_table_privilege('canoncore_auth', c.oid, 'INSERT') then 'w' else '-' end ||
-         case when has_table_privilege('canoncore_auth', c.oid, 'UPDATE') then 'u' else '-' end ||
-         case when has_table_privilege('canoncore_auth', c.oid, 'DELETE') then 'd' else '-' end
-           as canoncore_auth
-    from pg_class c
-   where c.relnamespace = 'public'::regnamespace and c.relkind in ('r','p','f','m')
-   order by c.relname" || true
+print_matrix() {
+  psql "$1" -X -c "
+    select c.relname as table,
+           case when c.relrowsecurity then 'yes' else 'NO' end as rls,
+           case when has_table_privilege('canoncore_app', c.oid, 'SELECT') then 'r' else '-' end ||
+           case when has_table_privilege('canoncore_app', c.oid, 'INSERT') then 'w' else '-' end ||
+           case when has_table_privilege('canoncore_app', c.oid, 'UPDATE') then 'u' else '-' end ||
+           case when has_table_privilege('canoncore_app', c.oid, 'DELETE') then 'd' else '-' end
+             as canoncore_app,
+           case when has_table_privilege('canoncore_auth', c.oid, 'SELECT') then 'r' else '-' end ||
+           case when has_table_privilege('canoncore_auth', c.oid, 'INSERT') then 'w' else '-' end ||
+           case when has_table_privilege('canoncore_auth', c.oid, 'UPDATE') then 'u' else '-' end ||
+           case when has_table_privilege('canoncore_auth', c.oid, 'DELETE') then 'd' else '-' end
+             as canoncore_auth
+      from pg_class c
+     where c.relnamespace = 'public'::regnamespace and c.relkind in ('r','p','f','m')
+     order by c.relname" || true
+}
+
+head1 "Verifying \`preview\`, which is what this run changed"
+
+# The journal has to match the repository exactly here, and this is the check that catches the one
+# failure a schema-only branch arrives with: schema-only copies every table but no *row*, so the
+# `drizzle.__drizzle_migrations` table lands present and empty. A branch in that state has the whole
+# schema and a journal claiming none of it, and the next migration run tries to create tables that
+# are already there. docs/infrastructure.md -> The shared preview branch holds what provisioning it.
+verify "the journal records every migration this branch carries" \
+  "$EXPECTED_MIGRATIONS" \
+  "$(psql_q "$PREVIEW_PSQL" "select count(*) from drizzle.__drizzle_migrations")"
+verify_invariants "$PREVIEW_PSQL"
+
+# **A preview must hold no production row, and that is asserted rather than inferred from
+# `init_source`.** A settings field says how the branch was made; a row count says what is in it,
+# and only the second would notice a branch replaced by a copy-on-write clone, or a `main` dump
+# restored into it by hand. `story` is asked because production has rows in it — an empty table
+# here and a non-empty one there is the whole of what CAN-79 Previews clone production rows, and
+# the integration has no switch to stop it bought.
+PREVIEW_STORIES=$(psql_q "$PREVIEW_PSQL" "select count(*) from public.story")
+MAIN_STORIES=$(psql_q "$MAIN_PSQL" "select count(*) from public.story")
+if [[ "$MAIN_STORIES" == "0" ]]; then
+  warn "production's story table is empty, so the comparison below proves nothing today"
+  note "It is the one check here that needs production to have rows to be worth making."
+else
+  verify "\`preview\` holds none of production's ${MAIN_STORIES} story rows" \
+    "0" \
+    "$PREVIEW_STORIES"
+fi
+
+head1 "Verifying production, which this run did not touch"
+
+# Relaxed on purpose, and only in one direction. `main` legitimately lags the repository between this
+# run and the release that migrates it, so "fewer than the journal" is the normal state and says
+# nothing. **Ahead** is the finding: a migration on production that this repository does not carry is
+# either a hand-applied change or a branch that released and was reverted, and neither is a thing to
+# discover later.
+MAIN_JOURNAL=$(psql_q "$MAIN_PSQL" "select count(*) from drizzle.__drizzle_migrations")
+if (( MAIN_JOURNAL > EXPECTED_MIGRATIONS )); then
+  bad "production carries ${MAIN_JOURNAL} migrations and this branch knows of ${EXPECTED_MIGRATIONS}"
+  note "Production is ahead of the repository. Do not merge until that is explained: a migration"
+  note "nothing here carries was applied by hand, or a released commit was reverted without one."
+  FAILED=1
+elif (( MAIN_JOURNAL < EXPECTED_MIGRATIONS )); then
+  ok "production carries ${MAIN_JOURNAL} of ${EXPECTED_MIGRATIONS} migrations, and the release applies the rest"
+else
+  ok "production already carries all ${EXPECTED_MIGRATIONS} migrations"
+fi
+verify_invariants "$MAIN_PSQL"
+
+head1 "\`preview\`, to compare against docs/infrastructure.md -> Roles"
+print_matrix "$PREVIEW_PSQL"
+
+head1 "production, to compare against the same table and against the matrix above"
+print_matrix "$MAIN_PSQL"
 
 printf '\n'
 if (( FAILED )); then
-  printf '%s%s  ✗ Applied, but the database does not match what the documents claim%s\n' "$BOLD" "$RED" "$RESET"
+  printf '%s%s  ✗ The databases do not match what the documents claim%s\n' "$BOLD" "$RED" "$RESET"
   note "Do not merge. docs/infrastructure.md -> Roles holds the invariants that should hold."
+  note "Read which branch each failure above was against: one against \`preview\` is this run's"
+  note "own work, one against production is a finding that predates it."
   exit 1
 fi
 
-printf '%s%s  ✓ Migrations applied and verified%s\n' "$BOLD" "$GREEN" "$RESET"
-note "Neon's \`main\` now carries this branch's schema, so a preview branched from it will too."
-note "The release re-runs the same migrations at merge, where the journal makes them a no-op."
+printf '%s%s  ✓ Applied to \`preview\` and verified, and production reads clean%s\n' "$BOLD" "$GREEN" "$RESET"
+note "Every preview deployment now finds this branch's schema, and none of production's rows."
+note "The release migrates production at merge — docs/adr/0019-ci-owns-the-production-release.md."
 printf '\n'

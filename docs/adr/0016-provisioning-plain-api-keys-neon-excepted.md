@@ -8,9 +8,15 @@ When this project needs something it does not run itself, it creates an account 
 directly, issues a key or a token, and stores it as an environment variable **this repository
 names**. It does not install the vendor's Vercel Marketplace integration.
 
-**Neon is the exception, and there is exactly one reason for it**: preview database branching is a
+**Neon is the exception, and there was exactly one reason for it**: preview database branching is a
 per-deployment resource lifecycle, and no key we hold can drive one. Everything else on the estate —
 Resend, Sentry, UptimeRobot — is a plain key or no credential at all.
+
+**That reason expired on 17 August 2026 and the exception did not.** Preview branching is off, because
+the branch it created was a clone of production's rows and nothing could change that
+([ADR-0023](0023-one-shared-schema-only-preview-branch.md)); what holds the integration in place now
+is that the Neon resource is billed and owned through it. *The test* below is unchanged and is what a
+future proposal is judged against — Neon simply stopped being an example of passing it.
 
 This ADR is about the vendors that carry *our own* infrastructure. It says nothing about a *Source*
 or a *Provider* in the [ADR-0014](0014-shell-providers-and-per-source-retention.md) sense, which are
@@ -38,12 +44,28 @@ by hand.
 **An integration is told about deployments; a key is not.** Neon's creates one
 `preview/<git-branch>` branch per git branch that has a preview deployment, and injects
 `NEON_PGHOST` and `NEON_PGDATABASE` **into that one deployment by webhook** — they are not
-project-level variables, and `vercel env ls` cannot show them
-([`docs/infrastructure.md`](../infrastructure.md) → *Environment variables*). That is the whole of
-what cannot be reproduced with a key. A token of ours could create the branch; nothing would then
-tell the running deployment which branch it got, and a project-level variable carrying one branch's
-host is not a smaller version of the right answer — it is the bug, because every other preview would
-read it too.
+project-level variables, and `vercel env ls` cannot show them. That is the whole of what cannot be
+reproduced with a key. A token of ours could create the branch; nothing would then tell the running
+deployment which branch it got, and a project-level variable carrying one branch's host is not a
+smaller version of the right answer — it is the bug, because every other preview would read it too.
+
+> **That paragraph describes what this project stopped doing on 17 August 2026, and the reasoning
+> above is left standing because it is still the right test — it is its application to Neon that
+> expired.** Preview branching was turned off by
+> [CAN-79 Previews clone production rows, and the integration has no switch to stop it](https://linear.app/jacobrees-canoncore/issue/CAN-79),
+> because the per-deployment branch the integration created was a copy-on-write clone of
+> production's rows and the integration exposed no setting to change that. Every preview now reads
+> one shared, schema-only branch through exactly the project-level `NEON_PGHOST` this paragraph
+> calls the bug — and it is not the bug any more, because the branch it addresses holds no
+> production data. [ADR-0023](0023-one-shared-schema-only-preview-branch.md) holds that decision and
+> the two shapes that would have kept per-deployment binding.
+>
+> **So Neon no longer passes this ADR's own test**, and the exception survives on a different and
+> smaller footing: the Neon *resource* is provisioned and billed through the integration on the
+> Launch plan, and moving off it is a migration of the database's billing and ownership rather than
+> a tidy-up. Nothing about the rule changes — **install an integration only for a platform-level
+> behaviour a credential cannot express** — and a *new* integration proposed today would have to
+> clear it on its own merits, with Neon no longer available as the precedent it used to be.
 
 **A key is enough for anything whose value is the same in every deployment.** `RESEND_API_KEY` sends
 mail; `SENTRY_DSN` accepts events; UptimeRobot needs no credential at all, because it polls this site

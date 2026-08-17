@@ -100,6 +100,10 @@ notes CAN-116 Make the tracker agree with the 16 August verification sweep left;
    `ssoProtection: disabled`; all 34 Neon preview branches are copy-on-write clones of production
    rows. *Accepted deliberately and recorded (below).* Relatedly, Neon `main` branch protection is
    a paid-plan feature — plan-gated, not forgotten.
+   *The clone half is closed, 17 August 2026, by CAN-79 Previews clone production rows, and the
+   integration has no switch to stop it: every preview reads one shared schema-only branch and the
+   34 were deleted ([ADR-0023](../adr/0023-one-shared-schema-only-preview-branch.md)). Protection
+   is still off, and what it now leaves open is the code rather than production's rows.*
 7. **The scheduled-refresh capability had no reassessment owner.** Every change-trigger in both
    risk assessments, the review policy and the alternative-measures record is scoped to
    user-authored text and user-facing features, so CAN-103 Refresh Snapshots before their Source's retention expires, and drop what cannot be refreshed's rewriting of reviewed public content
