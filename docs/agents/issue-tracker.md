@@ -136,6 +136,61 @@ description in the same breath as one of them.
 against a third party's scheduler: it would still lose sometimes, while looking like it had worked.
 Rewriting once, after a settled read has *shown* you a revert, is repair rather than retry.
 
+### A bare identifier does not survive the sync
+
+**In a Linear body, every reference to an issue puts the title *inside* the link text.**
+
+```markdown
+[CAN-17 v1: the walking skeleton in production, then the founding case](<url>)   ✅ survives
+[CAN-17](<url>)                                                                  ❌ becomes #16
+CAN-17, bare in prose or in a heading                                            ⚠️  can decay into the line above
+```
+
+The sync rewrites the **link text** of a Linear reference into a GitHub issue reference while leaving
+the URL pointing at Linear, so the reader is shown `jacobrees-canoncore/CanonCore#16` and the link
+goes to `CAN-17`. **The trigger is a link text that is nothing but the identifier**; a text carrying
+anything else is left alone, which is why the form `CLAUDE.md` already demands is also the form that
+survives. The rule just has to be applied inside the brackets rather than beside them.
+
+Three things make this worse than cosmetic, and
+[the nine-form probe](../incidents.md#nine-forms-of-a-ticket-reference-and-the-two-that-survive-a-linear-body)
+has the evidence for each:
+
+- **The number names a different ticket.** GitHub numbers issues and pull requests in one sequence, so
+  the offset drifts with every merged pull request — `+3` at `CAN-6`, `-50` at `CAN-117`. No reader can
+  do the arithmetic, and the citation silently points somewhere else.
+- **One clean round trip is not proof of safety.** A bare `CAN-17` came back from the first pass as
+  `[CAN-17](<url>)` with its text intact, and the second pass mangled it — so a body can be one save
+  from damage while reading as untouched. What decides which bare identifiers decay was never isolated,
+  and the rate is not small but the norm: 26 of the 31 in one repair pass, 84%.
+- **Any `save-issue` re-exposes the whole body**, because the description is replaced whole. A write
+  that toggles one checkbox re-offers every bare identifier elsewhere in the body.
+
+**So grep the body before the save as well as after**, for `CanonCore#` and for any surviving bare
+form. Both directions matter: after, to catch what the round trip did; before, because the body you
+are about to write may already carry a linkified `[CAN-n](<url>)` that this save would convert.
+
+**Only two forms are immune**: the title inside the link text, and anything inside a code span or a
+fence. **Never write a bare `#N` in a Linear body at all** — not for a pull request, not for a list
+item — because it is linkified to whatever the other system numbers that way. Write "pull request 148"
+or "item 1", or put the number inside a link whose text is more than the number.
+
+**A bare identifier is also a markup hazard, and a code span is what defends it.** Linear linkifies
+one on the save itself, and doing so **breaks the emphasis run it sat in**: a bold
+`**CAN-73 <title> before CAN-23**` came back as `[CAN-73](<url>) **<title> before** [CAN-23](<url>)`.
+Where the identifier is not a citation at all — a range, a count, an identifier being *discussed* —
+that linkification is simply wrong, so **put it in a code span**: `` `CAN-1` to `CAN-126` ``. Not
+predictable and not rare, so make the code span the default for a mention that is not a citation.
+
+**No setting turns it off.** The repo↔team link offers only repository, team and issue-creation
+direction, and nothing in the integration transforms link text by configuration. The incident entry
+records what was read and where.
+
+**The tracker was repaired in bulk once, so a bare form met from here on is new rather than
+inherited** — fix it in the body you are already writing rather than leaving it. What that pass
+covered, what it deliberately did not, and the two checks it left open are in the incident entry, not
+here: this section is the rule, and that one is the day it was established.
+
 ### The remote must live in the `jacobrees-canoncore` org
 
 Not a preference — a constraint. A GitHub App installs once **per owner**, and one owner can bind to
@@ -338,6 +393,13 @@ severed at that position.
 ## When a skill says "publish to the issue tracker"
 
 Create a Linear issue on team `CAN` with `orca linear create`.
+
+**Every citation in the body it writes takes the title-inside-brackets form** — *A bare identifier
+does not survive the sync* above. This binds the plugin skills as much as the ones in `.claude/`:
+`/to-spec` and `/to-tickets` come from `mattpocock-skills` and their templates ask for "a reference to
+each blocking ticket" without saying what a reference looks like here, so the form comes from this
+document and from `CLAUDE.md` → *Name every ticket you cite*, which is loaded on every request. A
+"Blocked by" list is exactly where the bare form is most tempting and most damaging.
 
 ## When a skill says "fetch the relevant ticket"
 

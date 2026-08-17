@@ -1,6 +1,6 @@
 # The production-readiness baseline
 
-**Researched 2026-08-12**, against [CAN-17](https://linear.app/jacobrees-canoncore/issue/CAN-17)
+**Researched 2026-08-12**, against [CAN-17 v1: the walking skeleton in production, then the founding case](https://linear.app/jacobrees-canoncore/issue/CAN-17)
 and its children. The question: what does a production-grade, industry-standard full-stack Next.js
 project carry that v1's scope does not, and when should each part land?
 

@@ -37,6 +37,7 @@ is what the rule was built on.
 
 **The tracker**
 - [The Linear→GitHub sync reverted a description write](#the-lineargithub-sync-reverted-a-description-write)
+- [Nine forms of a ticket reference, and the two that survive a Linear body](#nine-forms-of-a-ticket-reference-and-the-two-that-survive-a-linear-body)
 - [An omitted `--workspace` resolved to a different workspace each half-day](#an-omitted---workspace-resolved-to-a-different-workspace-each-half-day)
 - [One GitHub owner binds to one Linear workspace](#one-github-owner-binds-to-one-linear-workspace)
 
@@ -401,6 +402,175 @@ overwritten*, because at that moment the two are the same read — which is how 
 rule reported success on CAN-36 while the ticks were being reverted. Retrying the write is a race
 against a third party's scheduler; rewriting once, after a settled read has *shown* a revert, is
 repair rather than retry.
+
+## Nine forms of a ticket reference, and the two that survive a Linear body
+
+**17 August 2026, on CAN-88 The GitHub sync rewrites bare CAN-n link text into GitHub numbers,
+defeating the cite-by-title rule.** Nine forms of one reference — every one of them to CAN-17 v1: the
+walking skeleton in production, then the founding case — written into this issue's own description in
+a single save, so all nine met the same sync pass and the comparison is controlled. The body was then
+saved a **second** time, unchanged but for one sentence, to see what a second pass does to what the
+first one produced. The mirror is
+[issue #127](https://github.com/jacobrees-canoncore/CanonCore/issues/127).
+
+**The round trip takes minutes, not seconds.** Write at `13:38:41Z`, return push at `13:45:00Z` — six
+minutes nineteen seconds. The outbound leg was immediate (GitHub's mirror carried the rewrite within
+seconds), so all of the delay is the return. That is two orders of magnitude longer than the "few
+seconds" the description-race rule above is scaled for, and it is why a settled read has to be minutes
+later rather than seconds.
+
+**Only the first of the two measurements is clean.** GitHub opened a critical incident at `13:40:03Z`
+that hit Webhooks by `13:44:02Z` and ran at a 20% error rate across Issues and the API
+([status history](https://www.githubstatus.com/history), 17 August 2026). The second round trip
+— write `13:56:48Z`, return `14:07:21Z`, ten minutes thirty-three — sits inside that window, so its
+extra four minutes are not evidence about the sync's normal pace. **The transformation table is
+unaffected**: what each form turns into is not a timing claim, and both passes completed. Read the
+six-minute figure as one healthy observation rather than a range.
+
+**What each form came back as.** *Written* is what went in. *One pass* and *two passes* are Linear's
+stored body after one and two complete round trips — both observed, not inferred.
+
+| Written into Linear | One pass | Two passes |
+| --- | --- | --- |
+| `[CAN-17](url)` | `[CanonCore#16](url)` | as before, still `#16` |
+| `[CAN-17 v1: the walking skeleton…](url)` | **unchanged** | **unchanged** |
+| `CAN-17 [v1: the walking skeleton…](url)` | `[CAN-17](url) [v1: …](url)` | `[CanonCore#16](url) [v1: …](url)` |
+| `CAN-17` in prose, no link | `[CAN-17](url)` | `[CanonCore#16](url)` |
+| `` `CAN-17` `` in a code span | **unchanged** | **unchanged** |
+| `#16` in prose | `[#16](url of CAN-17)` | as before |
+| a naked Linear issue URL | `[CanonCore#16](url)` | as before |
+| `### CAN-17` as a heading | `### [CAN-17](url)` | `### [CanonCore#16](url)` |
+| `[CAN-17](url)` inside a fence | **unchanged** | **unchanged** |
+
+Row one is the reported bug. Row two is the fix. Rows three, four and eight are the same decay reached
+three ways, and rows five and nine are the only other things that came back as written.
+
+**The trigger is a link whose text is nothing but the identifier.** Linear's push to GitHub replaces
+such a link with a GitHub cross-repository reference — `owner/repo#N`, in GitHub's numbering — and the
+return push turns that back into a link to the *Linear* issue while keeping the GitHub text. A link
+text carrying anything besides the identifier is pushed and returned untouched, which is why row two
+survives both passes.
+
+**A bare identifier can decay into the trigger form, which is why one pass is not proof of safety.**
+Rows three, four and eight went in bare — in prose, beside a link, and as a heading — and came back
+from the first pass as `[CAN-17](url)` with the text intact, reading as untouched. That is the trigger
+form, so the second pass mangled all three, on lines nobody had edited. The two-stage decay is the
+reason a body has to be grepped *before* a save as well as after.
+
+**What decides whether a bare identifier decays was not isolated, and the first attempt to bound it
+was a measurement error worth recording.** The census counted a bare identifier by excluding matches
+inside the *mangled* and *trigger* link forms, but not inside a **titled** one — so every
+`[CAN-17 v1: the walking skeleton…](url)`, the prescribed form, was counted as a bare identifier in
+prose. That put the population at 364 when it was **43**, and produced a reassurance with nothing
+under it: "322 of them are followed by their own title and have survived repeated round trips" was
+just the titled links being counted twice over. Excluding link text and hrefs as well as code, the
+real figures on 17 August 2026 are **43 bare prose identifiers across 19 issues**.
+
+**On the corrected denominator, and read after the sync had settled, it is not a hazard but the norm.**
+Of the **31** bare prose identifiers in the 96 bodies the repair saved, **26 were linkified into the
+trigger form — 84%**, leaving 5. An earlier read of the same bodies showed only 6, because it was taken
+while GitHub's webhooks were still degraded and the return pushes had not drained; the figure moved
+from 6 to 26 over about four hours with no further writes. **A bare identifier in a Linear body should
+be assumed to become `[CAN-n](url)`, and therefore to be mangled on the save after that.**
+
+**That includes the bold title-beside form, which is the important part.** These documents prescribe
+**CAN-30 GDPR export and erasure**, and this issue's own body used it. In a Linear body it does not
+hold: it came back as `[CAN-30](url) **GDPR export and erasure**` — the identifier pulled out into a
+bare link and the title left bolded beside it, which is exactly the trigger form the rule exists to
+avoid. So in a Linear body the **only** safe citation is the title *inside* the link text, and the only
+safe bare mention is a code span. The bold form remains correct in this repository, which is not
+synced — that is the whole of the difference.
+
+**The substituted number names a different ticket, and the drift is not arithmetic anyone can undo.**
+Across the 72 distinct targets currently mangled, the offset runs from `+3` at `CAN-6` to `-50` at
+`CAN-117` — because **GitHub numbers issues and pull requests in one sequence**, so every merged pull
+request widens the gap. Spot-checked: `#33` and `#35` are pull requests, `#16` mirrors `CAN-17`. The
+gap therefore grows for as long as the project lands work, and a reader who learns today's offset has
+learned nothing about next week's.
+
+**`#N` written in prose is the worst of the nine**, because it is linkified to whatever the *other*
+system numbers that way. Row six was written as the plain number `16` and came back as a link to
+`CAN-17`.
+
+**Two forms are immune and nothing else is**: the title inside the link text, and anything inside a
+code span or a fence.
+
+**The damage was recurring, not a one-off, which is what decided the repair.** This issue's own report
+noted that some bare citations were still intact and wondered whether the rewrite depended on mirror
+state. It does not: row one went in as `[CAN-17](url)` and came back rewritten, so **an intact
+trigger-form citation is one save from being mangled, not exempt.** A census of all 134 issues on
+17 August 2026 found **237 already-mangled links in 46 issues and 343 intact trigger-form links in 72**
+— so more than half the damage had not happened yet. Repairing only the visible half would have been
+worse than doing nothing, because the repair write is itself a save: it would have mangled the 343 it
+left behind.
+
+**So all of it was repaired in one pass, and the rule changed in the same change.** 813 citations
+across 96 issues: the 237 mangled and 343 trigger-form links given their titles inside the brackets,
+221 duplicate titles absorbed where the author had written the title *after* the link, 5 links to
+Linear review pages relabelled as the pull requests they are, 4 bare `#N` pull-request links given
+words, 1 bare `#N` link inside the probe itself, and 2 hand-repaired in
+CAN-37 Stop /review-pr racing the GitHub sync when it writes checkboxes, where the prose is
+deliberately *about* the GitHub-side numbers. The repair only ever rewrote link text, checked
+mechanically: every href preserved, no prose word lost outside an absorbed title, and no `****` run
+introduced. **A full re-read afterwards found 0 mangled links, against 237 before.**
+
+**It did not leave the tracker clean, and the residue is the finding below.** Twenty-six trigger-form
+links remain, across six issues — CAN-88 The GitHub sync rewrites bare CAN-n link text into GitHub
+numbers (10), CAN-45 Record what CAN-18 provisioned, and the two things it could not prove (5),
+CAN-43 Publish the reporting route the Online Safety Act requires (4), CAN-97 Record the amendment
+rule, and what an ADR does when a decision changes (4), CAN-120 Five mirrored issue bodies are
+contradicted only by a comment the mirror never received (2) and CAN-96 Record the architecture
+decisions of 15 August, and make the repository agree (1). Linear created every one of them *during*
+the repair write, by linkifying a bare prose identifier. They are not survivors of the old damage; they
+are new, and each is the next save's mangling if left.
+
+**The durability of that repair is not yet verified, and it is the one thing left open.** All 96 writes
+went out between `14:14Z` and `14:24Z`, inside the GitHub incident above — so whether every outbound
+push reached the mirror is unknown, and a late return push carrying a stale GitHub body is exactly the
+silent-revert mode this file's first tracker entry describes. The Linear side is confirmed; the mirror
+side is not. **Re-read the tracker for `CanonCore#` once GitHub reports green.**
+
+**Bare prose identifiers were left alone, which the residue above shows was the wrong call.** They were
+left because they are the form these documents prescribe and the repair was scoped to links; the six
+that linkified during the write are the argument for treating them as in scope next time. Eighteen
+duplicate titles also remain, each sitting inside an emphasis run that extends past the title or across
+a hard break, where removing the copy would break the markup around it.
+
+**Saving those 96 bodies proved a second mechanism, on the save itself rather than the round trip.**
+Six of the 31 bare prose identifiers in those bodies came back linkified to `[CAN-n](url)` — the
+trigger form — with `updatedAt` still the write's own timestamp, so no return push had run. **And each
+one broke the emphasis run it sat in.** On CAN-97 Record the amendment rule, and what an ADR does when
+a decision changes, this went in:
+
+```markdown
+**CAN-73 Settle the Snapshot layer, the CI database seam, and forked-Snapshot erasure before CAN-23**
+```
+
+and came back as this, with the identifiers pulled out of the bold run and the remains of the title
+left bolded on their own:
+
+```markdown
+[CAN-73](url) **Settle the Snapshot layer, the CI database seam, and forked-Snapshot erasure before** [CAN-23](url)
+```
+
+On CAN-120 Five mirrored issue bodies are contradicted only by a comment the mirror never received,
+`**Bound: CAN-1 to CAN-126, fetched one identifier at a time.**` lost its bold at `CAN-126` the same
+way — and there the identifiers were a **range**, not citations, so linkifying them is wrong on its own
+terms. `CAN-1` in that same run was left alone, which fits Linear only linkifying an identifier it can
+resolve: `CAN-1` to `CAN-4` are archived onboarding templates.
+
+**So a bare identifier in a Linear body is not merely a citation hazard, it is a markup hazard**, and
+neither is fixed by the title-inside-brackets rule, which is about links. 26 of 31 fired on one save,
+once the sync had settled. **The reliable defence for a mention that is not a citation —
+a range, a count, an identifier being discussed rather than cited — is a code span**, which came back
+untouched from both passes of the probe.
+
+**No setting governs any of it.** The repo↔team link exposes exactly three controls — repository,
+Linear team, and issue-creation direction — read in the Linear UI on 17 August 2026; the integration's
+remaining options are branch format, linkbacks, commit magic words and an external review tool, and
+two more are Business-plan upsells. Linear's [GitHub docs](https://linear.app/docs/github) enumerate
+the properties that sync and describe no transformation of them. So the form is worked around, never
+configured away.
 
 ## An omitted `--workspace` resolved to a different workspace each half-day
 

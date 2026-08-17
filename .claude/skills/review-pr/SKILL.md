@@ -283,6 +283,29 @@ ran** — not whether a review happened. Ask rather than assume when this sessio
    orca linear save-issue --id CAN-<n> --workspace "$WS" --body-file <path> --json
    ```
 
+   **Grep the body for a bare link text before you write it, not only after.** Because the write
+   replaces the body whole, a `[CAN-<n>](<url>)` anywhere in it — including on a line you did not
+   touch — is rewritten by the sync into a GitHub number naming a *different* ticket. Any citation
+   this step adds puts the title **inside** the link text, and any bare one already in the body is
+   repaired in the same write rather than left to decay:
+
+   ```bash
+   grep -nE '\[ *(CAN-[0-9]+|#[0-9]+|[^]]*CanonCore#[0-9]+) *\]\(' <path>
+   ```
+
+   **Read the hits, do not expect none.** Three issues discuss this bug in prose and match
+   legitimately — CAN-26 Import a series from TMDB, with the overlay behind it, CAN-88 The GitHub sync
+   rewrites bare CAN-n link text into GitHub numbers, and CAN-120 Five mirrored issue bodies are
+   contradicted only by a comment the mirror never received — so a hit inside a code span or fence is
+   correct and must be left alone. Anything else is a citation to fix.
+
+   **This catches link texts only, and that is not the whole hazard.** A bare identifier in running
+   prose is linkified on save — 26 of 31 measured, including the bold `**CAN-30 <title>**` form these
+   documents use — which both creates this form and breaks any emphasis run around it. So in a Linear
+   body put the title *inside* the link text, and put any identifier that is a range or a count in a
+   code span. (`docs/agents/issue-tracker.md` → *A bare identifier does not
+   survive the sync*.)
+
    **Settle again, then confirm by reading** — same backgrounded form. Confirm this write by reading
    rather than by repeating it, and read only after the delay. An immediate read proves nothing
    here: the write *has* landed, and the overwrite has not arrived yet, so a description that will

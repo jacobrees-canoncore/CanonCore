@@ -15,8 +15,9 @@ Evidence for the target: docs/research/document-length-for-agents.md
 
 Never write a bare ticket identifier. Every reference to a Linear issue carries its title as well as
 its number — in conversation, commit messages, pull request bodies and these documents:
-**CAN-30 GDPR export and erasure**, never `CAN-30`. With sixty-plus issues here, several differing
+**CAN-30 GDPR export and erasure**, never `CAN-30`. With a hundred-plus issues here, several differing
 only in scope, a bare number is easy to misread as a neighbouring ticket.
+**In a Linear body the title goes *inside* the link text** — `[CAN-30 GDPR export and erasure](url)`, never `[CAN-30](url)`, whose text the GitHub sync rewrites into a GitHub number naming a *different* ticket while the link still points here: `docs/agents/issue-tracker.md`.
 
 ## Prior repositories are off limits
 
@@ -207,5 +208,4 @@ It counts only when the review read the *committed* change; staging alone does n
 
 `/draft-pr` and `/review-pr` are in `.claude/skills/`; run either from its own body. Policy: `docs/agents/workflow.md`.
 
-**Run the grill and the implementation in separate sessions.** Why, the plugin token costs, how the
-chain is declared, and when `/wayfinder` replaces `/to-spec`: `docs/agents/tooling.md`.
+**Run the grill and the implementation in separate sessions.** Why, the plugin token costs, how the chain is declared, and when `/wayfinder` replaces `/to-spec`: `docs/agents/tooling.md`.
