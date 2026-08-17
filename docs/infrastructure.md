@@ -136,7 +136,7 @@ that is v1's scope rather than a condition here, and this gate would open withou
 | Project | `canoncore`, `prj_BMzP9Dq7Qx3Eev8WwsvVoH5khnaU` |
 | Repository | `jacobrees-canoncore/CanonCore`, production branch `main` |
 | Function region | `lhr1` (London) |
-| Preview protection | **None — off, and accepted deliberately** (16 August 2026). The live API reads `ssoProtection: disabled`; an earlier row here claimed Vercel Authentication covered previews, which the 16 August verification sweep refuted. The exposure — previews run against copy-on-write clones of production rows — is accepted until **CAN-79 Previews clone production rows, and the integration has no switch to stop it** closes it; re-enabling is a dashboard toggle if that changes |
+| Preview protection | **None — off, and accepted deliberately** (16 August 2026; re-examined 17 August 2026). The live API reads `ssoProtection: disabled`; an earlier row here claimed Vercel Authentication covered previews, which the 16 August verification sweep refuted. **The exposure it was accepted against is closed**: previews no longer run against a clone of production's rows, because they read the shared schema-only branch — *The shared preview branch* below, and **CAN-79 Previews clone production rows, and the integration has no switch to stop it**. What an open preview still exposes is the *code* and whatever a preview's own users put in its database, which is what the acceptance now covers; re-enabling is a dashboard toggle |
 | Root Directory | `apps/web` |
 | Framework Preset | Next.js |
 | Include files outside the root directory | On |
@@ -384,17 +384,27 @@ compares, and what it cannot* below is which reaches where.
 estate has several projects and this table reaches one. **Each provider repository holds the roster
 for its own credentials**; the pointer here is *Where a Source credential lives* below.
 
-*Read back from `vercel env ls --project canoncore` on 15 August 2026, and `gh secret list` on
+*Read back from `vercel env ls --project canoncore` on 17 August 2026, and `gh secret list` on
 16 August 2026.*
+
+> **Both `NEON_*` rows were created Sensitive and had to be replaced.** `vercel env add` stores a
+> Preview or Production value as Sensitive unless `--no-sensitive` is passed, and a Sensitive value
+> cannot be read back by anyone — which would have broken two things this design rests on: the
+> roster check compares sensitivity and would have failed, and
+> [`../scripts/apply-migrations-ahead-of-merge.sh`](../scripts/apply-migrations-ahead-of-merge.sh)
+> asks a human to paste the host it pulls from here. Both were removed and re-added with
+> `--no-sensitive`, and the values were read back with `vercel env pull` to prove it took.
 
 | Variable | Holder | Environments | Sensitivity | What it is |
 | --- | --- | --- | --- | --- |
 | `DATABASE_URL` | Vercel | Production | Sensitive | The application role's connection string, which has to ask for `sslmode=verify-full`. Production only, on purpose: a static string must not be what a preview uses |
 | `DATABASE_APP_USER` | Vercel | Production, Preview, Development | Non-sensitive | The application role name, for a preview to compose its own URL |
-| `DATABASE_APP_PASSWORD` | Vercel | Production, Preview | Sensitive | Its password. Inherited unchanged by every preview branch |
+| `DATABASE_APP_PASSWORD` | Vercel | Production, Preview | Sensitive | Its password. One value serves both environments because a Neon role is a property of the *project*, so the same credential opens `main` and the `preview` branch alike — which is why the host is the only thing keeping the two apart, and why `apply-migrations-ahead-of-merge.sh` refuses a host it recognises as production's |
 | `DATABASE_PRODUCTION_HOST` | Vercel | Production, Preview | Non-sensitive | Production's Neon host, so that a preview can assert the host it resolved is not that one. **Non-sensitive deliberately**: a value nobody can read back is a value nobody can catch going stale, and a stale one makes the preview's assertion vacuous |
+| `NEON_PGHOST` | Vercel | Preview | Non-sensitive | The shared schema-only `preview` branch's Neon host. Preview only: production reaches `main` through `DATABASE_URL` and must never resolve a branch. **Non-sensitive for the same reason as the row above** — it opens nothing without `DATABASE_APP_PASSWORD`, and it is the value `apply-migrations-ahead-of-merge.sh` asks a human to paste, which a write-only variable could not be. Held by us since 17 August 2026; before then the Neon integration injected it per deployment and no listing could show it |
+| `NEON_PGDATABASE` | Vercel | Preview | Non-sensitive | `neondb`, on that branch. A second variable rather than a constant in the code because the pair is what the branch is addressed by, and splitting them across a file and a dashboard is how one gets changed without the other |
 | `DATABASE_AUTH_USER` | Vercel | Production, Preview, Development | Non-sensitive | The *auth* role's name. better-auth connects as a third role, because the thing that authenticates cannot be constrained by the identity it establishes — [`apps/web/src/auth/auth.ts`](../apps/web/src/auth/auth.ts) has the argument and *Roles* below has what it may reach |
-| `DATABASE_AUTH_PASSWORD` | Vercel | Production, Preview | Sensitive | Its password. Inherited unchanged by every preview branch, exactly as the application role's is |
+| `DATABASE_AUTH_PASSWORD` | Vercel | Production, Preview | Sensitive | Its password, project-level exactly as the application role's is |
 | `BETTER_AUTH_SECRET` | Vercel | Production, Preview | Sensitive | What better-auth signs session cookies with. **A missing value is worse than an error**: better-auth invents one per process, and Vercel Functions are per-invocation isolates, so every cold start would issue cookies the next isolate cannot verify and a person would appear to be signed out at random. `auth.ts` refuses to serve without it. One value per environment, and never shared with a preview's parent |
 | `RESEND_API_KEY` | Vercel | Production, Preview | Sensitive | Two distinct keys under one name, one per environment |
 | `EMAIL_FROM` | Vercel | Production, Preview | Sensitive | `CanonCore <noreply@mail.canoncore.com>` |
@@ -403,15 +413,22 @@ for its own credentials**; the pointer here is *Where a Source credential lives*
 | `MIGRATION_DATABASE_URL` | GitHub Actions secret | — | — | The migration role's connection string, which has to ask for `sslmode=verify-full`. Not in Vercel: migrations run in Actions, not in the build. **Two workflows consume it**: `ci.yml`'s migration step, and `purge-source.yml`, which is dispatched by hand and holds the credential so that an operator under a licence deadline has none to fetch — [`runbook.md`](runbook.md) → *A Source's licence terminates* |
 | `VERCEL_TOKEN` | GitHub Actions secret | — | — | **Account-scoped, and it has to be.** Two steps of `ci.yml` consume it: the `node scripts/check-docs.ts --verbose` run, and **Build and promote the production deployment**. A *project*-scoped token fails both, and fails them differently. Replaced 14 August 2026, **expires 14 August 2027** — *Why this one is account-scoped* below holds the identity, the expiry and the scope, and `scripts/check-docs.ts` compares that expiry against Vercel on every run, in CI as well as locally |
 
-**No `NEON_*` variables.** All sixteen the Marketplace integration had written were removed on 13
-August 2026. Whether the integration re-writes them is checked by **CAN-69 Record the credential
-purge**.
+**Two `NEON_*` variables, and they are ours rather than the integration's.** All sixteen the
+Marketplace integration had written were removed on 13 August 2026, and whether it re-writes them is
+checked by **CAN-69 Record the credential purge**. The two rows above were set by hand on 17 August
+2026 under CAN-79 Previews clone production rows, and the integration has no switch to stop it, and
+they keep the `NEON_` prefix on purpose: it is the prefix the integration's own variables would use,
+so a value that reappeared under a name already in this roster would be compared against it rather
+than slipping in as an undocumented extra.
 
-**The application does read two of them, and they still belong in no row here.** A preview
-composes its connection string from `NEON_PGHOST` and `NEON_PGDATABASE`, which Neon injects into
-that one deployment by webhook. They are not project-level variables, `vercel env ls` cannot show
-them, and a project-level one would be the bug — see *How a preview reaches its own database*
-below.
+**They were in no row here until then, and the reason they now are is the change.** While the
+integration created a branch per deployment it injected these two by webhook, so they were not
+project-level variables, `vercel env ls` could not show them, and
+[ADR-0016](adr/0016-provisioning-plain-api-keys-neon-excepted.md) argued that a project-level one
+"would be the bug, because every other preview would read it too". **Every preview reading it is now
+the design** — one shared schema-only branch, [ADR-0023](adr/0023-one-shared-schema-only-preview-branch.md) —
+and the consequence for this table is that both values came under the roster check at the moment they
+stopped being per-deployment. A variable nothing can read back is a variable nothing can gate.
 
 **There is deliberately no `DATABASE_AUTH_URL`.** better-auth's connection string is composed from the
 application's, by swapping in the two `DATABASE_AUTH_*` values above — so the host, the database, the SSL
@@ -435,10 +452,12 @@ reads.
 > **Which rows are observed, and which are still only promised.** Since **CAN-23 One Story from
 > Neon, behind row-level security** a deployment opens a connection, so `DATABASE_URL`,
 > `DATABASE_APP_USER`, `DATABASE_APP_PASSWORD` and `DATABASE_PRODUCTION_HOST` are read at request
-> time by [`apps/web/src/db/database-url.ts`](../apps/web/src/db/database-url.ts). `VERCEL_TOKEN`
-> is read on every CI run and `MIGRATION_DATABASE_URL` whenever a migration runs, so both are
-> observed too — by Actions rather than by the application. **The Resend rows are read at request
-> time as of CAN-31 Email verification and password reset**, by
+> time by [`apps/web/src/db/database-url.ts`](../apps/web/src/db/database-url.ts), and since
+> **CAN-79 Previews clone production rows, and the integration has no switch to stop it** so are
+> `NEON_PGHOST` and `NEON_PGDATABASE` — by the same module, on the preview branch of the same
+> function. `VERCEL_TOKEN` is read on every CI run and `MIGRATION_DATABASE_URL` whenever a migration
+> runs, so both are observed too — by Actions rather than by the application. **The Resend rows are
+> read at request time as of CAN-31 Email verification and password reset**, by
 > [`apps/web/src/mail/send.ts`](../apps/web/src/mail/send.ts), which refuses to send without either
 > of them. The Sentry rows still wait on the first thing that reports to it.
 >
@@ -688,15 +707,24 @@ whatever noticed can mint the replacement, is wrong in one direction only.
 | Provider | Neon, via the Vercel-managed marketplace integration |
 | Neon project | `steep-wave-52467839`, resource `store_ft1xdGxeaZQCEbN7` |
 | Production branch | `main` (Neon's default branch). It shares a name with the repository's `main` and is a different thing |
-| Preview branches | One `preview/<git-branch>` per git branch with a preview deployment, created automatically |
+| Preview branch | **One**, named `preview`, `br-calm-flower-zame56ly` — schema-only, shared by every preview deployment, and holding no production row. *The shared preview branch* below is what it is and how it is kept level |
 | Region | `eu-west-2` (London) |
-| Plan | Launch, billed through Vercel |
+| Plan | Launch, billed through Vercel. **Five root branches**, of which `main` and `preview` are two ([Neon, schema-only branches](https://neon.com/docs/guides/branching-schema-only), whose *Schema-only branch allowances* section tables it per plan: Free 3, Launch 5, Scale 25) |
 | Neon Auth | **Disabled**, recorded 10 August 2026 by CAN-18 Provision the Vercel project, the Neon database and the production domain and unchanged since. The reason is [ADR-0016](adr/0016-provisioning-plain-api-keys-neon-excepted.md) → *What will try to reopen it*, which also records why the reason this row used to give stopped being true |
-| Create Database Branch For Deployment | **`Preview` only.** `Production` deliberately unchecked |
-| Require Active Resource Before Deploy | **Required** — the prerequisite that ungreys the checkbox above |
+| Create Database Branch For Deployment | **Neither box ticked.** `Production` never was; `Preview` was unticked on 17 August 2026 by **CAN-79 Previews clone production rows, and the integration has no switch to stop it**, which is what stops a preview branch being cloned from production — [ADR-0023](adr/0023-one-shared-schema-only-preview-branch.md) |
+| Require Active Resource Before Deploy | **Required** — it was the prerequisite that ungreyed the checkbox above, and it outlives it |
 
-*Branching settings set 12 August 2026 by CAN-45; read from the Neon dashboard and the Vercel
+*Set 12 August 2026 by CAN-45 Preview deployments do not appear to get their own Neon branch and changed 17 August 2026 by CAN-79 Previews clone production rows,
+and the integration has no switch to stop it; read from the Neon dashboard and the Vercel
 integration.*
+
+**`Require Active Resource Before Deploy` stays on now that nothing needs it**, and that is a
+decision rather than an oversight. It was bought to unlock the branching checkbox
+([ADR-0016](adr/0016-provisioning-plain-api-keys-neon-excepted.md) → *What Neon's integration cost,
+itemised*), and with the checkbox gone the honest reading is that the price is still worth paying:
+every deployment reads a database, so a deploy that succeeds while Neon is unreachable is a
+deployment that cannot serve a request. Turning it off would trade a loud pre-deploy failure for a
+quiet post-deploy one.
 
 The integration's variables are written under a `NEON_` prefix, which deliberately leaves
 `DATABASE_URL` free for us. **Do not remove the prefix**: unprefixed, the integration owns
@@ -707,10 +735,17 @@ copy. **Turning `Required` on was not free and was accepted knowingly**: it gate
 deploys too, so a deploy now fails if the Neon resource is unavailable instead of building without
 it. There is no way to pay only part of that price.
 
-**Only Neon's branch list answers whether branching works.** Neither of the two obvious checks can —
-`vercel env pull` reads project-level values, and the build log is silent, because the branch is
-created by the platform out of band
-([incident](incidents.md#preview-branching-was-switched-off-so-no-preview-ever-got-a-branch)).
+**Whether a preview reaches its own database is now answerable from outside a deployment**, and it
+was not before. While the integration created the branch, the only witness was Neon's branch list:
+`vercel env pull` read project-level values and the branch's were not among them, and the build log
+was silent because the platform created the branch out of band
+([incident](incidents.md#preview-branching-was-switched-off-so-no-preview-ever-got-a-branch)). Since
+**CAN-79 Previews clone production rows, and the integration has no switch to stop it** the host is
+an ordinary Preview variable, so `vercel env ls` shows it, `scripts/check-docs.ts`
+gates it against the roster above, and the branch it names can be queried directly. **That is a
+gain worth naming**: the mechanism this replaced could only be checked from inside a running
+preview, which is why *How a preview reaches its own database* below spent a week describing a half
+it had cited rather than observed.
 
 > **The production branch `main` is not protected, and cannot be on this plan** (checked live 16
 > August 2026: `protected: false`). Branch protection is a Neon **paid-plan** feature — Launch
@@ -865,11 +900,16 @@ Three things follow from that, and the third is why no reading of the repository
 
 `public.story`, `public.visibility` and `drizzle.__drizzle_migrations`, every one of them owned by
 `canoncore_migrator`, with row-level security on `story` and one public row in it. Applied to
-Neon's `main` on **14 August 2026**, by hand and deliberately ahead of the merge: a preview branch
-is a copy of `main` taken when its deployment starts, so the schema has to be there before the code
-that reads it deploys anywhere. That is the widening in `docs/agents/workflow.md` → *What a merge
-carries*, and the release step re-runs the same migrations at merge, where Drizzle's journal makes
-them a no-op.
+Neon's `main` on **14 August 2026**, by hand and deliberately ahead of the merge, because a preview
+branch was then a copy of `main` taken when its deployment started, so the schema had to be there
+before the code that read it deployed anywhere.
+
+**That reason expired on 17 August 2026** and the practice went with it. Previews read the shared
+`preview` branch, nothing is copied from `main`, and CAN-79 Previews clone production rows, and the
+integration has no switch to stop it moved the ahead-of-merge step onto `preview` alone — *The
+shared preview branch* → *Migrations* above. Production is migrated by the release and by nothing
+else, which is what [ADR-0019](adr/0019-ci-owns-the-production-release.md) always intended and what
+the preview mechanism had been quietly making an exception to.
 
 `canoncore_migrator` also holds **`CREATE` on the database `neondb`**, granted 14 August 2026 by
 CAN-23 One Story from Neon, behind row-level security and read back with
@@ -893,45 +933,135 @@ sees zero rows through a table with RLS enabled and no policy, and cannot create
 and the same page disqualifies `neondb_owner`: *"Superusers and roles with the `BYPASSRLS` attribute
 always bypass the row security system."*
 
+### The shared preview branch
+
+**One Neon branch serves every preview deployment**: `preview`, `br-calm-flower-zame56ly`, created
+`init_source: schema-only` from `main` on 17 August 2026 by **CAN-79 Previews clone production rows,
+and the integration has no switch to stop it**. It holds `main`'s schema and **no row of `main`'s
+data** — which is the whole of what the ticket bought, and
+[ADR-0023](adr/0023-one-shared-schema-only-preview-branch.md) holds why one shared branch replaced
+one branch per deployment, and what it cost.
+
+| | |
+| --- | --- |
+| Created with | `init_source: schema-only`, in the Neon Console. **Not by the API from here**: this project holds no Neon API key ([ADR-0016](adr/0016-provisioning-plain-api-keys-neon-excepted.md)), and the `neon` MCP's `create_branch` has no `init_source` parameter — it silently makes a `parent-data` clone instead, which was observed and deleted on 17 August 2026 |
+| Root branch | **Yes, necessarily.** A schema-only branch has no parent and is therefore a root branch ([Neon, schema-only branches](https://neon.com/docs/guides/branching-schema-only)). Launch allows five per project, so `main` and `preview` spend two |
+| Roles on it | `canoncore_migrator`, `canoncore_app` and `canoncore_auth`, at the same passwords as on `main` — a Neon role is a property of the project, not of a branch |
+| Expiry | **None, deliberately.** A branch that expires takes its host with it, and the host is a Vercel variable; `expires_at` here would break every preview on a timer nobody set a reminder for |
+| Reset from parent | **Not available.** A schema-only branch has no parent, so *Migrations* below is the only way its schema moves |
+
+> **What was read back on 17 August 2026, rather than taken from the dialog.** The API reports
+> `parent_id` absent and `init_source: parent-schema`, which is its name for schema-only, and the
+> Console labels the row **Schema-only**. `story`, `source` and `user` are all empty while
+> production's `story` has a row — **the criterion is a row count, not a settings field**, because
+> only a row count would notice a branch quietly replaced by a clone. All three roles exist on it
+> with the exact matrix *Roles* below records — `canoncore_app` holds `SELECT` on `story` and
+> nothing on `user`, `canoncore_auth` the reverse, neither with `BYPASSRLS` — so schema-only does
+> carry grants and policies, and a Neon role does belong to the project rather than to a branch.
+> Both were assumptions until they were read.
+>
+> **The branch count went from 62 to 2 in the same change**, the other 61 being the integration's
+> `parent-data` clones. Every one was checked as `creation_source: vercel`, `init_source:
+> parent-data` and named `preview/*` before deletion, and none backed an open pull request: there
+> were none, and `origin` held only `main`.
+>
+> **The order the four steps were done in, because the order is the safety property.** The
+> integration was unticked **third**, not first: (1) the schema-only branch created and its journal
+> seeded, (2) `NEON_PGHOST` and `NEON_PGDATABASE` set Preview-scoped and read back, (3) `Create
+> Database Branch For Deployment → Preview` unticked and the setting re-read from a reopened dialog,
+> (4) the 61 clones deleted. **Steps 3 and 4 are in that order for a reason that is not obvious**:
+> while the checkbox is ticked the integration recreates a branch on the next deployment, so
+> deleting first would have repopulated the list. And unticking before step 1 is the regression
+> **CAN-45 Preview deployments do not appear to get their own Neon branch** fixed, because previews
+> with no branch of their own fall back to whatever project-level
+> host exists.
+
+**Its Drizzle journal arrived empty, and that is the one trap in provisioning it.** Schema-only
+copies every table and no row, so `drizzle.__drizzle_migrations` landed present and empty beside a
+schema that was already complete — a branch claiming no migration had run while carrying the results
+of ten. Left that way, the next `drizzle-kit migrate` tries to create tables that exist and fails on
+`relation already exists`. The migrations are not idempotent and should not be made so: they say
+`CREATE TABLE "story"`, which is what makes a re-run a loud error rather than a silent no-op. So the
+journal was seeded from `main`'s ten rows as the last step of provisioning, and
+[`../scripts/apply-migrations-ahead-of-merge.sh`](../scripts/apply-migrations-ahead-of-merge.sh)
+checks the count on every run — a mis-seeded journal fails there rather than at the next migration.
+
+#### Migrations
+
+**Nothing copies `main`'s schema onto it ever again**, so a migration reaches it only because
+somebody applies it, and
+[`../scripts/apply-migrations-ahead-of-merge.sh`](../scripts/apply-migrations-ahead-of-merge.sh) is
+that somebody's tool. **That script no longer writes to production**, and the narrowing is **CAN-79 Previews clone production rows, and the integration has no switch to stop it**'s:
+it used to migrate `main` ahead of the merge for one reason — a preview branch was a clone of `main`
+— and with nothing branching from `main`, an unmerged branch has no remaining reason to write to
+production. It applies to `preview`, reads production's invariants back, and refuses outright if the
+host it was given is production's own compute.
+
+**Previews are therefore the rehearsal for the release's production migration**, which is a stronger
+arrangement than the one it replaces rather than a weaker one: the same files run against a faithful
+copy of production's schema, with a person reading the result, before the release runs them against
+production on a commit that passed the gates. `docs/agents/workflow.md` → *The gates* is the
+procedure and [ADR-0019](adr/0019-ci-owns-the-production-release.md) is why the release owns the
+production half.
+
+**A forgotten run is loud.** A preview whose code reads a table `preview` has not got 500s, and the
+required `Vercel` check goes red if the build prerenders that page — the same failure the old
+mechanism gave when `main` had not been migrated, in the same place, for the same reason.
+
+#### What every preview shares, and what it does not
+
+**Two previews open at once share one database.** That is the cost ADR-0023 accepts and the reason
+to state it here: one preview's writes are visible to another's, and a sign-in on one is a `user`
+row the other can see. Nothing shared with **production** — no row, no history, and no parent
+relationship through which a restore could reach one.
+
+**Cleanup is not owned because there is nothing to own.** One branch, no per-deployment lifecycle,
+and nothing created on a push. The fifty-odd `preview/<git-branch>` clones the integration had
+accumulated by 17 August 2026 — one per git branch that ever had a preview, not per open pull
+request ([incident](incidents.md#what-a-preview-branch-looks-like-and-how-long-it-outlives-its-pr))
+— were deleted by **CAN-79 Previews clone production rows, and the integration has no switch to stop it** in the same change that stopped them being made.
+
 ### How a preview reaches its own database
 
-A preview composes its connection string at runtime from an injected `NEON_PGHOST` plus
-`DATABASE_APP_USER` and `DATABASE_APP_PASSWORD`. **That rests on two things, and only one of them
-has been observed.** Keep them apart, because the untested half is the one that would silently point
-a preview at production:
+A preview composes its connection string at runtime from `NEON_PGHOST` and `NEON_PGDATABASE` — both
+ordinary Preview-scoped Vercel variables addressing the shared branch above — plus
+`DATABASE_APP_USER` and `DATABASE_APP_PASSWORD`.
+[`apps/web/src/db/database-url.ts`](../apps/web/src/db/database-url.ts) composes it, and it reads
+those two rather than any whole connection string because Neon's own carries the **owner** role,
+which has `BYPASSRLS` and is the one role this application may never be (ADR-0005 rule 1).
 
-| Half | Standing |
-| --- | --- |
-| A branch exists, with `canoncore_app` usable on it, at a host that is not production's | **Observed** ([incident](incidents.md#a-preview-branch-inherits-its-parents-role-passwords)) |
-| The branch's `NEON_PGHOST` reaches the preview's runtime, in place of the static project-level value | **Cited, and now asserted rather than assumed.** Neon states the branch variables are "injected via webhook at deployment time, overriding preview environment variables for this deployment only" ([preview branching](https://neon.com/docs/guides/vercel-native-integration-previews)) |
+**The half that used to be unobservable is now the ordinary kind of fact.** Until 17 August 2026 the
+branch's host was injected per deployment by the integration's webhook, "overriding preview
+environment variables for this deployment only"
+([preview branching](https://neon.com/docs/guides/vercel-native-integration-previews)) — so it
+appeared in no listing, and this section carried a two-row table separating what had been observed
+from what had only been cited. Both rows are now readable from outside a deployment: `vercel env ls`
+shows the variable, `scripts/check-docs.ts` compares it against the roster on every CI run, and the
+branch it names can be queried directly.
 
-> **A preview now reports the host it resolved, and refuses to serve if it is the wrong one.** It
-> cannot be checked from outside a running deployment — the injected values never appear in
-> `vercel env pull`, by design — so **CAN-23 One Story from Neon, behind row-level security** put the
-> check inside one:
-> [`apps/web/src/db/database-url.ts`](../apps/web/src/db/database-url.ts) composes the string,
-> logs the host, and throws if a preview has reached production's Neon compute. It compares
-> computes rather than hostnames, because one Neon compute answers to a pooled name and an
-> unpooled one and a preview reaching production by the second is still production.
-> `DATABASE_PRODUCTION_HOST` is what it compares against, and production asserts the same value
-> from the other side so that a stale one cannot pass unnoticed.
+> **A preview still reports the host it resolved, and still refuses to serve if it is the wrong
+> one**, and the check is worth keeping for a reason that survived the change of mechanism.
+> [`apps/web/src/db/database-url.ts`](../apps/web/src/db/database-url.ts) logs the host and throws
+> if a preview reached production's Neon compute. It compares computes rather than hostnames,
+> because one Neon compute answers to a pooled name and an unpooled one and a preview reaching
+> production by the second is still production. `DATABASE_PRODUCTION_HOST` is what it compares
+> against, and production asserts the same value from the other side so that a stale one cannot pass
+> unnoticed.
+>
+> **What it now guards against is a typo rather than a webhook.** A variable somebody can edit is a
+> variable somebody can edit wrongly, and the refusal is what makes that mistake an error instead of
+> a preview quietly serving production's rows. The old failure mode — the webhook not firing, so a
+> project-level value stood in — is gone, because the project-level value *is* the mechanism.
 >
 > **The evidence is a runtime log line**, `[canoncore] database host … (VERCEL_ENV=…)`, read with
-> `vercel logs`. Until a preview has been read that way the mechanism is asserted rather than
-> observed; the assertion failing is loud, which is the difference from before.
+> `vercel logs`.
 
-**This departs from CAN-18 as written.** That ticket asked for the application role's connection
-string as a Vercel variable for production **and preview**. Taken literally it is unsatisfiable: a
-single static string cannot address a per-deployment branch on a host that does not exist when the
-variable is set, and setting one would have pointed previews at production data — which the very
-next criterion forbids. Met in substance, by a different mechanism, rather than to the letter.
-
-**A preview branch is a copy-on-write clone of production's rows** (`init_source: parent-data`), the
-integration offers no switch to change that, and **CAN-79 Previews clone production rows, and the
-integration has no switch to stop it** owns the fix
-([incident](incidents.md#parent-data-cloning-cannot-be-switched-off-in-the-integration)). Budget one
-live Neon branch per git branch that has ever had a preview, not per open PR
-([incident](incidents.md#what-a-preview-branch-looks-like-and-how-long-it-outlives-its-pr)).
+**This departs from CAN-18 Provision the Vercel project, the Neon database and the production domain as written**, and less than it used to. That ticket asked for the
+application role's connection string as a Vercel variable for production **and preview**, and under
+the per-deployment mechanism that was unsatisfiable: no static string can address a branch on a host
+that does not exist when the variable is set. A preview's database is now reached through static
+Preview variables, so what remains of the departure is narrower — it is two variables naming a host
+and a database rather than one naming a whole string, because the string would carry the wrong role.
 
 ### The SSL mode every connection asks for
 

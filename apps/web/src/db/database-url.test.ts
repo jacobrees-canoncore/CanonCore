@@ -62,10 +62,15 @@ test("a preview escapes a password that would otherwise break the URL", () => {
   expect(new URL(url).hostname).toBe(branchHost);
 });
 
-// The failure docs/infrastructure.md calls "the untested half… the one that would silently point
-// a preview at production". It is not hypothetical: CAN-45 Preview deployments do not appear to
-// get their own Neon branch found preview branching switched off, and every preview until then
-// would have composed exactly this.
+// The one failure that matters, and it is not hypothetical: CAN-45 Preview deployments do not
+// appear to get their own Neon branch found preview branching switched off, and every preview
+// until then would have composed exactly this.
+//
+// It survived the change of mechanism, and had to. Since CAN-79 Previews clone production rows,
+// and the integration has no switch to stop it, NEON_PGHOST is a project-level Preview variable
+// addressing the shared schema-only branch rather than a per-deployment injection (ADR-0023) —
+// which moves the way it could be wrong from "the webhook did not fire" to "somebody typed
+// production's host into Vercel", and leaves what it would cost identical.
 test.each([productionHost, productionHostUnpooled])(
   "a preview that resolves production's compute at %s refuses to connect at all",
   (host) => {

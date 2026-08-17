@@ -13,10 +13,10 @@ import * as z from "zod";
  *
  * **Every variable here is optional, and that is deliberate rather than a weak schema.** Which
  * database variables a deployment carries depends on which deployment it is: `DATABASE_URL` is
- * production-only on purpose, and a preview's `NEON_PGHOST` is injected per deployment by Neon's
- * webhook rather than held on the project. A schema demanding either of them unconditionally
- * would fail every build in the environments that correctly lack it — including a preview's,
- * which reports the required `Vercel` check, so it would block every merge.
+ * production-only on purpose, and `NEON_PGHOST` is Preview-only, because production must reach
+ * `main` and a preview must reach the shared schema-only branch. A schema demanding either of them
+ * unconditionally would fail every build in the environments that correctly lack it — including a
+ * preview's, which reports the required `Vercel` check, so it would block every merge.
  *
  * What is required is therefore a property of the combination, not of any one key, and
  * [`src/db/database-url.ts`](db/database-url.ts) is where the combinations are named and
@@ -51,9 +51,14 @@ export const env = createEnv({
     // `src/db/database-url.ts` composes its connection string out of the application role's.
     DATABASE_AUTH_USER: z.string().min(1).optional(),
     DATABASE_AUTH_PASSWORD: z.string().min(1).optional(),
-    // Injected into a preview deployment by Neon's integration, naming that deployment's own
-    // branch. Undeclared anywhere in Vercel's project settings, by design, which is why
-    // `vercel env pull` cannot show them and why a preview is the only place they exist.
+    // Where every preview's database is: the shared, schema-only `preview` Neon branch, which
+    // holds no production row. Ordinary Preview-scoped project variables since CAN-79 Previews
+    // clone production rows, and the integration has no switch to stop it — they used to be
+    // injected per deployment by the Neon integration's webhook, along with a copy-on-write
+    // clone of production's rows nothing could switch off (ADR-0023). Being readable back is
+    // itself part of the change: `scripts/check-docs.ts` gates them against the roster in
+    // `docs/infrastructure.md`, which it could not do while they existed only inside a running
+    // deployment.
     NEON_PGHOST: z.string().min(1).optional(),
     NEON_PGDATABASE: z.string().min(1).optional(),
     /**

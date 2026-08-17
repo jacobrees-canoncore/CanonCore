@@ -156,10 +156,8 @@ answer first, then what will offer you something else.
   table, a "master" catalogue or an edit-approval queue all reintroduce the shared catalogue this avoids.
 - **`www.canoncore.com` canonical, apex 301ing to it** ([ADR-0010](docs/adr/0010-canonical-host-www.md))
   — `vercel:auth` and most better-auth examples suggest a `Domain`-scoped cookie, or the apex itself.
-- **A plain API key for every vendor, the Marketplace for Neon alone** ([ADR-0016](docs/adr/0016-provisioning-plain-api-keys-neon-excepted.md),
-  and Resend refused by [ADR-0011](docs/adr/0011-transactional-email-resend.md)) — `vercel:marketplace`,
-  `vercel:vercel-storage` and `vercel:bootstrap` all route through the Marketplace. Neon earns it with
-  per-deployment preview branching; nothing else buys anything, and an integration owns the variable.
+- **A plain API key for every vendor, the Marketplace for Neon alone** ([ADR-0016](docs/adr/0016-provisioning-plain-api-keys-neon-excepted.md), and Resend refused by
+  [ADR-0011](docs/adr/0011-transactional-email-resend.md)) — `vercel:marketplace`, `vercel:vercel-storage` and `vercel:bootstrap` all route through the Marketplace. Nothing else buys anything, and an integration owns the variable. **Neon's exception now rests on billing alone**: what earned it was per-deployment preview branching, which ADR-0023 turned off.
 - **One row per (record, Source), never an upsert onto the record** ([ADR-0004](docs/adr/0004-layered-overlay-for-sources-and-edits.md))
   — every tool's reflex is to write fetched values onto the row, which destroys the Override beside them.
 - **Undo works on Operations; `deleted_at` is storage, not the undo model** ([ADR-0008](docs/adr/0008-operations-and-undo.md))
@@ -167,6 +165,8 @@ answer first, then what will offer you something else.
 - **CI releases `main`, and Vercel's Git deploys are off for it** ([ADR-0019](docs/adr/0019-ci-owns-the-production-release.md))
   — `vercel:deploy` and every dashboard nudge assume Git deploys, which is a promotion no migration
   preceded. Previews stay on Git: turning them off would block every merge.
+- **One shared schema-only Neon branch serves every preview** ([ADR-0023](docs/adr/0023-one-shared-schema-only-preview-branch.md)) — per-deployment branches and schema-only
+  branching are mutually exclusive, so **re-ticking Vercel's `Create Database Branch For Deployment → Preview` silently restores clones of production**: its webhook overrides our variable, everything appears to work, and no check catches it. The `neon` MCP's `create_branch` takes no `init_source` and quietly makes a `parent-data` clone instead.
 - **Adult works catalogued, their artwork never displayed**
   ([ADR-0012](docs/adr/0012-adult-works-catalogued-artwork-never-displayed.md)) — Trakt filters adult
   titles out of its TMDB import, so "just exclude them" reads as obvious. It is not: recording that a

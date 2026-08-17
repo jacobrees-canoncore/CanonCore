@@ -903,6 +903,16 @@ Unticking Preview would send previews back to sharing `main`, the state CAN-45 f
 decision moved to **CAN-79 Previews clone production rows, and the integration has no switch to stop
 it**, which owns creating schema-only branches in CI instead.
 
+**Closed 17 August 2026, and not by the shape that sentence expected.** **CAN-79 Previews clone production rows, and the integration has no switch to stop it** found that creating
+the branch in CI cannot work, because the property that made the integration worth having is the one
+thing CI cannot reproduce: only the Marketplace webhook can put a value into one specific deployment,
+and Vercel exposes no route by which we could hand a host to a build already running. Per-deployment
+branches and schema-only branches are therefore mutually exclusive. **Every preview now reads one
+shared schema-only branch**, addressed by a Preview-scoped `NEON_PGHOST`, and `Create Database Branch
+For Deployment → Preview` is unticked — safely, because the shared branch is what stops unticking
+meaning "share `main`" ([ADR-0023](adr/0023-one-shared-schema-only-preview-branch.md)). The fifty-odd
+branches the paragraph above budgets for were deleted in the same change.
+
 ## Drizzle's migrator needs `CREATE` on the database before it reads anything
 
 **14 August 2026, CAN-23 One Story from Neon, behind row-level security.** The first migration this

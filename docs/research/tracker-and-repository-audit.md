@@ -116,6 +116,16 @@ read-only.
    live TMDB token (CAN-19/20); and since CAN-45 turned preview branching on with
    `init_source: parent-data`, previews run against a copy-on-write clone of production's rows.
    "A preview must not read production data" is satisfied literally and defeated in substance.
+   **The database half is closed, 17 August 2026**, under
+   [CAN-79 Previews clone production rows, and the integration has no switch to stop it](https://linear.app/jacobrees-canoncore/issue/CAN-79):
+   every preview reads one shared schema-only Neon branch holding no production row, and the
+   integration creates none ([ADR-0023](../adr/0023-one-shared-schema-only-preview-branch.md)). The
+   TMDB half closed separately on 15 August 2026 under **CAN-99 Move the TMDB credential out of the
+   app, atomically with its roster row**, which executed ADR-0014's shell decision; `vercel env ls
+   --project canoncore` returns no TMDB variable in any environment, checked again 17 August 2026.
+   **What this finding still names is the Resend sending key**, which a preview carries live because
+   Resend offers no sandbox credential — and the sentence about ownership is the part that survives
+   all three: no ticket owns what a public preview may hold, only the individual holdings.
 6. **The CAA records CAN-18 recorded do not exist.** `dig` returns NODATA for `canoncore.com` CAA,
    and CAN-20's own zone inventory listed none. Either CAN-18 misread the zone twice or the records
    were removed unrecorded. Absent CAA, any CA may issue for the domain. Nothing records which.
@@ -128,6 +138,11 @@ read-only.
 9. **Neon preview branches accumulate with no owner.** Eight branches from documentation-only PRs
    in twelve hours, all still `ready` after their git branches were deleted, ~300 `cpu_used_sec`
    each; `main` is `protected: false`.
+   **Closed, 17 August 2026**, and the rate the finding measured held: eight in twelve hours had
+   become fifty-odd live clones of production by the time CAN-79 Previews clone production rows, and the integration has no switch to stop it counted them. Nothing creates a
+   branch per deployment any more, so there is no accumulation to own — one shared branch, no
+   lifecycle, and the fifty-odd were deleted in the same change. `main` being unprotected is
+   untouched by this and is plan-gated: `docs/infrastructure.md` → *Database*.
 
 ---
 
