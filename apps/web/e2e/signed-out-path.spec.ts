@@ -66,8 +66,11 @@ test.describe("the two forms a visitor with no account can reach", () => {
 /**
  * **The refusal path, driven with a password nobody holds.**
  *
- * This is the one place a deployed run posts to `/api/auth`, and it is safe to: a failed sign-in
- * creates nothing. What it proves is the whole of the redirect design against a real deployment —
+ * This is still the one place a deployed run posts to `/api/auth`, and it is safe to: a failed sign-in
+ * creates nothing. **`account-recovery.spec.ts` deliberately does not join it** — a draft of that file
+ * posted to the reset endpoint, and the limiter there allows three per ten *minutes* against this one's
+ * ten seconds, so a repeated run would have failed on the limiter. That file records the reasoning.
+ * What this one proves is the whole of the redirect design against a real deployment —
  * that a plain form post is accepted, answered with a `303` rather than JSON, and that the reader
  * lands on a page carrying a sentence of ours rather than better-auth's.
  *

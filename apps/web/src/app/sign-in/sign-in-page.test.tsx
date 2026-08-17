@@ -65,21 +65,45 @@ test("says nothing at all when the form has not been submitted", () => {
  *
  * It must be true whether or not the address was free — `auth/auth.ts` → `autoSignIn` is what makes
  * signing up with an address already in use answer identically — so "your account was created" is
- * exactly what it may not say.
+ * exactly what it may not say. **The clause about the confirmation link is inside the same
+ * condition**, and has to be: an address already in use is sent nothing at all.
  */
 test("the after-sign-up notice does not claim an account was created", () => {
   render(<SignInPage created />);
 
   const notice = screen.getByRole("status").textContent ?? "";
-  expect(notice).toContain("If that email address was free");
+  expect(notice).toMatch(/^If that email address was free/);
   expect(notice).not.toMatch(/your account (was|has been) created/i);
 });
 
-// Resetting a password needs a mail provider, which is CAN-31 Email verification and password reset.
-// Until it ships, an offer this service cannot keep is worse than its absence.
-test("offers no password reset, because nothing is behind one yet", () => {
+// Reaching the reset flow at all. Until CAN-31 Email verification and password reset there was
+// deliberately no such link, because an offer this service could not keep is worse than its absence.
+test("offers a way to reach the password reset flow", () => {
   render(<SignInPage />);
 
-  expect(screen.queryByText(/forgot/i)).toBeNull();
-  expect(screen.queryByText(/reset/i)).toBeNull();
+  const offer = screen.getByRole("link", { name: "Forgotten your password?" });
+  expect(offer.getAttribute("href")).toBe("/forgot-password");
+});
+
+/**
+ * The other two notices this page carries, and the case that matters is the third one.
+ *
+ * **A refusal silences every notice.** `verify-email` redirects here carrying *both* the flag it was
+ * given and the code for what went wrong — `?verified&error=TOKEN_EXPIRED` — so a page that read the
+ * flag alone would tell somebody their address was confirmed at the same moment as telling them the
+ * link had expired. `sign-in-page.tsx` → `noticeFor` is where that is decided.
+ */
+test("says an address is confirmed, and a password changed", () => {
+  render(<SignInPage verified />);
+  expect(screen.getByRole("status").textContent).toContain("is confirmed");
+
+  render(<SignInPage reset />);
+  expect(screen.getAllByRole("status").at(-1)?.textContent).toContain("has been changed");
+});
+
+test("a refusal silences the notice, rather than being shown beside it", () => {
+  render(<SignInPage verified problem="That link has expired." />);
+
+  expect(screen.queryByRole("status")).toBeNull();
+  expect(screen.getByRole("alert").textContent).toBe("That link has expired.");
 });

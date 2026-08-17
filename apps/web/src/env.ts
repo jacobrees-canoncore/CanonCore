@@ -67,6 +67,15 @@ export const env = createEnv({
      * to serve without it, as loudly as `database-url.ts` refuses a missing host.
      */
     BETTER_AUTH_SECRET: z.string().min(1).optional(),
+    // Resend's key, and the verified identity it sends as. Both are **refused where they are read**,
+    // in [`src/mail/send.ts`](mail/send.ts), like the database variables above and for the same
+    // reason — a build has no mail to send, and a preview build that failed for a missing one would
+    // report the required `Vercel` check red and block every merge.
+    //
+    // What each one is, why there are two keys under one name, and why the sending address is a
+    // variable rather than a constant, are all in that module, beside the code that reads them.
+    RESEND_API_KEY: z.string().min(1).optional(),
+    EMAIL_FROM: z.string().min(1).optional(),
   },
   client: {},
   // Only client variables are destructured here. Next "stopped static analysis of server side

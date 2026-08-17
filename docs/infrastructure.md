@@ -437,8 +437,16 @@ reads.
 > `DATABASE_APP_USER`, `DATABASE_APP_PASSWORD` and `DATABASE_PRODUCTION_HOST` are read at request
 > time by [`apps/web/src/db/database-url.ts`](../apps/web/src/db/database-url.ts). `VERCEL_TOKEN`
 > is read on every CI run and `MIGRATION_DATABASE_URL` whenever a migration runs, so both are
-> observed too — by Actions rather than by the application. The Resend rows wait on **CAN-31 Email
-> verification and password reset**, and the Sentry rows on the first thing that reports to it.
+> observed too — by Actions rather than by the application. **The Resend rows are read at request
+> time as of CAN-31 Email verification and password reset**, by
+> [`apps/web/src/mail/send.ts`](../apps/web/src/mail/send.ts), which refuses to send without either
+> of them. The Sentry rows still wait on the first thing that reports to it.
+>
+> **One of the two is only ever read in production, and that is the guard rather than a gap.** Outside
+> production `send.ts` refuses any recipient not at `resend.dev` before it builds the request, so a
+> preview reaches Resend only for one of those four addresses — *Transactional email* below has why
+> that refusal is the only isolation Resend offers. So a preview carrying a broken `RESEND_API_KEY`
+> would look healthy until the first send that got past the guard.
 >
 > **This no longer waits on CAN-26 Import a series from TMDB, with the overlay behind it.** That
 > ticket used to be named here as the consumer of `TMDB_API_READ_ACCESS_TOKEN`, and under
@@ -1252,8 +1260,31 @@ it, not the other way round. What has to stay true of that configuration:
 | No IP address | **Not one setting.** `sendDefaultPii: false` keeps `user.ip_address` off the event, but not the request headers, which are sent by default and carry the address Vercel puts in `x-forwarded-for`. The IP-bearing headers have to go too — in `beforeSend` today, because `requestDataIntegration`'s `include.headers` is all-or-nothing, and through `dataCollection.httpHeaders`'s deny list from v11 |
 | No name, email address or account | Nothing calls `Sentry.setUser`, and local variables are not captured in stack frames |
 | Neither survives a version bump by itself | **From v11 `sendDefaultPii` is gone and every `dataCollection` category defaults to collecting**, `userInfo` and `stackFrameVariables` among them. Each has to be turned off explicitly or the promises break on upgrade alone |
-| Only the address, the failure and technical detail of the request are sent | Cookies and request bodies stay withheld. The full URL and its query string are **always** sent, so nothing personal may be put in one — which binds the links **CAN-31 Email verification and password reset** builds |
+| Only the address, the failure and technical detail of the request are sent | Cookies and request bodies stay withheld. The full URL and its query string are **always** sent, so nothing personal may be put in one — and **CAN-31 Email verification and password reset landed links that do**, which is *The two query strings the email flows put in a URL* below. Scrubbing them belongs to **CAN-51 Keep a record of server errors past the hour Vercel keeps them**, and is no longer optional |
 | Text a user typed may appear inside an error message | Nothing configures that away, which is why the terms disclose it instead |
+
+#### The two query strings the email flows put in a URL
+
+**Recorded 17 August 2026 by CAN-31 Email verification and password reset, which is the ticket the row
+above already named.** The row said nothing personal may go in a URL; these two are what that now
+binds, and the first of them carries an email address today. **Neither is a leak yet** — nothing
+reports to Sentry, so no event has ever been sent — and both become one the moment **CAN-51 Keep a
+record of server errors past the hour Vercel keeps them** configures the SDK without scrubbing them.
+
+| Address | What its query string carries |
+| --- | --- |
+| `/api/auth/verify-email?token=…&callbackURL=…` | **The account holder's email address, in plain sight.** The token is a JWT, so it is *signed and not encrypted*: its payload is `{"email":"…","iat":…,"exp":…}`, base64url, readable by anyone holding the string with no secret at all. Decoded from a real token on 17 August 2026 through better-auth's own `createEmailVerificationToken`, rather than read off its source |
+| `/reset-password?token=…`, and `/api/auth/reset-password?token=…` | An opaque 24-character id, and no personal data. It is still a **live capability over one account for one hour** — `verification` holds it until it is used — so it is a credential in a URL rather than an identifier |
+
+**The shape is better-auth's and is not ours to change.** It builds both URLs itself
+(`sendVerificationEmailFn` and `requestPasswordReset` in 1.6.29) and offers no hook that moves a token
+out of a query string, so this cannot be fixed at the point the link is made. **What that ticket has to do
+is scrub the `token` parameter of every event's URL**, not only the request headers, and the terms are
+what makes that a promise rather than a preference.
+
+**One thing already in place limits the exposure**, and it is worth not mistaking for a fix: the
+verification link is only ever *emailed*, so it reaches Vercel's logs and any error reporter only when
+somebody follows it — and following it is exactly when a `GET /api/auth/verify-email` could throw.
 
 **11 sub-processors is the whole of Sentry's list**, eight general and three of Sentry's own group
 companies ([subprocessors](https://sentry.io/legal/subprocessors/), last updated 1 June 2026). Resend's

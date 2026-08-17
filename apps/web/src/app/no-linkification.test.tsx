@@ -1,6 +1,8 @@
 import { render, screen } from "@testing-library/react";
 import { expect, test } from "vitest";
+import { ForgotPasswordPage } from "./forgot-password/forgot-password-page";
 import { FrontPage } from "./front-page";
+import { ResetPasswordPage } from "./reset-password/reset-password-page";
 import { SignInPage } from "./sign-in/sign-in-page";
 import { SignUpPage } from "./sign-up/sign-up-page";
 
@@ -35,11 +37,19 @@ import { SignUpPage } from "./sign-up/sign-up-page";
  * reassessment: [`illegal-content-risk-assessment.md`](../../../../docs/compliance/illegal-content-risk-assessment.md)
  * → *Existing controls relied on* and *Step 4*.
  *
- * **Every surface that renders text belongs in this file**, and three exist today. CAN-27 Orderings
+ * **Every surface that renders text belongs in this file**, and five exist today — the two account
+ * recovery pages joined with **CAN-31 Email verification and password reset**. CAN-27 Orderings
  * and Placements, and the imported broadcast Ordering brings the Ordering and Story pages, CAN-26
  * Import a series from TMDB, with the overlay behind it brings a Listed Provider's prose, and
  * CAN-113 Add a Provider by pasting its URL brings a stranger's. Finding 2c of the illegal content
  * assessment names all three, so a surface landing without its case here makes that record false.
+ *
+ * **CAN-31 Email verification and password reset also adds the one `href` on any of these pages that
+ * is not a bare literal**, and it is the case this file exists to catch: `/reset-password`'s form
+ * `action` is built from a token that arrived in a query string. It is a form target rather than an
+ * anchor, so `queryAllByRole("link")` cannot see it — `reset-password-page.test.tsx` asserts it
+ * separately, and what makes it safe is that the value is confined to a single URL-encoded query
+ * parameter on a path this repository writes as a literal.
  */
 const hostile = "https://example.invalid/looks-like-a-link";
 
@@ -50,7 +60,7 @@ const hostile = "https://example.invalid/looks-like-a-link";
  * can be a value a Source supplied, a Provider returned or a person typed, which is exactly the
  * property the finding rests on. A page that wants a new one adds it here first.
  */
-const ownRoutes = ["/sign-in", "/sign-up"];
+const ownRoutes = ["/sign-in", "/sign-up", "/forgot-password"];
 
 /** Every `href` the rendered result carries, in the order they appear. */
 function renderedLinks() {
@@ -96,23 +106,98 @@ test("a signed-in reader's own email address is not linkified either", () => {
   expect(linksWithinOwnRoutes()).toEqual([]);
 });
 
-// The two pages the navigation exists for. Their anchors are the reason this file's assertion had to
-// change shape, so they are the ones it has to cover.
-test.each([
-  ["the sign-in page", <SignInPage key="in" />, ["/sign-up"]],
-  ["the sign-up page", <SignUpPage key="up" />, ["/sign-in"]],
-])("%s links only to this application's own routes", (_name, page, expected) => {
-  render(page);
+/**
+ * **What each page's anchors are, stated once**, and everything below reads from it.
+ *
+ * The exact set is what the compliance finding rests on, so the cost of stating it three times — once
+ * per assertion shape — is three places that can drift apart while each still passes. A review flagged
+ * that; this is the fix.
+ *
+ * **A page whose links depend on what it was given gets an entry per render**, not one for the fuller
+ * case: `/reset-password` drops its "sign in" offer once it has a token to submit, and a table holding
+ * only the richer render would pass while the other branch went unchecked.
+ *
+ * `render` is a function rather than an element so that each case can be given a refusal or a notice
+ * without a second table restating the same expectations.
+ */
+const surfaces = [
+  {
+    name: "the sign-in page",
+    render: (extra: { problem?: string } = {}) => <SignInPage {...extra} />,
+    links: ["/forgot-password", "/sign-up"],
+  },
+  {
+    name: "the sign-up page",
+    render: (extra: { problem?: string } = {}) => <SignUpPage {...extra} />,
+    links: ["/sign-in"],
+  },
+  {
+    name: "the forgot-password page",
+    render: (extra: { problem?: string } = {}) => <ForgotPasswordPage {...extra} />,
+    links: ["/sign-in"],
+  },
+  {
+    name: "the forgot-password page, having sent one",
+    render: (extra: { problem?: string } = {}) => <ForgotPasswordPage sent {...extra} />,
+    links: ["/sign-in"],
+  },
+  {
+    name: "the reset page with a token",
+    render: (extra: { problem?: string } = {}) => <ResetPasswordPage token="a-token" {...extra} />,
+    links: ["/forgot-password"],
+  },
+  {
+    // No token, so no form to submit — and the offer to sign in instead, which the render above drops.
+    name: "the reset page with no token",
+    render: (extra: { problem?: string } = {}) => <ResetPasswordPage {...extra} />,
+    links: ["/forgot-password", "/sign-in"],
+  },
+] as const;
 
-  expect(linksWithinOwnRoutes()).toEqual(expected);
-});
+// Every page the navigation exists for. Their anchors are the reason this file's assertion had to
+// change shape, so they are the ones it has to cover.
+test.each(surfaces.map((surface) => [surface.name, surface] as const))(
+  "%s links only to this application's own routes",
+  (_name, surface) => {
+    render(surface.render());
+
+    expect(linksWithinOwnRoutes()).toEqual(surface.links);
+  },
+);
 
 // A refusal sentence is the one string on those pages that arrives from a request, so it is where an
 // injected link would land if `failures.ts` ever reflected better-auth's message instead of mapping
-// a code to a sentence of its own.
-test("a refusal sentence adds no anchor, whatever it says", () => {
-  render(<SignInPage problem={`Try ${hostile}`} />);
+// a code to a sentence of its own. Asserted on every page that renders one, because each has its own
+// anchors and it is the *set* that this file pins.
+test.each(surfaces.map((surface) => [surface.name, surface] as const))(
+  "a refusal sentence on %s adds no anchor, whatever it says",
+  (_name, surface) => {
+    render(surface.render({ problem: `Try ${hostile}` }));
 
-  expect(screen.getByRole("alert").textContent).toBe(`Try ${hostile}`);
-  expect(linksWithinOwnRoutes()).toEqual(["/sign-up"]);
+    expect(screen.getByRole("alert").textContent).toBe(`Try ${hostile}`);
+    expect(linksWithinOwnRoutes()).toEqual(surface.links);
+  },
+);
+
+/**
+ * **The notice a *successful* action comes back with, which is a second string arriving from a
+ * request** and was not covered before CAN-31 Email verification and password reset.
+ *
+ * Its shape differs from a refusal in the way that matters: the prose is selected by a flag's mere
+ * presence rather than by a code, so nothing from the query string reaches the sentence at all. That
+ * makes it the safer of the two — and it is asserted rather than argued, because the flag-to-prose
+ * mapping is the kind of thing a later change could turn into a value being rendered.
+ */
+test.each([
+  ["a completed sign-up", <SignInPage key="created" created />],
+  ["a confirmed address", <SignInPage key="verified" verified />],
+  ["a changed password", <SignInPage key="reset" reset />],
+])("the notice for %s adds no anchor either", (_name, page) => {
+  render(page);
+
+  // The sign-in page's own set, read from the table above rather than restated here — all three of
+  // these notices are that page's.
+  const signIn = surfaces.find((surface) => surface.name === "the sign-in page")!;
+  expect(screen.getByRole("status").textContent).not.toContain(hostile);
+  expect(linksWithinOwnRoutes()).toEqual(signIn.links);
 });
