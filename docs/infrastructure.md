@@ -806,6 +806,15 @@ Three things follow from that, and the third is why no reading of the repository
 > **The reading that confirms the end state is due when the release runs migration 0005**, and
 > until it has been taken this section describes what the migration establishes rather than what
 > has been observed.
+>
+> **Read back from production on 17 August 2026, after migrations 0008 and 0009.** The matrix above is
+> what `has_table_privilege` reports for all nine tables: `canoncore_app` holds `SELECT` on the four
+> product tables and nothing on better-auth's five, `canoncore_auth` holds all four privileges on its
+> five and nothing on the product tables. Also read: nine tables all owned by `canoncore_migrator`,
+> neither application role holding `BYPASSRLS`, and `pg_default_acl` empty of both — so the two
+> `ALTER DEFAULT PRIVILEGES` rows migration 0005 removed have not returned. Taken by
+> [`../scripts/apply-migrations-ahead-of-merge.sh`](../scripts/apply-migrations-ahead-of-merge.sh),
+> whose six checks are exactly these.
 
 ### Schema
 

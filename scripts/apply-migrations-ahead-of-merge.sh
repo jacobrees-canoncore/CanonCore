@@ -126,7 +126,42 @@ if ! command -v psql >/dev/null 2>&1; then
 fi
 
 FAILED=0
-psql_q() { psql "$MIGRATION_DATABASE_URL" -tAX -c "$1" | tr -d ' \n'; }
+
+# **`psql` and `pg` disagree about `verify-full`, and the disagreement is not cosmetic.** drizzle uses
+# `pg`, which verifies against Node's bundled roots and needs nothing else; `psql` wants a
+# `root.crt` on disk and refuses without one — `sslrootcert=system` is libpq's own way of saying "use
+# the trust store", and it keeps `verify-full` rather than weakening it. Observed on 17 August 2026:
+# the migration applied and every check below then failed to connect.
+#
+# Appended only when absent, so a string that already carries it is left alone.
+PSQL_URL="$MIGRATION_DATABASE_URL"
+if [[ "$PSQL_URL" == *"sslmode=verify-full"* && "$PSQL_URL" != *"sslrootcert="* ]]; then
+  PSQL_URL="${PSQL_URL}&sslrootcert=system"
+fi
+
+# **A query that fails must never look like an answer.** The first version of this returned whatever
+# `psql` printed, which is the empty string when the connection is refused — and one check below
+# *expects* the empty string, so it reported a tick while nothing had been read. That is the
+# silence-instead-of-an-error this repository is built around, reproduced inside the tool meant to
+# catch it. Now a failed query aborts the run: there is no value it can return that any expectation
+# could accidentally match.
+# Diagnostics go to **stderr**, and that is load-bearing rather than tidy: every caller below is a
+# command substitution, so anything this writes to stdout is captured as the query's result and
+# discarded. The first version printed the explanation there and the run aborted with nothing on
+# screen — a loud failure made silent by the shell.
+psql_q() {
+  local out
+  if ! out=$(psql "$PSQL_URL" -tAX -c "$1" 2>&1); then
+    {
+      bad "Could not read the database, so nothing below was verified."
+      note "$out"
+      note "The migration itself may already have succeeded — re-run to verify once the connection"
+      note "works. docs/infrastructure.md -> The SSL mode every connection asks for."
+    } >&2
+    exit 1
+  fi
+  printf '%s' "$out" | tr -d ' \n'
+}
 
 verify() {
   local label="$1" expected="$2" actual="$3"
@@ -197,7 +232,7 @@ verify "no default privilege reaches either application role" \
 # against a container. Printing it here is what lets a human compare production to that record,
 # which is the one comparison no test can make.
 head1 "The privilege matrix on production, to compare against docs/infrastructure.md -> Roles"
-psql "$MIGRATION_DATABASE_URL" -X -c "
+psql "$PSQL_URL" -X -c "
   select c.relname as table,
          case when c.relrowsecurity then 'yes' else 'NO' end as rls,
          case when has_table_privilege('canoncore_app', c.oid, 'SELECT') then 'r' else '-' end ||
