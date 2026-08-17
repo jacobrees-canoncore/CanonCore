@@ -903,7 +903,7 @@ Unticking Preview would send previews back to sharing `main`, the state CAN-45 f
 decision moved to **CAN-79 Previews clone production rows, and the integration has no switch to stop
 it**, which owns creating schema-only branches in CI instead.
 
-**Closed 17 August 2026, and not by the shape that sentence expected.** CAN-79 found that creating
+**Closed 17 August 2026, and not by the shape that sentence expected.** **CAN-79 Previews clone production rows, and the integration has no switch to stop it** found that creating
 the branch in CI cannot work, because the property that made the integration worth having is the one
 thing CI cannot reproduce: only the Marketplace webhook can put a value into one specific deployment,
 and Vercel exposes no route by which we could hand a host to a build already running. Per-deployment

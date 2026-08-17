@@ -97,8 +97,11 @@ disguised as a tidy-up.
 - **Two previews open at once share one database.** One preview's writes are visible to the other's,
   and a sign-in on one is a `user` row the other can read. Nothing is shared with production.
 - **Two of five root branches.** A schema-only branch has no parent and is therefore a root branch,
-  and Launch allows five per project. `main` and `preview` spend two. This is also why the rejected
-  shapes above were capped at four concurrent previews, which neither of them acknowledged.
+  and Launch allows five per project ([Neon, schema-only branches](https://neon.com/docs/guides/branching-schema-only),
+  whose *Schema-only branch allowances* section tables it: Free 3, Launch 5, Scale 25). `main` and
+  `preview` spend two.
+  This is also why the rejected shapes above were capped at four concurrent previews, which neither
+  of them acknowledged.
 - **The branch's schema moves only when somebody moves it.** Nothing copies `main` onto it, and
   *reset from parent* does not exist for a branch with no parent. A forgotten migration is a preview
   that 500s, which is loud, and

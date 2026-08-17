@@ -709,12 +709,12 @@ whatever noticed can mint the replacement, is wrong in one direction only.
 | Production branch | `main` (Neon's default branch). It shares a name with the repository's `main` and is a different thing |
 | Preview branch | **One**, named `preview`, `br-calm-flower-zame56ly` — schema-only, shared by every preview deployment, and holding no production row. *The shared preview branch* below is what it is and how it is kept level |
 | Region | `eu-west-2` (London) |
-| Plan | Launch, billed through Vercel. **Five root branches**, of which `main` and `preview` are two |
+| Plan | Launch, billed through Vercel. **Five root branches**, of which `main` and `preview` are two ([Neon, schema-only branches](https://neon.com/docs/guides/branching-schema-only), whose *Schema-only branch allowances* section tables it per plan: Free 3, Launch 5, Scale 25) |
 | Neon Auth | **Disabled**, recorded 10 August 2026 by CAN-18 Provision the Vercel project, the Neon database and the production domain and unchanged since. The reason is [ADR-0016](adr/0016-provisioning-plain-api-keys-neon-excepted.md) → *What will try to reopen it*, which also records why the reason this row used to give stopped being true |
-| Create Database Branch For Deployment | **Neither box ticked.** `Production` never was; `Preview` was unticked on 17 August 2026 by CAN-79, which is what stops a preview branch being cloned from production — [ADR-0023](adr/0023-one-shared-schema-only-preview-branch.md) |
+| Create Database Branch For Deployment | **Neither box ticked.** `Production` never was; `Preview` was unticked on 17 August 2026 by **CAN-79 Previews clone production rows, and the integration has no switch to stop it**, which is what stops a preview branch being cloned from production — [ADR-0023](adr/0023-one-shared-schema-only-preview-branch.md) |
 | Require Active Resource Before Deploy | **Required** — it was the prerequisite that ungreyed the checkbox above, and it outlives it |
 
-*Set 12 August 2026 by CAN-45 and changed 17 August 2026 by CAN-79 Previews clone production rows,
+*Set 12 August 2026 by CAN-45 Preview deployments do not appear to get their own Neon branch and changed 17 August 2026 by CAN-79 Previews clone production rows,
 and the integration has no switch to stop it; read from the Neon dashboard and the Vercel
 integration.*
 
@@ -740,7 +740,8 @@ was not before. While the integration created the branch, the only witness was N
 `vercel env pull` read project-level values and the branch's were not among them, and the build log
 was silent because the platform created the branch out of band
 ([incident](incidents.md#preview-branching-was-switched-off-so-no-preview-ever-got-a-branch)). Since
-CAN-79 the host is an ordinary Preview variable, so `vercel env ls` shows it, `scripts/check-docs.ts`
+**CAN-79 Previews clone production rows, and the integration has no switch to stop it** the host is
+an ordinary Preview variable, so `vercel env ls` shows it, `scripts/check-docs.ts`
 gates it against the roster above, and the branch it names can be queried directly. **That is a
 gain worth naming**: the mechanism this replaced could only be checked from inside a running
 preview, which is why *How a preview reaches its own database* below spent a week describing a half
@@ -963,6 +964,17 @@ one branch per deployment, and what it cost.
 > `parent-data` clones. Every one was checked as `creation_source: vercel`, `init_source:
 > parent-data` and named `preview/*` before deletion, and none backed an open pull request: there
 > were none, and `origin` held only `main`.
+>
+> **The order the four steps were done in, because the order is the safety property.** The
+> integration was unticked **third**, not first: (1) the schema-only branch created and its journal
+> seeded, (2) `NEON_PGHOST` and `NEON_PGDATABASE` set Preview-scoped and read back, (3) `Create
+> Database Branch For Deployment → Preview` unticked and the setting re-read from a reopened dialog,
+> (4) the 61 clones deleted. **Steps 3 and 4 are in that order for a reason that is not obvious**:
+> while the checkbox is ticked the integration recreates a branch on the next deployment, so
+> deleting first would have repopulated the list. And unticking before step 1 is the regression
+> **CAN-45 Preview deployments do not appear to get their own Neon branch** fixed, because previews
+> with no branch of their own fall back to whatever project-level
+> host exists.
 
 **Its Drizzle journal arrived empty, and that is the one trap in provisioning it.** Schema-only
 copies every table and no row, so `drizzle.__drizzle_migrations` landed present and empty beside a
@@ -979,7 +991,7 @@ checks the count on every run — a mis-seeded journal fails there rather than a
 **Nothing copies `main`'s schema onto it ever again**, so a migration reaches it only because
 somebody applies it, and
 [`../scripts/apply-migrations-ahead-of-merge.sh`](../scripts/apply-migrations-ahead-of-merge.sh) is
-that somebody's tool. **That script no longer writes to production**, and the narrowing is CAN-79's:
+that somebody's tool. **That script no longer writes to production**, and the narrowing is **CAN-79 Previews clone production rows, and the integration has no switch to stop it**'s:
 it used to migrate `main` ahead of the merge for one reason — a preview branch was a clone of `main`
 — and with nothing branching from `main`, an unmerged branch has no remaining reason to write to
 production. It applies to `preview`, reads production's invariants back, and refuses outright if the
@@ -1007,7 +1019,7 @@ relationship through which a restore could reach one.
 and nothing created on a push. The fifty-odd `preview/<git-branch>` clones the integration had
 accumulated by 17 August 2026 — one per git branch that ever had a preview, not per open pull
 request ([incident](incidents.md#what-a-preview-branch-looks-like-and-how-long-it-outlives-its-pr))
-— were deleted by CAN-79 in the same change that stopped them being made.
+— were deleted by **CAN-79 Previews clone production rows, and the integration has no switch to stop it** in the same change that stopped them being made.
 
 ### How a preview reaches its own database
 
@@ -1044,7 +1056,7 @@ branch it names can be queried directly.
 > **The evidence is a runtime log line**, `[canoncore] database host … (VERCEL_ENV=…)`, read with
 > `vercel logs`.
 
-**This departs from CAN-18 as written**, and less than it used to. That ticket asked for the
+**This departs from CAN-18 Provision the Vercel project, the Neon database and the production domain as written**, and less than it used to. That ticket asked for the
 application role's connection string as a Vercel variable for production **and preview**, and under
 the per-deployment mechanism that was unsatisfiable: no static string can address a branch on a host
 that does not exist when the variable is set. A preview's database is now reached through static

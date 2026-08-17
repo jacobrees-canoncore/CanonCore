@@ -10,15 +10,10 @@
 # applies it; and it has to be applied *before* the code that reads it deploys, or the preview 500s,
 # the required `Vercel` check goes red, and the pull request cannot merge.
 #
-# **What changed on CAN-79 Previews clone production rows, and the integration has no switch to stop
-# it, and why it is a narrowing.** This script used to apply the same migrations to Neon's `main`,
-# for one reason only: a preview branch was a copy-on-write clone of `main` taken when its deployment
-# started, so `main` had to carry the schema first. Nothing branches from `main` any more, so that
-# reason is spent — and applying to production from an unmerged branch is a write nothing now asks
-# for. **`main` is therefore read, never written.** The release in `.github/workflows/ci.yml` is the
-# only thing that migrates production, on a commit that passed the gates, and it does so having
-# already had the same migrations rehearsed on a faithful copy of production's schema. That is a
-# better guarantee than the one it replaces, not a weaker one.
+# **`main` is read here, never written**, which is a narrowing CAN-79 Previews clone production rows,
+# and the integration has no switch to stop it made when previews stopped being cloned from it. The
+# release in `.github/workflows/ci.yml` is the only thing that migrates production. The argument is
+# docs/adr/0023-one-shared-schema-only-preview-branch.md -> Consequences; do not restate it here.
 #
 # **Why a human runs it.** It needs `canoncore_migrator`'s connection string, which lives in the
 # `MIGRATION_DATABASE_URL` GitHub Actions secret and cannot be read back. An agent cannot work
@@ -113,17 +108,23 @@ ok "String names canoncore_migrator"
 
 # --- Which branch to apply to. ---
 #
-# **The host is asked for and the credential is not**, which is the whole shape of this prompt: a
-# Neon role is project-level, so the password that reaches production reaches every branch, and the
-# only thing that distinguishes one branch from another is where it answers. Asking for a second
-# whole connection string would be a second secret to mishandle for one differing field.
+# **The credential is not asked for twice, and the address is**, which is the whole shape of these
+# prompts: a Neon role is project-level, so the password that reaches production reaches every
+# branch, and the only thing distinguishing one branch from another is where it answers. Asking for
+# a second whole connection string would be a second secret to mishandle for two differing fields.
 #
-# It is also the one field that can be *shown*. `NEON_PGHOST` is a Non-sensitive Vercel variable
-# precisely so it can be read back and caught going stale
+# **Both halves of the address are asked for, because a preview is addressed by both.**
+# `database-url.ts` composes a preview's connection from `NEON_PGHOST` *and* `NEON_PGDATABASE`, and
+# an earlier version of this script took the host alone and inherited the database name from
+# production's string. That is correct exactly while the two agree and silently wrong the moment
+# they do not: the migration would land on a database no preview reads, and report success.
+#
+# They are also the two fields that can be *shown*. Both are Non-sensitive Vercel variables
+# precisely so they can be read back and caught going stale
 # (docs/infrastructure.md -> Environment variables), so this echoes what it is about to use.
-head1 "The \`preview\` branch's host"
-note "The value of the Preview-scoped NEON_PGHOST variable. Either of:"
-note "  vercel env pull --environment=preview   (then read NEON_PGHOST)"
+head1 "Where the \`preview\` branch answers"
+note "The Preview-scoped NEON_PGHOST and NEON_PGDATABASE. Either of:"
+note "  vercel env pull --environment=preview --project canoncore <file>"
 note "  the Neon console -> Branches -> preview -> Connect"
 printf '  %sPaste the host, then press Enter:%s ' "$BOLD" "$RESET"
 read -r PREVIEW_HOST || true
@@ -144,23 +145,27 @@ if [[ "$PREVIEW_HOST" == *"://"* || "$PREVIEW_HOST" == *"@"* || "$PREVIEW_HOST" 
   exit 1
 fi
 
-# The Neon compute a hostname addresses, which is what "the same database" actually means. One
-# compute answers to both a pooled and an unpooled name, so comparing whole hostnames would call
-# two names for one database different — and the direction that matters is exactly that one:
-# production reached by its unpooled name is still production.
-# apps/web/src/db/database-url.ts holds the same function and the same argument, for the check the
-# running application makes.
-compute_of() { local h="${1%%.*}"; printf '%s' "${h%-pooler}"; }
-
-MAIN_HOST=$(MAIN_URL="$MAIN_URL" node -e '
-  process.stdout.write(new URL(process.env.MAIN_URL).hostname);
-')
+# **The host, the compute it addresses, and the database name, resolved in one place.** The
+# pooled-versus-unpooled rule lives in `computeOf` in apps/web/src/db/database-url.ts, for the check
+# the running application makes; this is the same rule, and keeping it in one `node` call rather
+# than a second bash copy is what stops the script growing a third spelling of it. One compute
+# answers to both a pooled and an unpooled name, so comparing whole hostnames would call two names
+# for one database different — and the direction that matters is exactly that one: production
+# reached by its unpooled name is still production.
+read -r MAIN_HOST MAIN_DATABASE SAME_COMPUTE <<<"$(
+  MAIN_URL="$MAIN_URL" PREVIEW_HOST="$PREVIEW_HOST" node -e '
+    const computeOf = (h) => h.split(".")[0].replace(/-pooler$/, "");
+    const u = new URL(process.env.MAIN_URL);
+    const same = computeOf(u.hostname) === computeOf(process.env.PREVIEW_HOST);
+    process.stdout.write(`${u.hostname} ${u.pathname.slice(1)} ${same}`);
+  '
+)"
 
 # **The refusal that makes the rest of this run mean anything.** Paste production's host here — by
 # reflex, or by pasting the same clipboard twice — and every migration below lands on production
 # from an unmerged branch, which is the single thing this script was rewritten to stop doing. It
 # would also report success, because migrating production is a thing that works.
-if [[ "$(compute_of "$PREVIEW_HOST")" == "$(compute_of "$MAIN_HOST")" ]]; then
+if [[ "$SAME_COMPUTE" == "true" ]]; then
   bad "That host is production's own compute. Stopping without changing anything."
   note "  given:      $PREVIEW_HOST"
   note "  production: $MAIN_HOST"
@@ -171,13 +176,25 @@ if [[ "$(compute_of "$PREVIEW_HOST")" == "$(compute_of "$MAIN_HOST")" ]]; then
 fi
 ok "Host addresses a compute that is not production's"
 
+printf '  %sPaste the database, or press Enter for %s:%s ' "$BOLD" "$MAIN_DATABASE" "$RESET"
+read -r PREVIEW_DATABASE || true
+PREVIEW_DATABASE="${PREVIEW_DATABASE:-$MAIN_DATABASE}"
+printf '\n'
+
 # Composed with `URL` rather than by string surgery, so a password containing `:`, `@`, `/` or `?`
 # survives, and passed through the environment rather than argv, which `ps` can read.
-PREVIEW_URL=$(MAIN_URL="$MAIN_URL" PREVIEW_HOST="$PREVIEW_HOST" node -e '
-  const u = new URL(process.env.MAIN_URL);
-  u.hostname = process.env.PREVIEW_HOST;
-  process.stdout.write(u.toString());
-')
+PREVIEW_URL=$(
+  MAIN_URL="$MAIN_URL" PREVIEW_HOST="$PREVIEW_HOST" PREVIEW_DATABASE="$PREVIEW_DATABASE" node -e '
+    const u = new URL(process.env.MAIN_URL);
+    u.hostname = process.env.PREVIEW_HOST;
+    u.pathname = `/${process.env.PREVIEW_DATABASE}`;
+    process.stdout.write(u.toString());
+  '
+)
+
+# Printed rather than assumed, because everything above is one paste away from addressing the wrong
+# database and nothing below would say so.
+ok "Target: $PREVIEW_HOST/$PREVIEW_DATABASE"
 
 # --- Apply, to the preview branch and to nothing else. ---
 head1 "Applying to \`preview\`"
@@ -202,6 +219,8 @@ ok "drizzle-kit reported success"
 # **Both branches are put through the same checks**, and that is the point rather than thoroughness:
 # the `preview` branch is only worth anything as a rehearsal if it is the same shape as production,
 # and two matrices printed side by side is the only way a person sees that it is.
+
+head1 "Verifying what is actually there"
 
 if ! command -v psql >/dev/null 2>&1; then
   warn "psql is not installed, so every check below is skipped."
@@ -356,20 +375,30 @@ verify "the journal records every migration this branch carries" \
 verify_invariants "$PREVIEW_PSQL"
 
 # **A preview must hold no production row, and that is asserted rather than inferred from
-# `init_source`.** A settings field says how the branch was made; a row count says what is in it,
-# and only the second would notice a branch replaced by a copy-on-write clone, or a `main` dump
-# restored into it by hand. `story` is asked because production has rows in it — an empty table
-# here and a non-empty one there is the whole of what CAN-79 Previews clone production rows, and
-# the integration has no switch to stop it bought.
-PREVIEW_STORIES=$(psql_q "$PREVIEW_PSQL" "select count(*) from public.story")
-MAIN_STORIES=$(psql_q "$MAIN_PSQL" "select count(*) from public.story")
-if [[ "$MAIN_STORIES" == "0" ]]; then
-  warn "production's story table is empty, so the comparison below proves nothing today"
-  note "It is the one check here that needs production to have rows to be worth making."
+# `init_source`.** A settings field says how the branch was made; the rows say what is in it, and
+# only the rows would notice a branch replaced by a copy-on-write clone, or a `main` dump restored
+# into it by hand. That is the whole of what CAN-79 Previews clone production rows, and the
+# integration has no switch to stop it bought.
+#
+# **It asks whether production's *own* rows are there, not whether the table is empty**, and the
+# difference is the difference between a check that lasts and one that fails the first time anybody
+# uses a preview. A preview is a real environment: somebody signs in, somebody creates a Story, and
+# the table stops being empty for reasons that are entirely correct. Comparing counts would call
+# that a leak. Comparing identities cannot: production's ids can only appear here by having been
+# copied from production.
+#
+# Capped at 200 because this is a tripwire rather than an audit — a clone brings every row, so it
+# trips on the first one, and a query naming every id in a grown catalogue would be its own problem.
+MAIN_STORY_IDS=$(psql_q "$MAIN_PSQL" \
+  "select string_agg(quote_literal(id::text), ',') from (select id from public.story order by id limit 200) s")
+if [[ -z "$MAIN_STORY_IDS" ]]; then
+  warn "production's story table is empty, so this check has nothing to look for today"
+  note "It is the one check here that needs production to hold rows to be worth making, and it"
+  note "says so rather than reporting a tick it did not earn."
 else
-  verify "\`preview\` holds none of production's ${MAIN_STORIES} story rows" \
+  verify "\`preview\` holds none of production's story rows, by id" \
     "0" \
-    "$PREVIEW_STORIES"
+    "$(psql_q "$PREVIEW_PSQL" "select count(*) from public.story where id::text in ($MAIN_STORY_IDS)")"
 fi
 
 head1 "Verifying production, which this run did not touch"
