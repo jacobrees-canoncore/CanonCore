@@ -202,10 +202,16 @@ ok "Target: $PREVIEW_HOST/$PREVIEW_DATABASE"
 # --- Apply, to the preview branch and to nothing else. ---
 #
 # **What drizzle decides on, because the obvious description of it is wrong and the error is not
-# harmless.** It does not skip migrations the journal already records. `drizzle-orm`'s
-# `pg-core/dialect.cjs` reads the newest `created_at` **once, at line 58, before the loop**, and at
-# line 64 applies every migration whose `folderMillis` exceeds it. `hash` is selected on line 58 and
-# never compared:
+# harmless.** It does not skip migrations the journal already records. `PgDialect.migrate`, in
+# `drizzle-orm@0.45.2`'s **ESM** build `pg-core/dialect.js`, reads the newest `created_at` **once,
+# before the loop**, and inside it applies every migration whose `folderMillis` exceeds that one
+# value. `hash` is selected by the same query and never compared.
+#
+# The ESM build is named deliberately: `drizzle-kit` reaches the migrator through
+# `await import("drizzle-orm/node-postgres/migrator")`, which resolves the package's `import`
+# condition to `.js`, so the `.cjs` of the same name carries identical code and never loads. Quoted
+# rather than cited by line, because a line number in a vendored dependency goes stale at the next
+# upgrade and this text does not:
 #
 #   select id, hash, created_at from drizzle.__drizzle_migrations order by created_at desc limit 1
 #   if (!lastDbMigration || Number(lastDbMigration.created_at) < migration.folderMillis) { … }
@@ -220,7 +226,8 @@ ok "Target: $PREVIEW_HOST/$PREVIEW_DATABASE"
 # **Against a database two branches share they part company, and one direction is silent.** A
 # migration whose timestamp is *earlier* than the newest already applied is skipped, no row is
 # inserted for it, and it can therefore never apply to that database — while drizzle reports
-# success. Check 1 below cannot see it: it compares the *number* of migrations, and both branches
+# success. The check below headed "the journal records every migration this branch carries" cannot
+# see it: it compares the *number* of migrations, and both branches
 # carry the same number. The count catches only the opposite ordering, where somebody else's
 # migration is present and the total runs high.
 #
@@ -230,8 +237,11 @@ ok "Target: $PREVIEW_HOST/$PREVIEW_DATABASE"
 # docs/research/per-worktree-preview-databases.md quotes the source and holds the orderings.
 head1 "Applying to \`preview\`"
 note "Re-running this branch's own migrations applies nothing, so this is safe to repeat."
-note "Do not run it for two branches at once: a migration older than the newest already on the"
-note "branch is skipped for ever, and reports success. See the comment above this line."
+warn "One branch at a time may apply a migration to \`preview\`, ever — not merely one at a time"
+note "today. Every branch shares this database, so a migration older than the newest already"
+note "applied to it is skipped permanently and still reports success, however many days apart the"
+note "two runs are. If another branch has migrated \`preview\` since this one was cut, stop and read"
+note "the comment above this line."
 if ! MIGRATION_DATABASE_URL="$PREVIEW_URL" pnpm --filter @canoncore/web db:migrate; then
   bad "The migration failed. Nothing below ran."
   note "Read the error above before re-running: a partly-applied migration is not a state"

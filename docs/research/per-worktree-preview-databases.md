@@ -359,7 +359,7 @@ const { migrate: migrate2 } = await import("drizzle-orm/node-postgres/migrator")
 const migrateFn = async (config) => { return migrate2(db, config); };
 ```
 
-`drizzle-orm/node-postgres/migrator.cjs` is three lines of substance:
+`drizzle-orm/node-postgres/migrator.js` is three lines of substance (the ESM build, which is what `drizzle-kit`'s `await import(…)` resolves; the `.cjs` beside it is identical and never loads):
 
 ```js
 async function migrate(db, config) {
@@ -368,7 +368,7 @@ async function migrate(db, config) {
 }
 ```
 
-`readMigrationFiles` in `drizzle-orm/migrator.cjs` walks `meta/_journal.json` and carries each entry's
+`readMigrationFiles` in `drizzle-orm/migrator.js` walks `meta/_journal.json` and carries each entry's
 `when` through as `folderMillis`, alongside a SHA-256 of the file:
 
 ```js
@@ -380,7 +380,7 @@ migrationQueries.push({
 });
 ```
 
-And `PgDialect.migrate` in `drizzle-orm/pg-core/dialect.cjs`, lines 46–74, is the decision:
+And `PgDialect.migrate` in `drizzle-orm/pg-core/dialect.js` is the decision — the select at line 57, the predicate at line 62 in `drizzle-orm@0.45.2`:
 
 ```js
 const dbMigrations = await session.all(
@@ -425,15 +425,19 @@ reached the database first" — which with parallel worktrees is not an edge cas
 orderings. The failure it produces is exactly the shape this repository is otherwise built to refuse: a
 green check over a broken preview.
 
-**And the repository currently states the opposite.** [`scripts/apply-migrations-ahead-of-merge.sh`](../../scripts/apply-migrations-ahead-of-merge.sh)
-prints, before it runs `db:migrate` against the shared branch:
+**And the repository stated the opposite until this research prompted the correction.**
+[`scripts/apply-migrations-ahead-of-merge.sh`](../../scripts/apply-migrations-ahead-of-merge.sh) said,
+in its header and again before it ran `db:migrate` against the shared branch:
 
 > `drizzle-kit skips any migration its journal already records, so this is re-runnable.`
 
-That is true for the single-lane case it was written for and false as a general statement: drizzle-kit
-skips by **timestamp against a high-water mark**, not by looking up what the journal records. The note
-is not corrected here — this file is research and touches nothing else — but it is the sentence to fix
-alongside whatever design lands.
+That was true for the single-lane case it was written for and false as a general statement: drizzle-kit
+skips by **timestamp against a high-water mark**, not by looking up what the journal records. Both
+instances were corrected under **CAN-139 The migration script misdescribes how drizzle decides what to
+apply, and the error hides a silent skip**, which landed in the same commit as this file — so the quoted
+sentence above is a record of what was fixed rather than a description of the tree it sits in. The
+script now carries the mechanism, the ordering that is silent, and the reason the count check cannot
+see it.
 
 **A branch per worktree removes the hazard entirely rather than mitigating it.** Each worktree's branch
 carries its own `drizzle.__drizzle_migrations`, inherited from `preview` at `T9`; its own new migration
