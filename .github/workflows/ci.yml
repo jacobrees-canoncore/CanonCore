@@ -17,13 +17,13 @@ jobs:
     # `scripts/check-docs.ts` fails the build if they ever disagree.
     #
     # It is a summary of this job rather than a manifest of it, and deliberately so. The
-    # documents check, the audit, the migration and both release steps have all joined
-    # without it changing. Each rename would cost a coordinated ruleset edit, with a window
-    # in which the required context is missing and the pull request cannot merge, to buy a
-    # longer string — so a step joins on its merits and the name stays put. CAN-54 Fail a
-    # push that adds a known-vulnerable dependency settled that, having found the earlier
-    # wording ("added to rather than replaced when a step joins") already contradicted by
-    # four steps that had joined silently.
+    # `vercel` install, the documents check, the migration and the promotion had all joined
+    # without it changing, and the audit below makes five. Each rename would cost a
+    # coordinated ruleset edit, with a window in which the required context is missing and
+    # the pull request cannot merge, to buy a longer string — so a step joins on its merits
+    # and the name stays put. Settled by CAN-54 Fail a push that adds a known-vulnerable
+    # dependency, against an earlier wording here ("added to rather than replaced when a
+    # step joins") that those four steps had already contradicted.
     #
     # The release steps at the end are in this job rather than a job of their own because
     # they never run on a pull request: a job that cannot report on a pull request cannot be
@@ -85,23 +85,11 @@ jobs:
       # without it the first machine to find out is the deploy.
       - run: pnpm -r build
 
-      # A known-vulnerable dependency, made to fail a push rather than sit unnoticed. Dependabot
-      # alerts see the same advisories but only after the merge, on a schedule and in a tab
-      # nobody has open; this is the same data at the moment the change is pushed.
-      #
-      # After the four above rather than before them, for the reason the documents check is after
-      # them too: a dependency's advisory is not a broken build, and the first failure stops the
-      # rest, so a high advisory published overnight must not be what hides a genuine compile
-      # error from the person who caused it.
-      #
-      # `high`, not `low` or `moderate`, is a threshold rather than a preference: `drizzle-kit`
-      # carries a moderate `esbuild` advisory (GHSA-67mh-4wv8-2f99, a development-server one) that
-      # nothing here can fix, and a gate that is red on arrival is a gate that gets ignored.
-      #
-      # `--ignore-registry-errors` is deliberately not passed. It exits 0 when the registry is
-      # unreachable, which would make an outage indistinguishable from a clean audit — the exact
-      # silence `check-docs` spends a whole report avoiding. A registry outage should be a red run
-      # that says so and can be re-run, not a green one that compared nothing.
+      # A known-vulnerable dependency, failing the push rather than sitting unnoticed. Three
+      # things about this line are decisions rather than defaults — that it runs after the four
+      # above rather than before them, that the threshold is `high`, and that
+      # `--ignore-registry-errors` is not passed. All three are argued once, in
+      # docs/agents/workflow.md -> The gates.
       - run: pnpm audit --audit-level=high
 
       # The documents, checked against the sources they describe. Last of the gates, so that a

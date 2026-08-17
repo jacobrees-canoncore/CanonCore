@@ -536,13 +536,15 @@ second place, that no reading of the first could reveal.
 
 What each source said before anything was changed:
 
+All against `jacobrees-canoncore/CanonCore`, as `jacobdrees`, between **22:54 and 22:58 BST**:
+
 | Read | Answer |
 | --- | --- |
-| `gh api -i repos/…/vulnerability-alerts` | `HTTP/2.0 204 No Content` — the documented *enabled* |
-| `gh api repos/…/dependabot/alerts?state=open` | `[]` |
-| `gh api repos/…/dependency-graph/sbom` | `404 Not Found`, three times |
-| The same SBOM call against `cli/cli` | `500`, *"Failed to generate SBOM: Request timed out"* |
-| `github.com/…/network/dependencies` | **"Dependency graph is disabled"**, with an *Enable* button |
+| `gh api -i repos/jacobrees-canoncore/CanonCore/vulnerability-alerts` | `HTTP/2.0 204 No Content` — [the documented *enabled*](https://docs.github.com/en/rest/repos/repos#check-if-vulnerability-alerts-are-enabled-for-a-repository) |
+| `gh api "repos/jacobrees-canoncore/CanonCore/dependabot/alerts?state=open"` | `[]` |
+| `gh api repos/jacobrees-canoncore/CanonCore/dependency-graph/sbom` | `404 Not Found`, three times |
+| `gh api repos/cli/cli/dependency-graph/sbom` | `500`, *"Failed to generate SBOM: Request timed out"* |
+| `github.com/jacobrees-canoncore/CanonCore/network/dependencies` | **"Dependency graph is disabled"**, with an *Enable* button |
 
 **The 404 is the reading that matters, and only the fifth row makes it legible.** A 404 from that
 endpoint is indistinguishable from a token that cannot reach it; the `cli/cli` call is what
@@ -550,11 +552,14 @@ separates the two, because a 500 out of the generator proves the endpoint answer
 So the repository genuinely had no graph, and `[]` meant *nothing was parsed* rather than *nothing
 is vulnerable* — the two readings a green tick cannot tell apart.
 
-**There is no REST route to the setting, and the API says otherwise by staying quiet.** `PATCH
+**The obvious REST route does not work, and fails by staying quiet.** `PATCH
 /repos/{owner}/{repo}` with `security_and_analysis[dependency_graph][status]=enabled` returned
-**200** and a body in which the field simply does not appear. Nothing failed, nothing changed, and
-the page still said disabled. The field is not part of that payload and is discarded without
-comment, so the call reads exactly like a successful one. It was flipped through the UI instead.
+**200** and a body in which the field simply does not appear — and the page still said disabled.
+The field is not among the five that payload documents
+([Update a repository](https://docs.github.com/en/rest/repos/repos#update-a-repository)), so it is
+discarded without comment and the call reads exactly like a successful one. **No other REST route was
+looked for**; the UI button is what was used, and is what the register's read-back commands work
+around.
 
 **What flipping it changed, within a minute.** The SBOM went from `404` to **696 packages**. The
 open alert list went from `[]` to `GHSA-67mh-4wv8-2f99` (esbuild, moderate) — the same advisory
@@ -563,10 +568,11 @@ vulnerability on jacobrees-canoncore/CanonCore's default branch (1 moderate)"*, 
 to this repository had ever printed.
 
 **The general lesson is the one the ticket was already carrying about secret scanning: a criterion
-that can be ticked from a setting's own name is not yet evidence.** Two of the four things CAN-54
-turned on live in `security_and_analysis`, one lives behind `/vulnerability-alerts`, and one lives
-in neither and is reachable only by a button. `docs/infrastructure.md` → *Dependency and secret
-scanning* records all four with the call that reads each one back.
+that can be ticked from a setting's own name is not yet evidence.** Of the three settings this ticket
+turned on, two live in `security_and_analysis` and the third lives nowhere a REST call was found to
+reach. Alerts, the fourth, were never flipped at all — they had read as enabled throughout, which is
+the whole point. `docs/infrastructure.md` → *Dependency and secret scanning* records all four with
+the call that reads each one back.
 
 ---
 
@@ -579,9 +585,9 @@ imported by nothing, and pushed as [`5b1b590`](https://github.com/jacobrees-cano
 Run [`31975102269`](https://github.com/jacobrees-canoncore/CanonCore/actions/runs/31975102269)
 failed, and **failed in the right place**: `pnpm -r test`, `pnpm -r typecheck`, `pnpm -r lint` and
 `pnpm -r build` all reported `success`, `pnpm audit --audit-level=high` reported `failure` with
-`Process completed with exit code 1`, and every step after it — the documents check and both release
-steps — reported `skipped`. The log names the advisory: *"critical │ Prototype Pollution in
-minimist"*, `Paths: apps__web>minimist`.
+`Process completed with exit code 1`, and all four steps after it reported `skipped`: the `vercel`
+install, the documents check, and both release steps. The log names the advisory: *"critical │
+Prototype Pollution in minimist"*, `Paths: apps__web>minimist`.
 
 The dependency was removed in the next commit, and `apps/web/package.json` and `pnpm-lock.yaml` are
 byte-identical to `main` again.
