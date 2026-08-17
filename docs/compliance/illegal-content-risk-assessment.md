@@ -11,6 +11,7 @@ and is provided to Ofcom on request.
 | Completion date | 13 August 2026 |
 | Last revised | 14 August 2026 (substantive edits), revision row added 16 August 2026 per RKRG §2.7 |
 | Revised | 16 August 2026 — the terms amendment of that date, and why it triggers no redo, recorded in Step 4. Carried by [CAN-81 Disclose Sentry's US error storage in the terms of service](https://linear.app/jacobrees-canoncore/issue/CAN-81). No level or finding changed |
+| Revised | 17 August 2026 — **redone under `s.9(4)`**, before the ingress it assesses can ship. Carried by [CAN-108 Re-assess the illegal-content risk before a user can paste an arbitrary Provider URL](https://linear.app/jacobrees-canoncore/issue/CAN-108). **No level moved.** What did: text imported through a *pasted* Provider is classified as user-generated content, Step 1's *Finding or encountering content* answer is re-derived rather than carried forward, finding 2c is assessed on that route separately, the non-linkification control is widened from user free text to everything rendered, and whether pasted Providers are moderated is decided |
 | Next review date | 13 August 2027 — the service's 12-month policy cadence (Ofcom good practice; `s.9(3)` imposes keep-up-to-date, not a fixed interval — corrected 16 August 2026), and earlier before any significant change (`s.9(4)`) |
 | Reason for review | First assessment, before launch |
 | Completed by | Jacob Rees |
@@ -45,9 +46,22 @@ whole assessment turns on it:
 - **Visibility** — a per-record flag. A record may be made public and then read by anyone, including
   people with no account (CAN-23).
 - **Free text** — titles, notes and Arguments are authored by the account holder.
+- **Imported text** — a person may bring a third party's prose about a work into their own
+  Catalogue, through a **Provider**, which is the only way this application reaches any Source
+  ([ADR-0014](../adr/0014-shell-providers-and-per-source-retention.md)). **There are two routes and
+  the difference between them carries this revision**: a *Listed* Provider is one this project
+  writes and runs, and a *pasted* one is any URL a person types in.
 
-Those three, together, are what make this a user-to-user service: one person authors, sets a record
-public, and another person encounters it.
+Those four, together, are what make this a user-to-user service: one person authors or imports, sets
+a record public, and another person encounters it.
+
+> **The pasted route does not exist yet, and that is why this assessment was redone now.**
+> [CAN-113 Add a Provider by pasting its URL](https://linear.app/jacobrees-canoncore/issue/CAN-113)
+> builds it, and `s.9(4)` requires the assessment to be redone **before** a significant change to
+> the design or operation of the service ships rather than after it. Pasting an arbitrary URL is
+> one: it is a route by which text nobody here has seen reaches a rendered page. CAN-113 carries
+> the gate as its own last acceptance criterion, so the order is recorded in the ticket that could
+> break it as well as in this one.
 
 > **Fork is deliberately not in scope at launch.** Copying another account's public records into your own
 > Catalogue is [CAN-9](https://linear.app/jacobrees-canoncore/issue/CAN-9), which CAN-17 lists as out of
@@ -69,11 +83,12 @@ of the findings below:
 - No marketplace, listings, payments or advertising.
 - No recommender system, no engagement ranking, no virality mechanics.
 - No search across other users' content.
-- **User free text renders as plain text and is never hyperlinked**, so a URL typed into an Argument is
-  not followable from the page. This is a design constraint owned by
-  [CAN-27 Orderings and Placements, and the imported broadcast Ordering](https://linear.app/jacobrees-canoncore/issue/CAN-27),
-  which carries it as an acceptance criterion and a test; it is not yet a property of shipped code,
-  because no free text ships yet.
+- **Nothing rendered is hyperlinked, whatever wrote it**, so a URL reaching a page is not followable
+  from it. **Until 17 August 2026 this read "user free text"**, which left a Provider's prose outside
+  a control several findings rest on; widening it is what CAN-108 Re-assess the illegal-content risk
+  before a user can paste an arbitrary Provider URL did, and *Existing controls relied on* below
+  records how much of it is built. It is an absence in the sense that matters — JSX escapes what it
+  interpolates, so an anchor has to be reintroduced deliberately — rather than a feature.
 
 ## Step 1 — Risk Profiles and risk factors
 
@@ -88,7 +103,7 @@ Guidance was worked through; the answers are recorded here.
 | User networking functionalities | **None of the above** |
 | User communication functionalities | **None of the above.** No livestreaming, direct messaging, encrypted messaging, commenting, image/video posting, location sharing, or re-posting/forwarding. CAN-17 rules out comments, likes, notifications and activity feeds by name, and Fork is out of scope |
 | Users can post goods or services for sale | **No** |
-| Finding or encountering content | **None of the above.** No search over user-generated content; no hyperlinking, because user free text is not linkified |
+| Finding or encountering content | **None of the above** — re-derived on 17 August 2026 rather than carried forward, because the old answer's second half was scoped to user text. Both limbs are worked through in *Finding or encountering content, re-derived* below |
 | Content or network recommender systems | **No** |
 
 **The risk factors that apply to this service are therefore:** user profiles; users without accounts; and
@@ -100,11 +115,76 @@ an author attribution. That attribution is the profile.
 
 That is a very short list, and the absence of the others is the single most important input to Step 2.
 
-> **One thing displayed on the service is not user-generated content**: Snapshots hold TMDB's payload
-> verbatim (CAN-26), which includes synopsis text, and that text may be rendered. It is **provider
-> content** sourced from a curated third-party database, not content authored by a user, so it is outside
-> the user-to-user duties. It is noted here so the assessment is not read as claiming every word on the
-> page was written by an account holder.
+### What counts as user-generated content here
+
+Not every word on a page was written by an account holder, and the assessment has never claimed
+otherwise. **What changed on 17 August 2026 is that the answer stopped being the same for both
+import routes.**
+
+`s.55(3)` is the test, and it has two limbs: content "generated directly on the service by a user of
+the service, or uploaded to or shared on the service by a user of the service", **and** content "that
+may be encountered by another user, or other users, of the service by means of the service"
+([s.55](https://www.legislation.gov.uk/ukpga/2023/50/section/55), read 17 August 2026). `s.55(2)`
+builds **regulated** user-generated content out of that definition by subtracting seven categories,
+and the Part 3 user-to-user duties run on the result — so text that never satisfies `s.55(3)` never
+reaches the subtraction at all.
+
+- **A Listed Provider's text is not user-generated content.** A Snapshot holds what a Source *this
+  project* chose, vouches for and reaches through a Provider it runs last said — TMDB's payload
+  verbatim, synopsis included ([CAN-26 Import a series from TMDB, with the overlay behind
+  it](https://linear.app/jacobrees-canoncore/issue/CAN-26)). The person picked a work to catalogue,
+  not a service to trust, and nobody uploaded or shared the prose. `s.55(3)(a)` is not satisfied.
+- **A pasted Provider's text is user-generated content.** The person chose a stranger's service and
+  directed this one to fetch its prose, which is text "shared on the service by a user" however
+  automatically the fetch then runs; and the moment they set the record public, `s.55(3)(b)` is
+  satisfied too. **Both readings are arguable, and the conservative one is taken** — the same posture
+  this assessment takes on levels under Part 3 §3.3, applied to a classification rather than to a
+  level. `s.55(7)` points the same way within its own subsection: "content that is user-generated
+  content in relation to a service is not to be regarded as provider content in relation to that
+  service."
+
+**The line is who chose the Source, not who ran the fetch**, because both routes fetch with this
+service's own software and neither is a person typing prose.
+[ADR-0014](../adr/0014-shell-providers-and-per-source-retention.md) draws the same line for an
+unrelated reason — "Listed is a real boundary: anything off it is a stranger's service however
+familiar the Source behind it looks" — and it turns out to be the line the duties fall along too.
+
+> **An earlier version of this note reached the right answer by the wrong instrument**, calling a
+> Snapshot's text "provider content" and concluding it was outside the user-to-user duties. The
+> conclusion holds, but `s.55(7)` defines that term **for the purposes of `s.55(6)`**, which is the
+> exclusion for comments and reviews on provider content — not a general category that content can
+> be sorted into. `s.55(3)` is what does the work, and it does it by not being satisfied. *(Corrected
+> 17 August 2026.)*
+
+### Finding or encountering content, re-derived
+
+Ofcom's question 7 is "Does my service have any of the following functionalities that allow users to
+find or encounter content?", with two limbs: **7a, searching for user-generated content** and **7b,
+hyperlinking** (*Risk Assessment Guidance and Risk Profiles* V2.0, 25 June 2026, Part 3 Section 1).
+Both are still **No**. The 7a answer survives untouched; the 7b answer does not, and it is the one
+this revision had to re-derive.
+
+**7a — no.** Unchanged. A pasted Provider is reached by its URL, not found by
+searching, and what a person searches *through* it is that Source's own catalogue rather than
+anything another user of this service generated. There is still no search across other users'
+content.
+
+**7b — no, on a control that now covers the text in question.** The previous answer read "no
+hyperlinking, because **user free text** is not linkified". A Provider's prose is not user free text,
+so on the pasted route that sentence answered a question nobody had asked; the control has been
+widened to everything rendered, and 7b is answered on the widened one. The pasted URL itself is not
+the functionality either: a person types it into their own account to say where their records come
+from, and `s.55(3)(b)` fails on it, because it is not content another user encounters by means of the
+service.
+
+> **Answering *No* to 7b removes the functionality, not the behaviour, and finding 2c is where that
+> is carried.** Ofcom's own description of the risk factor is that "perpetrators use hyperlinks **and
+> plain-text URL linking** to share illegal images among themselves on various types of services"
+> ([V2.0](https://www.ofcom.org.uk/siteassets/resources/documents/online-safety/information-for-industry/illegal-harms/updates/risk-assessment-guidance-and-risk-profiles.pdf),
+> risk factor 7b, *Hyperlinking*, read 17 August 2026). A URL that is not clickable can still be read
+> and retyped.
+> That is why 2c is low rather than negligible, and why non-linkification is never cited below as
+> though it were the whole of the mitigation.
 
 ## Step 2 — Risk of each kind of priority illegal content
 
@@ -122,7 +202,7 @@ no mechanism. Every negligible finding below rests on an absent mechanism, never
 | 1 | Terrorism | **Low** | Text-based promotion is possible in principle. No image or video upload, no messaging, no search over others' content and no linkification, so there is no dissemination or recruitment channel. No evidence of any such content. Mitigated by review, reporting and takedown |
 | 2a | CSEA — grooming | **Low** | No direct messaging, no user connections, no comments, no closed groups. Ofcom's own worked low-risk grooming example is an individually-run public site with no direct messaging, which is this service's shape. Contact between users is not possible by any route |
 | 2b | CSEA — CSAM imagery | **Negligible** | No image or video upload exists anywhere in the service and no media bytes are stored. The harm has no mechanism by means of this service |
-| 2c | CSEA — CSAM URLs | **Low** | **Assessed separately from 2b and deliberately not treated as negligible.** The no-upload argument does not carry here: a URL is text, and free-text fields accept text. Mitigated by non-linkification, by a corpus small enough to review, and by reporting and takedown. Reassess immediately if free text is ever linkified |
+| 2c | CSEA — CSAM URLs | **Low** | **Assessed separately from 2b, deliberately not treated as negligible, and re-assessed on the pasted-Provider route on 17 August 2026.** The no-upload argument does not carry here: a URL is text, and text is what a free-text field and a Provider's payload both carry. Mitigated by non-linkification — which since 17 August covers text of any origin rather than user text alone — by a corpus small enough to review, and by reporting and takedown. **The two routes are held apart in [Finding 2c on the pasted-Provider route](#finding-2c-on-the-pasted-provider-route)**, because non-linkification is the only mitigation they share. Reassess immediately if anything rendered is ever linkified |
 | 3 | Hate | **Low** | A pure-text offence with a genuine vector: Arguments are opinionated prose about works and their creators, and public Visibility carries that text to any reader. No mechanism argument is available. Mitigated by prohibition in the terms, review, reporting and takedown |
 | 4 | Harassment, stalking, threats and abuse | **Low** | Also pure text. There is no direct channel to a target — no messaging, no comments, no mentions — so content can be *about* a person but cannot be *sent to* them. This materially limits the harm without eliminating it |
 | 5 | Controlling or coercive behaviour | **Negligible** | The offence requires a repeated course of conduct against a person in a relevant relationship, which needs a communication channel between two people. The service provides none: no messaging, no connections, no groups, no comments |
@@ -145,12 +225,58 @@ no mechanism. Every negligible finding below rests on an absent mechanism, never
 **smaller** (well under 7 million monthly active UK users) and **low-risk** (low for all kinds), and is
 **not multi-risk**. This determines the Code measures in Step 3.
 
+### Finding 2c on the pasted-Provider route
+
+**Assessed on this route specifically rather than folded into the row above.** The two routes share
+exactly one mitigation — non-linkification — and it is the one that had to be widened before it
+reached this route at all. Folding them together would have concealed precisely that.
+
+**The route, stated so the level can be argued about rather than asserted.** A person pastes the URL
+of a service nobody here has reviewed; the application speaks the published contract to it and stores
+what it returns as a Snapshot; that text is rendered on their records; and a reader encounters it if
+and when the person sets a record public. Anywhere in that chain the returned prose may contain a
+CSAM URL, and nothing upstream of this service was in a position to notice.
+
+**Why it is low rather than medium**, in the order the arguments actually carry weight:
+
+1. **It is the same two deliberate acts as the route already assessed, with a longer way round.**
+   Reaching a reader takes an account holder choosing a hostile Provider *and* publishing a record.
+   Typing the URL into an Argument takes authoring it *and* publishing. A stranger's service in the
+   middle changes who composed the text, not how many decisions stand between it and a reader.
+2. **Non-linkification now covers it**, which it did not before this revision. That is a real change
+   in the mitigation rather than a restatement of it.
+3. **There is no discovery route to a stranger's public record**: no search across other users'
+   content, no feed, no recommender. A public record is reached by someone who already has its URL.
+4. **Reporting and takedown reach the whole route rather than a symptom.** Takedown is the record's
+   Visibility going private, and its Snapshots are readable only while the Story is
+   (`snapshot_readable_when_its_story_is`), so what the Provider supplied goes down with what it was
+   attached to and there is no orphan to sweep up separately.
+
+**Why it is not negligible.** The mechanism exists. A negligible finding in this assessment always
+rests on an absent mechanism, and here the text arrives, is stored and is rendered; only its
+clickability is removed, and Ofcom's own evidence for risk factor 7b names plain-text URL linking.
+
+**Which control this route actually strains, stated rather than glossed.** It is *a corpus small
+enough for the operator to review* — the one control that scales with volume rather than with design.
+A person types free text at typing speed; a Provider returns it at fetch speed. What holds the
+control at v1 is that import is per record, so what arrives is bounded by what its owner chose to
+catalogue. **That bound is a property of what is built, not a promise**, which is why it appears in
+the reassessment triggers in Step 4 rather than only here.
+
+**No review of the Provider itself is relied on anywhere above.** There is none, by decision — see
+*Pasted Providers are not moderated; their content is* in Step 3 — and a finding that quietly assumed
+one would be the worst kind of wrong here.
+
 ### Existing controls relied on
 
 **Two kinds of control appear here, and the distinction is load-bearing.** Most are **absences** —
 mechanisms the service does not have — and an absence is true of `main` the moment it is written down.
 Two are **things that must be built**, and they are marked as such rather than asserted, because a
-control claimed but not shipped is worse evidence than one honestly deferred. Neither absence nor
+control claimed but not shipped is worse evidence than one honestly deferred. **One of those two is
+now partly in effect**: from this revision the non-linkification prohibition is enforced by lint over
+every `.ts` and `.tsx` file under `apps/web/src`, while the surfaces it protects are still being
+built, and the
+`Built?` column says that in those words rather than rounding it to a yes or a no. Neither absence nor
 deferral changes a level below; the two built controls are what hold several *low* findings at low once
 there is content, so the gate that keeps content out until they exist is part of the control.
 
@@ -159,9 +285,9 @@ there is content, so the gate that keeps content out until they exist is part of
 | No image, video or file upload | CSAM imagery, extreme pornography, intimate image abuse, animal cruelty, cyberflashing | The basis of three negligible findings (2b, 7 and 18) | Absence |
 | No messaging, connections or comments | Grooming, controlling or coercive behaviour, harassment delivery, trafficking coordination | The basis of one negligible finding and a limiting factor on several low ones | Absence |
 | No marketplace, payments or advertising | Fraud, proceeds of crime, drugs, weapons, sexual exploitation, trafficking | Holds these at low rather than higher | Absence |
-| User free text not linkified | CSAM URLs, terrorism, drugs, weapons, fraud | Removes the hyperlinking risk factor entirely | **Not yet — CAN-27**, which carries it as an acceptance criterion and a test. There is no free text on `main` to render, so nothing is linkified today; what CAN-27 owns is that it stays that way |
+| **Nothing rendered is linkified, whatever wrote it** | CSAM URLs, terrorism, drugs, weapons, fraud | Answers risk factor 7b — with the caveat under *Finding or encountering content, re-derived* about what answering *No* does not remove | **Partly.** The *prohibition* lands with this revision, origin-blind, over every `.ts` and `.tsx` file under `apps/web/src`: [`apps/web/eslint.config.mjs`](../../apps/web/eslint.config.mjs) carries `react/no-danger`, which is a real guard because JSX escapes what it interpolates, and a restricted-import group naming the markdown renderers and autolinkers most likely to be reached for. **That group matches package names, so it is a tripwire and not a proof** — a renderer it does not name gets through, and an `<a href>` written by hand gets past both rules. The *rendered assertion* is [`no-linkification.test.tsx`](../../apps/web/src/app/no-linkification.test.tsx), which is the only check that sees any of that, and it covers the one surface drawing text today; CAN-27 (Ordering and Story pages), CAN-26 (a Listed Provider's prose) and CAN-113 (a pasted one's) each add their own |
 | No recommender or engagement ranking | Foreign interference, suicide and self-harm, hate | Removes amplification | Absence |
-| A corpus small enough for the operator to review | All | Reviewability in full, which is what makes reactive moderation adequate at this size. **The provider's own reasoning, not a position attributed to Ofcom** | Absence, and reviewed at each risk-assessment review |
+| A corpus small enough for the operator to review | All | Reviewability in full, which is what makes reactive moderation adequate at this size. **The provider's own reasoning, not a position attributed to Ofcom.** It is also the one control here that scales with volume rather than with design, so an import route is what strains it — *Finding 2c on the pasted-Provider route* says how, and Step 4 carries the trigger | Absence, and reviewed at each risk-assessment review |
 | All shared content is public; no closed groups | CSEA, hate | Ofcom treats unreviewed closed groups as a high-risk factor; their absence reduces risk | Absence |
 | Admin takedown, recorded as an Operation with an audit entry | All | Enables the swift takedown in ICU C2 | **Not yet — CAN-32 Roles, takedown, and the Online Safety Act surfaces**. No `admin` role and no audit entry exist on `main`; `story` has carried a Visibility since CAN-23, but nothing can change one. The Code measures register records ICU C2 and PCU C2 as not in effect for the same reason |
 
@@ -205,6 +331,52 @@ is documented as never firing rather than merely unexercised.
 > commitment to say so if that ever changes meaningful. An earlier version of this section said the
 > statement was made "as `s.10(7)` requires", which was wrong.
 
+### Pasted Providers are not moderated; their content is
+
+**Decided 17 August 2026**, because the question has to have an answer rather than an assumption.
+[ADR-0014](../adr/0014-shell-providers-and-per-source-retention.md) rejects a community registry, and
+a registry is a moderation commitment; refusing one and then leaving the posture unstated would read
+as a commitment nobody had written down.
+
+**A pasted Provider is never reviewed, listed, allowlisted or vouched for.** There is no queue it
+passes through and no state in which the product says it is safe. What is moderated is the
+**content** — under ICU C1 and C2 and PCU C1 and C2, identically to content an account holder typed,
+which is what the classification in *What counts as user-generated content here* makes it. The
+operator assesses it against the terms by the C1.3(b) route and acts by setting the record's
+Visibility to private.
+
+**Three things make that sufficient rather than merely convenient:**
+
+1. **A duty attaches to content, not to a supplier of it.** The `s.10` duties are about illegal
+   content present on the service, and no measure this service is bound by — the whole applicable set
+   is in [`code-measures-register.md`](code-measures-register.md) — asks a provider to vet where
+   content came from.
+2. **Nothing a stranger's Provider returns reaches a reader unless an account holder decides it
+   should.** They chose the URL, and their Catalogue is private until they set a record public. The
+   choice and the publication are both theirs, and both are already the acts the rest of this
+   assessment is built on.
+3. **Takedown reaches the route rather than a symptom of it.** Visibility going private takes the
+   Snapshots out of public view with the record, because a Snapshot is readable only while its Story
+   is, so nothing the Provider supplied stays reachable by another path once the record is down.
+
+**Rejected: an operator blocklist of Provider URLs**, refusing a named service for everyone once it
+is found to carry illegal content. It is a moderation commitment on Providers rather than on content
+— what a registry is refused for, arrived at from the other end — and it needs a build, a register
+row, and a written policy for how a URL gets onto the list and off it again. The takedown that exists
+already reaches the same content, on the records of the person who actually imported it, without any
+of that. **It is the first thing to build if a reassessment trigger in Step 4 fires**, and it is
+recorded here so that the option is on the record rather than reinvented under pressure.
+
+**Rejected: reviewing each pasted URL before the application will speak to it.** That is a registry
+by another name. ADR-0014 refuses it, CAN-113 Add a Provider by pasting its URL is shaped against it,
+and [ADR-0003](../adr/0003-no-shared-catalogue.md) has already refused the same commitment on the
+catalogue, where a quorum of one is theatre.
+
+**No Code measure and no alternative measure follows from this decision.** Nothing here declines a
+measure the Codes recommend, so `s.23(4)` has nothing to record and the `s.23(3)` register gains a
+pointer rather than a row. **Which is the reason for writing it down at all**: with the posture
+unstated, a reader cannot tell a decision from an omission.
+
 ## Step 4 — Review
 
 Recorded in [`review-policy.md`](review-policy.md). In summary: reviewed at least every 12 months;
@@ -215,18 +387,38 @@ Ofcom materially changes a relevant Risk Profile.
 
 - **Shipping Fork** ([CAN-9](https://linear.app/jacobrees-canoncore/issue/CAN-9)) — it is a re-posting
   and forwarding mechanism, which Ofcom associates with intimate image abuse, suicide and serious
-  self-harm, and foreign interference. **This is the most likely of these changes to actually happen**,
-  and the assessment must be redone before it goes live.
+  self-harm, and foreign interference. **This is the most likely of the changes still outstanding** —
+  the pasted-Provider item below was the other candidate, and it is discharged — and the assessment
+  must be redone before it goes live.
+- **Accepting a pasted third-party Provider URL**
+  ([CAN-113 Add a Provider by pasting its URL](https://linear.app/jacobrees-canoncore/issue/CAN-113))
+  — arbitrary text from a service nobody here has reviewed reaching a rendered page. **This is the
+  change the 17 August 2026 revision was done for**, and it is listed rather than struck out so the
+  *next* move along the same axis is caught by this record instead of by memory. **Four such moves,
+  each of which needs this assessment redone again:** importing from a pasted Provider in bulk or on
+  a schedule rather than a record at a time chosen by its owner, which is the bound
+  *Finding 2c on the pasted-Provider route* rests on; adopting a registry, a blocklist or any other
+  review of Providers, which would reverse the posture decided in Step 3; rendering a Provider's
+  prose anywhere the controls above do not reach; and any Provider-supplied value becoming
+  displayable without a declared classification behind it, which the children's assessment owns.
 - Adding image, video or file upload — would reopen three negligible findings (2b, 7 and 18).
 - Adding direct messaging, comments, mentions or user connections — would reopen grooming and
   controlling or coercive behaviour.
-- **Linkifying user free text** — would switch on the hyperlinking risk factor and reopen CSAM URLs.
-  **This constraint is owned by
-  [CAN-27 Orderings and Placements, and the imported broadcast Ordering](https://linear.app/jacobrees-canoncore/issue/CAN-27)**,
-  which since 12 August 2026 carries both the prohibition ("no `dangerouslySetInnerHTML`, no markdown
-  renderer and no autolinking") and a test asserting that a URL typed into an Argument renders as text and
-  produces no anchor element. That test is what this finding rests on; an earlier version of this section
-  recorded the constraint as unowned.
+- **Linkifying anything rendered, whatever wrote it** — would switch on the hyperlinking risk factor
+  and reopen CSAM URLs. *(This read "user free text" until 17 August 2026, which left a Provider's
+  prose outside it; the gap that widening closed is what CAN-108 Re-assess the illegal-content risk
+  before a user can paste an arbitrary Provider URL was raised for.)* What holds it, and how far each
+  half reaches, is the *Nothing rendered is linkified* row in *Existing controls relied on*; the
+  rendered assertion is
+  [`no-linkification.test.tsx`](../../apps/web/src/app/no-linkification.test.tsx). **Each surface adds
+  its own case to that file rather than arguing from another's**:
+  [CAN-27 Orderings and Placements, and the imported broadcast Ordering](https://linear.app/jacobrees-canoncore/issue/CAN-27)
+  the Ordering and Story pages, which is where it carries the prohibition and a test for a URL typed
+  into an Argument;
+  [CAN-26 Import a series from TMDB, with the overlay behind it](https://linear.app/jacobrees-canoncore/issue/CAN-26)
+  a Listed Provider's prose; and
+  [CAN-113 Add a Provider by pasting its URL](https://linear.app/jacobrees-canoncore/issue/CAN-113)
+  a pasted one's.
 - Adding search across other users' content.
 - Adding a recommender, ranking or engagement signal.
 - Adding a marketplace, listings or payments.

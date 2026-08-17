@@ -10,6 +10,7 @@ recorded in [The conclusion](#the-conclusion-and-what-it-costs).
 | --- | --- |
 | Service name | CanonCore (`https://www.canoncore.com`) |
 | Completion date | 13 August 2026 |
+| Re-read | 17 August 2026 — against the children's risk assessment as redone under `s.11(4)` by [CAN-108 Re-assess the illegal-content risk before a user can paste an arbitrary Provider URL](https://linear.app/jacobrees-canoncore/issue/CAN-108). **Neither stage moved**, and *Re-read on 17 August 2026* below records why, because "no change" is the answer that most looks like it was never checked |
 | Next assessment due | 13 August 2027 — at most 12 months after completion (`s.36(3)`) |
 | Completed by | Jacob Rees |
 | Named person responsible | Jacob Rees |
@@ -92,3 +93,27 @@ by a terms-of-service clause that costs three sentences.
 
 **Revisit at the first review.** Once there is real usage data, limb 1 becomes answerable on evidence, and
 "not met" may become properly available.
+
+## Re-read on 17 August 2026
+
+`s.36(4)` requires this assessment to be redone before a significant change to the design or operation
+of the service, among other triggers, and accepting a pasted third-party Provider URL
+([CAN-113 Add a Provider by pasting its URL](https://linear.app/jacobrees-canoncore/issue/CAN-113))
+is one. It was re-read against the children's risk assessment as redone the same day. **Neither stage
+moves, and neither could have** — which is the finding, not an excuse for skipping the read.
+
+**Stage 1 turns on age assurance and on nothing else.** `s.35(2)` entitles a provider to conclude
+"not possible" **only** where age verification or age estimation is used with the result that children
+are not normally able to access the service. Accepting a pasted URL deploys neither. No fact about
+Providers is capable of reaching this stage's test.
+
+**Stage 2 turns on the kind of service.** Limb 2 asks whether the service is of a kind likely to
+attract a significant number of users who are children. An ingress that lets a person fill their own
+records from a service of their own choosing does not make a media catalogue a different kind of
+thing; if it does anything, it widens what may be catalogued, which points the same way the existing
+answer already points. Limb 1 is still unevidenced, because the service still has no usage data.
+
+**What would change the answer** is deploying highly effective age assurance, which is the only route
+to a Stage 1 "no". The two conditions that would put age assurance into the build at all are recorded
+in [`code-measures-register.md`](code-measures-register.md) → *Protection of Children Codes*, and
+neither is touched by anything decided on 17 August 2026.

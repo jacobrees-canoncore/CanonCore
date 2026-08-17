@@ -32,10 +32,8 @@ const eslint = new ESLint({
  * A fixture that fails to parse reports one fatal message and no rule ever runs, which would
  * otherwise read as "the rule found nothing" in every assertion below. So it throws instead.
  */
-async function messagesFor(source: string) {
-  const [result] = await eslint.lintText(source, {
-    filePath: "src/app/accessibility-fixture.tsx",
-  });
+async function messagesFor(source: string, filePath = "src/app/accessibility-fixture.tsx") {
+  const [result] = await eslint.lintText(source, { filePath });
 
   const fatal = result.messages.find((message) => message.fatal);
   if (fatal) {
@@ -46,8 +44,8 @@ async function messagesFor(source: string) {
 }
 
 /** The messages `rule` alone reported, so an unrelated rule firing cannot pass this. */
-async function messagesFrom(rule: string, source: string) {
-  return (await messagesFor(source)).filter((message) => message.ruleId === rule);
+async function messagesFrom(rule: string, source: string, filePath?: string) {
+  return (await messagesFor(source, filePath)).filter((message) => message.ruleId === rule);
 }
 
 /** ESLint's own numbering: 1 is `warn`, 2 is `error`. Only 2 fails a run. */
@@ -118,5 +116,78 @@ describe("the accessibility rules apps/web lints against", () => {
     );
 
     expect(messages.filter((message) => message.ruleId?.startsWith("jsx-a11y/"))).toEqual([]);
+  });
+});
+
+/**
+ * **Nothing rendered is linkified, whatever wrote it** — the lint half of the control that finding
+ * 2c of `docs/compliance/illegal-content-risk-assessment.md` rests on, widened from user free text
+ * to text of any origin by **CAN-108 Re-assess the illegal-content risk before a user can paste an
+ * arbitrary Provider URL**.
+ *
+ * A statutory record naming two rules is worth what the rules actually do, and the same silence
+ * applies here as above: merge this block into the `process.env` one and its `ignores` come with
+ * it, exempting every `*.test.tsx` from a control that has no business exempting them — with
+ * nothing throwing and the run staying green. The third case is the one that catches that.
+ *
+ * What is deliberately **not** asserted is the boundary of the import group. It matches package
+ * names, so a renderer it does not name gets through; pinning that with a test would turn widening
+ * the list into a failing build. The limitation is carried in prose, in the assessment and in
+ * `eslint.config.mjs`, where it can be read rather than enforced.
+ */
+describe("the non-linkification rules apps/web lints against", () => {
+  it("refuses the dangerous prop, which is the one way a plain string becomes markup", async () => {
+    const messages = await messagesFrom(
+      "react/no-danger",
+      `export function Fixture({ prose }: { prose: string }) {
+         return <div dangerouslySetInnerHTML={{ __html: prose }} />;
+       }`,
+    );
+
+    expect(messages).toHaveLength(1);
+    expect(messages[0].severity).toBe(error);
+  });
+
+  it("refuses a named markdown renderer, which needs no dangerous prop to emit an anchor", async () => {
+    const messages = await messagesFrom(
+      "no-restricted-imports",
+      `import ReactMarkdown from "react-markdown";
+
+       export const Fixture = ReactMarkdown;`,
+    );
+
+    expect(messages).toHaveLength(1);
+    expect(messages[0].severity).toBe(error);
+  });
+
+  it("refuses both in a test file too, which the process.env block's ignores would have exempted", async () => {
+    const messages = await messagesFor(
+      `import ReactMarkdown from "react-markdown";
+
+       export function Fixture({ prose }: { prose: string }) {
+         return <ReactMarkdown><span dangerouslySetInnerHTML={{ __html: prose }} /></ReactMarkdown>;
+       }`,
+      "src/app/linkification-fixture.test.tsx",
+    );
+
+    expect(
+      messages
+        .filter((m) => m.ruleId === "react/no-danger" || m.ruleId === "no-restricted-imports")
+        .map((m) => m.severity),
+    ).toEqual([error, error]);
+  });
+
+  it("passes prose rendered as prose, so the rules above fail on the violation not the fixture", async () => {
+    const messages = await messagesFor(
+      `export function Fixture({ prose }: { prose: string }) {
+         return <p>{prose}</p>;
+       }`,
+    );
+
+    expect(
+      messages.filter(
+        (m) => m.ruleId === "react/no-danger" || m.ruleId === "no-restricted-imports",
+      ),
+    ).toEqual([]);
   });
 });

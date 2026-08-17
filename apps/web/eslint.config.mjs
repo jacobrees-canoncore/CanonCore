@@ -45,6 +45,51 @@ const eslintConfig = defineConfig([
       ],
     },
   },
+  {
+    // **Nothing rendered is linkified, whatever wrote it.** Finding 2c of
+    // `docs/compliance/illegal-content-risk-assessment.md` rests on this, and until CAN-108
+    // Re-assess the illegal-content risk before a user can paste an arbitrary Provider URL the
+    // control was scoped to *user* free text — leaving a Provider's payload outside a control
+    // several findings lean on. Neither rule below can ask where a string came from, which is
+    // exactly what closes that gap.
+    //
+    // **The two are not worth the same, and the difference is load-bearing.** `react/no-danger`
+    // is a real guard: JSX escapes what it interpolates, so the dangerous prop is the one way a
+    // plain string turns into markup. The import group is a **tripwire** — it matches package
+    // names, so a renderer it does not name gets through — and an `<a href={...}>` written by
+    // hand gets past both. Only `src/app/no-linkification.test.tsx` sees the rendered result,
+    // which is why the assessment rests the finding on that rather than on this.
+    //
+    // Separate from the block above because the `ignores` differ: that one exempts `src/env.ts`
+    // and every `*.test.tsx`, and this control has no business exempting either.
+    files: ["src/**/*.{ts,tsx}"],
+    rules: {
+      "react/no-danger": "error",
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            {
+              group: [
+                "*markdown*",
+                "marked",
+                "*remark*",
+                "*rehype*",
+                "*linkify*",
+                "*autolink*",
+                "anchorme",
+                "*dompurify*",
+              ],
+              message:
+                "Nothing rendered is linkified, whatever wrote it — including Provider prose " +
+                "(docs/compliance/illegal-content-risk-assessment.md, finding 2c). A renderer " +
+                "that emits elements, or a sanitiser paired with a dangerous prop, reopens it.",
+            },
+          ],
+        },
+      ],
+    },
+  },
 ]);
 
 export default eslintConfig;

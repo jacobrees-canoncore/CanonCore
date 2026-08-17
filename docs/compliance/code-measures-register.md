@@ -8,6 +8,7 @@ identify the relevant Code of Practice, and give the date it takes effect.
 | --- | --- |
 | Completion date | 13 August 2026 |
 | Last revised | 14 August 2026 (substantive edits), revision row added 16 August 2026 per RKRG §2.7 |
+| Revised | 17 August 2026 — read alongside both risk assessments as redone by [CAN-108 Re-assess the illegal-content risk before a user can paste an arbitrary Provider URL](https://linear.app/jacobrees-canoncore/issue/CAN-108). **No row changed and none was added**; *Content from a pasted Provider, and why no row changes* says why that is the right answer rather than an unfinished one |
 | Next review date | 13 August 2027 — and alongside either risk assessment whenever that is reviewed |
 | Completed by | Jacob Rees |
 | Named person responsible | Jacob Rees |
@@ -214,6 +215,28 @@ feasibility.
 > dangerous stunts — is ever assessed at **medium or high** rather than low. That is a finding the
 > children's risk assessment can change at a review without anything about the product changing, and it is
 > a different lever from the `s.12(5)` terms prohibition, which answers primary priority content only.
+
+## Content from a pasted Provider, and why no row changes
+
+**Recorded 17 August 2026.** A person will be able to paste the URL of a Provider this project does
+not run ([CAN-113 Add a Provider by pasting its URL](https://linear.app/jacobrees-canoncore/issue/CAN-113)),
+and the prose it returns is user-generated content — derived in
+[`illegal-content-risk-assessment.md`](illegal-content-risk-assessment.md) → *What counts as
+user-generated content here*. It is therefore moderated by the same function as any other content,
+under **ICU C1 and C2** and **PCU C1 and C2**, exactly as their rows above already describe:
+assessed against the terms by the C1.3(b) route, and acted on by setting the record's Visibility to
+private.
+
+**Pasted Providers themselves are not moderated** — not reviewed, listed, allowlisted or vouched for.
+That decision, its two rejected alternatives and what would reverse it are in
+[`illegal-content-risk-assessment.md`](illegal-content-risk-assessment.md) → *Pasted Providers are
+not moderated*. It declines no measure any Code recommends, so it produces no `s.23(4)` entry either
+and the alternative measure recorded in
+[`alternative-measures-record.md`](alternative-measures-record.md) is untouched by it.
+
+**What would put a row here.** Adopting an operator blocklist of Provider URLs, which that section
+records as the first thing to build if its reassessment triggers fire. A blocklist is a moderation
+commitment with a date it takes effect, and `s.23(3)` would then want it written down.
 
 ## Sub-measures recorded explicitly
 
