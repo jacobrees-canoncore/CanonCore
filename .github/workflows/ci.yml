@@ -16,14 +16,14 @@ jobs:
     # the ruleset is updated too, so the two are changed together or not at all.
     # `scripts/check-docs.ts` fails the build if they ever disagree.
     #
-    # It is a summary of this job rather than a manifest of it, and deliberately so. The
-    # `vercel` install, the documents check, the migration and the promotion had all joined
-    # without it changing, and the audit below makes five. Each rename would cost a
-    # coordinated ruleset edit, with a window in which the required context is missing and
-    # the pull request cannot merge, to buy a longer string — so a step joins on its merits
-    # and the name stays put. Settled by CAN-54 Fail a push that adds a known-vulnerable
-    # dependency, against an earlier wording here ("added to rather than replaced when a
-    # step joins") that those four steps had already contradicted.
+    # It is a summary of this job rather than a manifest of it, and deliberately so. Role
+    # creation, the `vercel` install, the documents check, the migration and the promotion
+    # had all joined without it changing, and the audit below makes six. Each rename would
+    # cost a coordinated ruleset edit, with a window in which the required context is missing
+    # and the pull request cannot merge, to buy a longer string — so a step joins on its
+    # merits and the name stays put. Settled by CAN-54 Fail a push that adds a
+    # known-vulnerable dependency, against an earlier wording here ("added to rather than
+    # replaced when a step joins") that those five steps had already contradicted.
     #
     # The release steps at the end are in this job rather than a job of their own because
     # they never run on a pull request: a job that cannot report on a pull request cannot be

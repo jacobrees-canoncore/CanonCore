@@ -234,15 +234,14 @@ including documentation-only ones
 ([incident](incidents.md#both-required-contexts-report-on-documentation-only-pull-requests)).
 
 **The check contexts are one, not three.** CAN-22 asked for the three gate commands as three
-contexts; `ci.yml` runs all four in one job so the first failure stops the rest, which means the
-pull request reports one check. Requiring three names that nothing emits is the trap above.
+contexts; `ci.yml` runs every one of them in one job so the first failure stops the rest, which
+means the pull request reports one check. Requiring three names that nothing emits is the trap above.
 
-**The job's name is a summary of what it runs, not a manifest of it, and does not change when a step
-joins.** The `vercel` install, the documents check, the migration, the promotion and the dependency
-audit have all joined without it changing. A rename buys a longer string and costs a coordinated edit
-to this table *and* to the live ruleset, with a window in which the required context is missing and
-nothing can merge. Settled by **CAN-54 Fail a push that adds a known-vulnerable dependency** on
-16 August 2026; `ci.yml` carries the reasoning at the name itself, where a rename would be typed.
+**The job's name does not change when a step joins**, so it is a summary of what the job runs rather
+than a manifest of it — six steps have joined without it changing. That matters here because a
+rename is an edit to this table *and* to the live ruleset. `ci.yml` carries the argument, at the name
+itself, where a rename would be typed. Settled by **CAN-54 Fail a push that adds a known-vulnerable
+dependency** on 16 August 2026.
 
 **`Vercel Preview Comments` is deliberately not required.** Vercel posts it as a third check, but it
 records that a comment was written, not that a deployment succeeded.

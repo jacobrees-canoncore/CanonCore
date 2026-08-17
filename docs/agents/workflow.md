@@ -236,15 +236,17 @@ and `ci.yml` points here rather than repeating them:
 - **It runs after the four**, for the reason the documents check runs after them too. An advisory
   published overnight is not a broken build, and the first failure stops the rest, so a red audit
   must not be what hides a genuine compile error from the person who caused it.
-- **`high`, not the `low` default**, is a threshold rather than a preference. `drizzle-kit` reaches
-  a moderate `esbuild` advisory that its latest version, `0.31.10`, still carries, so a lower
-  threshold would be red on arrival — and a gate that is red on arrival is a gate that gets ignored.
-- **`--ignore-registry-errors` is deliberately not passed**, though it exists and its own
-  documentation recommends exactly this use — *"Use exit code 0 if the registry responds with an
-  error. Useful when audit checks are used in CI"* ([pnpm audit](https://pnpm.io/cli/audit)). Taking
-  it would make an unreachable registry indistinguishable from a clean audit, which is the silence
-  `check-docs` spends a whole report avoiding. A red run that says so and can be re-run is the
-  better failure.
+- **`high`, not the `low` default**, is a threshold rather than a preference. The `drizzle-kit`
+  pinned in [`apps/web/package.json`](../../apps/web/package.json) reaches a moderate `esbuild`
+  advisory, so a lower threshold would be red on arrival — and a gate that is red on arrival is a
+  gate that gets ignored.
+- **`--ignore-registry-errors` is deliberately not passed**, though it exists and is pitched at
+  exactly this use. The flag makes the process *"exit with 0"* on a non-200 from the registry, so it
+  *"will fail only if the registry actually successfully responds with found vulnerabilities"*
+  ([pnpm audit](https://pnpm.io/cli/audit)); `pnpm audit --help` at 11.20.0 goes further and calls it
+  *"useful when audit checks are used in CI"*. Taking it would make an unreachable registry
+  indistinguishable from a clean audit, which is the silence `check-docs` spends a whole report
+  avoiding. A red run that says so and can be re-run is the better failure.
 
 **This one is a gate; Dependabot alerts are not** — they arrive after the merge, on GitHub's
 schedule. What is turned on, and what each is worth, is

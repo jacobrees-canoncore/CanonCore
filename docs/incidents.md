@@ -555,9 +555,11 @@ is vulnerable* — the two readings a green tick cannot tell apart.
 **The obvious REST route does not work, and fails by staying quiet.** `PATCH
 /repos/{owner}/{repo}` with `security_and_analysis[dependency_graph][status]=enabled` returned
 **200** and a body in which the field simply does not appear — and the page still said disabled.
-The field is not among the five that payload documents
-([Update a repository](https://docs.github.com/en/rest/repos/repos#update-a-repository)), so it is
-discarded without comment and the call reads exactly like a successful one. **No other REST route was
+That payload documents nine sub-properties of `security_and_analysis`, all of them Advanced Security
+or secret scanning, and `dependency_graph` is not one of them
+([the OpenAPI description](https://github.com/github/rest-api-description/blob/main/descriptions/api.github.com/api.github.com.json),
+`PATCH /repos/{owner}/{repo}`), so it is discarded without comment and the call reads exactly like a
+successful one. **No other REST route was
 looked for**; the UI button is what was used, and is what the register's read-back commands work
 around.
 
@@ -585,17 +587,24 @@ imported by nothing, and pushed as [`5b1b590`](https://github.com/jacobrees-cano
 Run [`31975102269`](https://github.com/jacobrees-canoncore/CanonCore/actions/runs/31975102269)
 failed, and **failed in the right place**: `pnpm -r test`, `pnpm -r typecheck`, `pnpm -r lint` and
 `pnpm -r build` all reported `success`, `pnpm audit --audit-level=high` reported `failure` with
-`Process completed with exit code 1`, and all four steps after it reported `skipped`: the `vercel`
-install, the documents check, and both release steps. The log names the advisory: *"critical │
-Prototype Pollution in minimist"*, `Paths: apps__web>minimist`.
+`Process completed with exit code 1`, and the four job steps after it all reported `skipped`, as did
+`setup-node`'s post-action — only teardown ran. The log names the advisory: *"critical │ Prototype Pollution in minimist"*, `Paths: apps__web>minimist`.
 
 The dependency was removed in the next commit, and `apps/web/package.json` and `pnpm-lock.yaml` are
 byte-identical to `main` again.
 
-**A local exit code would not have shown this.** `pnpm audit --audit-level=high` exits 1 on a laptop
-as readily, and proves only that the command works; what needed proving was that the step is wired
-into the job GitHub runs, in an order where a dependency advisory stops the release rather than
-being reported after it. `docs/agents/workflow.md` → *The gates* is where that ordering is stated.
+**Two of those four skips are not evidence, and the entry would overclaim without saying so.** Both
+release steps carry `if: github.ref == 'refs/heads/main'`, and this was pushed to a branch, so they
+would have skipped whatever the audit did. **What the run proves is the two that would otherwise have
+run** — the `vercel` install and the documents check — **stopped because the audit failed.** That the
+release is also behind it is read off the step order and those two conditions, not off this run, and
+observing it directly would mean pushing a critical advisory to `main`, which is not a thing to
+arrange.
+
+**A local exit code would not have shown even that much.** `pnpm audit --audit-level=high` exits 1 on
+a laptop as readily, and proves only that the command works. What needed proving was that the step is
+wired into the job GitHub runs, at a position where its failure stops what follows.
+`docs/agents/workflow.md` → *The gates* is where that ordering is argued.
 
 ---
 
