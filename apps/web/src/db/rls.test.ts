@@ -1168,16 +1168,40 @@ describe.skipIf(noDatabase)("the schema, against a real PostgreSQL", () => {
       expect(sessionUser).toBe(userId);
     });
 
-    // A session survives a page load, which is not the same claim as "signing in worked": the cookie
-    // has to still resolve on a *later* request that kept nothing but the cookie.
-    test("a session survives a page load", async () => {
+    /**
+     * **A session survives a page load**, which is an acceptance criterion and is not the same claim as
+     * "signing in worked": the cookie has to still resolve on a *later* request holding nothing but the
+     * cookie.
+     *
+     * **The second read goes through a freshly imported `auth` module**, and that is what makes this
+     * more than calling one function twice. A first version read twice from the same instance, which
+     * proved only that `getSession` is not single-use. Re-importing gives a second instance that shares
+     * no memory with the first — which is the shape of the real case, because Vercel Functions are
+     * per-invocation isolates and a page load may land on a cold one.
+     *
+     * **So this is also the assertion behind `BETTER_AUTH_SECRET`.** `auth/auth.ts` refuses to serve
+     * without it precisely because better-auth would otherwise invent one per process: with a
+     * per-instance secret, the second instance below could not verify the first's cookie, and the
+     * symptom in production would be a person being signed out at random. That failure is exactly what
+     * this test now reproduces.
+     *
+     * **What it still does not do is render a page.** `page.tsx` reads `next/headers`, which exists only
+     * inside a Next request, so no test in this suite can call it — and the Playwright suite
+     * deliberately never signs in, because it runs against production by default. The seam either side
+     * of the page is covered; the render between them is not, and CAN-57 Make a public Ordering
+     * discoverable and shareable is the first ticket with a signed-in page worth driving.
+     */
+    test("a session survives a page load, and a second isolate can verify it", async () => {
       const cookie = cookieFrom(await signIn(firstAccount));
-
       const first = await userIdBehind(cookie);
-      const second = await userIdBehind(cookie);
-
       expect(first).toBeDefined();
-      expect(second).toBe(first);
+
+      // A second `auth` instance, built from scratch against the same secret and database.
+      vi.resetModules();
+      const { auth: freshAuth } = await import("../auth/auth");
+      const laterRequest = await freshAuth().api.getSession({ headers: new Headers({ cookie }) });
+
+      expect(laterRequest?.user.id).toBe(first);
     });
 
     /**
