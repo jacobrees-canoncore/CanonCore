@@ -95,19 +95,19 @@ Sharing a runner across the two would buy one fewer name in the repository and c
 makes `scripts` trustworthy: it is the thing that checks the documents, and it depends on almost
 nothing.
 
-> **Amended 17 August 2026 — "almost nothing" is now nine packages, and the property is narrower
-> than this section claimed.** It read "its five dependencies are four markdown parsers and a
-> slugger", which stopped being true when
+> **Amended 17 August 2026 — the sentence about five dependencies is still true, and "depends on
+> almost nothing" is the part that moved.**
 > [CAN-7 Provider contract: define and publish it](https://linear.app/jacobrees-canoncore/issue/CAN-7)
-> added a second suite here: the published Provider contract is checked with an OpenAPI validator,
-> a JSON Schema validator and a YAML parser.
+> added a second suite here, checking the published Provider contract with an OpenAPI validator, a
+> JSON Schema validator and a YAML parser. **All four went to `devDependencies`**, so the runtime
+> `dependencies` are the same five this section names and the sentence above needs no correction.
 >
-> **The argument survives, and it is worth saying which part.** What made `scripts` trustworthy was
-> never the count — it was that nothing it depends on can transform the thing under test. Four
-> markdown parsers, a schema validator and a YAML parser are all *readers*; none is a bundler, a
-> loader or a transform, so `node --test` over the TypeScript still needs no build step and the
-> package is still runnable by whatever Node a runner already has. **A dependency that compiles or
-> transforms is what would reverse this**, not the tenth reader.
+> What is worth saying is which property was ever load-bearing, since it was never the count. It is
+> that nothing `scripts` pulls in can transform the thing under test: four markdown parsers, a
+> schema validator and a YAML parser are all *readers*, none is a bundler, a loader or a transform,
+> so `node --test` over the TypeScript still needs no build step and the package is still runnable
+> by whatever Node a runner already has. **A dependency that compiles or transforms is what would
+> reverse this**, not the tenth reader.
 
 **`scripts` is a workspace member for one reason — so that `pnpm -r test` includes it.** It sits at
 the root rather than under `packages/` because it is repo tooling rather than shared TypeScript

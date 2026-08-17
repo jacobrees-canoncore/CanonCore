@@ -55,10 +55,14 @@ The gate opening is what would reverse this, not a new argument.
 [`scripts/provider-contract.test.ts`](../../scripts/provider-contract.test.ts) validates the
 document against the OpenAPI meta-schema, validates every example against the schema it
 illustrates, and reads `CONTEXT.md` to check that every closed vocabulary is still the one the
-glossary defines. Every check in
-`check-docs.ts` compares a document against a source that can be unreachable and therefore reports
-SKIP; this one compares a file against a schema shipped inside a dependency, so it can never skip
-and a skip would be the wrong outcome.
+glossary defines.
+
+**Most of `check-docs.ts` compares a document against a source that can be unreachable**, so those
+checks report SKIP rather than failing a build over an outage. This one compares a file against a
+schema shipped inside a dependency: nothing to be unreachable, so nothing to skip. The precedent is
+that script's own ninth check, which gates `CLAUDE.md` against the target in its maintainer comment
+and is documented there as the one that "can never be a SKIP" for the same reason — its source is
+the file it gates.
 
 ## Decision 1 — five endpoints, all `GET`
 
@@ -80,11 +84,11 @@ why a client cannot discover anything, cannot fetch a record it already knows th
 cannot walk a containment chain.
 
 **And the upside of matching it is smaller than it reads, which the audit of 13 August 2026 asked to
-have restated before anything was designed for it.** "Inherit its community providers" means fewer
-than thirteen self-hosted providers, two with public addresses, every one of them book-domain
-([audit](../research/tracker-and-repository-audit.md) §5). None of them serves television, comics or
-audio drama, and none can express an Ordering, so what compatibility would inherit is a set of
-Sources this product does not catalogue. It is not a reason to shape anything here — and where an
+have restated before anything was designed for it.** It means "~13 self-hosted audiobook-shaped
+providers, two with public addresses" ([audit](../research/tracker-and-repository-audit.md) §5).
+Audiobook-shaped is the operative word: none of them serves television, comics or audio drama, and
+none can express an Ordering, so what compatibility would inherit is a set of Sources this product
+does not catalogue. It is not a reason to shape anything here — and where an
 Audiobookshelf-compatible Provider is still wanted, ADR-0014 puts it in a repository of its own like
 every other, translating that contract into this one rather than this one bending toward it.
 
@@ -159,10 +163,10 @@ declared and undischargeable at once. Each notice carries its own condition, bec
 in placement as well as in wording.
 
 **`licence.shareAlike` is declared rather than derived.** A consumer cannot compute it from a
-`LicenseRef-` identifier it has never seen, and CC BY-SA 3.0 and 4.0 differ materially — only 4.0's
-§4(b) deems a database Adapted Material
-([research](../research/source-licence-risk-and-decoupling.md) §11). Deriving it would mean shipping
-a licence table into the application, which is source knowledge by another name.
+`LicenseRef-` identifier it has never seen, and CC BY-SA 3.0 and 4.0 differ materially: ADR-0014 →
+*Decision 9* records that the two versions' share-alike "differ materially" and that only 4.0 has
+the §4(b) database deeming. Deriving it would mean shipping a licence table into the application,
+which is source knowledge by another name.
 
 **Nobody else has built this.** Plex, Stremio, Stash and Navidrome all have capability discovery and
 none of them carries a rights field of any kind
@@ -263,9 +267,10 @@ contract field rather than a job somewhere in `apps/web`.
 their positions, entry types, ranks, validity labels and **Arguments**.
 
 **They are in from the start because their absence is the stated reason Audiobookshelf's schema is
-refused.** Its `series[].sequence` expresses one sequence per named series
-([audit](../research/tracker-and-repository-audit.md) §5, correcting ADR-0007's stronger claim), and
-this product exists because one Story sits in several orderings that disagree. A contract published
+refused.** The audit of 13 August 2026 found that its schema "does express one ordering
+(`series[].sequence`)" ([audit](../research/tracker-and-repository-audit.md) §5) — narrower than
+ADR-0007's claim that it has no way to express an ordering at all, and still one sequence per named
+series rather than the several disagreeing Orderings this product exists for. A contract published
 without them would repeat the defect it was written to fix, and
 [ADR-0002](0002-orderings-are-separate-from-containment.md) is the shape they take: position lives
 on the Placement, never on the Story.
@@ -351,9 +356,12 @@ Each of these is absent because nothing in v1 needs it, and each can arrive addi
   is out of scope for v1. The classification vocabulary is here *before* the images it governs on
   purpose: it is the declaration whose absence must already be a refusal on the day artwork lands.
 - **Cross-source identifiers**, so a consumer cannot ask a Provider which IMDb identifier a record
-  carries. Matching records across Sources is what an Anchor is for
-  ([ADR-0003](0003-no-shared-catalogue.md)), and a contract that helped would be inviting the shared
-  catalogue that ADR refuses.
+  carries. Deciding that two Sources describe one thing is the owner's act inside their own
+  Catalogue, over the `(record, source)` key ADR-0004 already provides — **and it is deliberately
+  not a shared fact**: [ADR-0003](0003-no-shared-catalogue.md) rejected deduplicating external data
+  per Anchor precisely because it "makes the Anchor↔external-id mapping global truth, which this
+  ADR's per-viewer merges forbid". A contract that volunteered the mapping would be offering the
+  shared catalogue that decision refuses.
 - **Bulk export and batch fetch.** The retention sweep is O(users × records) against one Provider
   (ADR-0014 → *Decision 6*), so a batch endpoint is a plausible addition — after something has run
   the sweep and can say what it costs, rather than before.
