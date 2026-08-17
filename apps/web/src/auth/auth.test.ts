@@ -67,11 +67,21 @@ test("neither environment carries the other's hosts", async () => {
   expect(preview).not.toContain("www.canoncore.com");
 });
 
-// No `VERCEL_ENV` is a laptop. The canonical host stays so a local `next start` against a copied
-// production environment still issues sessions rather than refusing every form.
-test("a laptop issues sessions for localhost, and still for the canonical host", async () => {
+/**
+ * No `VERCEL_ENV` is a laptop, and the entry has to be a **port wildcard**.
+ *
+ * better-auth's `matchesHostPattern` compares the host with its port, so a bare `localhost` matches
+ * only port 80. An earlier version listed `localhost:3000` and `localhost`, which meant a `next dev`
+ * that moved to `:3001` — as it does when 3000 is taken — resolved `baseURL` to the production
+ * fallback and refused every form. Asserted against the library's own matcher rather than by reading
+ * the list, because the list looked right.
+ */
+test("a laptop issues sessions on whatever port the dev server took", async () => {
   const hosts = await allowedHosts(undefined);
+  const { matchesHostPattern } = await import("better-auth");
 
-  expect(hosts).toContain("localhost:3000");
+  for (const host of ["localhost:3000", "localhost:3001", "localhost"]) {
+    expect(hosts.some((pattern) => matchesHostPattern(host, pattern))).toBe(true);
+  }
   expect(hosts).toContain("www.canoncore.com");
 });

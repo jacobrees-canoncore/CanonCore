@@ -57,11 +57,28 @@ function renderedLinks() {
   return screen.queryAllByRole("link").map((link) => link.getAttribute("href"));
 }
 
-test("the front page renders a URL as text, and produces no anchor for it", () => {
+/**
+ * The rendered anchors, checked against the closed set and returned for an exact assertion.
+ *
+ * **Two checks rather than one, and the pairing is deliberate.** `ownRoutes.includes` on its own is
+ * vacuously satisfied by a page with no anchors, which is how an earlier version of this file passed
+ * while pinning nothing; an exact `toEqual` on its own would pass a page whose anchors all changed
+ * together. So membership is asserted here, and each case then asserts the exact list it expects.
+ */
+function linksWithinOwnRoutes() {
+  const links = renderedLinks();
+  for (const href of links) expect(ownRoutes).toContain(href);
+  return links;
+}
+
+// `toEqual` on the whole list rather than `every(...)`, which an earlier version used: `every` is
+// vacuously true on an empty array, so it would have passed while pinning nothing — and the compliance
+// record rests on this file pinning the *exact* set. The signed-out front page draws both account links.
+test("the front page renders a URL as text, and links only to its own routes", () => {
   render(<FrontPage stories={[{ id: "00000000-0000-4000-8000-000000000001", title: hostile }]} />);
 
   expect(screen.getByRole("listitem").textContent).toBe(hostile);
-  expect(renderedLinks().every((href) => ownRoutes.includes(href!))).toBe(true);
+  expect(linksWithinOwnRoutes()).toEqual(["/sign-in", "/sign-up"]);
 });
 
 // The signed-in front page, which is a different render: it draws a sign-out form and an email
@@ -76,7 +93,7 @@ test("a signed-in reader's own email address is not linkified either", () => {
   );
 
   expect(screen.getByText("someone@example.invalid")).toBeDefined();
-  expect(renderedLinks()).toEqual([]);
+  expect(linksWithinOwnRoutes()).toEqual([]);
 });
 
 // The two pages the navigation exists for. Their anchors are the reason this file's assertion had to
@@ -87,7 +104,7 @@ test.each([
 ])("%s links only to this application's own routes", (_name, page, expected) => {
   render(page);
 
-  expect(renderedLinks()).toEqual(expected);
+  expect(linksWithinOwnRoutes()).toEqual(expected);
 });
 
 // A refusal sentence is the one string on those pages that arrives from a request, so it is where an
@@ -97,5 +114,5 @@ test("a refusal sentence adds no anchor, whatever it says", () => {
   render(<SignInPage problem={`Try ${hostile}`} />);
 
   expect(screen.getByRole("alert").textContent).toBe(`Try ${hostile}`);
-  expect(renderedLinks()).toEqual(["/sign-up"]);
+  expect(linksWithinOwnRoutes()).toEqual(["/sign-up"]);
 });

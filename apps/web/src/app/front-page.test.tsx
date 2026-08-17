@@ -64,13 +64,18 @@ test("names the signed-in reader, and offers the way out", () => {
 });
 
 /**
- * **A `POST`, and with no named input.** Both halves are load-bearing and neither is visible from the
- * rendered page: signing out deletes a session row, so a `GET` that anything could fire is wrong; and
- * `/sign-out` inherits `application/json`, which a form-encoded *body* would fail with a `415` — so
- * the form must send no fields at all. `../app/api/auth/[...all]/route.ts` records the second, and
- * `db/rls.test.ts` proves it against a real request.
+ * **A `POST`, and that half is load-bearing.** Signing out deletes a session row, so a `GET` anything
+ * could fire is wrong, and nothing about the rendered page shows which method a form uses.
+ *
+ * **That it carries no fields is asserted as a fact, not as a rule.** An earlier version of this called
+ * both halves load-bearing, on the reading that a fields-less form was what got the request past
+ * `/sign-out`'s media-type check. It is not: a browser sends an empty body rather than no body, and the
+ * request was refused with a `415` in a browser after a test said otherwise.
+ * `../api/auth/[...all]/route.ts` records the whole wrong turn and re-encodes every form post instead,
+ * so this form would work with fields as well as without them. What is pinned here is the shape as
+ * built, so a field arriving is a change somebody notices.
  */
-test("signs out with a POST that carries no fields", () => {
+test("signs out with a POST, and as built it carries no fields", () => {
   render(<FrontPage stories={[]} signedInAs="someone@example.invalid" />);
 
   const form = document.querySelector("form");

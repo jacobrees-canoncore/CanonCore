@@ -124,9 +124,16 @@ export function hostsAllowedToIssueSessions(): string[] {
   const canonical = new URL(productionUrl).host;
   if (env.VERCEL_ENV === "production") return [canonical];
   if (env.VERCEL_ENV === "preview") return ["*.vercel.app"];
-  // No `VERCEL_ENV` is a laptop. `canonical` stays so that a local `next start` pointed at a copied
-  // production environment still issues sessions rather than refusing every form.
-  return ["localhost:3000", "localhost", canonical];
+  // No `VERCEL_ENV` is a laptop, and the wildcard is the port rather than the host. better-auth's
+  // `matchesHostPattern` compares the host *with* its port, checked against
+  // `better-auth/dist/utils/url.mjs` rather than assumed: `localhost:3000` does not match a bare
+  // `localhost`. So an earlier version's `"localhost"` entry matched only port 80 and did nothing —
+  // and `next dev` moves to `:3001` when 3000 is taken, which would have resolved `baseURL` to the
+  // production fallback and refused every form on the dev server with no obvious reason.
+  //
+  // `canonical` stays so that a local `next start` against a copied production environment issues
+  // sessions rather than refusing them.
+  return ["localhost:*", "localhost", canonical];
 }
 
 /** better-auth, for the one caller in each direction: the route handler, and `viewer.ts`. */
@@ -157,10 +164,12 @@ function configure() {
      * **No `Domain` on the cookie, and nothing here asks for one.** better-auth's default cookie is
      * host-only, which is [ADR-0010](../../../../docs/adr/0010-canonical-host-www.md)'s reason for
      * `www` being canonical; `advanced.crossSubDomainCookies` is the switch that would undo it and
-     * it stays off. **The absence is asserted twice, because most better-auth examples set it**: on
-     * the `Set-Cookie` header in [`../db/rls.test.ts`](../db/rls.test.ts), and against a deployed
-     * response in [`../../e2e/signed-out-path.spec.ts`](../../e2e/signed-out-path.spec.ts) — the
-     * only one that sees what a browser was actually sent, past the CDN.
+     * it stays off. **The absence is asserted on the `Set-Cookie` header of a real sign-in**, in
+     * [`../db/rls.test.ts`](../db/rls.test.ts), because most better-auth examples set it. It is
+     * asserted *there* rather than against a deployment for a reason worth knowing:
+     * [`../../e2e/signed-out-path.spec.ts`](../../e2e/signed-out-path.spec.ts) records that only a
+     * *successful* sign-in sets any cookie at all, so a deployed check would need an account in
+     * production.
      */
     baseURL: {
       allowedHosts: hostsAllowedToIssueSessions(),

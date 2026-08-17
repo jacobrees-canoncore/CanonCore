@@ -84,7 +84,7 @@ export MIGRATION_DATABASE_URL
 # password: both are readable from the string's own shape.
 if [[ "$MIGRATION_DATABASE_URL" != *"canoncore_migrator"* ]]; then
   bad "That string does not name canoncore_migrator."
-  note "The five tables must be owned by that role — docs/infrastructure.md -> Roles."
+  note "Every table must be owned by that role — docs/infrastructure.md -> Roles, and check 2 below."
   exit 1
 fi
 # `verify-full` rather than `require`: the two mean the same thing under pg 8 and stop meaning it

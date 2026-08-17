@@ -1066,7 +1066,6 @@ describe.skipIf(noDatabase)("the schema, against a real PostgreSQL", () => {
     });
   });
 
-  // The half of `/api/health` that a fake ask cannot reach. `health.test.ts` proves what the
   /**
    * The whole of what CAN-24 A signed-in and a signed-out path joins together, exercised through the
    * route a browser actually posts to rather than through `auth.api`.
@@ -1458,6 +1457,7 @@ describe.skipIf(noDatabase)("the schema, against a real PostgreSQL", () => {
     });
   });
 
+  // The half of `/api/health` that a fake ask cannot reach. `health.test.ts` proves what the
   // check does with an ask that fails; this proves the real ask succeeds against a database that
   // is up, through the application role, which is the answer the monitor reads as "the site is
   // fine" every five minutes.

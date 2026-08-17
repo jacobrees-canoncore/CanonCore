@@ -91,32 +91,24 @@ test("a failed sign-in comes back as a page, with a sentence of our own", async 
 });
 
 /**
- * **The cookie's scope, read off a real response**, which is the one assertion only a deployment
- * can make: [ADR-0010](../../../docs/adr/0010-canonical-host-www.md) chose `www` as canonical *so
- * that* the session cookie stays host-only, and a `Domain` attribute is what most better-auth
- * examples suggest adding. A unit test sees what the library was configured to do; this sees what
- * the browser was actually sent, past the CDN.
+ * **There is deliberately no cookie-scope assertion here, and the gap is worth recording.**
  *
- * Read from the failed sign-in above rather than from a successful one, because better-auth sets
- * its CSRF cookie on both — so no account is needed to see the attributes.
+ * A previous version of this file asserted that no `better-auth.*` cookie carried a `Domain`, which is
+ * [ADR-0010](../../../docs/adr/0010-canonical-host-www.md)'s reason for `www` being canonical. It rested
+ * on the premise that better-auth sets a CSRF cookie on a failed sign-in, so no account would be needed
+ * to read the attributes. **That premise is false**, checked against a running server rather than read:
+ * a failed sign-in returns `303` and **no `Set-Cookie` at all**, and a successful one returns exactly
+ * one, `better-auth.session_token`. better-auth 1.6.29 has no CSRF cookie — its CSRF protection is
+ * origin-checking middleware — and every cookie it sets comes from `setSessionCookie`, which sign-in
+ * reaches only after the password verifies.
+ *
+ * So the assertion could not have passed, and Playwright is off the gate, so nothing would have said so.
+ * **It is asserted in [`../src/db/rls.test.ts`](../src/db/rls.test.ts) instead**, on the `Set-Cookie`
+ * header of a real successful sign-in against a real PostgreSQL, which is where an account can exist.
+ *
+ * **What is genuinely out of reach from here is the deployed half** — the attributes as a browser
+ * receives them, past the CDN — because seeing them needs a signed-in session and this suite runs
+ * against production by default. Buying it would mean creating an account in production, which is what
+ * the header of this file refuses. CAN-30 GDPR export and erasure is what would make such an account
+ * disposable, and until then this is a recorded gap rather than a hidden one.
  */
-test("no auth cookie is scoped wider than the host that set it", async ({ page, context }) => {
-  await page.goto("/sign-in");
-  await page.getByLabel("Email address").fill("nobody@can-24.invalid");
-  await page.getByLabel("Password").fill("not-a-password-anybody-holds");
-  await page.getByRole("button", { name: "Sign in" }).click();
-
-  const host = new URL(page.url()).hostname;
-  const authCookies = (await context.cookies()).filter((cookie) =>
-    cookie.name.startsWith("better-auth."),
-  );
-
-  expect(authCookies.length).toBeGreaterThan(0);
-  for (const cookie of authCookies) {
-    // Playwright reports a host-only cookie's domain as the host itself; a `Domain=` attribute
-    // becomes a leading dot. The leading dot is the thing ADR-0010 exists to keep out.
-    expect(cookie.domain).toBe(host);
-    expect(cookie.httpOnly).toBe(true);
-    expect(cookie.secure).toBe(true);
-  }
-});

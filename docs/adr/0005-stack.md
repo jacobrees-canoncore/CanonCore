@@ -44,9 +44,11 @@ delete stays one transaction.
 2. **RLS failures return empty results, not errors.** A broken policy is indistinguishable from
    "no data" in the UI, so every RLS-protected table needs an automated test asserting a
    cross-tenant read returns zero rows. Manual QA cannot catch a failure whose symptom is silence.
-   **These tests run in CI against a Postgres service container** — migrations applied, both roles
+   **These tests run in CI against a Postgres service container** — migrations applied, every role
    created, policies asserted on every push — because RLS is vanilla Postgres behaviour and a
-   container tests it hermetically. What a container cannot vouch for — the preview resolving its
+   container tests it hermetically. *(Read "both roles" until 17 August 2026, when
+   CAN-24 A signed-in and a signed-out path added `canoncore_auth` and made it three; the count was
+   never the point, so this says "every" rather than a number that goes stale.)* What a container cannot vouch for — the preview resolving its
    own Neon branch host, and `SET LOCAL` surviving the pooler — belongs to the deployed-preview
    checks instead (CAN-23 One Story from Neon names them). Settled 13 August 2026, CAN-73 Settle
    the Snapshot layer; a per-run Neon branch was rejected for coupling every push to an external
