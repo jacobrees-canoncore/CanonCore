@@ -14,6 +14,10 @@ export default defineConfig({
     globals: true,
     // The Playwright suite runs against a deployed URL, not a build, so it is
     // driven by `test:e2e` rather than by this one.
-    include: ["src/**/*.test.{ts,tsx}"],
+    //
+    // The second glob is for tests of this directory's own configuration files, which sit
+    // beside what they test rather than under `src`: `eslint.config.test.mts` is about
+    // `eslint.config.mjs`.
+    include: ["src/**/*.test.{ts,tsx}", "*.test.mts"],
   },
 });
