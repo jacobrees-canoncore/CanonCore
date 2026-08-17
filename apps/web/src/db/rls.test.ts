@@ -135,6 +135,28 @@ const secondAccount = {
 };
 
 /**
+ * The one account whose address is **not** at `.invalid`, and the reason is the guard.
+ *
+ * `mail/send.ts` refuses any recipient outside `resend.dev` unless `VERCEL_ENV` is `production`, which
+ * it is not here and must not be — `auth.ts`'s `hostsAllowedToIssueSessions` would then refuse every
+ * form posted from `localhost`. So an account that is going to exercise the two mail flows has to be at
+ * a domain the guard admits, and this is the only one that is.
+ *
+ * **Nothing leaves the process either way**: `interceptResend` below replaces `fetch`, so what makes
+ * this safe is the stub rather than the domain. The domain is what makes the send happen at all, which
+ * is the difference between testing the flows and testing the refusal — and the refusal is tested too,
+ * on a `.invalid` address, further down.
+ */
+const accountWithMail = {
+  name: "The reader who gets the email",
+  email: "delivered@resend.dev",
+  password: "the-password-this-account-starts-with",
+};
+
+/** What the same account's password becomes, once the reset flow has run. */
+const passwordAfterTheReset = "the-password-the-reset-flow-chose";
+
+/**
  * The host these tests post to, which has to be one `auth.ts` allows: its `baseURL` is derived from
  * the host that served the request, against an allowlist, and `localhost:3000` is on it. A request
  * to any other host would resolve `baseURL` to the production fallback and then refuse the form for
@@ -213,6 +235,74 @@ function cookieFrom(response: Response): string {
     .join("; ");
 }
 
+/**
+ * A browser following a link, as a `Request`. The two addresses better-auth puts in an email are
+ * `GET`s, so proving either flow means making one.
+ *
+ * No Fetch Metadata headers and no body: `route.ts`'s `GET` hands the request straight to better-auth
+ * with none of the rewriting a form post gets, and `originCheckMiddleware` returns early for a `GET`.
+ * What is still checked is the `callbackURL`, by the per-endpoint `originCheck`, which is why the
+ * redirect assertions below are worth making.
+ */
+function follow(url: string, from: string): Request {
+  return new Request(url, { headers: { "x-forwarded-for": from } });
+}
+
+/**
+ * Every email this suite would have sent, as the JSON body handed to Resend.
+ *
+ * **The whole of "without sending real mail".** `mail/send.ts` reaches Resend with one `fetch`, so
+ * replacing `fetch` for that one host is the entire seam — and it is the seam worth using rather than a
+ * module mock, because what lands here is the real request body, including the link better-auth built.
+ */
+type SentEmail = { to: string; subject: string; text: string };
+
+const sent: SentEmail[] = [];
+
+/**
+ * Replace `fetch` for `api.resend.com` alone, and let anything else through.
+ *
+ * **Scoped by host rather than replaced wholesale**, so nothing else in this file can be broken by it
+ * from a distance. Nothing else here uses `fetch` today — `pg` opens sockets — and this keeps that from
+ * being a thing anybody has to remember.
+ *
+ * `send.test.ts` records the property this depends on: the request is handed to `fetch` before `send`
+ * suspends, so a captured email is readable straight after the route call that provoked it, with
+ * nothing to await in between. That matters because `auth.ts` defers every send through `after` and
+ * hands back no handle to wait on.
+ */
+function interceptResend() {
+  const realFetch = globalThis.fetch;
+  vi.stubGlobal("fetch", async (input: RequestInfo | URL, init?: RequestInit) => {
+    const request = new Request(input, init);
+    if (new URL(request.url).host !== "api.resend.com") return realFetch(input as RequestInfo, init);
+    sent.push((await request.json()) as SentEmail);
+    return Response.json({ id: "an-id-resend-would-have-issued" });
+  });
+}
+
+/**
+ * The one URL in the email most recently sent to this address, and a refusal if there is none.
+ *
+ * **A refusal rather than `undefined`**, because every use of this is the setup for the assertion after
+ * it: an email that was never sent would otherwise surface as a `GET` of the string "undefined" and a
+ * confusing failure two lines later. `messages.ts` puts the link in a paragraph of its own, which is
+ * both why a mail client can autolink it and why one line of it can be read back out here.
+ */
+function linkEmailedTo(recipient: string): string {
+  const forThem = sent.filter((email) => email.to === recipient);
+  const latest = forThem.at(-1);
+  if (!latest) {
+    throw new Error(
+      `No email was sent to ${recipient}. Every email sent so far went to: ` +
+        `${sent.map((email) => email.to).join(", ") || "nobody"}.`,
+    );
+  }
+  const url = latest.text.split("\n").find((line) => line.startsWith("http"));
+  if (!url) throw new Error(`The email to ${recipient} carried no link: ${latest.text}`);
+  return url;
+}
+
 /** All three or none: every test below needs the migrator, the application role and the auth. */
 const noDatabase = !migratorUrl || !applicationUrl || !authRoleUrl;
 
@@ -225,8 +315,17 @@ describe.skipIf(noDatabase)("the schema, against a real PostgreSQL", () => {
   let auth: typeof import("../auth/auth").auth;
   /** The route the browser posts to, so the redirect is exercised as well as the endpoint. */
   let authPost: typeof import("../app/api/auth/[...all]/route").POST;
+  /**
+   * And the route a link in an email resolves to. It arrived with CAN-31 Email verification and
+   * password reset, which is the first thing here that a browser reaches by navigating rather than by
+   * submitting — `route.ts` records that this export did not exist before and why it has to now.
+   */
+  let authGet: typeof import("../app/api/auth/[...all]/route").GET;
 
   beforeAll(async () => {
+    // Before anything signs up, because signing up sends an email: `auth.ts` has `sendOnSignUp` on.
+    interceptResend();
+
     migrator = new Client({ connectionString: migratorUrl });
     await migrator.connect();
     await migrate(drizzle(migrator), { migrationsFolder });
@@ -296,12 +395,18 @@ describe.skipIf(noDatabase)("the schema, against a real PostgreSQL", () => {
     // Any value will do, and that it has one is the point: `auth.ts` refuses to serve without it.
     vi.stubEnv("BETTER_AUTH_SECRET", "a-secret-that-exists-only-for-this-test-run");
 
+    // What `mail/send.ts` refuses to send without. Neither value is real and neither reaches Resend —
+    // `interceptResend` above is what stops that — but both are read before the request is built, so
+    // their absence would be a refusal rather than a send this suite could observe.
+    vi.stubEnv("RESEND_API_KEY", "re_a-key-that-exists-only-for-this-test-run");
+    vi.stubEnv("EMAIL_FROM", "CanonCore <noreply@mail.canoncore.com>");
+
     vi.resetModules();
     ({ withSession, anonymous } = await import("./session"));
     ({ readVisibleStories } = await import("./stories"));
     ({ databaseAnswers } = await import("./health"));
     ({ auth } = await import("../auth/auth"));
-    ({ POST: authPost } = await import("../app/api/auth/[...all]/route"));
+    ({ POST: authPost, GET: authGet } = await import("../app/api/auth/[...all]/route"));
   });
 
   afterAll(async () => {
@@ -309,6 +414,11 @@ describe.skipIf(noDatabase)("the schema, against a real PostgreSQL", () => {
     // accounts these tests create are real rows with a unique email, so a second run would collide.
     // `delete from "user"` takes `session` and `account` with it, by the cascade in `schema.ts`.
     await migrator?.query('delete from "user" where email like $1', [`%@${testEmailDomain}`]);
+    // And the one account that is not at `.invalid` — `accountWithMail` says why it cannot be.
+    await migrator?.query('delete from "user" where email = $1', [accountWithMail.email]);
+    // Reset tokens outlive the `user` rows they name, because `verification` holds an id in a text
+    // column rather than a foreign key, so no cascade reaches them.
+    await migrator?.query("delete from verification");
     await migrator?.query("delete from rate_limit");
 
     await migrator?.query("delete from tombstone where id = any($1)", [
@@ -1100,12 +1210,24 @@ describe.skipIf(noDatabase)("the schema, against a real PostgreSQL", () => {
      * **A test must not depend on a sibling's side effect**, and the first draft of this file did:
      * the cross-tenant reads below read the ids that the sign-up test happened to have created, so
      * running one test alone left them undefined and inserted a null owner.
+     *
+     * **Then confirmed as the migrator, which is a shortcut and is the right one here.** Since
+     * CAN-31 Email verification and password reset an unconfirmed account cannot sign in
+     * (`auth/auth.ts` → `requireEmailVerification`), and confirming these two the way a person does
+     * would mean reading a link out of an email — which the guard in `mail/send.ts` refuses to send
+     * to a `.invalid` address, deliberately. **The flow itself is not being skipped**: the block
+     * below drives it end to end on an address the guard admits, and that is where the claim about
+     * verification is made. What these two accounts are for is sessions and policies, and a column
+     * set by hand serves that exactly as well as one set by a link.
      */
     beforeAll(async () => {
       for (const account of [firstAccount, secondAccount]) {
         const created = await signUp(account);
         expect(created.headers.get("location")).toBe("/sign-in?created");
       }
+      await migrator.query('update "user" set email_verified = true where email like $1', [
+        `%@${testEmailDomain}`,
+      ]);
     });
 
     // A plain form, with no JavaScript anywhere in it. Two things are asserted at once and both
@@ -1124,9 +1246,27 @@ describe.skipIf(noDatabase)("the schema, against a real PostgreSQL", () => {
         'select email, email_verified from "user" where email = $1',
         [email],
       );
-      // `false`, and it stays false: verification needs a mail provider and is CAN-31 Email
-      // verification and password reset.
+      // `false`, because creating the account is not confirming the address: a link has to be
+      // followed, and since CAN-31 Email verification and password reset that link is also what
+      // stands between this account and signing in. The block below follows one.
       expect(rows).toEqual([{ email, email_verified: false }]);
+    });
+
+    /**
+     * **The guard, in the flow rather than in isolation.** `mail/send.ts`'s own tests prove the
+     * function refuses a non-`resend.dev` recipient; only this can show that the refusal is actually
+     * wired into a sign-up, which is the claim that matters — a guard nothing reaches is a guard.
+     *
+     * The address here is at `.invalid`, so nothing at all should have been handed to Resend for it.
+     * That is also why the two fixture accounts above are confirmed with an `update` rather than by
+     * following a link: for them, there is no link.
+     */
+    test("a sign-up outside production sends nothing at all to a non-resend.dev address", async () => {
+      const email = `guarded@${testEmailDomain}`;
+
+      await signUp({ ...firstAccount, email });
+
+      expect(sent.map((email) => email.to)).not.toContain(email);
     });
 
     test("signing in issues a session cookie, and the cookie has no Domain", async () => {
@@ -1384,6 +1524,302 @@ describe.skipIf(noDatabase)("the schema, against a real PostgreSQL", () => {
         const titles = (await readVisibleStories(anonymous)).map((story) => story.title);
         expect(titles).not.toContain(privateStory.title);
         expect(titles).toContain(foundingStory.title);
+      });
+    });
+
+    /**
+     * **The two flows of CAN-31 Email verification and password reset, end to end and without sending
+     * real mail.** This block is that acceptance criterion.
+     *
+     * ## What "end to end" means here, and why it is not the Playwright suite
+     *
+     * Every step a person takes, through the same route handlers a browser reaches: the form post, the
+     * email that results, the link in it followed as a `GET`, and the state that follows. What is stood
+     * in for is exactly one thing — the HTTP request to Resend — and `interceptResend` above replaces
+     * `fetch` for that one host, so the message asserted on below is the real body `mail/send.ts`
+     * built, carrying the real URL better-auth put in it.
+     *
+     * **It cannot be a Playwright spec**, and that is worth stating because "end-to-end test" usually
+     * means one. That suite drives a *deployed* URL, defaults to production, and
+     * `../../e2e/signed-out-path.spec.ts` records why it deliberately never creates an account. It
+     * also could not read an email: on a preview the guard refuses every recipient that is not at
+     * `resend.dev`, and Resend has no inbox to read. `../../e2e/account-recovery.spec.ts` covers what
+     * only a deployment can add, which is that the two pages exist and render.
+     *
+     * ## The order these run in is load-bearing
+     *
+     * They are one narrative over one account: sign up, be refused for being unconfirmed, confirm, sign
+     * in, forget the password, reset it, sign in again. vitest runs tests within a file in order, and
+     * splitting them into independent tests would mean either six accounts or six re-runs of the same
+     * setup. So each names what it depends on, and the sequence is the subject rather than an accident
+     * of it.
+     */
+    describe("confirming an address, and resetting a forgotten password", () => {
+      /**
+       * Created here rather than in the outer `beforeAll`, and left unconfirmed on purpose: the first
+       * test below is that an unconfirmed account cannot sign in, so confirming it in setup would
+       * remove the thing being tested.
+       */
+      beforeAll(async () => {
+        const created = await signUp(accountWithMail);
+        expect(created.headers.get("location")).toBe("/sign-in?created");
+      });
+
+      /**
+       * **Signing up sends a confirmation email, and its link is one this application chose.**
+       *
+       * `callbackURL` is not in the submitted form — `route.ts` → `flows` adds it server-side, so a
+       * body cannot choose where this service sends people — and it has to be `/sign-in?verified`
+       * rather than the front page, because confirming an address does not sign anybody in.
+       */
+      test("signing up sends a confirmation email carrying a link to this application", () => {
+        const link = linkEmailedTo(accountWithMail.email);
+
+        expect(link).toMatch(
+          new RegExp(`^${origin}/api/auth/verify-email\\?token=[^&]+&callbackURL=`),
+        );
+        // Encoded, and the value is this application's rather than the form's.
+        expect(link).toContain(`callbackURL=${encodeURIComponent("/sign-in?verified")}`);
+
+        const email = sent.at(-1)!;
+        expect(email.subject).toBe("Verify your email address for CanonCore");
+        expect(email.to).toBe(accountWithMail.email);
+      });
+
+      /**
+       * **The gate, before the link is followed.** This is what
+       * `auth/auth.ts` → `requireEmailVerification` buys, and the criterion it is worth asserting
+       * against: the password is correct here, so what refuses the sign-in is the unconfirmed address
+       * and nothing else.
+       */
+      test("an unconfirmed account cannot sign in, though the password is right", async () => {
+        const response = await signIn(accountWithMail);
+
+        expect(response.status).toBe(303);
+        expect(response.headers.get("location")).toBe("/sign-in?error=EMAIL_NOT_VERIFIED");
+      });
+
+      /**
+       * **And being refused sends another link**, which is the whole recovery route for somebody whose
+       * first email never arrived — `auth/auth.ts` → `sendOnSignIn`. Without it, the gate above would
+       * be a locked door with no key.
+       *
+       * **A second email, not a second token**, and the difference was found here rather than assumed.
+       * A verification token is a JWT over `{ email }` alone, signed HS256, with `iat` and `exp` at
+       * second granularity (`setIssuedAt()` and `setExpirationTime` in
+       * `better-auth/dist/crypto/jwt.mjs`, 1.6.29) — so two minted in the same second are byte
+       * identical, and an assertion that the string differed would fail for a flow that is working. It
+       * does not matter that they are: the token is not consumed on use, so the point is that a fresh
+       * email arrives, and that its link is one that will work.
+       */
+      test("the refusal sends another link, so a lost email is not a lost account", async () => {
+        const before = sent.length;
+
+        await signIn(accountWithMail);
+
+        expect(sent.length).toBe(before + 1);
+        const again = sent.at(-1)!;
+        expect(again.to).toBe(accountWithMail.email);
+        expect(again.subject).toBe("Verify your email address for CanonCore");
+        expect(linkEmailedTo(accountWithMail.email)).toContain("/api/auth/verify-email?token=");
+      });
+
+      /**
+       * **The link followed, as a browser follows it**, which is the one step that could not exist
+       * before this ticket: `route.ts` had no `GET` export, so this request would have been a `405`.
+       *
+       * Asserted on the database as well as on the redirect, because the redirect is what a person
+       * sees and the column is what the gate reads.
+       */
+      test("following the link confirms the address and lands on the sign-in page", async () => {
+        const link = linkEmailedTo(accountWithMail.email);
+
+        const response = await authGet(follow(link, freshAddress()));
+
+        // better-auth answers a followed link with a redirect of its own, at the `callbackURL` this
+        // application supplied — 302 rather than the 303 `route.ts` mints for a form post.
+        expect(response.status).toBe(302);
+        expect(response.headers.get("location")).toBe("/sign-in?verified");
+
+        const { rows } = await migrator.query<{ email_verified: boolean }>(
+          'select email_verified from "user" where email = $1',
+          [accountWithMail.email],
+        );
+        expect(rows).toEqual([{ email_verified: true }]);
+      });
+
+      /**
+       * **No session came out of that**, which is `auth/auth.ts` → `autoSignInAfterVerification` being
+       * off, and is the assertion that decision needs: email is not a channel this service controls,
+       * so a forwarded or prefetched URL must not be a way in.
+       */
+      test("confirming an address issues no session, so the link is not a way in", async () => {
+        const response = await authGet(follow(linkEmailedTo(accountWithMail.email), freshAddress()));
+
+        expect(response.headers.getSetCookie()).toEqual([]);
+      });
+
+      // The gate opening. Same credentials as the refused attempt above, and the only thing that
+      // changed between them is the column a followed link set.
+      test("once confirmed, the same credentials sign in", async () => {
+        const response = await signIn(accountWithMail);
+
+        expect(response.headers.get("location")).toBe("/");
+        await expect(userIdBehind(cookieFrom(response))).resolves.toBeDefined();
+      });
+
+      /**
+       * **Asking for a reset answers the same way whichever address it is given**, which is the
+       * enumeration protection on this flow and the reason the page's notice is conditional.
+       *
+       * Both halves are asserted: the redirect is identical, and an address nobody holds provokes no
+       * email at all — so the only thing that could distinguish them is response time, which is what
+       * `auth/auth.ts` → `afterTheResponse` exists to flatten.
+       */
+      test("asking for a reset link says the same thing for an address nobody holds", async () => {
+        const before = sent.length;
+
+        const unknown = await authPost(
+          formPost(
+            "/api/auth/request-password-reset",
+            { email: `nobody-at-all@resend.dev` },
+            freshAddress(),
+          ),
+        );
+
+        expect(unknown.headers.get("location")).toBe("/forgot-password?sent");
+        expect(sent).toHaveLength(before);
+      });
+
+      /**
+       * **The reset email, and the two-step round trip its link takes.**
+       *
+       * better-auth emails `/api/auth/reset-password/<token>?callbackURL=/reset-password`, which
+       * redirects to `/reset-password?token=<token>` — the page. `redirectTo` is what decides that
+       * second address, and `route.ts` → `flows` supplies it rather than the form, for `callbackURL`'s
+       * reason.
+       */
+      test("asking for a reset link emails one, and it leads to this application's own page", async () => {
+        const response = await authPost(
+          formPost(
+            "/api/auth/request-password-reset",
+            { email: accountWithMail.email },
+            freshAddress(),
+          ),
+        );
+
+        expect(response.status).toBe(303);
+        expect(response.headers.get("location")).toBe("/forgot-password?sent");
+
+        const email = sent.at(-1)!;
+        expect(email.to).toBe(accountWithMail.email);
+        expect(email.subject).toBe("Reset your CanonCore password");
+        expect(email.text).toContain("Your password has not changed");
+
+        const link = linkEmailedTo(accountWithMail.email);
+        expect(link).toMatch(new RegExp(`^${origin}/api/auth/reset-password/[^?]+\\?callbackURL=`));
+
+        // The step between the mailbox and the form, which is a `GET` and therefore needed the export
+        // this ticket added.
+        const landed = await authGet(follow(link, freshAddress()));
+        expect(landed.status).toBe(302);
+        expect(landed.headers.get("location")).toMatch(
+          new RegExp(`^${origin}/reset-password\\?token=.+`),
+        );
+      });
+
+      /**
+       * **The new password set, and the old one refused afterwards.** Both halves matter: a reset that
+       * accepted the new password while leaving the old one working would pass an assertion on the
+       * redirect alone.
+       *
+       * The token is read out of the redirect the previous test landed on rather than out of the
+       * database, because that is where a person's browser gets it.
+       */
+      test("the emailed link sets a new password, and the old one stops working", async () => {
+        const landed = await authGet(follow(linkEmailedTo(accountWithMail.email), freshAddress()));
+        const token = new URL(landed.headers.get("location")!).searchParams.get("token");
+        expect(token).toBeTruthy();
+
+        const changed = await authPost(
+          formPost(
+            `/api/auth/reset-password?token=${encodeURIComponent(token!)}`,
+            // `newPassword`, which is the name this endpoint takes — the two other forms post
+            // `password`. `credential-fields.tsx` says why the form has to spell each one.
+            { newPassword: passwordAfterTheReset },
+            freshAddress(),
+          ),
+        );
+
+        expect(changed.status).toBe(303);
+        expect(changed.headers.get("location")).toBe("/sign-in?reset");
+
+        const withTheNewOne = await signIn({
+          email: accountWithMail.email,
+          password: passwordAfterTheReset,
+        });
+        expect(withTheNewOne.headers.get("location")).toBe("/");
+
+        const withTheOldOne = await signIn(accountWithMail);
+        expect(withTheOldOne.headers.get("location")).toBe(
+          "/sign-in?error=INVALID_EMAIL_OR_PASSWORD",
+        );
+      });
+
+      /**
+       * **A reset link works once**, which `mail/messages.ts` promises the reader in as many words —
+       * so it is a claim this service makes rather than only a library's behaviour.
+       *
+       * better-auth consumes the row it reads, so replaying the token that just worked is refused. The
+       * code is `INVALID_TOKEN`, and `route.ts` carries it back to the form still holding the token,
+       * which is what makes a too-short password retypeable.
+       */
+      test("a reset link cannot be used twice, and the refusal keeps the form usable", async () => {
+        const landed = await authGet(follow(linkEmailedTo(accountWithMail.email), freshAddress()));
+        const token = new URL(landed.headers.get("location")!).searchParams.get("token")!;
+
+        const replayed = await authPost(
+          formPost(
+            `/api/auth/reset-password?token=${encodeURIComponent(token)}`,
+            { newPassword: "a-password-this-attempt-should-never-set" },
+            freshAddress(),
+          ),
+        );
+
+        expect(replayed.headers.get("location")).toBe(
+          `/reset-password?token=${encodeURIComponent(token)}&error=INVALID_TOKEN`,
+        );
+
+        // And the password really did not change: the account still signs in with what the reset set.
+        const stillWorks = await signIn({
+          email: accountWithMail.email,
+          password: passwordAfterTheReset,
+        });
+        expect(stillWorks.headers.get("location")).toBe("/");
+      });
+
+      /**
+       * **A refused reset carries the token back with `&`, not a second `?`.**
+       *
+       * The case is narrow and the failure is total: `?token=…?error=…` would make the whole of
+       * `token=…?error=…` one parameter's value, so the token would arrive unusable and a reader would
+       * be sent for a new email by a typo. `route.ts` → `withError` is what chooses the separator, and
+       * this pins it on the one location that already has a query.
+       */
+      test("a refusal on the reset form has one query string, not two", async () => {
+        const refused = await authPost(
+          formPost(
+            "/api/auth/reset-password?token=a-token-that-was-never-issued",
+            { newPassword: "short" },
+            freshAddress(),
+          ),
+        );
+
+        const location = refused.headers.get("location")!;
+        expect(location.match(/\?/g)).toHaveLength(1);
+        expect(new URLSearchParams(location.split("?")[1]).get("token")).toBe(
+          "a-token-that-was-never-issued",
+        );
       });
     });
   });

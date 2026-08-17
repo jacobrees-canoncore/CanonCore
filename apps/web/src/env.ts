@@ -67,6 +67,27 @@ export const env = createEnv({
      * to serve without it, as loudly as `database-url.ts` refuses a missing host.
      */
     BETTER_AUTH_SECRET: z.string().min(1).optional(),
+    /**
+     * Resend, which carries verification and password-reset mail and nothing else.
+     *
+     * **One name and two distinct keys**, one for production and one for preview, so a leaked
+     * preview key can be revoked without interrupting production — `docs/infrastructure.md` →
+     * *The keys*. Nothing in the application may assume the two environments share a credential.
+     *
+     * Refused where it is read, in [`src/mail/send.ts`](mail/send.ts), like the database
+     * variables above: a build has no mail to send, and a preview build that failed for a
+     * missing one would report the required `Vercel` check red and block every merge.
+     */
+    RESEND_API_KEY: z.string().min(1).optional(),
+    /**
+     * The verified sending identity, `CanonCore <noreply@mail.canoncore.com>`.
+     *
+     * A variable rather than a constant beside the send, because the value is a property of what
+     * is provisioned at Resend rather than of this code: the free tier allows one domain, and the
+     * domain is deliberately a subdomain so that a bad month for mail reputation cannot reach
+     * `www.canoncore.com` ([ADR-0011](../../../docs/adr/0011-transactional-email-resend.md)).
+     */
+    EMAIL_FROM: z.string().min(1).optional(),
   },
   client: {},
   // Only client variables are destructured here. Next "stopped static analysis of server side

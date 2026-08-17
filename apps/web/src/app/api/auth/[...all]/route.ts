@@ -1,5 +1,11 @@
 import { auth } from "@/auth/auth";
-import { codeOfRefusal, signInFailure, signUpFailure } from "@/auth/failures";
+import {
+  codeOfRefusal,
+  forgotPasswordFailure,
+  resetPasswordFailure,
+  signInFailure,
+  signUpFailure,
+} from "@/auth/failures";
 
 /**
  * better-auth's own endpoints, mounted where the browser can reach them.
@@ -26,9 +32,13 @@ import { codeOfRefusal, signInFailure, signUpFailure } from "@/auth/failures";
  * answer into a redirect a browser can follow. So sign-up, sign-in and sign-out all work with
  * JavaScript switched off, and no auth client is shipped.
  *
- * **`POST` and no `GET`.** Every endpoint used here is a POST, and the session is read server-side
- * through `auth.api.getSession`, so `GET /get-session` has no caller. A `GET` export would be a
- * route surface with nothing behind it.
+ * **There is a `GET` now, and CAN-31 Email verification and password reset is what needed one.** This
+ * file used to export `POST` alone, because every endpoint a form reached was a POST and the session
+ * is read server-side through `auth.api.getSession` — so `GET /get-session` had no caller and a `GET`
+ * export would have been a route surface with nothing behind it. **A link in an email is a `GET`**:
+ * both addresses better-auth puts in a message resolve here, `/verify-email` and
+ * `/reset-password/:token`, and without the export below each would have been a `405` on the one
+ * request the whole flow depends on.
  *
  * ## The two things this file adds, and why each is not optional
  *
@@ -54,11 +64,42 @@ import { codeOfRefusal, signInFailure, signUpFailure } from "@/auth/failures";
 const home = "/";
 
 /**
- * Where each flow sends a browser, either way.
+ * Where a verification link lands once it has been followed.
+ *
+ * **`/sign-in` rather than the front page**, because verifying does not sign anybody in —
+ * `auth/auth.ts` → `autoSignInAfterVerification` is why not — so the next act is signing in and the
+ * page a reader arrives at should be the one that offers it.
+ */
+const verified = `${signInFailure.page}?verified`;
+
+/**
+ * A refusal on the reset form, carrying the token back so the form still works.
+ *
+ * **Without this a password that was merely too short costs a second email.** The token is the only
+ * thing that makes `/reset-password` a usable page, and it arrives in the query string rather than in
+ * the body precisely so that a refusal can carry it onward: nothing here has to parse what was
+ * submitted. better-auth reads either (`ctx.body.token || ctx.query?.token`, in
+ * `better-auth/dist/api/routes/password.mjs`, 1.6.29).
+ */
+function backToTheResetForm(requested: URL): string {
+  const token = requested.searchParams.get("token");
+  if (!token) return resetPasswordFailure.page;
+  return `${resetPasswordFailure.page}?token=${encodeURIComponent(token)}`;
+}
+
+/**
+ * Where each flow sends a browser, either way, and the fields this application adds to what it
+ * submitted.
  *
  * **Held here rather than as a `callbackURL` in the form**, so the destination is this
  * application's decision and not a value a submitted body carries. Keyed by the endpoint, not by
  * the `Referer` header: that header is one the browser may trim and an attacker chooses.
+ *
+ * **`adds` is that same rule extended to the two values better-auth turns into an emailed URL.**
+ * `callbackURL` on the two sign-in-shaped endpoints and `redirectTo` on the reset request are what
+ * decide where a link in somebody's mailbox goes, so a form carrying either would let a submitted
+ * body choose where this service sends people. `originCheck` would refuse an off-site value, but the
+ * whole design here is that the browser's body does not get a say — see the paragraph above.
  */
 const flows = [
   {
@@ -66,10 +107,38 @@ const flows = [
     // Not home: signing up no longer signs you in, because that is what switches better-auth's
     // enumeration protection on — `auth/auth.ts` → `autoSignIn`.
     onSuccess: `${signInFailure.page}?created`,
-    onFailure: signUpFailure.page,
+    onFailure: () => signUpFailure.page,
+    adds: { callbackURL: verified },
   },
-  { endpoint: "/sign-in/email", onSuccess: home, onFailure: signInFailure.page },
-  { endpoint: "/sign-out", onSuccess: home, onFailure: home },
+  {
+    endpoint: "/sign-in/email",
+    onSuccess: home,
+    onFailure: () => signInFailure.page,
+    // The same landing page, because this endpoint sends a verification email too: an unverified
+    // sign-in is refused and re-sends the link — `auth/auth.ts` → `sendOnSignIn`.
+    adds: { callbackURL: verified },
+  },
+  // Nothing to add: signing out sends no email, so there is no URL for this application to choose.
+  { endpoint: "/sign-out", onSuccess: home, onFailure: () => home, adds: undefined },
+  {
+    endpoint: "/request-password-reset",
+    // The same page it was submitted from, with a notice. It must not say whether the address has an
+    // account, and better-auth answers identically either way, so the page can only ever say what
+    // would happen if it did.
+    onSuccess: `${forgotPasswordFailure.page}?sent`,
+    onFailure: () => forgotPasswordFailure.page,
+    adds: { redirectTo: resetPasswordFailure.page },
+  },
+  {
+    endpoint: "/reset-password",
+    // To sign-in, not home: resetting a password does not sign anybody in either, and better-auth
+    // leaves whatever session was there alone unless `revokeSessionsOnPasswordReset` is set.
+    onSuccess: `${signInFailure.page}?reset`,
+    onFailure: backToTheResetForm,
+    // The token is already on the `action`, which is what lets a refusal carry it back. Nothing here
+    // is emailed, so there is no URL to choose.
+    adds: undefined,
+  },
 ] as const;
 
 /**
@@ -87,7 +156,13 @@ const base = "/api/auth";
 
 function flowFor(request: Request) {
   const endpoint = new URL(request.url).pathname.slice(base.length);
-  return flows.find((flow) => flow.endpoint === endpoint) ?? { onSuccess: home, onFailure: home };
+  return (
+    flows.find((flow) => flow.endpoint === endpoint) ?? {
+      onSuccess: home,
+      onFailure: () => home,
+      adds: undefined,
+    }
+  );
 }
 
 /**
@@ -99,7 +174,7 @@ function isNavigating(request: Request): boolean {
 }
 
 /**
- * A form post, as the JSON body better-auth's router accepts.
+ * A form post, as the JSON body better-auth's router accepts, plus whatever the flow adds.
  *
  * **Every other header is carried across**, which is the part that matters: `Origin` and the
  * `Sec-Fetch-*` trio are what better-auth's CSRF check reads, `Cookie` is what identifies the
@@ -108,8 +183,13 @@ function isNavigating(request: Request): boolean {
  *
  * `Content-Length` is dropped rather than copied: it describes the body being replaced, and a wrong
  * one is worse than none.
+ *
+ * **`adds` goes on last, so a form cannot supply its own.** That is the whole reason those two values
+ * are added here rather than rendered into the markup — `flows` above says which and why. It applies
+ * only to a browser's form post, which is the one thing this route rewrites; a `fetch` client's JSON
+ * body passes through untouched, so an API caller's own `callbackURL` is still theirs.
  */
-async function asJson(request: Request): Promise<Request> {
+async function asJson(request: Request, adds?: Readonly<Record<string, string>>): Promise<Request> {
   const fields = Object.fromEntries(new URLSearchParams(await request.text()));
   const headers = new Headers(request.headers);
   headers.set("content-type", "application/json");
@@ -117,7 +197,7 @@ async function asJson(request: Request): Promise<Request> {
   return new Request(request.url, {
     method: request.method,
     headers,
-    body: JSON.stringify(fields),
+    body: JSON.stringify({ ...fields, ...adds }),
   });
 }
 
@@ -136,16 +216,67 @@ function redirectTo(location: string, carrying: Response): Response {
   return new Response(null, { status: 303, headers });
 }
 
+/**
+ * A page to go back to, carrying the code for the refusal.
+ *
+ * `&` rather than `?` when the location already has a query, which `backToTheResetForm` produces: a
+ * second `?` would make the whole of `token=…&error=…` the value of one parameter, and the token
+ * would arrive unusable.
+ */
+function withError(location: string, code: string): string {
+  return `${location}${location.includes("?") ? "&" : "?"}error=${encodeURIComponent(code)}`;
+}
+
 export async function POST(request: Request) {
   const navigating = isNavigating(request);
+  const flow = flowFor(request);
   const response = await auth().handler(
-    navigating && isFormEncoded(request) ? await asJson(request) : request,
+    navigating && isFormEncoded(request) ? await asJson(request, flow.adds) : request,
   );
   if (!navigating) return response;
 
-  const flow = flowFor(request);
   if (response.ok) return redirectTo(flow.onSuccess, response);
 
   const code = await codeOfRefusal(response);
-  return redirectTo(`${flow.onFailure}?error=${encodeURIComponent(code)}`, response);
+  return redirectTo(withError(flow.onFailure(new URL(request.url)), code), response);
+}
+
+/**
+ * The `GET` two emailed links need — and, because this is a catch-all, **eight more that come with
+ * them**.
+ *
+ * **Handed straight to better-auth, with none of `POST`'s rewriting.** The two this exists for answer
+ * with a redirect of their own — `/verify-email` to the `callbackURL` it was given,
+ * `/reset-password/:token` to that URL carrying the token — so there is no JSON body for a browser to
+ * be shown and nothing for this file to convert. What `POST` adds exists because better-auth answers a
+ * form post with `200` and a body; it answers these with `302` and a `Location`, which is already what
+ * a browser needs.
+ *
+ * **The failure path redirects too**, which is why no error handling appears here: an expired or
+ * unusable token sends the reader to the same `callbackURL` with `?error=<code>` on it, and
+ * `auth/failures.ts` turns the code into a sentence of ours on the page they land on.
+ *
+ * ## What else this opens, enumerated rather than assumed
+ *
+ * `[...all]` matches every path, so adding this export mounted **all ten** of better-auth's `GET`
+ * endpoints at once. They were read off `auth().api` rather than guessed at, and
+ * [`../../../../auth/auth.test.ts`](../../../../auth/auth.test.ts) pins the list so that an upgrade
+ * adding an eleventh has to be classified rather than arriving unnoticed. None of them is a
+ * cross-tenant read:
+ *
+ * - **The two this export is for**: `/verify-email`, `/reset-password/:token`. Both take a token that
+ *   only its holder has.
+ * - **Four that answer about the caller and nobody else**: `/get-session`, `/list-sessions`,
+ *   `/list-accounts`, `/account-info`. Each resolves the request's own cookie, so the most they can
+ *   tell anybody is what they already hold. `/get-session` having no caller is why this export did not
+ *   exist before, and a session read through it is the same read `auth.api.getSession` makes for a
+ *   page.
+ * - **Two that are inert here, because the feature behind each is off**: `/callback/:id` needs a
+ *   social provider and `socialProviders` is unset; `/delete-user/callback` needs
+ *   `user.deleteUser`, which nothing configures — account deletion is
+ *   **CAN-30 GDPR export and erasure**, and when it lands this is the surface it lands on.
+ * - **Two that carry nothing**: `/ok` and `/error`.
+ */
+export async function GET(request: Request) {
+  return auth().handler(request);
 }
