@@ -11,8 +11,13 @@ records it touched. Undo reverts an Operation, never a row.
 
 ## Considered options
 
-**Row-level soft delete** gives every row a `deleted_at`. Simple, and useless for the actual
-failure: undoing a fifty-episode import means fifty restores.
+**Row-level soft delete** — meaning **undo at the granularity of a row** — is what is rejected here,
+and the `deleted_at` column is not. The column is adopted: *Two retentions, not one* below puts one on
+every soft-deleted row. What fails is the row as the *unit of undo*, because undoing a fifty-episode
+import then means fifty restores, and a person who imported a series once expects to undo it once.
+So an Operation's undo is one update over exactly that column, and the reader who meets
+`deleted_at` further down this page is not looking at a reversal *(clarified 17 August 2026 — the
+wording here previously read as rejecting the column)*.
 
 **Event sourcing** would allow rebuilding any past state, and is rejected as over-committing. AWS
 and microservices.io both warn that the event store is hard to query because ordinary reads must

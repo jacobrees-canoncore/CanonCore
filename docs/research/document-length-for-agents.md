@@ -471,6 +471,25 @@ on working practice. That is four over the 200 target rather than under it: the
 and shortened it, and those four lines are a deliberate trade against a heuristic that has no
 published evaluation behind it (see *Where the evidence does not support the popular claim*).
 
+**Re-measured 17 August 2026: 211 on disk, less an eleven-line block comment, is exactly 200 loaded
+lines.** Two things moved and only one of them is this ticket. **The 204 figure above had already been
+overtaken**: on the commit before this change `CLAUDE.md` was 201 on disk against the same eleven-line
+comment, so **190 loaded** — the four-line trade described above had been paid back by later trims,
+and nothing recorded that. Then CAN-75 Write the four missing ADRs and fix the glossary's
+self-violations added ten lines to *Closed decisions, and what will try to reopen them* (three new
+bullets, one rewritten, one extended), then three more bullets paid for by three rewraps — one of
+which removed that file's own bare-ticket violation. It lands on 200 exactly.
+
+**The number is now a gate rather than a measurement, which is the real change here.** Both drifts
+above happened because nothing was counting, and a rule that lives only in prose is one nobody
+re-reads at the moment it is broken. `scripts/check-docs.ts` now fails when `CLAUDE.md` exceeds the
+target **stated in its own maintainer comment** — read from there rather than written into the
+script, so the number keeps one home and the checker cannot disagree with the file it gates. The
+count is of *loaded* lines, so a maintainer note stays free. `200` passes and `201` fails, because
+200 is where the file was deliberately landed. **So the file is on the target with no headroom, and
+the next addition needs a cut to pay for it** — and now it will say so on a runner rather than in a
+research file nobody re-reads.
+
 A table of contents was added to the five reference files over 100 lines. No content was removed from
 any of them. The recommendation below to trim below 200 therefore stands as **partially met**, and
 this note is the record of that rather than an amendment to it.

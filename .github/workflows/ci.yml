@@ -120,8 +120,8 @@ jobs:
       # --- The release. `main` only, and only once everything above is green. ---
       #
       # Migrate, then build, then promote. Why this job owns that order rather than Vercel, and
-      # why previews are deliberately left deploying from Git:
-      # docs/agents/workflow.md -> What a merge carries.
+      # why previews are deliberately left deploying from Git: docs/adr/0019-ci-owns-the-production-release.md.
+      # The procedure around it is docs/agents/workflow.md -> What a merge carries.
 
       - name: Apply Drizzle migrations
         if: github.ref == 'refs/heads/main'

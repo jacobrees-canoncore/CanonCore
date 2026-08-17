@@ -132,6 +132,13 @@ function fixture({
       "[The register](../infrastructure.md) → *The ruleset* names the contexts as well.",
     ].join("\n"),
   );
+  // The always-loaded document, because one check reads it by name and a fixture without it would
+  // fail every case on a missing file rather than on whatever the case is about. Deliberately well
+  // under its own target, so only a case that overrides it exercises the failure.
+  write(
+    "CLAUDE.md",
+    ["# CanonCore", "<!--", "Target: under 20 lines. Stripped before loading.", "-->", "", "One rule."].join("\n"),
+  );
   for (const [rel, body] of Object.entries(documents)) write(rel, body);
 
   cpSync(HERE, join(dir, "scripts"), { recursive: true });
@@ -222,7 +229,7 @@ test("a register that agrees with the workflow passes, and unreachable sources o
   // What the two document checks actually walked, asserted rather than assumed. A pass over an
   // empty set is what this suite reported for as long as the child inherited its directory, and
   // the count is printed only in the summary and under `--verbose`.
-  assert.match(summary, /\| PASS \| every relative link and anchor resolves \| 2 documents \|/);
+  assert.match(summary, /\| PASS \| every relative link and anchor resolves \| 3 documents \|/);
   assert.match(summary, /\| PASS \| every "file → \*Section\*" pointer resolves \| 2 pointers resolve \|/);
 });
 
@@ -283,7 +290,7 @@ test("a listing that came back empty fails rather than passing over nothing", ()
   const { run, gitOnly } = fixture({
     jobName: "the register's context",
     documentedContext: "the register's context",
-    untracked: ["docs/"],
+    untracked: ["docs/", "CLAUDE.md"],
   });
   const { code, output } = run(gitOnly);
 
@@ -369,4 +376,65 @@ test("an unreachable source is reported, and does not abort the whole run", () =
   assert.match(output, /^SKIP/m, "no check reported SKIP");
   assert.match(output, /not a pass/, "the summary did not say a skip is not a pass");
   assert.equal(code, 0, "an unreachable source must not fail the build");
+});
+
+test("a document grown past the target stated in its own comment fails the build", () => {
+  // The always-loaded file went 38% over its published number before anyone measured it, then
+  // drifted back under without that being recorded either
+  // (../docs/research/document-length-for-agents.md). Both are the same failure: nobody counting.
+  const { run, gitOnly } = fixture({
+    jobName: "the register's context",
+    documentedContext: "the register's context",
+    documents: {
+      "CLAUDE.md": [
+        "# CanonCore",
+        "<!--",
+        "Target: under 3 lines. This comment is stripped before loading, so it is free.",
+        "-->",
+        "",
+        "One.",
+        "Two.",
+        "Three.",
+        "Four.",
+      ].join("\n"),
+    },
+  });
+  const { code, output } = run(gitOnly);
+
+  assert.equal(code, 1, output);
+  assert.match(output, /^FAIL {2}CLAUDE\.md is within its own stated line target/m);
+  // The number it reports has to be the loaded count, not the length on disk: nine lines on disk,
+  // three of them the comment. The blank line after a comment is content and does count.
+  assert.match(output, /6 loaded lines against its stated target of 3/);
+});
+
+test("a document sitting exactly on its target passes, because that is where it was landed", () => {
+  // "under 200" is the published wording, but 200 exactly is the spot CLAUDE.md was deliberately
+  // trimmed to. Without this, a later `>` -> `>=` would break that with a green suite.
+  const { run, gitOnly } = fixture({
+    jobName: "the register's context",
+    documentedContext: "the register's context",
+    documents: {
+      "CLAUDE.md": [
+        "# CanonCore",
+        "<!--",
+        "Target: under 5 lines. Stripped before loading, so these lines are free.",
+        "-->",
+        "",
+        "One.",
+        "Two.",
+        "Three.",
+      ].join("\n"),
+    },
+  });
+  const { code, output, summary } = run(gitOnly);
+
+  assert.match(output, /^PASS {2}CLAUDE\.md is within its own stated line target/m);
+  assert.doesNotMatch(output, /^FAIL/m, output);
+  assert.equal(code, 0, output);
+
+  // Eight lines on disk, three of them the comment, so five loaded against a target of five: the
+  // boundary itself, and the case the wording "under" would read the other way. A passing check
+  // prints its detail only under `--verbose`, so the count is asserted where it always appears.
+  assert.match(summary, /\| PASS \| CLAUDE\.md is within its own stated line target \| 5 loaded of 5 \|/);
 });

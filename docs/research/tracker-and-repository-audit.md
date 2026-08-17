@@ -433,6 +433,23 @@ The security-grade items are in §3. Additional to them:
 
 ### PRs #13/#15/#33/#39/#80 (the founding documents)
 
+> **Most of this subsection was discharged on 17 August 2026** by CAN-75 Write the four missing ADRs
+> and fix the glossary's self-violations: the four settled-but-unrecorded decisions are now
+> [ADR-0016](../adr/0016-provisioning-plain-api-keys-neon-excepted.md),
+> [ADR-0017](../adr/0017-testing-stack.md),
+> [ADR-0018](../adr/0018-observability-sentry-and-an-uptime-monitor-outside-it.md) and
+> [ADR-0020](../adr/0020-no-cookie-consent-banner.md), with deploy ownership as
+> [ADR-0019](../adr/0019-ci-owns-the-production-release.md); `Placement`, `hierarchy`, `consumed`,
+> `Ordering`'s own examples and `README.md`'s `Position` are fixed in `CONTEXT.md` and
+> [`README.md`](README.md); the Marketplace posture, ADR-0004, ADR-0008 and `provision_neon_auth`
+> are in `CLAUDE.md`; and ADR-0008's soft-delete passage now says what it means.
+>
+> **Five findings here are deliberately still open.** ADR-0012's title in the banned word `works`,
+> ADR-0003's `alias`, and "canonical" used in three senses were out of that ticket's scope. The two
+> ADR-seam questions — ADR-0003 against ADR-0004 while records are per-user, and what erasure does to
+> another person's forked Snapshot — are owned by the tickets that first have to answer them, not by a
+> documentation pass.
+
 - **Glossary**: `Placement` is defined over Stories only while ADR-0002 and the `Ordering` entry
   both include Versions; `CONTEXT.md` violates its own `_Avoid_` lists (`hierarchy` at `:4`,
   `consumed` at `:230`, `Ordering`'s own examples use the banned `order`); ADR-0012 is titled in
