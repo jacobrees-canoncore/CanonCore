@@ -407,8 +407,8 @@ repair rather than retry.
 
 **17 August 2026, on CAN-88 The GitHub sync rewrites bare CAN-n link text into GitHub numbers,
 defeating the cite-by-title rule.** Nine forms of one reference — every one of them to CAN-17 v1: the
-walking skeleton in production, then the founding case — written into CAN-88's own description in a
-single save, so all nine met the same sync pass and the comparison is controlled. The body was then
+walking skeleton in production, then the founding case — written into this issue's own description in
+a single save, so all nine met the same sync pass and the comparison is controlled. The body was then
 saved a **second** time, unchanged but for one sentence, to see what a second pass does to what the
 first one produced. The mirror is
 [issue #127](https://github.com/jacobrees-canoncore/CanonCore/issues/127).
@@ -457,31 +457,37 @@ from the first pass as `[CAN-17](url)` with the text intact, reading as untouche
 form, so the second pass mangled all three, on lines nobody had edited. The two-stage decay is the
 reason a body has to be grepped *before* a save as well as after.
 
-**What decides whether a bare identifier decays was not isolated, and the tracker says most do not.**
-Of 364 bare identifiers in Linear bodies on 17 August 2026, **322 are followed immediately by their
-own title** and sit in 59 issues, 24 of which *also* carry an already-mangled link — so those bodies
-have been round-tripped repeatedly with the bare form surviving. The three that decayed in this probe
-each stood alone, but 42 others in the tracker also stand alone and have not decayed, so "standing
-alone" is not the discriminator either. **Treat a bare identifier in a Linear body as an unquantified
-hazard rather than a certainty**, and note that this says nothing against the bold
-**CAN-30 GDPR export and erasure** form these documents use: the evidence is that the form carrying
-its title is the one that keeps surviving.
+**What decides whether a bare identifier decays was not isolated, and the first attempt to bound it
+was a measurement error worth recording.** The census counted a bare identifier by excluding matches
+inside the *mangled* and *trigger* link forms, but not inside a **titled** one — so every
+`[CAN-17 v1: the walking skeleton…](url)`, the prescribed form, was counted as a bare identifier in
+prose. That put the population at 364 when it was **43**, and produced a reassurance with nothing
+under it: "322 of them are followed by their own title and have survived repeated round trips" was
+just the titled links being counted twice over. Excluding link text and hrefs as well as code, the
+real figures on 17 August 2026 are **43 bare prose identifiers across 19 issues**.
+
+**On the corrected denominator the hazard is not rare.** Of the **31** bare prose identifiers in the
+96 bodies the repair saved, **6 were linkified into the trigger form** — roughly one in five, and on
+CAN-97 Record the amendment rule, and what an ADR does when a decision changes it was four of that
+body's four. So a bare identifier in a Linear body is a live hazard on any save, not a background one.
+What it is *not* is an argument against the bold **CAN-30 GDPR export and erasure** form these
+documents use: nothing here measured that form, because the repo is not synced.
 
 **The substituted number names a different ticket, and the drift is not arithmetic anyone can undo.**
-Across the 72 distinct targets currently mangled, the offset runs from `+3` at CAN-6 to `-50` at
-CAN-117 — because **GitHub numbers issues and pull requests in one sequence**, so every merged pull
-request widens the gap. Spot-checked: `#33` and `#35` are pull requests, `#16` is CAN-17's mirror. The
+Across the 72 distinct targets currently mangled, the offset runs from `+3` at `CAN-6` to `-50` at
+`CAN-117` — because **GitHub numbers issues and pull requests in one sequence**, so every merged pull
+request widens the gap. Spot-checked: `#33` and `#35` are pull requests, `#16` mirrors `CAN-17`. The
 gap therefore grows for as long as the project lands work, and a reader who learns today's offset has
 learned nothing about next week's.
 
 **`#N` written in prose is the worst of the nine**, because it is linkified to whatever the *other*
 system numbers that way. Row six was written as the plain number `16` and came back as a link to
-CAN-17.
+`CAN-17`.
 
 **Two forms are immune and nothing else is**: the title inside the link text, and anything inside a
 code span or a fence.
 
-**The damage was recurring, not a one-off, which is what decided the repair.** CAN-88's own report
+**The damage was recurring, not a one-off, which is what decided the repair.** This issue's own report
 noted that some bare citations were still intact and wondered whether the rewrite depended on mirror
 state. It does not: row one went in as `[CAN-17](url)` and came back rewritten, so **an intact
 trigger-form citation is one save from being mangled, not exempt.** A census of all 134 issues on
@@ -494,10 +500,17 @@ left behind.
 across 96 issues: the 237 mangled and 343 trigger-form links given their titles inside the brackets,
 221 duplicate titles absorbed where the author had written the title *after* the link, 5 links to
 Linear review pages relabelled as the pull requests they are, 4 bare `#N` pull-request links given
-words, and 2 hand-repaired in CAN-37 where the prose is deliberately *about* the GitHub-side numbers.
-The repair only ever rewrote link text, checked mechanically: every href preserved, no prose word lost
-outside an absorbed title, no `****` run introduced, and nothing left that the sync would rewrite.
-**A full re-read afterwards found 0 mangled links, against 237 before.**
+words, 1 bare `#N` link inside the probe itself, and 2 hand-repaired in
+CAN-37 Stop /review-pr racing the GitHub sync when it writes checkboxes, where the prose is
+deliberately *about* the GitHub-side numbers. The repair only ever rewrote link text, checked
+mechanically: every href preserved, no prose word lost outside an absorbed title, and no `****` run
+introduced. **A full re-read afterwards found 0 mangled links, against 237 before.**
+
+**It did not leave the tracker clean, and the residue is the finding below.** Six trigger-form links
+remain — four on CAN-97 Record the amendment rule, and what an ADR does when a decision changes, two
+on CAN-120 Five mirrored issue bodies are contradicted only by a comment the mirror never received —
+because Linear created them *during* the repair write by linkifying bare prose identifiers. They are
+not survivors of the old damage; they are new, and they are the next save's mangling if left.
 
 **The durability of that repair is not yet verified, and it is the one thing left open.** All 96 writes
 went out between `14:14Z` and `14:24Z`, inside the GitHub incident above — so whether every outbound
@@ -505,16 +518,17 @@ push reached the mirror is unknown, and a late return push carrying a stale GitH
 silent-revert mode this file's first tracker entry describes. The Linear side is confirmed; the mirror
 side is not. **Re-read the tracker for `CanonCore#` once GitHub reports green.**
 
-**364 bare identifiers in prose were deliberately left alone** — the form these documents prescribe,
-and the form the evidence says keeps surviving. Eighteen duplicate titles also remain, each sitting
-inside an emphasis run that extends past the title or across a hard break, where removing the copy
-would break the markup around it.
+**Bare prose identifiers were left alone, which the residue above shows was the wrong call.** They were
+left because they are the form these documents prescribe and the repair was scoped to links; the six
+that linkified during the write are the argument for treating them as in scope next time. Eighteen
+duplicate titles also remain, each sitting inside an emphasis run that extends past the title or across
+a hard break, where removing the copy would break the markup around it.
 
 **Saving those 96 bodies proved a second mechanism, on the save itself rather than the round trip.**
-Six of the 364 bare identifiers came back linkified to `[CAN-n](url)` — the trigger form — in bodies
-whose `updatedAt` was still the write's own timestamp, so no return push had run. **And each one broke
-the emphasis run it sat in.** On CAN-97 Record the amendment rule, and what an ADR does when a
-decision changes, this went in:
+Six of the 31 bare prose identifiers in those bodies came back linkified to `[CAN-n](url)` — the
+trigger form — with `updatedAt` still the write's own timestamp, so no return push had run. **And each
+one broke the emphasis run it sat in.** On CAN-97 Record the amendment rule, and what an ADR does when
+a decision changes, this went in:
 
 ```markdown
 **CAN-73 Settle the Snapshot layer, the CI database seam, and forked-Snapshot erasure before CAN-23**
@@ -531,11 +545,11 @@ On CAN-120 Five mirrored issue bodies are contradicted only by a comment the mir
 `**Bound: CAN-1 to CAN-126, fetched one identifier at a time.**` lost its bold at `CAN-126` the same
 way — and there the identifiers were a **range**, not citations, so linkifying them is wrong on its own
 terms. `CAN-1` in that same run was left alone, which fits Linear only linkifying an identifier it can
-resolve: CAN-1 to CAN-4 are archived onboarding templates.
+resolve: `CAN-1` to `CAN-4` are archived onboarding templates.
 
 **So a bare identifier in a Linear body is not merely a citation hazard, it is a markup hazard**, and
-neither is fixed by the title-inside-brackets rule, which is about links. Six of 364 fired on one save,
-so it is rare and still not predictable. **The reliable defence for a mention that is not a citation —
+neither is fixed by the title-inside-brackets rule, which is about links. Six of 31 fired on one save —
+about one in five, and not predictable. **The reliable defence for a mention that is not a citation —
 a range, a count, an identifier being discussed rather than cited — is a code span**, which came back
 untouched from both passes of the probe.
 

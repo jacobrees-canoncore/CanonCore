@@ -148,7 +148,7 @@ CAN-17, bare in prose or in a heading                                           
 
 The sync rewrites the **link text** of a Linear reference into a GitHub issue reference while leaving
 the URL pointing at Linear, so the reader is shown `jacobrees-canoncore/CanonCore#16` and the link
-goes to CAN-17. **The trigger is a link text that is nothing but the identifier**; a text carrying
+goes to `CAN-17`. **The trigger is a link text that is nothing but the identifier**; a text carrying
 anything else is left alone, which is why the form `CLAUDE.md` already demands is also the form that
 survives. The rule just has to be applied inside the brackets rather than beside them.
 
@@ -157,13 +157,12 @@ Three things make this worse than cosmetic, and
 has the evidence for each:
 
 - **The number names a different ticket.** GitHub numbers issues and pull requests in one sequence, so
-  the offset drifts with every merged pull request — `+3` at CAN-6, `-50` at CAN-117. No reader can do
-  the arithmetic, and the citation silently points somewhere else.
+  the offset drifts with every merged pull request — `+3` at `CAN-6`, `-50` at `CAN-117`. No reader can
+  do the arithmetic, and the citation silently points somewhere else.
 - **One clean round trip is not proof of safety.** A bare `CAN-17` came back from the first pass as
   `[CAN-17](<url>)` with its text intact, and the second pass mangled it — so a body can be one save
-  from damage while reading as untouched. What decides whether a bare identifier decays was not
-  isolated, and most in the tracker have not: 322 of 364 are followed by their own title and have
-  survived repeated round trips. Treat a bare identifier as an unquantified hazard, not a certainty.
+  from damage while reading as untouched. What decides which bare identifiers decay was never isolated,
+  but the rate is not small: six of the 31 in one repair pass, about one in five.
 - **Any `save-issue` re-exposes the whole body**, because the description is replaced whole. A write
   that toggles one checkbox re-offers every bare identifier elsewhere in the body.
 
@@ -180,20 +179,17 @@ or "item 1", or put the number inside a link whose text is more than the number.
 one on the save itself, and doing so **breaks the emphasis run it sat in**: a bold
 `**CAN-73 <title> before CAN-23**` came back as `[CAN-73](<url>) **<title> before** [CAN-23](<url>)`.
 Where the identifier is not a citation at all — a range, a count, an identifier being *discussed* —
-that linkification is simply wrong, so **put it in a code span**: `` `CAN-1` to `CAN-126` ``. Rare
-(six of 364 on one save) and not predictable, so treat the code span as the default for a mention that
-is not a citation.
+that linkification is simply wrong, so **put it in a code span**: `` `CAN-1` to `CAN-126` ``. Not
+predictable and not rare, so make the code span the default for a mention that is not a citation.
 
 **No setting turns it off.** The repo↔team link offers only repository, team and issue-creation
-direction, and nothing in the integration transforms link text by configuration. Checked 17 August
-2026; the incident entry records what was read and where.
+direction, and nothing in the integration transforms link text by configuration. The incident entry
+records what was read and where.
 
-**The whole tracker was repaired on 17 August 2026** — 813 citations across 96 issues, both the
-already-mangled ones and the intact trigger-form ones, because the repair write is itself a save and
-would otherwise have mangled what it left. A full re-read confirms **0 mangled links remain**, against
-237 before. So a bare form met from here on is new, not inherited: fix it in the body you are already
-writing rather than leaving it. **One check is still outstanding** — the writes went out during a
-GitHub incident, so the incident entry records why the mirror side is unconfirmed and what to re-read.
+**The tracker was repaired in bulk once, so a bare form met from here on is new rather than
+inherited** — fix it in the body you are already writing rather than leaving it. What that pass
+covered, what it deliberately did not, and the two checks it left open are in the incident entry, not
+here: this section is the rule, and that one is the day it was established.
 
 ### The remote must live in the `jacobrees-canoncore` org
 
