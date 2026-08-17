@@ -20,6 +20,17 @@ export type Failure = {
   readonly otherwise: string;
 };
 
+/**
+ * The two codes this file mints rather than reads off better-auth.
+ *
+ * `TOO_MANY_REQUESTS` because a `429` carries a message and no code, and `UNKNOWN` because a refusal
+ * whose code cannot be read is still a refusal. Both are declared here, beside `reasons`, so the
+ * spelling is shared with the sentences they select rather than agreed by convention across the
+ * query-string boundary that separates `route.ts` from these pages.
+ */
+export const refusedForRate = "TOO_MANY_REQUESTS";
+export const refusedWithoutSayingWhy = "UNKNOWN";
+
 /** Said the same way in both places, because it is the same refusal. */
 const tooManyRequests = "Too many attempts. Wait a moment and try again.";
 
@@ -31,7 +42,7 @@ export const signInFailure: Failure = {
     // an account" to anyone who asks.
     INVALID_EMAIL_OR_PASSWORD: "That email address and password do not match an account.",
     INVALID_EMAIL: "That is not an email address.",
-    TOO_MANY_REQUESTS: tooManyRequests,
+    [refusedForRate]: tooManyRequests,
     CROSS_SITE_NAVIGATION_LOGIN_BLOCKED: "That sign-in came from another site, so it was refused.",
   },
   otherwise: "Signing in did not work. Check the email address and password, and try again.",
@@ -43,7 +54,7 @@ export const signUpFailure: Failure = {
     PASSWORD_TOO_SHORT: "Choose a password of at least 12 characters.",
     PASSWORD_TOO_LONG: "That password is too long. 128 characters is the most.",
     INVALID_EMAIL: "That is not an email address.",
-    TOO_MANY_REQUESTS: tooManyRequests,
+    [refusedForRate]: tooManyRequests,
     // Reachable only if the enumeration protection in `auth.ts` is ever switched off, and listed so
     // that switching it off does not also produce an unexplained failure. `auth.ts` says why it is
     // on.
@@ -60,13 +71,31 @@ export function explain(failure: Failure, code: string | undefined): string | un
 }
 
 /**
+ * The code a refusal carries, as a string that can go in a query string.
+ *
+ * **A code, never better-auth's message.** The reason is the one this whole module exists for: a
+ * message reflected into a URL would make `/sign-in?error=…` a way of writing arbitrary prose onto
+ * our own sign-in page, which is a phishing text however carefully it is escaped.
+ */
+export async function codeOfRefusal(response: Response): Promise<string> {
+  if (response.status === 429) return refusedForRate;
+  const body: unknown = await response
+    .clone()
+    .json()
+    .catch(() => undefined);
+  const code =
+    typeof body === "object" && body !== null ? (body as { code?: unknown }).code : undefined;
+  return typeof code === "string" ? code : refusedWithoutSayingWhy;
+}
+
+/**
  * The `error` a page was loaded with, as a code.
  *
  * **Present-but-unusable is not the same as absent.** `?error=a&error=b` arrives as an array, which
- * is not a code — but it is still a submission that failed, so it becomes `UNKNOWN` and gets the
- * `otherwise` sentence rather than silence.
+ * is not a code — but it is still a submission that failed, so it takes the unrecognised path and
+ * gets the `otherwise` sentence rather than silence.
  */
 export function codeFrom(parameter: string | string[] | undefined): string | undefined {
   if (parameter === undefined) return undefined;
-  return typeof parameter === "string" ? parameter : "UNKNOWN";
+  return typeof parameter === "string" ? parameter : refusedWithoutSayingWhy;
 }

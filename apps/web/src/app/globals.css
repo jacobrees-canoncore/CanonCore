@@ -153,8 +153,9 @@ button {
 }
 
 /*
-  `li + li` draws the rules between Stories, so a list item must not lose its bottom padding here.
-  Nothing else about the account line touches the list.
+  Inherit the text colour rather than taking a link colour of its own. Every anchor this application
+  renders points at one of its own routes — the closed set is in `no-linkification.test.tsx` — so an
+  anchor is navigation furniture rather than a destination, and the underline does the work.
 */
 a {
   color: var(--fg);

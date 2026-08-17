@@ -649,16 +649,17 @@ describe.skipIf(noDatabase)("the schema, against a real PostgreSQL", () => {
 
   test("the application role may read every table and write none", async () => {
     expect(await whatEachTableAllows("canoncore_app")).toEqual([
-      // Not `readOnly`: a password hash has no application reader, so the answer is no privilege
-      // rather than a policy that returns nothing. Migration 0009 says why for all three.
+      // **All five of better-auth's tables are `unreachable`, not `readOnly`.** Nothing in the
+      // application reads one, so there is no grant — migration 0009 holds the argument, including
+      // why an earlier draft's `SELECT` on `user` and `session` was removed.
       { relname: "account", ...unreachable },
       { relname: "rate_limit", ...unreachable },
-      { relname: "session", ...readOnly },
+      { relname: "session", ...unreachable },
       { relname: "snapshot", ...readOnly },
       { relname: "source", ...readOnly },
       { relname: "story", ...readOnly },
       { relname: "tombstone", ...readOnly },
-      { relname: "user", ...readOnly },
+      { relname: "user", ...unreachable },
       { relname: "verification", ...unreachable },
     ]);
   });
@@ -959,9 +960,9 @@ describe.skipIf(noDatabase)("the schema, against a real PostgreSQL", () => {
     // A purge of nothing reads exactly like a purge that worked, and the report it would print is
     // the evidence that the duty was discharged. So a Source that is not there is a refusal.
     test("refuses a Source that is not there rather than reporting a purge of nothing", async () => {
-      await expect(
-        purgeSource(migrator, "0f0f0f0f-0f0f-4f0f-8f0f-0f0f0f0f0f0f"),
-      ).rejects.toThrow(/no Source/);
+      await expect(purgeSource(migrator, "0f0f0f0f-0f0f-4f0f-8f0f-0f0f0f0f0f0f")).rejects.toThrow(
+        /no Source/,
+      );
     });
 
     test("reports nothing unreached, because every table that exists is classified", () => {
@@ -1358,86 +1359,27 @@ describe.skipIf(noDatabase)("the schema, against a real PostgreSQL", () => {
   });
 
   /**
-   * The cross-tenant read tests ADR-0005 rule 2 requires of better-auth's own user-scoped tables.
+   * What ADR-0005 rule 2 requires of better-auth's own user-scoped tables, and it is a **refusal**
+   * rather than a cross-tenant read returning zero rows.
    *
    * **The reader here is `canoncore_app`, never `canoncore_auth`.** better-auth's own role reads every
    * row of these tables and has to — `auth/auth.ts` says why — so the tenant question is only ever
-   * about the role every page runs as. It is granted `SELECT` on two of the five and nothing on the
-   * other three, and both halves are asserted: a policy narrows what it can see, and a missing grant
-   * refuses the rest outright.
+   * about the role every page runs as. And that role is granted nothing on any of the five, because
+   * nothing in the application reads one: pages read Stories, and `auth/viewer.ts` resolves the cookie
+   * through the auth role.
+   *
+   * **An earlier version of this file tested six cross-tenant reads here, and the grant that made them
+   * possible existed only for them.** A review found it: a production privilege bought to make a test
+   * runnable. What replaced it is stronger in the direction that matters — `permission denied` is a
+   * loud error, where a policy returning no rows is indistinguishable from an empty table, and that
+   * silence is the whole of what rule 2 is about. Migration 0009 records the change and names
+   * CAN-57 Make a public Ordering discoverable and shareable as the first real reader, which brings
+   * its own grant, policy and cross-tenant test.
+   *
+   * `account` is still the sharpest of the five: it holds the scrypt password hash.
    */
   describe("row-level security on better-auth's own tables", () => {
-    let ownerId: string;
-    let strangerId: string;
-
-    beforeAll(async () => {
-      const { rows } = await migrator.query<{ id: string; email: string }>(
-        'select id, email from "user" where email = any($1)',
-        [[firstAccount.email, secondAccount.email]],
-      );
-      ownerId = rows.find((row) => row.email === firstAccount.email)!.id;
-      strangerId = rows.find((row) => row.email === secondAccount.email)!.id;
-    });
-
-    /** No `where` clause, so the policy is the filter — the shape of every read in this file. */
-    const readUsersAs = (userId: string) =>
-      withSession(userId, async (session) => {
-        const result = await session.execute<{ id: string; email: string }>(
-          sql`select id, email from "user"`,
-        );
-        return result.rows;
-      });
-
-    const readSessionsAs = (userId: string) =>
-      withSession(userId, async (session) => {
-        const result = await session.execute<{ user_id: string }>(
-          sql`select user_id from "session"`,
-        );
-        return result.rows;
-      });
-
-    test("a reader sees their own user row and no other", async () => {
-      expect(await readUsersAs(ownerId)).toEqual([{ id: ownerId, email: firstAccount.email }]);
-    });
-
-    test("a cross-tenant read of user returns zero rows", async () => {
-      const rows = await readUsersAs(strangerId);
-      expect(rows.map((row) => row.id)).not.toContain(ownerId);
-      expect(rows.map((row) => row.email)).not.toContain(firstAccount.email);
-    });
-
-    test("a session that sets nothing at all reads no user", async () => {
-      expect(await readUsersAs(anonymous)).toEqual([]);
-    });
-
-    test("a reader sees their own sessions and nobody else's", async () => {
-      const rows = await readSessionsAs(ownerId);
-      expect(rows.length).toBeGreaterThan(0);
-      expect(rows.every((row) => row.user_id === ownerId)).toBe(true);
-    });
-
-    test("a cross-tenant read of session returns zero rows", async () => {
-      const rows = await readSessionsAs(strangerId);
-      expect(rows.map((row) => row.user_id)).not.toContain(ownerId);
-    });
-
-    test("a session that sets nothing at all reads no session row", async () => {
-      expect(await readSessionsAs(anonymous)).toEqual([]);
-    });
-
-    /**
-     * The three tables the application role is granted nothing on, asserted as the loud refusal they
-     * are rather than as an empty result.
-     *
-     * **`account` is the one that matters most**: it holds the scrypt password hash. A policy
-     * returning no rows and a privilege that does not exist look identical to a caller that only
-     * counts rows, and only one of them fails closed when somebody adds a grant. So the *reason* is
-     * asserted, not just the throw.
-     *
-     * The reason is read off `cause`, because drizzle replaces the message with `Failed query: …` and
-     * keeps PostgreSQL's own underneath.
-     */
-    test.each(["account", "verification", "rate_limit"])(
+    test.each(["user", "session", "account", "verification", "rate_limit"])(
       "the application role is refused %s outright",
       async (table) => {
         const refusal = await whyRefused(() =>
@@ -1449,6 +1391,47 @@ describe.skipIf(noDatabase)("the schema, against a real PostgreSQL", () => {
         expect(refusal).toBe(`permission denied for table ${table}`);
       },
     );
+
+    /**
+     * The refusal must not depend on *who* is asking, which is what separates a missing grant from a
+     * policy that happens to match nobody. A real signed-in identity is refused exactly as the
+     * anonymous session user is.
+     */
+    test("a signed-in reader is refused them too, not merely shown nothing", async () => {
+      const { rows } = await migrator.query<{ id: string }>(
+        'select id from "user" where email = $1',
+        [firstAccount.email],
+      );
+      const signedIn = rows[0]!.id;
+
+      const refusal = await whyRefused(() =>
+        withSession(signedIn, (session) => session.execute(sql`select 1 from "user"`)),
+      );
+
+      expect(refusal).toBe("permission denied for table user");
+    });
+
+    /**
+     * **Row-level security is on for all five even so**, which is what makes the missing grant safe to
+     * reverse later: a grant added without a policy reads zero rows rather than everything. Asserted
+     * because it is the property that lets CAN-57 add a reader without first having to think about it.
+     */
+    test("row-level security is on for all five, so a future grant fails closed", async () => {
+      const { rows } = await migrator.query<{ relname: string; relrowsecurity: boolean }>(
+        `select relname, relrowsecurity from pg_class
+          where relnamespace = 'public'::regnamespace
+            and relname in ('user', 'session', 'account', 'verification', 'rate_limit')
+          order by relname`,
+      );
+
+      expect(rows).toEqual([
+        { relname: "account", relrowsecurity: true },
+        { relname: "rate_limit", relrowsecurity: true },
+        { relname: "session", relrowsecurity: true },
+        { relname: "user", relrowsecurity: true },
+        { relname: "verification", relrowsecurity: true },
+      ]);
+    });
   });
 
   // check does with an ask that fails; this proves the real ask succeeds against a database that

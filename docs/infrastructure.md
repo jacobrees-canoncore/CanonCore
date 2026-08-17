@@ -693,7 +693,7 @@ Neon's `neondb_owner` has `rolbypassrls = true` and is therefore never the appli
 `has_schema_privilege` rather than assumed. Neon granted the new role to `neondb_owner` on creation with
 `set_option = false`, the same shape it gives the other two — which is why the migration that follows a new
 role has to be run by somebody holding that role's password, and is what
-[`../scripts/apply-can-24-migration.sh`](../scripts/apply-can-24-migration.sh) exists for.*
+[`../scripts/apply-migrations-ahead-of-merge.sh`](../scripts/apply-migrations-ahead-of-merge.sh) exists for.*
 
 > **What was proven against production rather than inferred, on 17 August 2026**, by connecting as the role
 > itself with `sslmode=verify-full`: it signs in to `neondb` on PostgreSQL 17.10, and it is refused
@@ -702,7 +702,7 @@ role has to be run by somebody holding that role's password, and is what
 > the role has no policy on those four tables, so a read returning nothing would look identical whether the
 > grant was absent or merely narrow, and only the error distinguishes them. What is *not* yet observed is
 > the other direction — that it can write its own five — because those tables do not exist on `main` until
-> the migration runs, and `apply-can-24-migration.sh` checks it there.
+> the migration runs, and `apply-migrations-ahead-of-merge.sh` checks it there.
 
 #### Why there are three, and why the third is not a hole in ADR-0005 rule 1
 

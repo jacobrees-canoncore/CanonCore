@@ -99,6 +99,36 @@ function secret(): string {
  */
 let instance: ReturnType<typeof configure> | undefined;
 
+/**
+ * The hosts a session may be issued for, which is **not** the same list in every environment.
+ *
+ * **Production is the canonical host and nothing else.** `docs/infrastructure.md` → *The production
+ * URL* requires this ticket to bake `https://www.canoncore.com` in, and an earlier version of this
+ * allowed `*.vercel.app` everywhere — which quietly failed that, because a production deployment is
+ * *also* served at `canoncore.vercel.app` and at its own `canoncore-<hash>.vercel.app`. A sign-in
+ * there would have resolved `baseURL` to a non-canonical host and minted a session against it. The
+ * cookie is host-only either way, so nothing leaked between the two; what was wrong is that
+ * [ADR-0010](../../../../docs/adr/0010-canonical-host-www.md)'s decision was not being enforced
+ * where sessions are issued. The apex 301s before a request reaches a function, so `www` really is
+ * the only host production should ever answer on.
+ *
+ * **A preview has to allow the wildcard**, and cannot be given a fixed host instead: its URL carries
+ * a per-deployment hash nothing here can know, and better-auth validates a form post's `Origin`
+ * against this value — so a baked-in production URL would refuse every sign-in on every preview, and
+ * the Playwright suite runs against one.
+ *
+ * **Development is localhost**, listed separately rather than folded in with preview so that neither
+ * environment carries the other's hosts.
+ */
+export function hostsAllowedToIssueSessions(): string[] {
+  const canonical = new URL(productionUrl).host;
+  if (env.VERCEL_ENV === "production") return [canonical];
+  if (env.VERCEL_ENV === "preview") return ["*.vercel.app"];
+  // No `VERCEL_ENV` is a laptop. `canonical` stays so that a local `next start` pointed at a copied
+  // production environment still issues sessions rather than refusing every form.
+  return ["localhost:3000", "localhost", canonical];
+}
+
 /** better-auth, for the one caller in each direction: the route handler, and `viewer.ts`. */
 export function auth() {
   if (!instance) instance = configure();
@@ -127,10 +157,13 @@ function configure() {
      * **No `Domain` on the cookie, and nothing here asks for one.** better-auth's default cookie is
      * host-only, which is [ADR-0010](../../../../docs/adr/0010-canonical-host-www.md)'s reason for
      * `www` being canonical; `advanced.crossSubDomainCookies` is the switch that would undo it and
-     * it stays off. `auth.test.ts` asserts the absence, because most better-auth examples set it.
+     * it stays off. **The absence is asserted twice, because most better-auth examples set it**: on
+     * the `Set-Cookie` header in [`../db/rls.test.ts`](../db/rls.test.ts), and against a deployed
+     * response in [`../../e2e/signed-out-path.spec.ts`](../../e2e/signed-out-path.spec.ts) — the
+     * only one that sees what a browser was actually sent, past the CDN.
      */
     baseURL: {
-      allowedHosts: [new URL(productionUrl).host, "*.vercel.app", "localhost:3000"],
+      allowedHosts: hostsAllowedToIssueSessions(),
       fallback: productionUrl,
     },
 

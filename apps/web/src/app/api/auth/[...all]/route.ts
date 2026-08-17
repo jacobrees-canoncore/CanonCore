@@ -1,5 +1,5 @@
 import { auth } from "@/auth/auth";
-import { signInFailure, signUpFailure } from "@/auth/failures";
+import { codeOfRefusal, signInFailure, signUpFailure } from "@/auth/failures";
 
 /**
  * better-auth's own endpoints, mounted where the browser can reach them.
@@ -72,11 +72,22 @@ const flows = [
   { endpoint: "/sign-out", onSuccess: home, onFailure: home },
 ] as const;
 
+/**
+ * Which flow a request belongs to, matched on the path *after* this route's own base.
+ *
+ * **An exact match rather than `endsWith`**, which is what an earlier version of this did: `endsWith`
+ * would give any future path merely *ending* in `/sign-out` that flow's redirects, and this is a
+ * catch-all route, so what arrives is not a closed set this file controls.
+ *
+ * **The fallback is reachable, and is not defensive padding.** `[...all]` receives every better-auth
+ * endpoint and only three are listed, so anything else a browser navigates to — now, or after a
+ * plugin adds one — goes home rather than to a page aimed at the wrong flow.
+ */
+const base = "/api/auth";
+
 function flowFor(request: Request) {
-  const { pathname } = new URL(request.url);
-  return (
-    flows.find((flow) => pathname.endsWith(flow.endpoint)) ?? { onSuccess: home, onFailure: home }
-  );
+  const endpoint = new URL(request.url).pathname.slice(base.length);
+  return flows.find((flow) => flow.endpoint === endpoint) ?? { onSuccess: home, onFailure: home };
 }
 
 /**
@@ -116,24 +127,6 @@ function isFormEncoded(request: Request): boolean {
   return (request.headers.get("content-type") ?? "").startsWith(formEncoded);
 }
 
-/**
- * better-auth's own error code for a refusal, or `TOO_MANY_REQUESTS` for the one that carries none.
- *
- * **A code, never the message.** `auth/failures.ts` says why: the page renders a sentence of its
- * own from a closed set, so nothing better-auth or an attacker puts in a query string reaches a
- * reader.
- */
-async function failureCode(response: Response): Promise<string> {
-  if (response.status === 429) return "TOO_MANY_REQUESTS";
-  const body: unknown = await response
-    .clone()
-    .json()
-    .catch(() => undefined);
-  const code =
-    typeof body === "object" && body !== null ? (body as { code?: unknown }).code : undefined;
-  return typeof code === "string" ? code : "UNKNOWN";
-}
-
 /** The `Set-Cookie`s better-auth wrote, moved onto a response of a different status. */
 function redirectTo(location: string, carrying: Response): Response {
   const headers = new Headers({ Location: location });
@@ -153,6 +146,6 @@ export async function POST(request: Request) {
   const flow = flowFor(request);
   if (response.ok) return redirectTo(flow.onSuccess, response);
 
-  const code = await failureCode(response);
+  const code = await codeOfRefusal(response);
   return redirectTo(`${flow.onFailure}?error=${encodeURIComponent(code)}`, response);
 }

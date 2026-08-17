@@ -369,6 +369,28 @@ that wait and carries the commands.
 **A deployed preview works.** The value of a preview is that it is a real environment rather than a
 smoke screen, so a preview must point at its own Neon branch rather than at production's data.
 
+**A schema change therefore has a step before the gates, not after them.** A preview branch is a copy of
+Neon's `main` taken when its deployment starts, so a migration this branch adds has to be applied to
+`main` *before* the preview deploys — otherwise the preview's reads fail, the required `Vercel` context
+goes red, and the pull request cannot merge. [`../infrastructure.md`](../infrastructure.md) → *Schema*
+records CAN-23 One Story from Neon, behind row-level security establishing that order.
+
+[`../../scripts/apply-migrations-ahead-of-merge.sh`](../../scripts/apply-migrations-ahead-of-merge.sh)
+is that step. **A human runs it and no agent can**: it needs `canoncore_migrator`'s connection string,
+which lives in the `MIGRATION_DATABASE_URL` Actions secret and cannot be read back, and Neon grants
+`neondb_owner` membership in that role with `set_option = false`, so `SET ROLE` is refused — while every
+table has to be owned by it, because an owner bypasses row security. The script reads the credential
+with hidden input, applies whatever the journal is missing, and then checks six invariants it reads from
+the repository and the database rather than carrying: the journal matches `_journal.json`, no table is
+owned by anything else, neither application role has `BYPASSRLS`, `canoncore_app` can write nothing, no
+table without a policy is reachable by anybody except `source`, and no default privilege exists. It
+prints the privilege matrix for a human to compare against *Roles*, which is the one comparison no test
+can make — [`../infrastructure.md`](../infrastructure.md) → *Roles* says why.
+
+**The release still runs the migrations at merge**, where Drizzle's journal makes them a no-op. Applying
+early is a widening that lasts one deploy interval, which is the case `CLAUDE.md` → *Engineering
+principles* explicitly allows.
+
 ## What `main` refuses
 
 The gates are a wait, and a wait is a step that can be skipped — which is what CAN-40 fixed, by

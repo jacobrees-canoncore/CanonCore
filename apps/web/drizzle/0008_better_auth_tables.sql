@@ -67,7 +67,5 @@ CREATE INDEX "verification_identifier_idx" ON "verification" USING btree ("ident
 CREATE POLICY "account_is_writable_by_the_auth_role" ON "account" AS PERMISSIVE FOR ALL TO "canoncore_auth" USING (true) WITH CHECK (true);--> statement-breakpoint
 CREATE POLICY "rate_limit_is_writable_by_the_auth_role" ON "rate_limit" AS PERMISSIVE FOR ALL TO "canoncore_auth" USING (true) WITH CHECK (true);--> statement-breakpoint
 CREATE POLICY "session_is_writable_by_the_auth_role" ON "session" AS PERMISSIVE FOR ALL TO "canoncore_auth" USING (true) WITH CHECK (true);--> statement-breakpoint
-CREATE POLICY "session_readable_by_its_owner" ON "session" AS PERMISSIVE FOR SELECT TO "canoncore_app" USING ("session"."user_id" = current_setting('canoncore.user_id', true));--> statement-breakpoint
 CREATE POLICY "user_is_writable_by_the_auth_role" ON "user" AS PERMISSIVE FOR ALL TO "canoncore_auth" USING (true) WITH CHECK (true);--> statement-breakpoint
-CREATE POLICY "user_readable_by_itself" ON "user" AS PERMISSIVE FOR SELECT TO "canoncore_app" USING ("user"."id" = current_setting('canoncore.user_id', true));--> statement-breakpoint
 CREATE POLICY "verification_is_writable_by_the_auth_role" ON "verification" AS PERMISSIVE FOR ALL TO "canoncore_auth" USING (true) WITH CHECK (true);

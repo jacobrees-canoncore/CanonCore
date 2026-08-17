@@ -101,8 +101,13 @@ nothing to report.
 
 **What this revisit adds is that the trigger is now owned by a ticket that can actually discharge it.** It
 was owned by CAN-24 on a premise that did not hold, which is a worse position than being unowned: a
-criterion ticked on a false reading closes a question that was never asked. It is an acceptance criterion
-on CAN-27 and on CAN-26, so whichever lands first has to carry out the revisit that this one deferred.
+criterion ticked on a false reading closes a question that was never asked.
+
+**It was added as an acceptance criterion to both tickets on 17 August 2026**, as the last criterion of
+each, so whichever lands first carries out the revisit this one deferred and the second confirms it was
+done. That is recorded as an action rather than an intention because the first draft of this section
+asserted the criterion already existed on both when it existed on neither — the same failure this
+paragraph describes, one level up. Both were read back after the edit.
 
 ## What to do if CSEA content is detected
 

@@ -1,6 +1,6 @@
 {
-  "id": "8cf5e30b-bc97-42c2-a7dc-299fd2b58a0a",
-  "prevId": "98c6f787-a866-44f6-8e70-ba953d629f58",
+  "id": "68ba5eb3-735d-4fad-bfec-1945e36c7027",
+  "prevId": "a523c32c-052c-4a7f-9a2d-6b2b826445b1",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -301,15 +301,6 @@
           ],
           "using": "true",
           "withCheck": "true"
-        },
-        "session_readable_by_its_owner": {
-          "name": "session_readable_by_its_owner",
-          "as": "PERMISSIVE",
-          "for": "SELECT",
-          "to": [
-            "canoncore_app"
-          ],
-          "using": "\"session\".\"user_id\" = current_setting('canoncore.user_id', true)"
         }
       },
       "checkConstraints": {},
@@ -618,15 +609,6 @@
           ],
           "using": "true",
           "withCheck": "true"
-        },
-        "user_readable_by_itself": {
-          "name": "user_readable_by_itself",
-          "as": "PERMISSIVE",
-          "for": "SELECT",
-          "to": [
-            "canoncore_app"
-          ],
-          "using": "\"user\".\"id\" = current_setting('canoncore.user_id', true)"
         }
       },
       "checkConstraints": {},

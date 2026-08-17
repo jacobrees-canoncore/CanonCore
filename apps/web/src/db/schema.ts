@@ -303,10 +303,20 @@ export const tombstone = pgTable(
  *    whoever is granted it next — the failure `docs/infrastructure.md` → *Roles* records against
  *    `source`. The `using` is `true` for the reason `authRole` exists; the narrowing is which five
  *    tables it names, and it names no other.
- * 2. **`canoncore_app` reaches `user` and `session`, under a policy keyed on the session user, and
- *    reaches `account`, `verification` and `rate_limit` not at all.** A password hash and a
- *    one-time token have no application reader, and no grant is a louder refusal than an empty
- *    result. `rls.test.ts` asserts both halves.
+ * 2. **`canoncore_app` reaches none of them at all.** Nothing in the application reads a `user` or a
+ *    `session` row — pages read Stories, and `auth/viewer.ts` resolves the cookie through the auth
+ *    role — so there is no grant, and therefore no policy naming `applicationRole` on any of these
+ *    five. **An earlier version of this granted `SELECT` on `user` and `session`** with a policy
+ *    keyed on the session user, and a review found the reason: it existed only so a cross-tenant
+ *    read test had something to exercise, which is a production privilege bought to make a test
+ *    possible. What replaced it is stronger and cheaper — the application is refused these tables
+ *    outright, which is a loud error where a policy returning no rows is the silence ADR-0005 rule 2
+ *    is entirely about. `rls.test.ts` asserts the refusal on all five.
+ *
+ *    **When a reader does arrive it brings its own grant, policy and cross-tenant test.** The first
+ *    is a public Ordering's author attribution — CAN-57 Make a public Ordering discoverable and
+ *    shareable — and row-level security is already *on* for these tables, so a grant added without a
+ *    policy reads zero rows rather than everything.
  * 3. **`timestamp` with a time zone, where better-auth's own generator emits one without.** The
  *    adapter hands drizzle a JS `Date` and reads one back, and a `timestamp` without a zone is read
  *    as the *server's* local time — so a session's `expires_at` would be wrong by the offset
@@ -341,7 +351,7 @@ export const user = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [
+  () => [
     pgPolicy("user_is_writable_by_the_auth_role", {
       as: "permissive",
       for: "all",
@@ -350,15 +360,6 @@ export const user = pgTable(
       withCheck: sql`true`,
     }),
 
-    // The cross-tenant control ADR-0005 rule 2 requires, on the table that holds an email address.
-    // A reader sees their own row and no other, and an unset session user reads nothing at all,
-    // because `current_setting(..., true)` is NULL and `id = NULL` is NULL rather than true.
-    pgPolicy("user_readable_by_itself", {
-      as: "permissive",
-      for: "select",
-      to: applicationRole,
-      using: sql`${t.id} = ${currentSessionUser}`,
-    }),
   ],
 );
 
@@ -402,15 +403,6 @@ export const session = pgTable(
       withCheck: sql`true`,
     }),
 
-    // Keyed on the *owner* rather than on the token, so that what the application role can see is
-    // "my own sessions" and never "the session bearing this token" — a policy that took the token
-    // would be a policy anyone holding a token could satisfy.
-    pgPolicy("session_readable_by_its_owner", {
-      as: "permissive",
-      for: "select",
-      to: applicationRole,
-      using: sql`${t.userId} = ${currentSessionUser}`,
-    }),
   ],
 );
 
