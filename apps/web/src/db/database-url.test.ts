@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { expect, test } from "vitest";
-import { resolveDatabaseConnection } from "./database-url";
+import { resolveAuthDatabaseConnection, resolveDatabaseConnection } from "./database-url";
 
 // The two forms Neon publishes for one compute, and a different compute entirely. Shaped
 // like the real ones, which carry the region proxy as a second label.
@@ -126,3 +126,68 @@ test("a DATABASE_URL that is not a URL is an error rather than a hostname of not
     /DATABASE_URL/,
   );
 });
+
+/**
+ * The auth role's connection, which is the application's with two values swapped.
+ *
+ * **What these assert is the inheritance rather than the string.** Everything that makes the
+ * application's connection correct — the host, the database, `sslmode=verify-full`, the
+ * preview-versus-production branch, and the two assertions about which host it reached — has to apply
+ * to better-auth's connection too, and does so only because it is *derived*. A second
+ * `DATABASE_AUTH_URL` variable would be a second thing to keep in step, and nobody can read a
+ * Sensitive variable back to compare it.
+ */
+const authRole = {
+  DATABASE_AUTH_USER: "canoncore_auth",
+  DATABASE_AUTH_PASSWORD: "another-secret",
+} as const;
+
+test("the auth role reaches production's database, as itself", () => {
+  expect(resolveAuthDatabaseConnection({ ...production, ...authRole })).toEqual({
+    url: `postgresql://canoncore_auth:another-secret@${productionHost}/neondb?sslmode=verify-full`,
+    host: productionHost,
+  });
+});
+
+// The half that would be easy to get wrong by composing a second string by hand: a preview's auth
+// connection has to reach the *branch*, and it does because it is built from the application's.
+test("the auth role reaches a preview's own branch, not production's", () => {
+  expect(resolveAuthDatabaseConnection({ ...preview, ...authRole })).toEqual({
+    url: `postgresql://canoncore_auth:another-secret@${branchHost}/neondb?sslmode=verify-full`,
+    host: branchHost,
+  });
+});
+
+// The inherited refusal, and the reason this function delegates rather than resolving in parallel: a
+// preview that reached production would otherwise be refused for the application and waved through
+// for better-auth, which is the worse half — it is the connection that writes.
+test("the auth role is refused a preview that resolved production's host", () => {
+  expect(() =>
+    resolveAuthDatabaseConnection({ ...preview, ...authRole, NEON_PGHOST: productionHostUnpooled }),
+  ).toThrow(/This preview resolved production's database host/);
+});
+
+test("a password full of URL punctuation survives the swap", () => {
+  const password = "p:a@s/s?w#o&r=d";
+  const { url } = resolveAuthDatabaseConnection({
+    ...production,
+    ...authRole,
+    DATABASE_AUTH_PASSWORD: password,
+  });
+
+  // Read back through `URL` rather than compared as a string, because what has to hold is that
+  // PostgreSQL receives the password that was set — not that it was encoded one particular way.
+  const parsed = new URL(url);
+  expect(decodeURIComponent(parsed.password)).toBe(password);
+  expect(parsed.hostname).toBe(productionHost);
+  expect(parsed.searchParams.get("sslmode")).toBe("verify-full");
+});
+
+test.each(["DATABASE_AUTH_USER", "DATABASE_AUTH_PASSWORD"] as const)(
+  "refuses to connect without %s",
+  (missing) => {
+    expect(() =>
+      resolveAuthDatabaseConnection({ ...production, ...authRole, [missing]: undefined }),
+    ).toThrow(new RegExp(`${missing} is not set`));
+  },
+);

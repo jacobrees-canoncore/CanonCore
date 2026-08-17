@@ -143,9 +143,9 @@ Installed skills, and general habit, default to options the ADRs deliberately re
 suggestion as a proposal to reopen a closed decision, not as advice. Each bullet names the settled
 answer first, then what will offer you something else.
 
-- **better-auth, users in our own Postgres** ([ADR-0005](docs/adr/0005-stack.md)) — `vercel:auth` offers
-  Clerk, Descope, Auth0; the `neon` MCP's `provision_neon_auth` is one call to a *hosted* better-auth,
-  which keeps the library and moves session issuance and a `neon_auth` schema off our deployment.
+- **better-auth, users in our own Postgres, reached on its own third database role** ([ADR-0005](docs/adr/0005-stack.md), [ADR-0021](docs/adr/0021-a-third-database-role-for-better-auth.md)) — `vercel:auth` offers Clerk, Descope, Auth0; the `neon` MCP's `provision_neon_auth` is one call to a *hosted* better-auth, moving session issuance and a `neon_auth` schema off our deployment.
+  **On the role**: every adapter example passes one connection, so nothing errors if you collapse the
+  two — and "just let the app read `user`" is a grant *plus* a policy *plus* a cross-tenant test, never a grant alone.
 - **Drizzle** (ADR-0005) — habit will offer Prisma.
 - **Plain pnpm workspaces, no orchestrator** (ADR-0005) — `vercel:next-forge` installs a `@repo/*`
   Turborepo layout. `vercel:turbopack` is unrelated and fine: Turbopack is Next's bundler.

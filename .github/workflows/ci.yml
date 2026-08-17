@@ -58,10 +58,10 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
 
-      # The container starts with one superuser and no application roles, so the two the tests
+      # The container starts with one superuser and no application roles, so the three the tests
       # connect as have to be made. Neon provisions them in production; this file is how a
-      # PostgreSQL with no Neon behind it ends up with the same two and the same privileges.
-      - name: Create the application and migration roles
+      # PostgreSQL with no Neon behind it ends up with the same three and the same privileges.
+      - name: Create the application, migration and auth roles
         run: psql "$SUPERUSER_URL" -f apps/web/src/db/roles.sql
         env:
           SUPERUSER_URL: postgresql://postgres:postgres@localhost:5432/canoncore_test
@@ -70,12 +70,18 @@ jobs:
       # two to the `test` script as arguments and silently skips them — see
       # docs/agents/workflow.md.
       #
-      # The two URLs are what let `apps/web/src/db/rls.test.ts` run at all. It fails rather
+      # The three URLs are what let `apps/web/src/db/rls.test.ts` run at all. It fails rather
       # than skips when they are missing here — docs/agents/workflow.md -> The gates says why.
+      #
+      # The third arrived with CAN-24 A signed-in and a signed-out path: better-auth connects as a
+      # role of its own, because the thing that authenticates cannot be constrained by the identity
+      # it establishes (`apps/web/src/auth/auth.ts`). The suite asserts what each of the three may
+      # reach, so all three have to be connectable from here.
       - run: pnpm -r test
         env:
           RLS_TEST_MIGRATOR_URL: postgresql://canoncore_migrator:canoncore_migrator@localhost:5432/canoncore_test
           RLS_TEST_APP_URL: postgresql://canoncore_app:canoncore_app@localhost:5432/canoncore_test
+          RLS_TEST_AUTH_URL: postgresql://canoncore_auth:canoncore_auth@localhost:5432/canoncore_test
       - run: pnpm -r typecheck
       - run: pnpm -r lint
 

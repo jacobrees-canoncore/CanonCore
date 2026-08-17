@@ -42,11 +42,22 @@ this record false, so the column carries one of three determinate values and nev
 - **Not adopted** — a permissive measure declined on the record. There is no effective date for a measure
   not taken.
 
-**Why most rows read the second way.** There are no accounts, no footer and no `/legal` route, so there is
-nothing to moderate, report or take down. Since **CAN-23 One Story from Neon, behind row-level security**
-`main` does carry one record, and that record is public — but it is the operator's own, inserted by a
-migration, and nobody else can create one. What these rows wait on is *user-generated* content, and that
-arrives with accounts.
+**Why most rows read the second way.** There is nothing to moderate, report or take down: no footer, no
+`/legal` route, and no record anybody but the operator made. Since **CAN-23 One Story from Neon, behind
+row-level security** `main` does carry one record, and that record is public — but it is the operator's
+own, inserted by a migration.
+
+> **Accounts arrived on 17 August 2026 and moved none of these rows**, which is worth stating because
+> this paragraph used to begin *there are no accounts* and rest on it.
+> [CAN-24 A signed-in and a signed-out path](https://linear.app/jacobrees-canoncore/issue/CAN-24) shipped
+> them, and **nothing in that release lets an account create a record** — so what these rows wait on is
+> unchanged. What these rows wait on is *user-generated content*, and it now arrives with the first
+> change that gives an account something to author:
+> [CAN-27 Orderings and Placements, and the imported broadcast Ordering](https://linear.app/jacobrees-canoncore/issue/CAN-27)
+> or [CAN-26 Import a series from TMDB, with the overlay behind it](https://linear.app/jacobrees-canoncore/issue/CAN-26),
+> whichever lands first, rather than with accounts as this file previously said.
+> [`csea-reporting-procedure.md`](csea-reporting-procedure.md) → *The revisit of 17 August 2026* works
+> the same distinction through for the CSEA registration trigger, which turned on the same sentence.
 Two tickets close the gap between them, and **one of them has landed**:
 [CAN-44 Make the Online Safety Act records live, and create the reporting address](https://linear.app/jacobrees-canoncore/issue/CAN-44)
 created `report@canoncore.com` on 14 August 2026 and proved a message arrives in it, so no row below

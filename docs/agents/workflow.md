@@ -291,11 +291,27 @@ later commit replaces the earlier one as the thing being judged, which is true o
 on `main`, where every push is its own release and a cancelled run is not a passing one.
 
 **One check is not optional, because its failure mode is silence: every row-level-security-protected
-table has a test asserting that a cross-tenant read returns zero rows.** A misconfigured RLS policy
-returns an empty result rather than an error, so it is indistinguishable from "no data" in the UI
-and cannot be caught by looking. `story`, `snapshot` and `tombstone` are those tables today, and
-every one of them is tested from [`apps/web/src/db/rls.test.ts`](../../apps/web/src/db/rls.test.ts) — one file
-rather than one per table, for the reason that file's own header gives and cites. ADR-0005 rule 2 is what requires it.
+table the application can read has a test asserting that a cross-tenant read returns zero rows.** A
+misconfigured RLS policy returns an empty result rather than an error, so it is indistinguishable from
+"no data" in the UI and cannot be caught by looking. `story`, `snapshot` and `tombstone` are those tables
+today, and every one of them is tested from
+[`apps/web/src/db/rls.test.ts`](../../apps/web/src/db/rls.test.ts) — one file rather than one per table,
+for the reason that file's own header gives and cites. ADR-0005 rule 2 is what requires it.
+
+**Since CAN-24 A signed-in and a signed-out path there is a second shape of answer, and it is the
+stronger one.** better-auth's five tables — `user`, `session`, `account`, `verification`, `rate_limit` —
+are ones `canoncore_app` is granted **nothing** on, because nothing in the application reads them. So the
+test is a *refusal* rather than a zero-row read: `permission denied for table "user"` is a loud error
+where an empty result is the silence rule 2 is about. **Prefer that shape wherever it is available** —
+a table the application never reads should not be granted to it in order to be tested. Migration 0009
+records the reasoning, including why an earlier draft did the opposite.
+
+**The reader in either shape is `canoncore_app`, never `canoncore_auth`.** better-auth connects as a
+third role which reads every row of its own five tables and has to —
+[`apps/web/src/auth/auth.ts`](../../apps/web/src/auth/auth.ts) holds the argument. So the tenant question
+is only ever asked of the role every page runs as, and what bounds the other role is asserted separately:
+a fifth tripwire pins what `canoncore_auth` may do to **every** table, because it has no policy at all on
+the four product tables and only the absent grant refuses a write there.
 
 **A table deliberately left unprotected still owes the gate three tripwires**, because an exclusion
 nothing enforces is indistinguishable from a table somebody forgot: one asserting that every table
@@ -315,11 +331,23 @@ records what that leaves, including the one thing those tests still cannot see.
 
 **Those tests need a real PostgreSQL, and `pnpm -r test` behaves differently depending on whether
 it has one.** In Actions the job runs a `postgres:17` service container and the suite always runs.
-Locally it runs only when `RLS_TEST_MIGRATOR_URL` and `RLS_TEST_APP_URL` are set, and skips
-otherwise — but **it fails outright rather than skipping when `CI` is set**, because a skipped
+Locally it runs only when `RLS_TEST_MIGRATOR_URL`, `RLS_TEST_APP_URL` and `RLS_TEST_AUTH_URL` are set, and
+skips otherwise — but **it fails outright rather than skipping when `CI` is set**, because a skipped
 cross-tenant read test reports exactly what a broken policy reports. To run them on a laptop, point
-those two at any PostgreSQL that has had [`apps/web/src/db/roles.sql`](../../apps/web/src/db/roles.sql)
-applied to it.
+those three at any PostgreSQL that has had [`apps/web/src/db/roles.sql`](../../apps/web/src/db/roles.sql)
+applied to it:
+
+```bash
+psql "$SUPERUSER_URL" -f apps/web/src/db/roles.sql
+RLS_TEST_MIGRATOR_URL=postgresql://canoncore_migrator:canoncore_migrator@localhost:5432/<db> \
+RLS_TEST_APP_URL=postgresql://canoncore_app:canoncore_app@localhost:5432/<db> \
+RLS_TEST_AUTH_URL=postgresql://canoncore_auth:canoncore_auth@localhost:5432/<db> \
+  pnpm -r test
+```
+
+**The third arrived with CAN-24 A signed-in and a signed-out path**, and the suite refuses to run on two:
+it asserts what each of the three roles may reach, so a run missing one would be asserting less than it
+appears to.
 
 **The Playwright suite is not one of the four.** It drives a *deployed* URL rather than a build, so
 there is nothing for it to talk to inside a CI job that has deployed nothing. Run it against
@@ -348,6 +376,28 @@ that wait and carries the commands.
 
 **A deployed preview works.** The value of a preview is that it is a real environment rather than a
 smoke screen, so a preview must point at its own Neon branch rather than at production's data.
+
+**A schema change therefore has a step before the gates, not after them.** A preview branch is a copy of
+Neon's `main` taken when its deployment starts, so a migration this branch adds has to be applied to
+`main` *before* the preview deploys — otherwise the preview's reads fail, the required `Vercel` context
+goes red, and the pull request cannot merge. [`../infrastructure.md`](../infrastructure.md) → *Schema*
+records CAN-23 One Story from Neon, behind row-level security establishing that order.
+
+[`../../scripts/apply-migrations-ahead-of-merge.sh`](../../scripts/apply-migrations-ahead-of-merge.sh)
+is that step. **A human runs it and no agent can**: it needs `canoncore_migrator`'s connection string,
+which lives in the `MIGRATION_DATABASE_URL` Actions secret and cannot be read back, and Neon grants
+`neondb_owner` membership in that role with `set_option = false`, so `SET ROLE` is refused — while every
+table has to be owned by it, because an owner bypasses row security. The script reads the credential
+with hidden input, applies whatever the journal is missing, and then checks six invariants it reads from
+the repository and the database rather than carrying: the journal matches `_journal.json`, no table is
+owned by anything else, neither application role has `BYPASSRLS`, `canoncore_app` can write nothing, no
+table without a policy is reachable by anybody except `source`, and no default privilege exists. It
+prints the privilege matrix for a human to compare against *Roles*, which is the one comparison no test
+can make — [`../infrastructure.md`](../infrastructure.md) → *Roles* says why.
+
+**The release still runs the migrations at merge**, where Drizzle's journal makes them a no-op. Applying
+early is a widening that lasts one deploy interval, which is the case `CLAUDE.md` → *Engineering
+principles* explicitly allows.
 
 ## What `main` refuses
 

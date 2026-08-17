@@ -51,14 +51,17 @@ credit block in a footer cannot give it. Both are in
 
 ## Status
 
-**A walking skeleton, and it now goes all the way through.** One Story is stored in Neon behind
-row-level security and rendered on the public URL to an anonymous visitor; CI gates run on every
-push and the release migrates the database before it promotes production. The catalogue itself is
-not built yet — there is no way to sign in and no way to add a second Story.
+**The walking skeleton is complete.** One Story is stored in Neon behind row-level security and
+rendered on the public URL to an anonymous visitor; you can sign up, sign in and sign out, and the
+identity better-auth establishes is the identity the database policies read. CI gates run on every
+push and the release migrates the database before it promotes production. **The catalogue itself is
+not built yet**: nothing in the product creates a record, so an account can hold one and author
+nothing with it, and there is still no way to add a second Story.
 
-What that means concretely: roughly 800 lines of application code against fifteen architecture
-decision records and a domain model. The design work ran ahead of the implementation on purpose,
-and the ratio will correct itself as vertical slices land, not by adding more planning.
+What that means concretely: roughly 900 lines of application code under `apps/web/src`, ignoring
+tests, blank lines and comments — a little over twice that with the comments — against twenty
+architecture decision records and a domain model. The design work ran ahead of the implementation on
+purpose, and the ratio will correct itself as vertical slices land, not by adding more planning.
 
 CanonCore holds **no media bytes** and never will — it catalogues what exists and hands playback
 off to whatever already holds the file. That is a

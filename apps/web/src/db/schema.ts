@@ -1,6 +1,10 @@
 import { sql } from "drizzle-orm";
 import {
+  bigint,
+  boolean,
   check,
+  index,
+  integer,
   interval,
   pgEnum,
   pgPolicy,
@@ -40,6 +44,26 @@ const currentSessionUser = sql.raw(`current_setting('${sessionUserSetting}', tru
  * (https://orm.drizzle.team/docs/rls), so nothing here tries to create it.
  */
 export const applicationRole = pgRole("canoncore_app").existing();
+
+/**
+ * The role better-auth connects as, and the only role that may write anything below.
+ *
+ * **A third role exists because the thing that authenticates cannot be constrained by the identity
+ * it is establishing.** `getSession` has to find a `session` row by its *token* before it knows
+ * whose it is, and signing in has to find a `user` row by *email* with no session set at all —
+ * neither of which a policy keyed on `canoncore.user_id` can permit. The decision is
+ * [ADR-0021](../../../../docs/adr/0021-a-third-database-role-for-better-auth.md), which holds the
+ * argument and the three designs it rules out; [`../auth/auth.ts`](../auth/auth.ts) is the code.
+ *
+ * **It is not a widening of ADR-0005 rule 1.** That rule is about the role *the application*
+ * connects as, and `canoncore_app` is untouched: it still holds `SELECT` and nothing else, still
+ * has no `BYPASSRLS`, and still reads every row through a policy. This role has no `BYPASSRLS`
+ * either — what it has is a policy naming it, on five tables and no others, so its reach is written
+ * down in this file rather than being a property of the server.
+ *
+ * `.existing()` for `applicationRole`'s reason: Neon provisions it.
+ */
+export const authRole = pgRole("canoncore_auth").existing();
 
 /** Whether a record can be seen by people other than its owner. Set per record. */
 export const visibility = pgEnum("visibility", ["private", "public"]);
@@ -258,6 +282,244 @@ export const tombstone = pgTable(
       for: "select",
       to: applicationRole,
       using: sql`${t.visibility} = 'public' or ${t.ownerId} = ${currentSessionUser}`,
+    }),
+  ],
+);
+
+/**
+ * ## better-auth's own tables
+ *
+ * **Written by hand rather than by `npx auth generate`, and that is a decision.** The generator
+ * emits property names as column names, no policies and no role, so every table it produced would
+ * arrive with row-level security off — which is the exact state migration 0005 and
+ * `docs/infrastructure.md` → *Roles* exist to prevent. What is copied faithfully is the *shape*:
+ * `getAuthTables` in `@better-auth/core` is the source, and the adapter resolves a field by looking
+ * up `schema[model][fieldName]`, so **the property names below are better-auth's and cannot be
+ * renamed**. The column names are ours, snake_case like every other table here.
+ *
+ * **Three shared rules, stated once rather than on each table.**
+ *
+ * 1. **Every one of them carries a policy naming `authRole` and nothing wider.** A policy is what
+ *    turns row-level security *on*, so this is also what stops the table being readable in full by
+ *    whoever is granted it next — the failure `docs/infrastructure.md` → *Roles* records against
+ *    `source`. The `using` is `true` for the reason `authRole` exists; the narrowing is which five
+ *    tables it names, and it names no other.
+ * 2. **`canoncore_app` reaches none of them at all.** Nothing in the application reads a `user` or a
+ *    `session` row — pages read Stories, and `auth/viewer.ts` resolves the cookie through the auth
+ *    role — so there is no grant, and therefore no policy naming `applicationRole` on any of these
+ *    five. **An earlier version of this granted `SELECT` on `user` and `session`** with a policy
+ *    keyed on the session user, and a review found the reason: it existed only so a cross-tenant
+ *    read test had something to exercise, which is a production privilege bought to make a test
+ *    possible. What replaced it is stronger and cheaper — the application is refused these tables
+ *    outright, which is a loud error where a policy returning no rows is the silence ADR-0005 rule 2
+ *    is entirely about. `rls.test.ts` asserts the refusal on all five.
+ *
+ *    **When a reader does arrive it brings its own grant, policy and cross-tenant test.** The first
+ *    is a public Ordering's author attribution — CAN-57 Make a public Ordering discoverable and
+ *    shareable — and row-level security is already *on* for these tables, so a grant added without a
+ *    policy reads zero rows rather than everything.
+ * 3. **`timestamp` with a time zone, where better-auth's own generator emits one without.** The
+ *    adapter hands drizzle a JS `Date` and reads one back, and a `timestamp` without a zone is read
+ *    as the *server's* local time — so a session's `expires_at` would be wrong by the offset
+ *    wherever that is not UTC. Every other timestamp in this file is `timestamptz` for the same
+ *    reason.
+ */
+
+/**
+ * A person with an account — better-auth's `user` model.
+ *
+ * **`text` primary keys, not `uuid`, throughout these five.** better-auth generates its own ids and
+ * hands them over as strings, so a `uuid` column would refuse them; `story.owner_id` is `text` for
+ * the same reason and now holds one of these.
+ */
+export const user = pgTable(
+  "user",
+  {
+    id: text().primaryKey(),
+    name: text().notNull(),
+    email: text().notNull().unique(),
+    /**
+     * Always false in this release, and the column lands anyway.
+     *
+     * **CAN-31 Email verification and password reset** owns making it mean something; it needs a
+     * mail provider, which is why CAN-24 A signed-in and a signed-out path leaves it out. What
+     * would be expensive later is adding a `notNull` column to a populated table, so it arrives
+     * with its default now.
+     */
+    emailVerified: boolean("email_verified").notNull().default(false),
+    /** better-auth's own field. Nothing here writes or renders one — no artwork does (ADR-0012). */
+    image: text(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  () => [
+    pgPolicy("user_is_writable_by_the_auth_role", {
+      as: "permissive",
+      for: "all",
+      to: authRole,
+      using: sql`true`,
+      withCheck: sql`true`,
+    }),
+
+  ],
+);
+
+/**
+ * A signed-in session — better-auth's `session` model, and the row that answers *who is asking*.
+ *
+ * **This table is the seam between better-auth and row-level security.** `auth.api.getSession`
+ * reads it as `canoncore_auth`, and the id it returns is what `withSession` puts in
+ * `canoncore.user_id` — so the identity better-auth establishes and the identity the policies read
+ * are the same value, moved by one function call and never re-derived.
+ */
+export const session = pgTable(
+  "session",
+  {
+    id: text().primaryKey(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    /**
+     * The bearer of the whole session, held in the cookie. `unique` because better-auth looks a
+     * session up by it, and a duplicate would make that lookup ambiguous.
+     */
+    token: text().notNull().unique(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+    ipAddress: text("ip_address"),
+    userAgent: text("user_agent"),
+    // Deleting a person takes their sessions with them, which is what makes an erasure request one
+    // transaction rather than a sweep — the point ADR-0005 keeps users in our own Postgres for.
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+  },
+  (t) => [
+    // better-auth reads a user's sessions by `user_id`, and the erasure cascade above walks it.
+    index("session_user_id_idx").on(t.userId),
+
+    pgPolicy("session_is_writable_by_the_auth_role", {
+      as: "permissive",
+      for: "all",
+      to: authRole,
+      using: sql`true`,
+      withCheck: sql`true`,
+    }),
+
+  ],
+);
+
+/**
+ * How one person proves who they are — better-auth's `account` model. One row per credential.
+ *
+ * **`password` holds a scrypt hash, and `canoncore_app` is granted nothing on this table.** That is
+ * the sharpest case of rule 2 in the block above: there is no application reader for a password
+ * hash, now or later, so the answer is no privilege rather than a policy that happens to return
+ * nothing. A grant added here would be a decision somebody has to write a policy for.
+ *
+ * The OAuth token columns are better-auth's and stay empty: no social provider is configured, and
+ * the field exists on the model whether or not one is.
+ */
+export const account = pgTable(
+  "account",
+  {
+    id: text().primaryKey(),
+    accountId: text("account_id").notNull(),
+    /** `credential` for an email and password. A social provider's id, if one is ever added. */
+    providerId: text("provider_id").notNull(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    accessToken: text("access_token"),
+    refreshToken: text("refresh_token"),
+    idToken: text("id_token"),
+    accessTokenExpiresAt: timestamp("access_token_expires_at", { withTimezone: true }),
+    refreshTokenExpiresAt: timestamp("refresh_token_expires_at", { withTimezone: true }),
+    scope: text(),
+    password: text(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("account_user_id_idx").on(t.userId),
+
+    pgPolicy("account_is_writable_by_the_auth_role", {
+      as: "permissive",
+      for: "all",
+      to: authRole,
+      using: sql`true`,
+      withCheck: sql`true`,
+    }),
+  ],
+);
+
+/**
+ * A one-time token and what it is about — better-auth's `verification` model.
+ *
+ * **Nothing writes one in this release, and the table lands with the others.** It is where email
+ * verification and password reset keep their tokens, which is **CAN-31 Email verification and
+ * password reset**; better-auth's schema carries it whether or not those are switched on, and a
+ * table arriving later is a migration either way. What it must not do is arrive later *without a
+ * policy*, which is the failure mode this block exists to close.
+ */
+export const verification = pgTable(
+  "verification",
+  {
+    id: text().primaryKey(),
+    identifier: text().notNull(),
+    value: text().notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("verification_identifier_idx").on(t.identifier),
+
+    pgPolicy("verification_is_writable_by_the_auth_role", {
+      as: "permissive",
+      for: "all",
+      to: authRole,
+      using: sql`true`,
+      withCheck: sql`true`,
+    }),
+  ],
+);
+
+/**
+ * How many requests one caller has made to one auth endpoint — better-auth's `rateLimit` model.
+ *
+ * **This table is the whole of why better-auth's rate limiting works here at all.** The default
+ * storage is *memory*, and Vercel Functions are per-invocation isolates, so a memory-backed counter
+ * is per-process: an attacker gets a fresh window on every cold start, and the limiter reports
+ * success while enforcing nothing. `docs/research/production-readiness-baseline.md` → *Security
+ * posture* holds the two documents that combine to say so, and flags the mechanism as inferred
+ * rather than stated. The fix is `rateLimit.storage: "database"` in
+ * [`../auth/auth.ts`](../auth/auth.ts), and this is the table it needs.
+ *
+ * **Not user-scoped, and it has a policy anyway.** The key is a path and a caller, not a person, so
+ * there is nothing to key a tenant policy on — the same shape as `source`. It differs from `source`
+ * in that `canoncore_app` is granted nothing on it, so the policy naming `authRole` is the only way
+ * in, and a future grant to anyone else reads no rows rather than all of them.
+ */
+export const rateLimit = pgTable(
+  "rate_limit",
+  {
+    id: text().primaryKey(),
+    /** better-auth's own composite of the caller and the endpoint. Looked up on every request. */
+    key: text().notNull().unique(),
+    count: integer().notNull(),
+    /**
+     * Epoch milliseconds, as better-auth's `bigint` field. `mode: "number"` because the value it
+     * writes is `Date.now()` — a JS number — and drizzle's default `bigint` mode would hand back a
+     * `string`, which better-auth's own arithmetic would then do the wrong thing with.
+     */
+    lastRequest: bigint("last_request", { mode: "number" }).notNull(),
+  },
+  () => [
+    pgPolicy("rate_limit_is_writable_by_the_auth_role", {
+      as: "permissive",
+      for: "all",
+      to: authRole,
+      using: sql`true`,
+      withCheck: sql`true`,
     }),
   ],
 );

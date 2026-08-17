@@ -63,6 +63,27 @@ export const howThePurgeTreatsEachTable = {
   tombstone:
     "Written, and never read or deleted here. It carries no value any Source supplied, which is " +
     "the whole of why it may remain.",
+
+  // better-auth's five, added by CAN-24 A signed-in and a signed-out path. **All five are the same
+  // answer for the same reason**, and they are listed one at a time anyway: the point of this record
+  // is that a table cannot arrive without somebody writing down what happens to it, and a shared
+  // entry would let the sixth in unnoticed.
+  user:
+    "Untouched. An account is this service's own fact about a person, never a value a Source " +
+    "supplied, so a licence terminating says nothing about it. Erasing one is CAN-30 GDPR export " +
+    "and erasure, which is a different duty owed to a different party.",
+  session:
+    "Untouched, for `user`'s reason. A session is a fact about a sign-in, and terminating a " +
+    "Source's licence is not a reason to sign anybody out.",
+  account:
+    "Untouched, for `user`'s reason. A password hash comes from the person it belongs to and from " +
+    "nowhere else.",
+  verification:
+    "Untouched, for `user`'s reason. A one-time token is issued by this service. It expires on its " +
+    "own clock — CAN-31 Email verification and password reset owns that — and not on a Source's.",
+  rate_limit:
+    "Untouched, for `user`'s reason, and it holds no person's data at all: a counter against an " +
+    "address and an endpoint.",
 } as const;
 
 /**

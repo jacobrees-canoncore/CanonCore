@@ -4,6 +4,7 @@
   --fg: #1a1917;
   --muted: #6f6a61;
   --rule: #e3ded5;
+  --problem: #8f2f24;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -12,6 +13,7 @@
     --fg: #f2efe9;
     --muted: #928b7f;
     --rule: #2c2a26;
+    --problem: #f0a094;
   }
 }
 
@@ -83,4 +85,78 @@ li + li {
 
 li {
   padding: 0.6rem 0;
+}
+
+/* --- Forms, and the account line. Hand-written, per ADR-0013. --- */
+
+form p {
+  margin: 0 0 1rem;
+}
+
+label {
+  display: block;
+  margin-bottom: 0.35rem;
+  font-size: 0.9rem;
+  color: var(--fg);
+}
+
+input {
+  display: block;
+  width: 100%;
+  padding: 0.55rem 0.7rem;
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  background: var(--bg);
+  color: var(--fg);
+  font: inherit;
+}
+
+input:focus-visible,
+button:focus-visible,
+a:focus-visible {
+  outline: 2px solid var(--fg);
+  outline-offset: 2px;
+}
+
+.hint {
+  display: block;
+  margin-top: 0.3rem;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+button {
+  padding: 0.55rem 1.1rem;
+  border: 1px solid var(--fg);
+  border-radius: 4px;
+  background: var(--fg);
+  color: var(--bg);
+  font: inherit;
+  cursor: pointer;
+}
+
+/*
+  A refusal has to read as one. `--problem` is a colour rather than an icon or a border alone, and
+  the sentence carries `role="alert"` in `problem.tsx` — the two together are what tell a reader who
+  cannot see the colour.
+*/
+.problem {
+  padding: 0.6rem 0.8rem;
+  border: 1px solid var(--problem);
+  border-radius: 4px;
+  color: var(--problem);
+}
+
+.account {
+  margin: 0;
+  color: var(--muted);
+}
+
+/*
+  Inherit the text colour rather than taking a link colour of its own. Every anchor this application
+  renders points at one of its own routes — the closed set is in `no-linkification.test.tsx` — so an
+  anchor is navigation furniture rather than a destination, and the underline does the work.
+*/
+a {
+  color: var(--fg);
 }
