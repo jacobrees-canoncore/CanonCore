@@ -272,8 +272,16 @@ test("a declaration may state that no attribution and no restriction apply at al
 
 test("an attribution obligation carries the notices it obliges", () => {
   const validate = validatorFor("Capabilities");
+  const owed = (attribution: Record<string, unknown>) =>
+    validate({ ...capabilities, attribution: { required: true, ...attribution } });
 
-  assert.equal(validate({ ...capabilities, attribution: { required: true } }), false);
+  // Each member is refused on its own, rather than only in a declaration missing both. A case
+  // asserting that `{ required: true }` alone is invalid passes whichever of the two the schema
+  // demands, so it would have gone on passing had `notices` quietly stopped being one of them.
+  assert.equal(owed({}), false);
+  assert.equal(owed({ link: "https://example.invalid" }), false, "a notice is owed and unstated");
+  assert.equal(owed({ notices: [{ text: "Data from Somewhere" }] }), false, "no link is owed");
+  assert.equal(owed({ notices: [], link: "https://example.invalid" }), false, "an empty notice list");
   assert.equal(
     validate({
       ...capabilities,
