@@ -18,6 +18,8 @@ export type DatabaseEnvironment = {
   readonly DATABASE_URL?: string;
   readonly DATABASE_APP_USER?: string;
   readonly DATABASE_APP_PASSWORD?: string;
+  readonly DATABASE_AUTH_USER?: string;
+  readonly DATABASE_AUTH_PASSWORD?: string;
   readonly DATABASE_PRODUCTION_HOST?: string;
   readonly NEON_PGHOST?: string;
   readonly NEON_PGDATABASE?: string;
@@ -120,4 +122,33 @@ export function resolveDatabaseConnection(environment: DatabaseEnvironment): Dat
   }
 
   return { url, host };
+}
+
+/**
+ * The same database, reached as the auth role.
+ *
+ * **Composed from the application's connection rather than resolved beside it**, which is the
+ * whole design of this function: the host, the database, the SSL mode, the preview-versus-
+ * production branch and both of its assertions are inherited, so the two roles cannot end up
+ * pointed at different databases. A second `DATABASE_AUTH_URL` variable would be exactly that
+ * risk, and it would be a second Sensitive string nobody can read back to compare.
+ *
+ * Why a third role exists at all: [`../auth/auth.ts`](../auth/auth.ts).
+ */
+export function resolveAuthDatabaseConnection(
+  environment: DatabaseEnvironment,
+): DatabaseConnection {
+  const application = resolveDatabaseConnection(environment);
+  const user = required(environment, "DATABASE_AUTH_USER");
+  const password = required(environment, "DATABASE_AUTH_PASSWORD");
+
+  // The `URL` setters percent-encode what they are given, so a password containing `:`, `@`, `/`
+  // or `?` survives — which the preview branch above has to do by hand with `encodeURIComponent`
+  // because it is building the string rather than editing one. Everything after the authority is
+  // left alone, which is what carries `?sslmode=verify-full` across unchanged.
+  const composed = new URL(application.url);
+  composed.username = user;
+  composed.password = password;
+
+  return { url: composed.toString(), host: application.host };
 }

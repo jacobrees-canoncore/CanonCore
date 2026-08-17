@@ -46,11 +46,27 @@ export const env = createEnv({
     // Production's Neon host, in plain text, so that a preview has something to compare the
     // host it resolved against. Not a credential: it opens nothing without the two above.
     DATABASE_PRODUCTION_HOST: z.string().min(1).optional(),
+    // The *auth* role's name and password. A third role, because the thing that authenticates
+    // cannot be constrained by the identity it establishes: `src/auth/auth.ts` says why, and
+    // `src/db/database-url.ts` composes its connection string out of the application role's.
+    DATABASE_AUTH_USER: z.string().min(1).optional(),
+    DATABASE_AUTH_PASSWORD: z.string().min(1).optional(),
     // Injected into a preview deployment by Neon's integration, naming that deployment's own
     // branch. Undeclared anywhere in Vercel's project settings, by design, which is why
     // `vercel env pull` cannot show them and why a preview is the only place they exist.
     NEON_PGHOST: z.string().min(1).optional(),
     NEON_PGDATABASE: z.string().min(1).optional(),
+    /**
+     * What better-auth signs a session cookie with.
+     *
+     * **Optional here and refused where it is used**, like the database variables above and for
+     * a sharper version of the same reason: better-auth *invents* one when nothing sets it, so
+     * an absence is not an error but a per-isolate secret — and Vercel Functions are
+     * per-invocation isolates, so every cold start would issue cookies the next isolate cannot
+     * verify. That reads to a person as being signed out at random. `src/auth/auth.ts` refuses
+     * to serve without it, as loudly as `database-url.ts` refuses a missing host.
+     */
+    BETTER_AUTH_SECRET: z.string().min(1).optional(),
   },
   client: {},
   // Only client variables are destructured here. Next "stopped static analysis of server side

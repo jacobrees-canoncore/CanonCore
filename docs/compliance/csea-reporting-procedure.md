@@ -64,9 +64,45 @@ during working hours (Monday – Friday 07:00-17:00, excluding weekends and UK b
 ([NCA, *The Child Sexual Exploitation & Abuse Industry Reporting Portal*](https://www.nationalcrimeagency.gov.uk/what-we-do/crime-threats/child-sexual-abuse-and-exploitation/the-child-sexual-exploitation-abuse-industry-reporting-portal)). If CSEA content is ever
 detected, registration must complete before the report can be submitted, and that delay falls inside the
 "so far as possible" window of `s.66(1)`. **Revisit this decision the moment the service carries content
-from any account other than the operator's.** That trigger is owned: it is an acceptance criterion on
-[CAN-24 A signed-in and a signed-out path](https://linear.app/jacobrees-canoncore/issue/CAN-24), the
-ticket that ships exactly that condition, so it cannot be missed by being forgotten.
+from any account other than the operator's.**
+
+### The revisit of 17 August 2026, and what it found
+
+Carried out under the trigger above, before
+[CAN-24 A signed-in and a signed-out path](https://linear.app/jacobrees-canoncore/issue/CAN-24) merged,
+because that ticket carried the revisit as an acceptance criterion.
+
+**The decision is unchanged: registration is still deferred.** What changed is the reason, and the
+correction below matters more than the outcome.
+
+**CAN-24 does not meet the trigger's condition, and the ticket said it did.** Its criterion read that the
+trigger "is exactly what this ticket ships". That is wrong on the wording of the trigger, which is not
+*accounts exist* but *the service carries content from an account other than the operator's*. CAN-24
+ships the first and not the second: a stranger can now hold an account, and there is still nothing they
+can create with it. Nothing in this release writes a `story` row — the one that exists came from migration
+0002 — and the only values a sign-up stores are a name and an email address, neither of which any page
+renders to anybody but their owner. So no content of theirs can be encountered by another user, which is
+the `s.55(3)` limb that would make it user-generated content at all.
+
+**The trigger therefore stands, undischarged, and it is now one ticket from firing rather than gated by
+the absence of accounts.** It completes at the first change that gives an account a way to create a
+record. On the current plan that is
+[CAN-27 Orderings and Placements, and the imported broadcast Ordering](https://linear.app/jacobrees-canoncore/issue/CAN-27)
+or [CAN-26 Import a series from TMDB, with the overlay behind it](https://linear.app/jacobrees-canoncore/issue/CAN-26),
+whichever lands first; both are written for the operator's own founding case, and neither restricts
+creation to the operator, which is what makes either sufficient.
+
+**Both original reasons still hold, and the first is not improved by waiting.** Reg. 5(1)(b) is as
+unsolvable as it was — there is still one person and no second to appoint — and there is still no report
+to make, for the same reason as before: no image or video upload exists, and now also because no account
+but the operator's has put anything on the service. **Registration is not made lawful or unlawful by this
+ticket**; reg. 4(1) makes it a precondition of *reporting*, not of *operating*, and this service still has
+nothing to report.
+
+**What this revisit adds is that the trigger is now owned by a ticket that can actually discharge it.** It
+was owned by CAN-24 on a premise that did not hold, which is a worse position than being unowned: a
+criterion ticked on a false reading closes a question that was never asked. It is an acceptance criterion
+on CAN-27 and on CAN-26, so whichever lands first has to carry out the revisit that this one deferred.
 
 ## What to do if CSEA content is detected
 
@@ -74,9 +110,12 @@ ticket that ships exactly that condition, so it cannot be missed by being forgot
    record's Visibility to private so it is no longer publicly encounterable, and record the Operation and
    audit entry as for any takedown. **That capability is built by
    [CAN-32 Roles, takedown, and the Online Safety Act surfaces](https://linear.app/jacobrees-canoncore/issue/CAN-32)
-   and does not exist on `main`** — which is consistent, because until CAN-32 ships there is also no
-   account other than the operator's to put content there. The URL-sharing gate is what keeps those two
-   facts in step.
+   and does not exist on `main`** — which is consistent, because no account other than the operator's can
+   put content there either. **The reason for that second half changed on 17 August 2026 and the sentence
+   is narrower than it was:** it used to rest on accounts not existing, and
+   [CAN-24 A signed-in and a signed-out path](https://linear.app/jacobrees-canoncore/issue/CAN-24) shipped
+   them. It now rests on nothing in the product creating a record — see *The revisit of 17 August 2026*
+   above, which names the two tickets that end it. The URL-sharing gate is what keeps these facts in step.
 2. **If there is a current or imminent risk to a person, call 999 first.** The NCA says that where an
    organisation "has not yet registered to use the portal and has identified a current or imminent risk to
    an individual", it should "call 999 to report an emergency to your local UK police force"

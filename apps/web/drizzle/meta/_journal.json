@@ -57,6 +57,20 @@
       "when": 1786959175489,
       "tag": "0007_grant_the_application_role_read_on_tombstone",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1786965949628,
+      "tag": "0008_better_auth_tables",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1786965965451,
+      "tag": "0009_grant_the_auth_role_its_tables_and_the_application_role_read",
+      "breakpoints": true
     }
   ]
 }

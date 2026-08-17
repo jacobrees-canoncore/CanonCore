@@ -30,6 +30,7 @@ changes, it is evidence and does not belong here.
 - [Uptime monitoring: UptimeRobot](#uptime-monitoring-uptimerobot)
 - [Domains](#domains)
 - [Agent tooling](#agent-tooling)
+- [Firewall](#firewall)
 - [The served surface](#the-served-surface)
 
 ## The production URL
@@ -74,16 +75,26 @@ turns on readiness; readiness has no statutory content.
 | Recorded here since | 13 August 2026, by **CAN-71 Make the compliance records valid: dates, the alternative-measures record, and the PCU register** |
 
 **Why it is a gate and not a preference.** The two things that make this a user-to-user service are
-accounts and public Visibility. **Since CAN-23 One Story from Neon, behind row-level security one of them exists** — `story` carries a Visibility
-and one row is public — and accounts do not, so nobody but the operator can put content here. That
-is what most of the Code measures are recorded as not in effect for
-(`docs/compliance/code-measures-register.md` → *What the `Effective` column means*). The failure
+accounts and public Visibility. **Since CAN-24 A signed-in and a signed-out path both of them exist** —
+`story` has carried a Visibility with one public row since CAN-23 One Story from Neon, behind row-level
+security, and accounts arrived on 17 August 2026. **Nobody but the operator can put content here even so,
+and the reason is now narrower than it was**: nothing in the product creates a record, so a stranger can
+hold an account and author nothing with it. That is what most of the Code measures are recorded as not in
+effect for (`docs/compliance/code-measures-register.md` → *What the `Effective` column means*). The failure
 this prevents is content arriving before the measures do: a person posting to
 a service with no takedown, no published terms and no reporting address.
 
-**When accounts land this gate tightens, it does not move.** They arrive with
-**CAN-24 A signed-in and a signed-out path**, and that is the change after which the sentence above
-stops holding.
+**Accounts have landed, and this gate tightened rather than moving.** They arrived with
+**CAN-24 A signed-in and a signed-out path** on 17 August 2026. What the sentence above rests on changed
+with them: it used to rest on accounts not existing, and now rests on nothing in the product creating a
+record. **So the margin is one ticket wide.** It closes at
+[CAN-27 Orderings and Placements, and the imported broadcast Ordering](https://linear.app/jacobrees-canoncore/issue/CAN-27)
+or [CAN-26 Import a series from TMDB, with the overlay behind it](https://linear.app/jacobrees-canoncore/issue/CAN-26),
+whichever lands first — and neither may land before
+[CAN-32 Roles, takedown, and the Online Safety Act surfaces](https://linear.app/jacobrees-canoncore/issue/CAN-32),
+which is the outstanding condition above. Two compliance records turn on the same distinction and were
+amended with it: `docs/compliance/csea-reporting-procedure.md` → *The revisit of 17 August 2026*, and
+`docs/compliance/code-measures-register.md` → *What the `Effective` column means*.
 
 **Where this gate lived before, and why it moved here.** It was an unticked box on
 [CAN-21 Write the Online Safety Act documents and establish the reporting address](https://linear.app/jacobrees-canoncore/issue/CAN-21),
@@ -349,6 +360,9 @@ for its own credentials**; the pointer here is *Where a Source credential lives*
 | `DATABASE_APP_USER` | Vercel | Production, Preview, Development | Non-sensitive | The application role name, for a preview to compose its own URL |
 | `DATABASE_APP_PASSWORD` | Vercel | Production, Preview | Sensitive | Its password. Inherited unchanged by every preview branch |
 | `DATABASE_PRODUCTION_HOST` | Vercel | Production, Preview | Non-sensitive | Production's Neon host, so that a preview can assert the host it resolved is not that one. **Non-sensitive deliberately**: a value nobody can read back is a value nobody can catch going stale, and a stale one makes the preview's assertion vacuous |
+| `DATABASE_AUTH_USER` | Vercel | Production, Preview, Development | Non-sensitive | The *auth* role's name. better-auth connects as a third role, because the thing that authenticates cannot be constrained by the identity it establishes — [`apps/web/src/auth/auth.ts`](../apps/web/src/auth/auth.ts) has the argument and *Roles* below has what it may reach |
+| `DATABASE_AUTH_PASSWORD` | Vercel | Production, Preview | Sensitive | Its password. Inherited unchanged by every preview branch, exactly as the application role's is |
+| `BETTER_AUTH_SECRET` | Vercel | Production, Preview | Sensitive | What better-auth signs session cookies with. **A missing value is worse than an error**: better-auth invents one per process, and Vercel Functions are per-invocation isolates, so every cold start would issue cookies the next isolate cannot verify and a person would appear to be signed out at random. `auth.ts` refuses to serve without it. One value per environment, and never shared with a preview's parent |
 | `RESEND_API_KEY` | Vercel | Production, Preview | Sensitive | Two distinct keys under one name, one per environment |
 | `EMAIL_FROM` | Vercel | Production, Preview | Sensitive | `CanonCore <noreply@mail.canoncore.com>` |
 | `SENTRY_DSN` | Vercel | Production, Preview | Sensitive | Also recorded under *Error reporting* below, since a DSN is not a secret |
@@ -365,6 +379,15 @@ composes its connection string from `NEON_PGHOST` and `NEON_PGDATABASE`, which N
 that one deployment by webhook. They are not project-level variables, `vercel env ls` cannot show
 them, and a project-level one would be the bug — see *How a preview reaches its own database*
 below.
+
+**There is deliberately no `DATABASE_AUTH_URL`.** better-auth's connection string is composed from the
+application's, by swapping in the two `DATABASE_AUTH_*` values above — so the host, the database, the SSL
+mode, the preview-versus-production branch and both of its refusals are inherited rather than restated.
+A whole second string would be a second thing to keep in step, and a Sensitive one nobody can read back
+to compare: the failure would be better-auth writing to production from a preview, which is the one
+direction that is worse than the read `database-url.ts` already refuses.
+[`apps/web/src/db/database-url.ts`](../apps/web/src/db/database-url.ts) holds the composition and its
+tests hold the four cases.
 
 **A Sensitive variable cannot be read back, by anyone** — not by the CLI, not from the dashboard,
 not by whoever set it ([incident](incidents.md#a-vercel-sensitive-variable-cannot-be-read-back-by-anyone)).
@@ -663,12 +686,53 @@ Neon's `neondb_owner` has `rolbypassrls = true` and is therefore never the appli
 | --- | --- | --- |
 | `canoncore_migrator` | Owns every table it creates. Runs migrations | `false` |
 | `canoncore_app` | The application connects as this and nothing else | `false` |
+| `canoncore_auth` | better-auth connects as this, and nothing else does. Added 17 August 2026 by **CAN-24 A signed-in and a signed-out path** | `false` |
+
+*`canoncore_auth` was created on Neon's `main` on 17 August 2026 with `LOGIN NOBYPASSRLS` and `USAGE` on
+`public` and no `CREATE`, and all three attributes were read back from `pg_roles` and
+`has_schema_privilege` rather than assumed. Neon granted the new role to `neondb_owner` on creation with
+`set_option = false`, the same shape it gives the other two — which is why the migration that follows a new
+role has to be run by somebody holding that role's password, and is what
+[`../scripts/apply-can-24-migration.sh`](../scripts/apply-can-24-migration.sh) exists for.*
+
+#### Why there are three, and why the third is not a hole in ADR-0005 rule 1
+
+**The thing that authenticates cannot be constrained by the identity it is establishing.**
+`auth.api.getSession` is handed a session *token* and has to find the row bearing it before it can know
+whose it is; signing in is handed an *email* and has to find a `user` row with no session set at all. No
+policy keyed on `canoncore.user_id` can permit either, so better-auth cannot run as `canoncore_app`.
+[`apps/web/src/auth/auth.ts`](../apps/web/src/auth/auth.ts) holds the argument and the three designs it
+rules out — including the one that looks cheapest, giving `canoncore_app` those tables with no policy over
+them, which would hand the role every page runs as a table of email addresses and password hashes readable
+in full. That is this section's own recorded failure, one table wider.
+
+**Rule 1 is about the role the application connects as, and `canoncore_app` is untouched by this**: still
+`SELECT` only, still no `BYPASSRLS`, still reading every row through a policy. `canoncore_auth` has no
+`BYPASSRLS` either. What bounds it is written down rather than assumed: a policy naming it on five tables,
+and no privilege at all on the other four.
 
 #### What each role may do to a table, and the default privileges there are not
 
-**`canoncore_app` holds `SELECT` and nothing else, on every table.** `canoncore_migrator` needs no
+**`canoncore_app` holds `SELECT` and nothing else, on every table it holds anything on** — and since
+17 August 2026 there are three it holds nothing on. `canoncore_migrator` needs no
 grant at all — it owns each table, and an owner bypasses row security, which is why ownership sits
 with it rather than with the application's role.
+
+**The full matrix, as migrations 0008 and 0009 leave it**, and `apps/web/src/db/rls.test.ts` asserts every
+cell of it for both roles:
+
+| Table | `canoncore_app` | `canoncore_auth` |
+| --- | --- | --- |
+| `story`, `source`, `snapshot`, `tombstone` | `SELECT` | **nothing** |
+| `user`, `session` | `SELECT`, under a policy keyed on the session user | `SELECT`, `INSERT`, `UPDATE`, `DELETE` |
+| `account`, `verification`, `rate_limit` | **nothing** | `SELECT`, `INSERT`, `UPDATE`, `DELETE` |
+
+**Both sets of blanks are controls, not omissions.** `canoncore_auth` has no policy on the four
+product tables, so a read returns nothing — but **a write would succeed**, because no policy at all is not
+the same as a restrictive one, and only the absent grant refuses it. And `canoncore_app` is refused
+`account` outright rather than being given a policy that returns no rows: `account` holds the scrypt
+password hash, and a refusal is a loud error where an empty result is the silence ADR-0005 rule 2 exists
+to avoid. A grant added to any blank cell fails a test rather than passing unnoticed.
 
 **There are no default privileges, and the absence is the decision.** Until 16 August 2026 two
 `ALTER DEFAULT PRIVILEGES` grants existed here and in no other place:
@@ -736,6 +800,13 @@ CAN-23 One Story from Neon, behind row-level security and read back with
 and Drizzle's migrator needs it before it will read its own journal
 ([incident](incidents.md#drizzles-migrator-needs-create-on-the-database-before-it-reads-anything)).
 `canoncore_app` has neither that nor `CREATE` on `public`, which is unchanged.
+
+Since then the schema has grown by every migration the release runs, and **nine tables carry the two
+tripwires** in `apps/web/src/db/rls.test.ts`: the four product tables, and the five better-auth's own
+models need — `user`, `session`, `account`, `verification` and `rate_limit`, created by migration 0008 with
+a policy on each. `rate_limit` is not incidental: better-auth's default rate-limit storage is *memory*, and
+Vercel Functions are per-invocation isolates, so a memory-backed counter is per-process and enforces
+nothing. `docs/research/production-readiness-baseline.md` → *Security posture* holds the evidence.
 
 Both verified against `pg_roles` rather than assumed, and proven end to end: the application role
 sees zero rows through a table with RLS enabled and no policy, and cannot create tables
@@ -1254,6 +1325,41 @@ and load project-scoped servers without asking ([MCP docs](https://code.claude.c
 
 **The `resend` MCP is the exception** and is scoped to this project in `.claude/settings.json`,
 because it is pinned to this product's own Resend account and domain.
+
+## Firewall
+
+**One custom rule, which is the whole allowance.** Hobby permits **1 rate-limit rule per project**, fixed
+window, keyed on IP or JA4 digest, and its counters are *"tracked on a per-region basis"*
+([Vercel, WAF rate limiting](https://vercel.com/docs/vercel-firewall/vercel-waf/rate-limiting)) — so the
+effective limit is the figure below times the number of regions a caller reaches, which is a ceiling rather
+than a guarantee. DDoS mitigation is on by default and is not this rule.
+
+| | |
+| --- | --- |
+| Rule | `auth-endpoints-rate-limit`, id `rule_auth_endpoints_rate_limit_YPYVJQ` |
+| Condition | path starts with `/api/auth/` |
+| Limit | 60 requests per 60 seconds, fixed window, keyed on IP |
+| When exceeded | `deny` for 1 minute |
+| Published | 17 August 2026, by **CAN-24 A signed-in and a signed-out path** |
+
+**Why these numbers.** A whole sign-up, sign-in and sign-out cycle is three requests, so 60 a minute is far
+above any real use and still a real backstop. **`deny` rather than `challenge` is the load-bearing choice**:
+a challenge needs JavaScript, and the auth forms are deliberately plain HTML that work without it
+(`apps/web/src/app/api/auth/[...all]/route.ts`), so
+challenging would break the path this rule protects. The 1-minute block is short enough that a shared NAT
+recovers and long enough to stop a script.
+
+**It is the outer of two limiters, not the only one.** better-auth's own runs in the function — 100 requests
+per 60s globally and 3 per 10s on `/sign-in/email`, stored in the database rather than in memory for the
+reason `apps/web/src/db/schema.ts` gives on `rate_limit`. This rule sits in front of the function, so it is
+also what keeps a flood off the 1,000,000-invocation ceiling; the inner one is what actually bounds password
+guessing, and it is the one `apps/web/src/db/rls.test.ts` asserts. **Neither is asserted from a deployment**,
+and that is a real gap: the rule's effect can only be seen by exceeding it against the live site.
+
+**Changing it is a two-step, on purpose.** `vercel firewall rules edit` stages a draft and
+`vercel firewall publish` makes it live, with `vercel firewall diff` in between; `vercel firewall discard`
+throws a draft away. **Spending this rule on anything else means taking it off `/api/auth/*`**, since there
+is only one.
 
 ## The served surface
 

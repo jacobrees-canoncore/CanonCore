@@ -17,6 +17,7 @@
   "dependencies": {
     "@canoncore/config": "workspace:*",
     "@t3-oss/env-nextjs": "^0.13.11",
+    "better-auth": "^1.6.29",
     "drizzle-orm": "^0.45.2",
     "next": "16.3.0",
     "pg": "^8.23.0",

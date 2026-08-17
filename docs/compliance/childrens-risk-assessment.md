@@ -14,6 +14,7 @@ children's safety duties and Ofcom's *Protection of Children Codes of Practice*.
 | Revised | 14 August 2026 — the Part 5 correction carried by [CAN-74 Rewrite ADR-0012 on Part 5 grounds](https://linear.app/jacobrees-canoncore/issue/CAN-74). No level or finding changed; the artwork constraint that holds the pornographic content finding is re-grounded in `s.81` rather than `s.12(5)`. The terms of service were amended in the same change, and Step 4 records what and why |
 | Revised | 14 August 2026 — the minimum age confirmed at 13 by [CAN-44 Make the Online Safety Act records live, and create the reporting address](https://linear.app/jacobrees-canoncore/issue/CAN-44). No level or finding changed, and the age itself did not move; what changed is that *Age groups* now records the decision and its reasoning instead of flagging the figure as owned by nobody |
 | Revised | 17 August 2026 — **redone under `s.11(4)`**, alongside the illegal content assessment and before the ingress it assesses can ship. Carried by [CAN-108 Re-assess the illegal-content risk before a user can paste an arbitrary Provider URL](https://linear.app/jacobrees-canoncore/issue/CAN-108). **No level moved and no risk factor was added.** What did: text imported through a *pasted* Provider is user-generated content, so every kind below was re-read against that route; the artwork constraint is re-derived for a Source whose classification arrives from a party this project cannot check; and [`childrens-access-assessment.md`](childrens-access-assessment.md) was re-read against the result |
+| Revised | 17 August 2026 — **accounts ship, and the non-linkification control is narrowed in wording only.** Carried by [CAN-24 A signed-in and a signed-out path](https://linear.app/jacobrees-canoncore/issue/CAN-24). **No level, finding or risk factor changed, and no `s.11(4)` redo is owed**: the reasoning is the illegal content assessment's Step 4 note *Why shipping accounts triggers no redo*, which was written against both lists, and the linkification note below records what the narrowing does and does not reach |
 | Next review date | 13 August 2027 — at least annually |
 | Completed by | Jacob Rees |
 | Named person responsible | Jacob Rees |
@@ -132,7 +133,15 @@ cells.
   as primary priority content, which is the same ground the finding already stood on.
 - **Every "no linkification" in the tables above now covers more than it did.** Until this revision
   the control was scoped to user free text, so a Provider's prose sat outside it; it now covers
-  everything rendered, whatever wrote it.
+  everything **any other party wrote**, whichever party that is.
+  > **The wording moved again later the same day, and these cells are unaffected.**
+  > [CAN-24 A signed-in and a signed-out path](https://linear.app/jacobrees-canoncore/issue/CAN-24)
+  > ships the product's first navigation, so the control could no longer be stated as *nothing
+  > rendered*. What each cell above relies on is that a URL arriving in a Provider's prose or a
+  > person's free text is not followable, and that is unchanged: the anchors CAN-24 adds have `href`
+  > values that are string literals in this repository, and the assertion behind the control now pins
+  > that closed set rather than counting anchors. A child cannot be walked out of this service by a
+  > link somebody else supplied, which is the whole of what these cells claim.
 - **The mechanisms the levels rest on are untouched.** No image or video, no recommender, no route
   from one user to another. A Provider is a route from a *service* to one person's own records, and
   it creates none of those. Bullying, in particular, still has nothing to be directed at a child

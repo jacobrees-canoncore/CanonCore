@@ -12,6 +12,7 @@ and is provided to Ofcom on request.
 | Last revised | 14 August 2026 (substantive edits), revision row added 16 August 2026 per RKRG §2.7 |
 | Revised | 16 August 2026 — the terms amendment of that date, and why it triggers no redo, recorded in Step 4. Carried by [CAN-81 Disclose Sentry's US error storage in the terms of service](https://linear.app/jacobrees-canoncore/issue/CAN-81). No level or finding changed |
 | Revised | 17 August 2026 — **redone under `s.9(4)`**, before the ingress it assesses can ship. Carried by [CAN-108 Re-assess the illegal-content risk before a user can paste an arbitrary Provider URL](https://linear.app/jacobrees-canoncore/issue/CAN-108). **No level moved.** What did: text imported through a *pasted* Provider is classified as user-generated content, Step 1's *Finding or encountering content* answer is re-derived rather than carried forward, finding 2c is assessed on that route separately, the non-linkification control is widened from user free text to everything rendered, and whether pasted Providers are moderated is decided |
+| Revised | 17 August 2026 — **accounts ship, and the non-linkification control is narrowed in wording only.** Carried by [CAN-24 A signed-in and a signed-out path](https://linear.app/jacobrees-canoncore/issue/CAN-24). **No level, finding or answer changed, and no `s.9(4)` redo is owed** — the reasons are in Step 4, under *Why shipping accounts triggers no redo* and the linkification bullet |
 | Next review date | 13 August 2027 — the service's 12-month policy cadence (Ofcom good practice; `s.9(3)` imposes keep-up-to-date, not a fixed interval — corrected 16 August 2026), and earlier before any significant change (`s.9(4)`) |
 | Reason for review | First assessment, before launch |
 | Completed by | Jacob Rees |
@@ -83,12 +84,22 @@ of the findings below:
 - No marketplace, listings, payments or advertising.
 - No recommender system, no engagement ranking, no virality mechanics.
 - No search across other users' content.
-- **Nothing rendered is hyperlinked, whatever wrote it**, so a URL reaching a page is not followable
-  from it. **Until 17 August 2026 this read "user free text"**, which left a Provider's prose outside
-  a control several findings rest on; widening it is what CAN-108 Re-assess the illegal-content risk
-  before a user can paste an arbitrary Provider URL did, and *Existing controls relied on* below
-  records how much of it is built. It is an absence in the sense that matters — JSX escapes what it
-  interpolates, so an anchor has to be reintroduced deliberately — rather than a feature.
+- **Nothing any other party wrote is hyperlinked**, so a URL reaching a page is not followable from
+  it. It is an absence in the sense that matters — JSX escapes what it interpolates, so an anchor has
+  to be reintroduced deliberately — rather than a feature. Two revisions have moved this wording and
+  neither moved what it protects:
+    - **Until 17 August 2026 it read "user free text"**, which left a Provider's prose outside a
+      control several findings rest on. Widening it to everything rendered is what CAN-108 Re-assess
+      the illegal-content risk before a user can paste an arbitrary Provider URL did.
+    - **Later the same day it stopped saying "nothing rendered"**, because
+      [CAN-24 A signed-in and a signed-out path](https://linear.app/jacobrees-canoncore/issue/CAN-24)
+      gives the product its first navigation: a page has to be able to link to `/sign-in`. **The
+      clause that carries the finding is the second one** — *a URL reaching a page is not followable
+      from it* — and an `href` that is a string literal in this repository is not a URL that reached a
+      page. So the control is now stated by **origin** rather than by counting anchors, and the
+      assertion behind it is stricter than it was: every rendered `href` must be one of a closed set
+      of this application's own routes, which no value from a Source, a Provider or a person can be.
+      *Existing controls relied on* below records how much of it is built.
 
 ## Step 1 — Risk Profiles and risk factors
 
@@ -285,7 +296,7 @@ there is content, so the gate that keeps content out until they exist is part of
 | No image, video or file upload | CSAM imagery, extreme pornography, intimate image abuse, animal cruelty, cyberflashing | The basis of three negligible findings (2b, 7 and 18) | Absence |
 | No messaging, connections or comments | Grooming, controlling or coercive behaviour, harassment delivery, trafficking coordination | The basis of one negligible finding and a limiting factor on several low ones | Absence |
 | No marketplace, payments or advertising | Fraud, proceeds of crime, drugs, weapons, sexual exploitation, trafficking | Holds these at low rather than higher | Absence |
-| **Nothing rendered is linkified, whatever wrote it** | CSAM URLs, terrorism, drugs, weapons, fraud | Answers risk factor 7b — with the caveat under *Finding or encountering content, re-derived* about what answering *No* does not remove | **Partly.** The *prohibition* lands with this revision, origin-blind, over every `.ts` and `.tsx` file under `apps/web/src`: [`apps/web/eslint.config.mjs`](../../apps/web/eslint.config.mjs) carries `react/no-danger`, which is a real guard because JSX escapes what it interpolates, and a restricted-import group naming the markdown renderers and autolinkers most likely to be reached for. **That group matches package names, so it is a tripwire and not a proof** — a renderer it does not name gets through, and an `<a href>` written by hand gets past both rules. The *rendered assertion* is [`no-linkification.test.tsx`](../../apps/web/src/app/no-linkification.test.tsx), which is the only check that sees any of that, and it covers the one surface drawing text today; CAN-27 (Ordering and Story pages), CAN-26 (a Listed Provider's prose) and CAN-113 (a pasted one's) each add their own |
+| **Nothing any other party wrote is linkified** | CSAM URLs, terrorism, drugs, weapons, fraud | Answers risk factor 7b — with the caveat under *Finding or encountering content, re-derived* about what answering *No* does not remove | **Partly, and the assertion strengthened on 17 August 2026.** The *prohibition* is origin-blind over every `.ts` and `.tsx` file under `apps/web/src`: [`apps/web/eslint.config.mjs`](../../apps/web/eslint.config.mjs) carries `react/no-danger`, which is a real guard because JSX escapes what it interpolates, and a restricted-import group naming the markdown renderers and autolinkers most likely to be reached for. **That group matches package names, so it is a tripwire and not a proof** — a renderer it does not name gets through, and an `<a href>` written by hand gets past both rules. The *rendered assertion* is [`no-linkification.test.tsx`](../../apps/web/src/app/no-linkification.test.tsx), which is the only check that sees any of that. **It no longer counts anchors; it pins the exact set of them**, because CAN-24 A signed-in and a signed-out path gave the product its first navigation and an assertion of *zero* anchors would have been failed by a link to `/sign-in`. Every rendered `href` must now be one of a closed list of this application's own routes, so a data-derived `href` fails whether or not it looks like a link — which is a stronger property than the count it replaced, and the one the finding actually needs. It covers the three surfaces drawing text today (the front page signed in and signed out, and both forms); CAN-27 (Ordering and Story pages), CAN-26 (a Listed Provider's prose) and CAN-113 (a pasted one's) each add their own |
 | No recommender or engagement ranking | Foreign interference, suicide and self-harm, hate | Removes amplification | Absence |
 | A corpus small enough for the operator to review | All | Reviewability in full, which is what makes reactive moderation adequate at this size. **The provider's own reasoning, not a position attributed to Ofcom.** It is also the one control here that scales with volume rather than with design, so an import route is what strains it — *Finding 2c on the pasted-Provider route* says how, and Step 4 carries the trigger | Absence, and reviewed at each risk-assessment review |
 | All shared content is public; no closed groups | CSEA, hate | Ofcom treats unreviewed closed groups as a high-risk factor; their absence reduces risk | Absence |
@@ -404,12 +415,17 @@ Ofcom materially changes a relevant Risk Profile.
 - Adding image, video or file upload — would reopen three negligible findings (2b, 7 and 18).
 - Adding direct messaging, comments, mentions or user connections — would reopen grooming and
   controlling or coercive behaviour.
-- **Linkifying anything rendered, whatever wrote it** — would switch on the hyperlinking risk factor
+- **Linkifying anything this service did not author** — would switch on the hyperlinking risk factor
   and reopen CSAM URLs. *(This read "user free text" until 17 August 2026, which left a Provider's
   prose outside it; the gap that widening closed is what CAN-108 Re-assess the illegal-content risk
-  before a user can paste an arbitrary Provider URL was raised for.)* What holds it, and how far each
-  half reaches, is the *Nothing rendered is linkified* row in *Existing controls relied on*; the
-  rendered assertion is
+  before a user can paste an arbitrary Provider URL was raised for. Later the same day it stopped
+  reading "anything rendered", because CAN-24 A signed-in and a signed-out path ships a link to
+  `/sign-in`; the substance is unchanged and the assertion behind it is stricter — see the control's
+  row, and the second sub-bullet under *Functionality the service does not have*.)* **What is now
+  listed here is the change to watch for: an `href` derived from a value rather than written as a
+  literal.** That is the move this record exists to catch, and adding a route to the closed list is
+  not it. What holds it, and how far each half reaches, is the *Nothing any other party wrote is
+  linkified* row in *Existing controls relied on*; the rendered assertion is
   [`no-linkification.test.tsx`](../../apps/web/src/app/no-linkification.test.tsx). **Each surface adds
   its own case to that file rather than arguing from another's**:
   [CAN-27 Orderings and Placements, and the imported broadcast Ordering](https://linear.app/jacobrees-canoncore/issue/CAN-27)
@@ -422,6 +438,31 @@ Ofcom materially changes a relevant Risk Profile.
 - Adding search across other users' content.
 - Adding a recommender, ranking or engagement signal.
 - Adding a marketplace, listings or payments.
+
+> **Why shipping accounts triggers no redo, though it is the largest change so far.**
+> [CAN-24 A signed-in and a signed-out path](https://linear.app/jacobrees-canoncore/issue/CAN-24)
+> ships the accounts this assessment has described since it was written: *Accounts — anyone may sign up
+> with an email address and a password (CAN-24)* is the first bullet of *The service being assessed*, and
+> the first risk factor in Step 1 is ticked on their existence. **`s.9(4)` requires a redo before a
+> significant change to the design or operation of the service, and this is a change to neither** — it
+> makes a described mechanism real. An assessment that had to be redone at the moment its own subject
+> arrived would be an assessment written about the wrong service.
+>
+> **What was checked before saying so**, because the claim is easy to make and this list is the place it
+> would be wrong: every entry above and in the children's assessment was read against the change. None is
+> engaged. No upload, messaging, connection, search, recommender or marketplace mechanism is added; Fork
+> is untouched; and the one entry that *is* engaged, linkification, is engaged in wording only and is
+> recorded in its own bullet. **Two things that might look like triggers are not.** The service still
+> carries no content from any account other than the operator's, because nothing in this release creates
+> a record — that is worked through in
+> [`csea-reporting-procedure.md`](csea-reporting-procedure.md) → *The revisit of 17 August 2026*, which
+> corrects a criterion on CAN-24 that claimed otherwise. And an account now stores a name and an email
+> address, which are personal data and are **not** user-generated content under `s.55(3)`: no page renders
+> either to anybody but their owner, so neither can be encountered by another user.
+>
+> **What it does move is the URL-sharing gate**, which tightens rather than opening:
+> `docs/infrastructure.md` → *Gate one: lawfulness* records that the sentence *nobody but the operator can
+> put content here* stops resting on the absence of accounts from this date.
 
 > **The terms amendment of 16 August 2026 is on neither this list nor the children's additions to
 > it.** It added a data-location disclosure for error reporting to

@@ -293,9 +293,17 @@ on `main`, where every push is its own release and a cancelled run is not a pass
 **One check is not optional, because its failure mode is silence: every row-level-security-protected
 table has a test asserting that a cross-tenant read returns zero rows.** A misconfigured RLS policy
 returns an empty result rather than an error, so it is indistinguishable from "no data" in the UI
-and cannot be caught by looking. `story`, `snapshot` and `tombstone` are those tables today, and
+and cannot be caught by looking. `story`, `snapshot`, `tombstone` and — since CAN-24 A signed-in and a
+signed-out path — better-auth's own `user` and `session` are those tables today, and
 every one of them is tested from [`apps/web/src/db/rls.test.ts`](../../apps/web/src/db/rls.test.ts) — one file
 rather than one per table, for the reason that file's own header gives and cites. ADR-0005 rule 2 is what requires it.
+
+**The reader in those tests is always `canoncore_app`, and since CAN-24 that is a choice rather than the
+only option.** better-auth connects as a third role, `canoncore_auth`, which reads every row of its own
+five tables and has to — [`apps/web/src/auth/auth.ts`](../../apps/web/src/auth/auth.ts) holds the
+argument. So the tenant question is only ever asked of the role every page runs as, and what bounds the
+other role is asserted separately: a fifth tripwire pins what `canoncore_auth` may do to **every** table,
+because it has no policy at all on the four product tables and only the absent grant refuses a write there.
 
 **A table deliberately left unprotected still owes the gate three tripwires**, because an exclusion
 nothing enforces is indistinguishable from a table somebody forgot: one asserting that every table
@@ -315,11 +323,23 @@ records what that leaves, including the one thing those tests still cannot see.
 
 **Those tests need a real PostgreSQL, and `pnpm -r test` behaves differently depending on whether
 it has one.** In Actions the job runs a `postgres:17` service container and the suite always runs.
-Locally it runs only when `RLS_TEST_MIGRATOR_URL` and `RLS_TEST_APP_URL` are set, and skips
-otherwise — but **it fails outright rather than skipping when `CI` is set**, because a skipped
+Locally it runs only when `RLS_TEST_MIGRATOR_URL`, `RLS_TEST_APP_URL` and `RLS_TEST_AUTH_URL` are set, and
+skips otherwise — but **it fails outright rather than skipping when `CI` is set**, because a skipped
 cross-tenant read test reports exactly what a broken policy reports. To run them on a laptop, point
-those two at any PostgreSQL that has had [`apps/web/src/db/roles.sql`](../../apps/web/src/db/roles.sql)
-applied to it.
+those three at any PostgreSQL that has had [`apps/web/src/db/roles.sql`](../../apps/web/src/db/roles.sql)
+applied to it:
+
+```bash
+psql "$SUPERUSER_URL" -f apps/web/src/db/roles.sql
+RLS_TEST_MIGRATOR_URL=postgresql://canoncore_migrator:canoncore_migrator@localhost:5432/<db> \
+RLS_TEST_APP_URL=postgresql://canoncore_app:canoncore_app@localhost:5432/<db> \
+RLS_TEST_AUTH_URL=postgresql://canoncore_auth:canoncore_auth@localhost:5432/<db> \
+  pnpm -r test
+```
+
+**The third arrived with CAN-24 A signed-in and a signed-out path**, and the suite refuses to run on two:
+it asserts what each of the three roles may reach, so a run missing one would be asserting less than it
+appears to.
 
 **The Playwright suite is not one of the four.** It drives a *deployed* URL rather than a build, so
 there is nothing for it to talk to inside a CI job that has deployed nothing. Run it against

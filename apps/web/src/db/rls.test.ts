@@ -14,7 +14,15 @@
 // standing in its place are below: every table classified, `source`'s whole column list, and
 // what the application role may do to each table. A fourth test asserts that no default
 // privilege exists at all — it guards tables nobody has created yet rather than `source`, so it
-// is not one of the three.
+// is not one of the three. A fifth joined them with CAN-24 A signed-in and a signed-out path:
+// what the *auth* role may do to each table, which is the other half of the same question now
+// that a third role exists.
+//
+// **Signing up, signing in and signing out are tested from here too**, and the reason is the
+// paragraph above rather than a change of subject: they need a real PostgreSQL, so they cannot have
+// a file of their own. What they add over the policy tests is the one thing a policy test cannot
+// see — that the id better-auth puts in a cookie is the id `SET LOCAL` then sets, which is the
+// whole of what CAN-24 A signed-in and a signed-out path joins together.
 //
 // **The two that enumerate `public` ask for four `relkind`s**, not the ordinary-table `'r'` alone:
 // `'p'` partitioned, `'f'` foreign and `'m'` materialised view can all hold rows, and a matview over
@@ -27,16 +35,23 @@ import { drizzle } from "drizzle-orm/node-postgres";
 import { migrate } from "drizzle-orm/node-postgres/migrator";
 import { Client } from "pg";
 import { afterAll, beforeAll, describe, expect, test, vi } from "vitest";
+import { passwordMinimum } from "../auth/password";
+import { sessionUserSetting } from "./schema";
 
 const migratorUrl = process.env.RLS_TEST_MIGRATOR_URL;
 const applicationUrl = process.env.RLS_TEST_APP_URL;
+// better-auth's role. A third URL rather than the two composed by hand, so that a laptop pointing
+// this suite at some other PostgreSQL says what the password is there instead of relying on
+// `roles.sql`'s convention of making it the role name.
+const authRoleUrl = process.env.RLS_TEST_AUTH_URL;
 
 // A skip is not a pass, and in CI the workflow always sets these — so their absence there means
 // the service container or its setup step broke, and must fail rather than skip.
-if (process.env.CI && !(migratorUrl && applicationUrl)) {
+if (process.env.CI && !(migratorUrl && applicationUrl && authRoleUrl)) {
   throw new Error(
-    "RLS_TEST_MIGRATOR_URL and RLS_TEST_APP_URL are unset in CI. The cross-tenant read test " +
-      "cannot run, and skipping it would report exactly what a broken policy reports.",
+    "RLS_TEST_MIGRATOR_URL, RLS_TEST_APP_URL and RLS_TEST_AUTH_URL are unset in CI. The " +
+      "cross-tenant read test cannot run, and skipping it would report exactly what a broken " +
+      "policy reports.",
   );
 }
 
@@ -91,12 +106,125 @@ const onlyTheSurvivingSource = { id: "99999999-9999-4999-8999-999999999999", own
 const unclassifiedTableSource = { id: "0a0a0a0a-0a0a-4a0a-8a0a-0a0a0a0a0a0a" };
 const purgedWhileUnclassified = { id: "0b0b0b0b-0b0b-4b0b-8b0b-0b0b0b0b0b0b", owner: "user-d" };
 
-describe.skipIf(!migratorUrl || !applicationUrl)("the schema, against a real PostgreSQL", () => {
+/**
+ * `.invalid` is reserved by [RFC 2606](https://www.rfc-editor.org/rfc/rfc2606) precisely so that a
+ * name cannot resolve, which matters here because these are the only fixtures in this file that are
+ * real personal data in shape: an address that could belong to somebody must not be one this suite
+ * signs up. It is also how `afterAll` finds its own rows to delete.
+ */
+const testEmailDomain = "can-24.invalid";
+
+/**
+ * Two real accounts, created through the sign-up endpoint rather than inserted, because what the
+ * cross-tenant tests below are about is the identity better-auth *issues*. A `story` fixture can be
+ * written by hand; a `user` row with a working password cannot, and inserting one would test a
+ * policy against an identity nothing could ever sign in as.
+ *
+ * The passwords are longer than the twelve-character floor and worth nothing: they exist for the
+ * length of one test run, in a database this file creates rows in and deletes them from.
+ */
+const firstAccount = {
+  name: "The first reader",
+  email: `first@${testEmailDomain}`,
+  password: "a-password-of-ample-length",
+};
+const secondAccount = {
+  name: "The second reader",
+  email: `second@${testEmailDomain}`,
+  password: "another-password-of-ample-length",
+};
+
+/**
+ * The host these tests post to, which has to be one `auth.ts` allows: its `baseURL` is derived from
+ * the host that served the request, against an allowlist, and `localhost:3000` is on it. A request
+ * to any other host would resolve `baseURL` to the production fallback and then refuse the form for
+ * an origin that does not match it — which is the check working, not a broken test.
+ */
+const origin = "http://localhost:3000";
+
+/**
+ * A browser submitting a form, as a `Request`.
+ *
+ * **The Fetch Metadata headers are not decoration.** better-auth's `formCsrfMiddleware` reads them,
+ * and `route.ts` reads `sec-fetch-mode` to decide whether to answer with a redirect or with JSON —
+ * so a request missing them exercises neither path. `x-forwarded-for` is what the rate limiter keys
+ * on, and giving each test its own address keeps one test's attempts out of another's window.
+ */
+function formPost(path: string, fields: Record<string, string>, from: string, cookie?: string) {
+  const body = new URLSearchParams(fields).toString();
+  const headers = new Headers({
+    "content-type": "application/x-www-form-urlencoded",
+    origin,
+    "sec-fetch-site": "same-origin",
+    "sec-fetch-mode": "navigate",
+    "sec-fetch-dest": "document",
+    "x-forwarded-for": from,
+  });
+  if (cookie) headers.set("cookie", cookie);
+  // **The body is always set, including when it is empty**, because that is what a browser does and
+  // the difference is not cosmetic: a `Request` built with no `body` option has a *null* body, and
+  // better-call skips its media-type check on one. Omitting it is how an earlier version of this
+  // helper made the sign-out test pass against a request no browser sends — `route.ts` records what
+  // that cost.
+  return new Request(`${origin}${path}`, { method: "POST", headers, body });
+}
+
+/**
+ * A caller nothing else in this file shares a rate-limit window with.
+ *
+ * **Every request that is not deliberately testing the limiter gets its own address**, because the
+ * limiter is real: `/sign-in/email` allows three attempts per ten seconds per caller, and a suite
+ * that runs in under a second would otherwise have one test spend another's window and read the
+ * `429` as a broken policy. The first draft did exactly that, and the symptom was an insert with a
+ * null owner three tests away.
+ *
+ * `203.0.113.0/24` is TEST-NET-3, reserved for documentation by
+ * [RFC 5737](https://www.rfc-editor.org/rfc/rfc5737), so no real host is being named.
+ */
+let addressesIssued = 0;
+
+function freshAddress(): string {
+  addressesIssued += 1;
+  return `203.0.113.${addressesIssued}`;
+}
+
+/**
+ * Why PostgreSQL refused a read, rather than merely that it did.
+ *
+ * Read off `cause` because drizzle replaces the message with `Failed query: …` and keeps
+ * PostgreSQL's own underneath — so an assertion on the thrown message would pass for any failure at
+ * all, including a typo in the query being asserted about.
+ */
+async function whyRefused(read: () => Promise<unknown>): Promise<string> {
+  try {
+    await read();
+  } catch (error) {
+    const cause = error instanceof Error ? error.cause : undefined;
+    return cause instanceof Error ? cause.message : String(error);
+  }
+  throw new Error("The read was expected to be refused, and was not.");
+}
+
+/** The session cookie a response set, in the form a later request sends it back. */
+function cookieFrom(response: Response): string {
+  return response.headers
+    .getSetCookie()
+    .map((header) => header.split(";")[0])
+    .join("; ");
+}
+
+/** All three or none: every test below needs the migrator, the application role and the auth. */
+const noDatabase = !migratorUrl || !applicationUrl || !authRoleUrl;
+
+describe.skipIf(noDatabase)("the schema, against a real PostgreSQL", () => {
   let migrator: Client;
   let withSession: typeof import("./session").withSession;
   let anonymous: typeof import("./session").anonymous;
   let readVisibleStories: typeof import("./stories").readVisibleStories;
   let databaseAnswers: typeof import("./health").databaseAnswers;
+  let auth: typeof import("../auth/auth").auth;
+  /** The route the browser posts to, so the redirect is exercised as well as the endpoint. */
+  let authPost: typeof import("../app/api/auth/[...all]/route").POST;
 
   beforeAll(async () => {
     migrator = new Client({ connectionString: migratorUrl });
@@ -158,13 +286,31 @@ describe.skipIf(!migratorUrl || !applicationUrl)("the schema, against a real Pos
     // assertion below is made by a role that cannot bypass what it is asserting about.
     vi.stubEnv("DATABASE_URL", applicationUrl);
     vi.stubEnv("VERCEL_ENV", undefined);
+
+    // better-auth's role, read out of its own URL rather than composed: `database-url.ts` builds
+    // the auth connection by swapping the credentials in the application's, so handing it these
+    // two is the same thing a deployment does. `database-url.test.ts` asserts the composition.
+    const authRole = new URL(authRoleUrl!);
+    vi.stubEnv("DATABASE_AUTH_USER", decodeURIComponent(authRole.username));
+    vi.stubEnv("DATABASE_AUTH_PASSWORD", decodeURIComponent(authRole.password));
+    // Any value will do, and that it has one is the point: `auth.ts` refuses to serve without it.
+    vi.stubEnv("BETTER_AUTH_SECRET", "a-secret-that-exists-only-for-this-test-run");
+
     vi.resetModules();
     ({ withSession, anonymous } = await import("./session"));
     ({ readVisibleStories } = await import("./stories"));
     ({ databaseAnswers } = await import("./health"));
+    ({ auth } = await import("../auth/auth"));
+    ({ POST: authPost } = await import("../app/api/auth/[...all]/route"));
   });
 
   afterAll(async () => {
+    // better-auth's rows first: `story` fixtures are owned by string ids of their own, but the
+    // accounts these tests create are real rows with a unique email, so a second run would collide.
+    // `delete from "user"` takes `session` and `account` with it, by the cascade in `schema.ts`.
+    await migrator?.query('delete from "user" where email like $1', [`%@${testEmailDomain}`]);
+    await migrator?.query("delete from rate_limit");
+
     await migrator?.query("delete from tombstone where id = any($1)", [
       [tombstoneOwnedByA.id, publicTombstone.id],
     ]);
@@ -431,8 +577,13 @@ describe.skipIf(!migratorUrl || !applicationUrl)("the schema, against a real Pos
 
   // The first of the two tripwires, and the one that is about every table rather than about
   // `source`: a table arriving with no policy is a decision somebody has to have taken, and this
-  // is where they are made to take it. It will fire when better-auth's tables land, which is the
-  // point — the fix is to classify them, never to paste the name in.
+  // is where they are made to take it.
+  //
+  // **It fired when better-auth's five tables landed, and they were classified rather than pasted
+  // in.** All five carry row-level security, because each names `canoncore_auth` in a policy — which
+  // is what turns row security *on*, and therefore also what stops the table being readable in full
+  // by whoever is granted it next. `source` is still the only `false`, for ADR-0014 decision 6's
+  // reason and no other.
   test("every table is classified as protected or deliberately not", async () => {
     const { rows } = await migrator.query<{ relname: string; relrowsecurity: boolean }>(
       `select relname, relrowsecurity from pg_class
@@ -441,10 +592,15 @@ describe.skipIf(!migratorUrl || !applicationUrl)("the schema, against a real Pos
     );
 
     expect(rows).toEqual([
+      { relname: "account", relrowsecurity: true },
+      { relname: "rate_limit", relrowsecurity: true },
+      { relname: "session", relrowsecurity: true },
       { relname: "snapshot", relrowsecurity: true },
       { relname: "source", relrowsecurity: false },
       { relname: "story", relrowsecurity: true },
       { relname: "tombstone", relrowsecurity: true },
+      { relname: "user", relrowsecurity: true },
+      { relname: "verification", relrowsecurity: true },
     ]);
   });
 
@@ -456,7 +612,12 @@ describe.skipIf(!migratorUrl || !applicationUrl)("the schema, against a real Pos
   // `has_table_privilege` rather than a read of `relacl`, because the ACL is not the whole
   // answer: a privilege reaching the role through PUBLIC or through role membership is written
   // nowhere in `relacl` and is just as real. This asks the question that matters instead.
-  test("the application role may read every table and write none", async () => {
+  //
+  // **Asked of both roles, from one query written once.** Since CAN-24 A signed-in and a signed-out
+  // path there are two roles whose reach has to be pinned, and they are pinned by the same four
+  // questions over the same nine tables — so what differs between the two tests below is the
+  // expected table and nothing else.
+  async function whatEachTableAllows(role: string) {
     const { rows } = await migrator.query<{
       relname: string;
       may_select: boolean;
@@ -465,21 +626,69 @@ describe.skipIf(!migratorUrl || !applicationUrl)("the schema, against a real Pos
       may_delete: boolean;
     }>(
       `select c.relname,
-              has_table_privilege('canoncore_app', c.oid, 'SELECT') as may_select,
-              has_table_privilege('canoncore_app', c.oid, 'INSERT') as may_insert,
-              has_table_privilege('canoncore_app', c.oid, 'UPDATE') as may_update,
-              has_table_privilege('canoncore_app', c.oid, 'DELETE') as may_delete
+              has_table_privilege($1, c.oid, 'SELECT') as may_select,
+              has_table_privilege($1, c.oid, 'INSERT') as may_insert,
+              has_table_privilege($1, c.oid, 'UPDATE') as may_update,
+              has_table_privilege($1, c.oid, 'DELETE') as may_delete
          from pg_class c
         where c.relnamespace = 'public'::regnamespace and c.relkind in ('r', 'p', 'f', 'm')
         order by c.relname`,
+      [role],
     );
+    return rows;
+  }
 
-    const readOnly = { may_select: true, may_insert: false, may_update: false, may_delete: false };
-    expect(rows).toEqual([
+  const readOnly = { may_select: true, may_insert: false, may_update: false, may_delete: false };
+  /** No privilege at all, which is a refusal the role gets told about rather than an empty result. */
+  const unreachable = {
+    may_select: false,
+    may_insert: false,
+    may_update: false,
+    may_delete: false,
+  };
+
+  test("the application role may read every table and write none", async () => {
+    expect(await whatEachTableAllows("canoncore_app")).toEqual([
+      // Not `readOnly`: a password hash has no application reader, so the answer is no privilege
+      // rather than a policy that returns nothing. Migration 0009 says why for all three.
+      { relname: "account", ...unreachable },
+      { relname: "rate_limit", ...unreachable },
+      { relname: "session", ...readOnly },
       { relname: "snapshot", ...readOnly },
       { relname: "source", ...readOnly },
       { relname: "story", ...readOnly },
       { relname: "tombstone", ...readOnly },
+      { relname: "user", ...readOnly },
+      { relname: "verification", ...unreachable },
+    ]);
+  });
+
+  /**
+   * The fifth tripwire, added with the third role: **what better-auth's role may do, asked of every
+   * table rather than of the five it is meant to reach.**
+   *
+   * The four rows of `false` are the half that matters, and they are not covered by the policies:
+   * `canoncore_auth` has no policy on `story`, `source`, `snapshot` or `tombstone`, so a *read*
+   * would return nothing — but a write would succeed, because no policy at all is not the same as a
+   * restrictive one. Only the absent grant refuses it, and only this test can see that.
+   */
+  test("the auth role may write its own five tables and reach no other", async () => {
+    const writable = {
+      may_select: true,
+      may_insert: true,
+      may_update: true,
+      may_delete: true,
+    };
+    expect(await whatEachTableAllows("canoncore_auth")).toEqual([
+      { relname: "account", ...writable },
+      { relname: "rate_limit", ...writable },
+      { relname: "session", ...writable },
+      { relname: "snapshot", ...unreachable },
+      { relname: "source", ...unreachable },
+      { relname: "story", ...unreachable },
+      { relname: "tombstone", ...unreachable },
+      { relname: "user", ...writable },
+      { relname: "verification", ...writable },
     ]);
   });
 
@@ -766,12 +975,17 @@ describe.skipIf(!migratorUrl || !applicationUrl)("the schema, against a real Pos
     //
     // The record's contents rather than a live read: the test above is the live one, and this is why
     // a new table has to be written down here by hand.
-    test("classifies exactly four tables, and names each of them", () => {
+    test("classifies exactly nine tables, and names each of them", () => {
       expect(Object.keys(howThePurgeTreatsEachTable).sort()).toEqual([
+        "account",
+        "rate_limit",
+        "session",
         "snapshot",
         "source",
         "story",
         "tombstone",
+        "user",
+        "verification",
       ]);
     });
   });
@@ -852,6 +1066,391 @@ describe.skipIf(!migratorUrl || !applicationUrl)("the schema, against a real Pos
   });
 
   // The half of `/api/health` that a fake ask cannot reach. `health.test.ts` proves what the
+  /**
+   * The whole of what CAN-24 A signed-in and a signed-out path joins together, exercised through the
+   * route a browser actually posts to rather than through `auth.api`.
+   *
+   * **Through the route on purpose.** `auth.api.signInEmail` is not rate limited — better-auth states
+   * that server-side calls are exempt — and it never produces the redirect a form needs, so a test
+   * using it would pass while neither the limiter nor the redirect existed.
+   * `../app/api/auth/[...all]/route.ts` has the argument.
+   */
+  describe("signing up, signing in and signing out", () => {
+    const signUp = (account: typeof firstAccount, ip = freshAddress()) =>
+      authPost(formPost("/api/auth/sign-up/email", { ...account }, ip));
+
+    const signIn = (credentials: { email: string; password: string }, ip = freshAddress()) =>
+      authPost(
+        formPost(
+          "/api/auth/sign-in/email",
+          { email: credentials.email, password: credentials.password },
+          ip,
+        ),
+      );
+
+    /** The session behind a cookie, read exactly as `viewer.ts` reads it. */
+    const sessionBehind = (cookie: string) =>
+      auth().api.getSession({ headers: new Headers({ cookie }) });
+
+    const userIdBehind = async (cookie: string) => (await sessionBehind(cookie))?.user.id;
+
+    /**
+     * Both accounts, created before any test runs rather than by one of them.
+     *
+     * **A test must not depend on a sibling's side effect**, and the first draft of this file did:
+     * the cross-tenant reads below read the ids that the sign-up test happened to have created, so
+     * running one test alone left them undefined and inserted a null owner.
+     */
+    beforeAll(async () => {
+      for (const account of [firstAccount, secondAccount]) {
+        const created = await signUp(account);
+        expect(created.headers.get("location")).toBe("/sign-in?created");
+      }
+    });
+
+    // A plain form, with no JavaScript anywhere in it. Two things are asserted at once and both
+    // matter: that better-auth accepts a form-encoded body at all, and that what comes back is a
+    // redirect a browser can follow rather than the JSON it answers a `fetch` with.
+    test("a plain HTML form creates an account, and the browser is redirected", async () => {
+      const email = `plain-form@${testEmailDomain}`;
+      const response = await signUp({ ...firstAccount, email });
+
+      expect(response.status).toBe(303);
+      // To sign-in rather than home, because signing up deliberately does not sign you in:
+      // `auth/auth.ts` -> `autoSignIn` is what switches the enumeration protection on.
+      expect(response.headers.get("location")).toBe("/sign-in?created");
+
+      const { rows } = await migrator.query<{ email: string; email_verified: boolean }>(
+        'select email, email_verified from "user" where email = $1',
+        [email],
+      );
+      // `false`, and it stays false: verification needs a mail provider and is CAN-31 Email
+      // verification and password reset.
+      expect(rows).toEqual([{ email, email_verified: false }]);
+    });
+
+    test("signing in issues a session cookie, and the cookie has no Domain", async () => {
+      const response = await signIn(firstAccount);
+
+      expect(response.status).toBe(303);
+      expect(response.headers.get("location")).toBe("/");
+
+      const sessionCookie = response.headers
+        .getSetCookie()
+        .find((cookie) => cookie.startsWith("better-auth.session_token="));
+      expect(sessionCookie).toBeDefined();
+
+      // ADR-0010's reason for `www` being canonical is a host-only cookie. `Domain=` is what
+      // `vercel:auth` and most better-auth examples suggest, and it is the thing not to add — so its
+      // absence is asserted rather than trusted to a default.
+      expect(sessionCookie).not.toMatch(/;\s*Domain=/i);
+      expect(sessionCookie).toMatch(/;\s*HttpOnly/i);
+      expect(sessionCookie).toMatch(/;\s*SameSite=Lax/i);
+    });
+
+    // **The seam this ticket is about.** better-auth resolved the cookie as `canoncore_auth`; the id
+    // it hands back is what `page.tsx` gives `withSession`, which is what `SET LOCAL` sets and every
+    // policy compares against. This asserts the two identities are one value rather than two that
+    // happen to agree.
+    test("the id behind the cookie is the id SET LOCAL sets", async () => {
+      const cookie = cookieFrom(await signIn(firstAccount));
+      const userId = await userIdBehind(cookie);
+      expect(userId).toBeDefined();
+
+      const sessionUser = await withSession(userId!, async (session) => {
+        const result = await session.execute<{ who: string }>(
+          sql`select current_setting(${sessionUserSetting}, true) as who`,
+        );
+        return result.rows[0]?.who;
+      });
+
+      expect(sessionUser).toBe(userId);
+    });
+
+    // A session survives a page load, which is not the same claim as "signing in worked": the cookie
+    // has to still resolve on a *later* request that kept nothing but the cookie.
+    test("a session survives a page load", async () => {
+      const cookie = cookieFrom(await signIn(firstAccount));
+
+      const first = await userIdBehind(cookie);
+      const second = await userIdBehind(cookie);
+
+      expect(first).toBeDefined();
+      expect(second).toBe(first);
+    });
+
+    /**
+     * Signing out, and the `415` this suite failed to catch once already.
+     *
+     * `/sign-out` declares no allowed media types and so inherits `application/json`, so a browser's
+     * form post is refused — and the first version of this test passed anyway, because a `Request`
+     * built with no `body` option has a null body while a browser sends an empty string. It was
+     * asserting the inference rather than the behaviour. `route.ts` now converts every form post and
+     * `formPost` sends an empty body exactly as a browser does, so this asserts the real case.
+     *
+     * The `not.toBe(415)` is redundant beside the `303` while both hold, and it is the line that
+     * names what went wrong if that conversion is ever removed.
+     */
+    test("a form with no fields signs out, and deletes that session and no other", async () => {
+      const otherCookie = cookieFrom(await signIn(firstAccount));
+      const cookie = cookieFrom(await signIn(firstAccount));
+      const signedIn = await sessionBehind(cookie);
+      const sessionId = signedIn!.session.id;
+
+      const response = await authPost(formPost("/api/auth/sign-out", {}, freshAddress(), cookie));
+
+      expect(response.status).not.toBe(415);
+      expect(response.status).toBe(303);
+      expect(response.headers.get("location")).toBe("/");
+      await expect(userIdBehind(cookie)).resolves.toBeUndefined();
+
+      const gone = await migrator.query('select 1 from "session" where id = $1', [sessionId]);
+      expect(gone.rowCount).toBe(0);
+      // Signing out of one browser is not signing out of every browser, and the difference is worth
+      // pinning: better-auth deletes the session the cookie names and no other.
+      await expect(userIdBehind(otherCookie)).resolves.toBe(signedIn!.user.id);
+    });
+
+    test("a wrong password is refused, and says which page to go back to", async () => {
+      const response = await signIn({
+        email: firstAccount.email,
+        password: "not-the-right-password",
+      });
+
+      expect(response.status).toBe(303);
+      // A code, never better-auth's message: `auth/failures.ts` says why the page renders a sentence
+      // of its own instead. One code covers a wrong password and an unknown address, so the answer
+      // cannot be read as "does this person have an account".
+      expect(response.headers.get("location")).toBe("/sign-in?error=INVALID_EMAIL_OR_PASSWORD");
+    });
+
+    // The floor raised from better-auth's default of 8. Asserted as a refusal rather than as the
+    // presence of `minPasswordLength`, which is a setting a typo could satisfy.
+    test("a password shorter than the minimum is refused", async () => {
+      const email = `too-short@${testEmailDomain}`;
+      const response = await signUp({
+        ...firstAccount,
+        email,
+        password: "a".repeat(passwordMinimum - 1),
+      });
+
+      expect(response.headers.get("location")).toBe("/sign-up?error=PASSWORD_TOO_SHORT");
+
+      const { rowCount } = await migrator.query('select 1 from "user" where email = $1', [email]);
+      expect(rowCount).toBe(0);
+    });
+
+    // The enumeration protection `autoSignIn: false` switches on. Without it better-auth answers
+    // `422 USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL`, which tells any caller whether a given person has
+    // an account here. What is asserted is that the answer is *indistinguishable* from the one a free
+    // address gets, and that no second row was written.
+    test("signing up with an address already in use gives nothing away", async () => {
+      const response = await signUp(firstAccount);
+
+      expect(response.status).toBe(303);
+      expect(response.headers.get("location")).toBe("/sign-in?created");
+
+      const { rowCount } = await migrator.query('select 1 from "user" where email = $1', [
+        firstAccount.email,
+      ]);
+      expect(rowCount).toBe(1);
+    });
+
+    /**
+     * **Repeated failed sign-ins are actually refused**, which is the criterion, and a different
+     * claim from "rate limiting is configured".
+     *
+     * `/sign-in/email` allows 3 in 10 seconds, so the fourth attempt is the one that must be refused.
+     * The refusal is a `429`, which `route.ts` turns into `?error=TOO_MANY_REQUESTS` for a browser, so
+     * both halves are asserted: the request is refused, and the reader is told why.
+     *
+     * **And that the counter is in the database rather than in memory**, which is the whole of the
+     * hardening item: a memory-backed counter is per-process, and Vercel Functions are per-invocation
+     * isolates, so it would enforce nothing in production while passing a test exactly like this one.
+     * The row is what distinguishes the two.
+     *
+     * **The one address in this file that is deliberately reused.** Everywhere else a fresh one keeps
+     * tests out of each other's window; here sharing it is the whole experiment.
+     */
+    test("a fourth failed sign-in in ten seconds is refused, from a counter in the database", async () => {
+      const attacker = freshAddress();
+      const attempt = () =>
+        signIn({ email: firstAccount.email, password: "still-not-the-password" }, attacker);
+
+      for (let made = 0; made < 3; made++) {
+        const allowed = await attempt();
+        expect(allowed.headers.get("location")).toBe("/sign-in?error=INVALID_EMAIL_OR_PASSWORD");
+      }
+
+      const refused = await attempt();
+      expect(refused.headers.get("location")).toBe("/sign-in?error=TOO_MANY_REQUESTS");
+
+      const { rows } = await migrator.query<{ key: string; count: number }>(
+        "select key, count from rate_limit where key = $1",
+        [`${attacker}|/sign-in/email`],
+      );
+      expect(rows).toEqual([{ key: `${attacker}|/sign-in/email`, count: 3 }]);
+    });
+
+    // What a `fetch` client gets, which is the other half of `route.ts`'s one decision: no
+    // `sec-fetch-mode: navigate`, so better-auth's own answer passes through untouched. Asserted
+    // because the redirect has to be an addition for browsers rather than a change to the endpoint.
+    test("a fetch client gets better-auth's own JSON, not a redirect", async () => {
+      const response = await authPost(
+        new Request(`${origin}/api/auth/sign-in/email`, {
+          method: "POST",
+          headers: {
+            "content-type": "application/json",
+            origin,
+            "x-forwarded-for": freshAddress(),
+          },
+          body: JSON.stringify({ email: firstAccount.email, password: firstAccount.password }),
+        }),
+      );
+
+      expect(response.status).toBe(200);
+      expect(response.headers.get("content-type")).toContain("application/json");
+      const body = (await response.json()) as { user?: { email?: string } };
+      expect(body.user?.email).toBe(firstAccount.email);
+    });
+
+    // The three-way claim the ticket makes about a private Story, asserted through the page's own
+    // query so the policy is the only filter. The owner here is a real signed-in identity rather than
+    // one of the string fixtures the rest of this file uses.
+    describe("what a signed-in reader may read", () => {
+      const privateStory = { id: "1c1c1c1c-1c1c-4c1c-8c1c-1c1c1c1c1c1c", title: "A private Story" };
+      let ownerId: string;
+      let strangerId: string;
+
+      beforeAll(async () => {
+        ownerId = (await userIdBehind(cookieFrom(await signIn(firstAccount))))!;
+        strangerId = (await userIdBehind(cookieFrom(await signIn(secondAccount))))!;
+
+        // Written by the role that owns the table, because the application role holds SELECT and
+        // nothing else. Nothing in this release lets a person create a Story, so the row an owner
+        // reads has to be put there by the migrator.
+        await migrator.query(
+          "insert into story (id, title, owner_id, visibility) values ($1, $2, $3, 'private')",
+          [privateStory.id, privateStory.title, ownerId],
+        );
+      });
+
+      afterAll(async () => {
+        await migrator?.query("delete from story where id = $1", [privateStory.id]);
+      });
+
+      test("the owner sees their own private Story", async () => {
+        const titles = (await readVisibleStories(ownerId)).map((story) => story.title);
+        expect(titles).toContain(privateStory.title);
+      });
+
+      test("a different signed-in reader does not", async () => {
+        const titles = (await readVisibleStories(strangerId)).map((story) => story.title);
+        expect(titles).not.toContain(privateStory.title);
+      });
+
+      test("an anonymous visitor sees neither, and still sees the public Story", async () => {
+        const titles = (await readVisibleStories(anonymous)).map((story) => story.title);
+        expect(titles).not.toContain(privateStory.title);
+        expect(titles).toContain(foundingStory.title);
+      });
+    });
+  });
+
+  /**
+   * The cross-tenant read tests ADR-0005 rule 2 requires of better-auth's own user-scoped tables.
+   *
+   * **The reader here is `canoncore_app`, never `canoncore_auth`.** better-auth's own role reads every
+   * row of these tables and has to — `auth/auth.ts` says why — so the tenant question is only ever
+   * about the role every page runs as. It is granted `SELECT` on two of the five and nothing on the
+   * other three, and both halves are asserted: a policy narrows what it can see, and a missing grant
+   * refuses the rest outright.
+   */
+  describe("row-level security on better-auth's own tables", () => {
+    let ownerId: string;
+    let strangerId: string;
+
+    beforeAll(async () => {
+      const { rows } = await migrator.query<{ id: string; email: string }>(
+        'select id, email from "user" where email = any($1)',
+        [[firstAccount.email, secondAccount.email]],
+      );
+      ownerId = rows.find((row) => row.email === firstAccount.email)!.id;
+      strangerId = rows.find((row) => row.email === secondAccount.email)!.id;
+    });
+
+    /** No `where` clause, so the policy is the filter — the shape of every read in this file. */
+    const readUsersAs = (userId: string) =>
+      withSession(userId, async (session) => {
+        const result = await session.execute<{ id: string; email: string }>(
+          sql`select id, email from "user"`,
+        );
+        return result.rows;
+      });
+
+    const readSessionsAs = (userId: string) =>
+      withSession(userId, async (session) => {
+        const result = await session.execute<{ user_id: string }>(
+          sql`select user_id from "session"`,
+        );
+        return result.rows;
+      });
+
+    test("a reader sees their own user row and no other", async () => {
+      expect(await readUsersAs(ownerId)).toEqual([{ id: ownerId, email: firstAccount.email }]);
+    });
+
+    test("a cross-tenant read of user returns zero rows", async () => {
+      const rows = await readUsersAs(strangerId);
+      expect(rows.map((row) => row.id)).not.toContain(ownerId);
+      expect(rows.map((row) => row.email)).not.toContain(firstAccount.email);
+    });
+
+    test("a session that sets nothing at all reads no user", async () => {
+      expect(await readUsersAs(anonymous)).toEqual([]);
+    });
+
+    test("a reader sees their own sessions and nobody else's", async () => {
+      const rows = await readSessionsAs(ownerId);
+      expect(rows.length).toBeGreaterThan(0);
+      expect(rows.every((row) => row.user_id === ownerId)).toBe(true);
+    });
+
+    test("a cross-tenant read of session returns zero rows", async () => {
+      const rows = await readSessionsAs(strangerId);
+      expect(rows.map((row) => row.user_id)).not.toContain(ownerId);
+    });
+
+    test("a session that sets nothing at all reads no session row", async () => {
+      expect(await readSessionsAs(anonymous)).toEqual([]);
+    });
+
+    /**
+     * The three tables the application role is granted nothing on, asserted as the loud refusal they
+     * are rather than as an empty result.
+     *
+     * **`account` is the one that matters most**: it holds the scrypt password hash. A policy
+     * returning no rows and a privilege that does not exist look identical to a caller that only
+     * counts rows, and only one of them fails closed when somebody adds a grant. So the *reason* is
+     * asserted, not just the throw.
+     *
+     * The reason is read off `cause`, because drizzle replaces the message with `Failed query: …` and
+     * keeps PostgreSQL's own underneath.
+     */
+    test.each(["account", "verification", "rate_limit"])(
+      "the application role is refused %s outright",
+      async (table) => {
+        const refusal = await whyRefused(() =>
+          withSession(anonymous, (session) =>
+            session.execute(sql`select 1 from ${sql.identifier(table)}`),
+          ),
+        );
+
+        expect(refusal).toBe(`permission denied for table ${table}`);
+      },
+    );
+  });
+
   // check does with an ask that fails; this proves the real ask succeeds against a database that
   // is up, through the application role, which is the answer the monitor reads as "the site is
   // fine" every five minutes.
