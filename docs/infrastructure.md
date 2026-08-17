@@ -384,8 +384,16 @@ compares, and what it cannot* below is which reaches where.
 estate has several projects and this table reaches one. **Each provider repository holds the roster
 for its own credentials**; the pointer here is *Where a Source credential lives* below.
 
-*Read back from `vercel env ls --project canoncore` on 15 August 2026, and `gh secret list` on
+*Read back from `vercel env ls --project canoncore` on 17 August 2026, and `gh secret list` on
 16 August 2026.*
+
+> **Both `NEON_*` rows were created Sensitive and had to be replaced.** `vercel env add` stores a
+> Preview or Production value as Sensitive unless `--no-sensitive` is passed, and a Sensitive value
+> cannot be read back by anyone — which would have broken two things this design rests on: the
+> roster check compares sensitivity and would have failed, and
+> [`../scripts/apply-migrations-ahead-of-merge.sh`](../scripts/apply-migrations-ahead-of-merge.sh)
+> asks a human to paste the host it pulls from here. Both were removed and re-added with
+> `--no-sensitive`, and the values were read back with `vercel env pull` to prove it took.
 
 | Variable | Holder | Environments | Sensitivity | What it is |
 | --- | --- | --- | --- | --- |
@@ -699,7 +707,7 @@ whatever noticed can mint the replacement, is wrong in one direction only.
 | Provider | Neon, via the Vercel-managed marketplace integration |
 | Neon project | `steep-wave-52467839`, resource `store_ft1xdGxeaZQCEbN7` |
 | Production branch | `main` (Neon's default branch). It shares a name with the repository's `main` and is a different thing |
-| Preview branch | **One**, named `preview`, `PREVIEW_BRANCH_ID_PENDING` — schema-only, shared by every preview deployment, and holding no production row. *The shared preview branch* below is what it is and how it is kept level |
+| Preview branch | **One**, named `preview`, `br-calm-flower-zame56ly` — schema-only, shared by every preview deployment, and holding no production row. *The shared preview branch* below is what it is and how it is kept level |
 | Region | `eu-west-2` (London) |
 | Plan | Launch, billed through Vercel. **Five root branches**, of which `main` and `preview` are two |
 | Neon Auth | **Disabled**, recorded 10 August 2026 by CAN-18 Provision the Vercel project, the Neon database and the production domain and unchanged since. The reason is [ADR-0016](adr/0016-provisioning-plain-api-keys-neon-excepted.md) → *What will try to reopen it*, which also records why the reason this row used to give stopped being true |
@@ -926,7 +934,7 @@ always bypass the row security system."*
 
 ### The shared preview branch
 
-**One Neon branch serves every preview deployment**: `preview`, `PREVIEW_BRANCH_ID_PENDING`, created
+**One Neon branch serves every preview deployment**: `preview`, `br-calm-flower-zame56ly`, created
 `init_source: schema-only` from `main` on 17 August 2026 by **CAN-79 Previews clone production rows,
 and the integration has no switch to stop it**. It holds `main`'s schema and **no row of `main`'s
 data** — which is the whole of what the ticket bought, and
@@ -940,6 +948,21 @@ one branch per deployment, and what it cost.
 | Roles on it | `canoncore_migrator`, `canoncore_app` and `canoncore_auth`, at the same passwords as on `main` — a Neon role is a property of the project, not of a branch |
 | Expiry | **None, deliberately.** A branch that expires takes its host with it, and the host is a Vercel variable; `expires_at` here would break every preview on a timer nobody set a reminder for |
 | Reset from parent | **Not available.** A schema-only branch has no parent, so *Migrations* below is the only way its schema moves |
+
+> **What was read back on 17 August 2026, rather than taken from the dialog.** The API reports
+> `parent_id` absent and `init_source: parent-schema`, which is its name for schema-only, and the
+> Console labels the row **Schema-only**. `story`, `source` and `user` are all empty while
+> production's `story` has a row — **the criterion is a row count, not a settings field**, because
+> only a row count would notice a branch quietly replaced by a clone. All three roles exist on it
+> with the exact matrix *Roles* below records — `canoncore_app` holds `SELECT` on `story` and
+> nothing on `user`, `canoncore_auth` the reverse, neither with `BYPASSRLS` — so schema-only does
+> carry grants and policies, and a Neon role does belong to the project rather than to a branch.
+> Both were assumptions until they were read.
+>
+> **The branch count went from 62 to 2 in the same change**, the other 61 being the integration's
+> `parent-data` clones. Every one was checked as `creation_source: vercel`, `init_source:
+> parent-data` and named `preview/*` before deletion, and none backed an open pull request: there
+> were none, and `origin` held only `main`.
 
 **Its Drizzle journal arrived empty, and that is the one trap in provisioning it.** Schema-only
 copies every table and no row, so `drizzle.__drizzle_migrations` landed present and empty beside a
