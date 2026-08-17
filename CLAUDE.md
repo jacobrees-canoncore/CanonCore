@@ -76,7 +76,7 @@ failure is silent.
 a shell** — no source-specific code, no *Source* credential — and every Source is reached through a
 **Provider** in its own repository: [ADR-0014](docs/adr/0014-shell-providers-and-per-source-retention.md).
 
-**Working in the repo.** `pnpm install`, then `pnpm --filter @canoncore/web dev`. The four CI gates
+**Working in the repo.** `pnpm install`, then `pnpm --filter @canoncore/web dev`. The CI gates
 and the Playwright suite are in `docs/agents/workflow.md`; `node scripts/check-docs.ts` checks these
 documents against the live sources and runs in CI. Coding standards, and what overrides a reviewer's
 default heuristics: `CODING_STANDARDS.md`.

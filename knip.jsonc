@@ -1,0 +1,42 @@
+// What is in the repository and reaches nothing: unused files, unused dependencies, unused exports.
+//
+// One run at the root covers all four workspace members, which is why this is a root config and a
+// root `knip` script rather than a per-member one. Knip reads `pnpm-workspace.yaml` itself and
+// analyses each member in its own right, so a dependency listed in `apps/web` and used only in
+// `scripts` is still reported.
+//
+// The baseline was made clean rather than ignored — CAN-61 Keep the codebase and its dependencies
+// from silting up requires that, on the reasoning that a report nobody expects to be empty is a
+// report nobody reads. The single override below is the one thing that could not be fixed at the
+// source, and it says why. Where this runs in CI, and why it runs where it does:
+// docs/agents/workflow.md -> The gates.
+{
+  // `schema-jsonc.json` rather than `schema.json`: knip ships both, and the JSONC one is the schema
+  // for this file type — it is what allows the comments above and below.
+  "$schema": "https://unpkg.com/knip@6/schema-jsonc.json",
+  "workspaces": {
+    "apps/web": {
+      // The drizzle plugin's whole job is to load `drizzle.config.ts` and read the `schema` and
+      // `out` paths out of it. It cannot here: that file throws at import when
+      // `MIGRATION_DATABASE_URL` is unset, deliberately, because a migration run against no
+      // credential is worse than one that stops. Nobody holds that credential on a laptop and the
+      // CI job holds it only on `main`, so the plugin would error on almost every run.
+      //
+      // So the plugin is told to load nothing, and the two paths it would have derived are named
+      // here instead. `schema.ts` is the load-bearing one: drizzle-kit reads it through the config
+      // rather than through an import, so without it every `pgRole` and `pgEnum` in that file
+      // reads as an export nothing consumes.
+      //
+      // **What this costs: every export in `schema.ts` is exempt, not only the ones drizzle-kit
+      // reaches.** An entry file is a root of the graph, so a genuinely dead export added to that
+      // file later will not be reported. That is worth knowing and is not worth fixing here,
+      // because it is what a working plugin does too — `resolveConfig` returns
+      // `[config.schema].flat().map(id => toProductionEntry(id))`
+      // (`knip/dist/plugins/drizzle/index.js`), so the exemption is knip's design for drizzle
+      // schemas rather than something this override introduces. Naming the file here reproduces
+      // the plugin's output exactly; it does not widen it.
+      "drizzle": { "config": [] },
+      "entry": ["drizzle.config.ts", "src/db/schema.ts"]
+    }
+  }
+}

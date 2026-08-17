@@ -210,10 +210,11 @@ What has to be true before a branch lands. **The repo's own checks**, run in Git
 push and re-runnable locally:
 
 ```bash
-pnpm -r test
-pnpm -r typecheck
-pnpm -r lint
-pnpm -r build
+pnpm -r run test
+pnpm -r run typecheck
+pnpm -r run lint
+pnpm -r run build
+pnpm run knip
 ```
 
 Three commands rather than one for the first three. `pnpm -r test typecheck lint` looks equivalent
@@ -223,17 +224,41 @@ and is not — pnpm passes words after the script name to that script as argumen
 (*attribution corrected 16 August 2026*) — and it buys nothing here
 ([pnpm run](https://pnpm.io/cli/run)). Use `pnpm --filter` to scope to one workspace while iterating.
 
+**`run` is spelled out rather than left to pnpm's shorthand**, which is a change of 17 August 2026
+and not a stylistic one. Knip's shell parser reads `pnpm -r typecheck` as a call to a binary named
+`typecheck` and reports it as unlisted; the alternative was an `ignoreBinaries` entry per script,
+which would suppress a genuinely missing binary of that name for ever. The shorthand still works —
+nothing enforces the longer form except that the shorter one makes the gate below noisy.
+
 **The fourth is deliberately not one of the three.** `next build` fails on things the others cannot
 see — a server-only API reached from a client component, a page that throws during static
 generation, an environment variable nobody set ([`apps/web/src/env.ts`](../../apps/web/src/env.ts))
 — and without it the first machine to find out is the one doing the deploy. The three are what
 CAN-22 required; this one is ours.
 
-**A fifth step audits the dependency tree**, `pnpm audit --audit-level=high`, added by **CAN-54 Fail
+**A fifth finds what is in the repository and reaches nothing**, `pnpm run knip`, added by **CAN-61 Keep
+the codebase and its dependencies from silting up** — unused files, unused dependencies and unused
+exports, across all four workspace members from one run at the root. It is with the four above
+rather than with the two below because its verdict is a property of this commit and the lockfile:
+nothing published overnight can turn it red, which is the line that separates these five from the
+two whose sources are remote.
+
+**Its baseline is clean rather than ignored, and that is the standing requirement.** A report nobody
+expects to be empty is a report nobody reads, so what the first run found was fixed at the source —
+three `export` keywords on things nothing outside their own module used. `knip.jsonc` carries **no
+ignore list**; what it does carry is two overrides for one workspace, both there to reproduce what
+knip's own Drizzle plugin would have derived if `drizzle.config.ts` could be loaded without a
+credential. That file argues for them, and names what the second one costs: `apps/web/src/db/schema.ts`
+is an entry, so every export in it is exempt rather than only the ones drizzle-kit reaches.
+
+When knip reports something new, the default is to delete what it found; an entry in that file is
+the exception and owes a reason beside it.
+
+**A sixth step audits the dependency tree**, `pnpm audit --audit-level=high`, added by **CAN-54 Fail
 a push that adds a known-vulnerable dependency**. **This file owns the three decisions in that line**,
 and `ci.yml` points here rather than repeating them:
 
-- **It runs after the four**, for the reason the documents check runs after them too. An advisory
+- **It runs after the five**, for the reason the documents check runs after them too. An advisory
   published overnight is not a broken build, and the first failure stops the rest, so a red audit
   must not be what hides a genuine compile error from the person who caused it.
 - **`high`, not the `low` default**, is a threshold rather than a preference. The `drizzle-kit`
@@ -252,6 +277,12 @@ and `ci.yml` points here rather than repeating them:
 schedule. What is turned on, and what each is worth, is
 [`../infrastructure.md`](../infrastructure.md) → *Dependency and secret scanning*.
 
+**Neither is Renovate, which since 17 August 2026 raises the updates and merges them itself.** It is
+the one thing that reaches `main` without going through *The loop* above: no `/draft-pr`, no
+`/review-pr`, so for that weekly pull request these gates are the entire review. Why that is
+acceptable, and the three ways it fails quietly, is
+[`../infrastructure.md`](../infrastructure.md) → *Dependency updates*.
+
 **All of them run in one Actions job, in that order, so the first failure stops the rest.** That job
 is the single check a pull request reports and one of the two contexts `main`'s ruleset requires;
 [`docs/infrastructure.md`](../infrastructure.md) → *The ruleset* is the only document that names it,
@@ -259,7 +290,7 @@ and `scripts/check-docs.ts` fails the build if that name and `ci.yml` ever disag
 three commands as three contexts would require names nothing emits, which is worse than requiring
 too little — a required context that never reports blocks every merge for ever.
 
-**A sixth step checks the documents against the sources they describe**, `node scripts/check-docs.ts`
+**A seventh step checks the documents against the sources they describe**, `node scripts/check-docs.ts`
 — the required contexts, the label roster, the variable roster, the Actions secrets, the release
 token's expiry, the repository's security settings, every cross-document pointer, and `CLAUDE.md`
 against its own line target. **Not all of it reaches CI, and the difference is not an oversight:**

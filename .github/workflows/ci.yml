@@ -18,7 +18,7 @@ jobs:
     #
     # It is a summary of this job rather than a manifest of it, and deliberately so. Role
     # creation, the `vercel` install, the documents check, the migration and the promotion
-    # had all joined without it changing, and the audit below makes six. Each rename would
+    # had all joined without it changing, and the audit and knip below make seven. Each rename would
     # cost a coordinated ruleset edit, with a window in which the required context is missing
     # and the pull request cannot merge, to buy a longer string — so a step joins on its
     # merits and the name stays put. Settled by CAN-54 Fail a push that adds a
@@ -70,6 +70,9 @@ jobs:
       # two to the `test` script as arguments and silently skips them — see
       # docs/agents/workflow.md.
       #
+      # `run` is spelled out rather than left to pnpm's shorthand, and the reason is knip's shell
+      # parser: docs/agents/workflow.md -> The gates.
+      #
       # The three URLs are what let `apps/web/src/db/rls.test.ts` run at all. It fails rather
       # than skips when they are missing here — docs/agents/workflow.md -> The gates says why.
       #
@@ -77,23 +80,28 @@ jobs:
       # role of its own, because the thing that authenticates cannot be constrained by the identity
       # it establishes (`apps/web/src/auth/auth.ts`). The suite asserts what each of the three may
       # reach, so all three have to be connectable from here.
-      - run: pnpm -r test
+      - run: pnpm -r run test
         env:
           RLS_TEST_MIGRATOR_URL: postgresql://canoncore_migrator:canoncore_migrator@localhost:5432/canoncore_test
           RLS_TEST_APP_URL: postgresql://canoncore_app:canoncore_app@localhost:5432/canoncore_test
           RLS_TEST_AUTH_URL: postgresql://canoncore_auth:canoncore_auth@localhost:5432/canoncore_test
-      - run: pnpm -r typecheck
-      - run: pnpm -r lint
+      - run: pnpm -r run typecheck
+      - run: pnpm -r run lint
 
       # A fourth, and not one of the three the ticket named. `next build` fails
       # on things the other three cannot see — a server-only API reached from a
       # client component, a page that throws during static generation — and
       # without it the first machine to find out is the deploy.
-      - run: pnpm -r build
+      - run: pnpm -r run build
+
+      # A fifth, and the first that reads the whole workspace at once rather than each member in
+      # turn. Why it sits here rather than after `pnpm audit`, and what its clean baseline commits
+      # this repository to: docs/agents/workflow.md -> The gates. The config is knip.jsonc.
+      - run: pnpm run knip
 
       # A known-vulnerable dependency, failing the push rather than sitting unnoticed. Three
-      # things about this line are decisions rather than defaults — that it runs after the four
-      # above rather than before them, that the threshold is `high`, and that
+      # things about this line are decisions rather than defaults — that it runs after the build
+      # gates rather than before them, that the threshold is `high`, and that
       # `--ignore-registry-errors` is not passed. All three are argued once, in
       # docs/agents/workflow.md -> The gates.
       - run: pnpm audit --audit-level=high

@@ -1,0 +1,129 @@
+// Dependency updates: one grouped pull request a week, merged by the bot when the gates are green.
+//
+// **A merge here is a production release.** A push to `main` migrates the production database and
+// promotes the Vercel deployment (ADR-0019), so everything below is really about what is allowed
+// to release unattended. Two things make that safe, and neither is automerge being careful:
+//
+//   - **The gates run before the release steps, in the same job.** A dependency that breaks the
+//     build leaves `main` red and unreleased rather than shipping.
+//   - **A release cannot carry an npm package published in the last three days.**
+//     `security:minimumReleaseAgeNpm` below is the one that matters, and it is argued where it is
+//     extended.
+//
+// The tuning is otherwise deliberately small. Everything not set is Renovate's own default, and
+// the defaults were read from `lib/config/options/index.ts` on `renovatebot/renovate@main` rather
+// than assumed. Settled by CAN-61 Keep the codebase and its dependencies from silting up.
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+
+  // Four presets, and the last three are the ticket's three requirements taken by name rather than
+  // spelled out as cron and globs:
+  //
+  //   config:recommended   the dependency dashboard, and `group:monorepos` — which is what keeps
+  //                        `react` and `react-dom` in one pull request rather than two that have
+  //                        to land together
+  //   schedule:weekly      -> schedule:earlyMondays -> ["* 0-3 * * 1"]
+  //   group:allNonMajor    one pull request, "all non-major dependencies", matching minor + patch
+  //   :automergeMinor      automerge patch and minor "if they pass tests"
+  //
+  // Those three expansions are quoted from the preset definitions themselves rather than from the
+  // documentation site — `lib/config/presets/internal/{schedule,group,default}.preset.ts` — and each
+  // was resolved against the installed package before being relied on here.
+  //
+  // Majors are deliberately in none of them: ungrouped, unautomerged, one pull request each for a
+  // human. That is the point of grouping the rest — a major is the update worth reading.
+  // A fifth joins them, and it is the one standing between automerge and an unattended production
+  // deploy of a compromised package:
+  //
+  //   security:minimumReleaseAgeNpm    no npm release younger than three days is even raised
+  //
+  // **Automerging without a cooldown is a published attack path rather than a hypothetical one.**
+  // In the `axios` 1.14.1 compromise the malicious package "was uploaded on March 31st at 00:20 am"
+  // and "[o]nly 5 minutes later" a public repository's `package.json` had been modified; this "led
+  // to the malicious package being pushed to production code in less than an hour, as showcased by
+  // the jhipster/generator-jhipster repository", where "the upgrade was triggered at h+40mn and
+  // merged at h+56mn. All this was allowed by a combination of Dependabot and an automerge workflow
+  // in the CI/CD pipeline"
+  // (https://blog.gitguardian.com/renovate-dependabot-the-new-malware-delivery-system/).
+  //
+  // **That was Dependabot rather than Renovate, and it does not matter**: what carried the malware
+  // was the automerge workflow behind it, which is the shape this file configures. Three days is
+  // that article's own floor for the fix — it prescribes `"minimumReleaseAge": "3 days"` for
+  // Renovate by name — and the middle of the 3-to-7 the field settled on. It is also Renovate's own
+  // choice, the preset existing to "allow for malware researchers and scanners to (possibly) detect
+  // any malicious behaviour" (https://docs.renovatebot.com/presets-security/).
+  //
+  // **The preset rather than a bare `minimumReleaseAge: "3 days"`, and the difference is not
+  // cosmetic.** Six update types cannot carry a release timestamp — `pin`, `lockFileMaintenance`,
+  // `lockfileUpdate`, `rollback`, `bump` and `replacement` — and the default
+  // `minimumReleaseAgeBehaviour` of `timestamp-required` treats a missing timestamp as an age not
+  // yet reached, so a top-level setting holds all six *indefinitely*
+  // (https://docs.renovatebot.com/key-concepts/minimum-release-age/). That is not academic here:
+  // `config:recommended` pulls in `replacements:all`, so `replacement` updates do arise. The preset
+  // opts each of the six out by name and attaches a note to the pull request saying so
+  // (`lib/config/presets/internal/security.preset.ts`). A stall nobody is told about is the failure
+  // this repository spends `scripts/check-docs.ts` avoiding; it should not be introduced here.
+  //
+  // **npm-only is the whole surface that automerges.** The other manager in this repository is
+  // `github-actions`, and its pins are major tags — `actions/checkout@v7` — so the only update
+  // Renovate can offer is `v7 -> v8`, a major, which nothing below automerges. Every Actions bump
+  // therefore reaches a human regardless, which is what the article's warning about workflow files
+  // asks for.
+  //
+  // **It costs nothing on a security fix.** `vulnerabilityAlerts` defaults to `minimumReleaseAge:
+  // null` and `prCreation: "immediate"`, and "security updates bypass any `minimumReleaseAge`
+  // checks" (same page) — so the delay applies to routine updates and never to the one class that
+  // should not wait. `internalChecksFilter` is not set beside it either: the preset already sets
+  // `strict` per rule, and that is the global default anyway.
+  "extends": [
+    "config:recommended",
+    "schedule:weekly",
+    "group:allNonMajor",
+    ":automergeMinor",
+    "security:minimumReleaseAgeNpm"
+  ],
+
+  // The cron in `schedule:weekly` is evaluated in this zone rather than UTC, so "before 4 AM" means
+  // before 4 AM here. It matters twice a year and never otherwise.
+  "timezone": "Europe/London",
+
+  // `automergeSchedule` is deliberately absent, which leaves its default of "at any time": the
+  // grouped pull request merges as soon as the two required contexts are green, whatever hour that
+  // lands on. **This is a decision against the more common advice**, which is to hold the merge for
+  // working hours so a broken release meets someone awake. It is taken knowingly: with the cooldown
+  // above, the failure that window would catch is a legitimate update breaking the build — and that
+  // one the gates already stop before the release steps run, leaving a red `main` rather than a bad
+  // deploy. Waiting would buy a faster human response to a failure that does not reach production.
+  //
+  // Note that only automerge is unscheduled. `schedule:weekly` still confines branch and pull
+  // request *creation* to Monday: out of schedule Renovate logs "Branch + PR exists but is not
+  // scheduled -- will update if necessary" and carries on to the automerge check, which gates on
+  // `automergeSchedule` alone (`lib/workers/repository/update/branch/index.ts` and
+  // `.../update/pr/automerge.ts`). So green arriving after 4 AM does not stall the merge a week.
+
+  // **This repository's commit subjects are prose, not Conventional Commits**
+  // (docs/agents/workflow.md -> The loop), and squash-merge takes the pull request title as the
+  // subject, so a bot writing `chore(deps): …` would put the one shape this repo does not use onto
+  // `main`. The default is `auto`, which reads recent history, would find no semantic commits and
+  // switch itself off — the right answer reached by a heuristic. Disabling it outright makes the
+  // repository's own rule binding rather than incidental.
+  "semanticCommits": "disabled",
+
+  // **Renovate merges, not GitHub.** `platformAutomerge` defaults to `true`, and this repository
+  // has GitHub's auto-merge feature switched off (`allow_auto_merge: false`), which Renovate
+  // handles by logging `GitHub-native automerge: not enabled in repo settings` at debug and
+  // carrying on with its own merge (`lib/modules/platform/github/index.ts`, `tryPrAutomerge`).
+  // That is the right outcome reached silently, in a log nobody reads. Saying it here makes the
+  // config describe what actually happens.
+  //
+  // Nothing is given up by it. `main`'s ruleset requires two named contexts and has no bypass
+  // actor, and Renovate "will not automerge until it sees passing status checks / check runs for
+  // the branch" (https://docs.renovatebot.com/key-concepts/automerge/); a merge GitHub refuses for
+  // a missing check is logged and retried on the next run rather than forced.
+  "platformAutomerge": false,
+
+  // Squash is the only method this repository offers, and `main` requires linear history. The
+  // default `auto` would infer it, and Renovate's own fallback tries squash first anyway, so this
+  // changes no behaviour — it removes a guess from the path that lands commits on `main`.
+  "automergeStrategy": "squash"
+}
