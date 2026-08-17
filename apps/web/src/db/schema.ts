@@ -51,8 +51,9 @@ export const applicationRole = pgRole("canoncore_app").existing();
  * **A third role exists because the thing that authenticates cannot be constrained by the identity
  * it is establishing.** `getSession` has to find a `session` row by its *token* before it knows
  * whose it is, and signing in has to find a `user` row by *email* with no session set at all —
- * neither of which a policy keyed on `canoncore.user_id` can permit. The argument in full, and the
- * three designs it rules out, is [`../auth/auth.ts`](../auth/auth.ts).
+ * neither of which a policy keyed on `canoncore.user_id` can permit. The decision is
+ * [ADR-0021](../../../../docs/adr/0021-a-third-database-role-for-better-auth.md), which holds the
+ * argument and the three designs it rules out; [`../auth/auth.ts`](../auth/auth.ts) is the code.
  *
  * **It is not a widening of ADR-0005 rule 1.** That rule is about the role *the application*
  * connects as, and `canoncore_app` is untouched: it still holds `SELECT` and nothing else, still

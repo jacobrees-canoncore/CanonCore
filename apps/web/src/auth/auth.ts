@@ -39,6 +39,10 @@ import { Pool } from "pg";
  * and it has no `BYPASSRLS`. `schema.ts` carries the policies and `rls.test.ts` asserts the reach
  * of both roles in each direction.
  *
+ * **The decision is [ADR-0021](../../../../docs/adr/0021-a-third-database-role-for-better-auth.md)**,
+ * which is where the argument belongs rather than in this comment: it carries the three rejected
+ * designs, what bounds the role, and the five things that will try to reopen it.
+ *
  * **`canoncore_app` is unchanged by any of it** — `SELECT` only, no `BYPASSRLS`, every read through
  * a policy. ADR-0005 rule 1 is about that role, and this adds a role beside it rather than widening
  * it.

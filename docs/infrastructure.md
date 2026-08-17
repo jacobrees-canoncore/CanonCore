@@ -706,6 +706,10 @@ role has to be run by somebody holding that role's password, and is what
 
 #### Why there are three, and why the third is not a hole in ADR-0005 rule 1
 
+**The decision is [ADR-0021](adr/0021-a-third-database-role-for-better-auth.md)**, and it holds the
+argument, the three designs it rules out and what will try to reopen it. What follows here is the
+summary and the state.
+
 **The thing that authenticates cannot be constrained by the identity it is establishing.**
 `auth.api.getSession` is handed a session *token* and has to find the row bearing it before it can know
 whose it is; signing in is handed an *email* and has to find a `user` row with no session set at all. No
