@@ -1376,8 +1376,18 @@ recovers and long enough to stop a script.
 per 60s globally and 3 per 10s on `/sign-in/email`, stored in the database rather than in memory for the
 reason `apps/web/src/db/schema.ts` gives on `rate_limit`. This rule sits in front of the function, so it is
 also what keeps a flood off the 1,000,000-invocation ceiling; the inner one is what actually bounds password
-guessing, and it is the one `apps/web/src/db/rls.test.ts` asserts. **Neither is asserted from a deployment**,
-and that is a real gap: the rule's effect can only be seen by exceeding it against the live site.
+guessing, and it is the one `apps/web/src/db/rls.test.ts` asserts.
+
+> **Observed firing on production, 17 August 2026.** 65 `GET`s to
+> `https://www.canoncore.com/api/auth/does-not-exist` from one address: requests 1 to 60 answered **404**,
+> having reached the application and found no such endpoint, and 61 onward answered **403** from the
+> firewall. So the boundary is exactly the documented one, and the rule is in front of the function rather
+> than behind it — a 404 proves the request arrived, a 403 proves the next one did not.
+>
+> **The path was chosen so the test created nothing**: it reaches no better-auth endpoint, so no account,
+> session or rate-limit row was written, and no sign-in was attempted. **No test asserts this and none can**
+> — the only way to see it is to exceed the limit against the live site, which is not something to put in a
+> suite that runs on every push. This paragraph is the record instead.
 
 **Changing it is a two-step, on purpose.** `vercel firewall rules edit` stages a draft and
 `vercel firewall publish` makes it live, with `vercel firewall diff` in between; `vercel firewall discard`
