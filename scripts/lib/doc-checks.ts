@@ -354,7 +354,7 @@ export const expiryDay = (ms: number | null): string =>
 // docs/infrastructure.md → Dependency and secret scanning holds the rows and the three calls.
 
 /** Which of the three calls can answer a row, read off the source the roster names beside it. */
-export type SecuritySource =
+type SecuritySource =
   | { kind: "analysis"; field: string }
   | { kind: "alerts" }
   | { kind: "graph" }

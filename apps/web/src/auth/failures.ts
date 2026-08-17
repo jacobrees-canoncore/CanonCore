@@ -27,9 +27,14 @@ export type Failure = {
  * whose code cannot be read is still a refusal. Both are declared here, beside `reasons`, so the
  * spelling is shared with the sentences they select rather than agreed by convention across the
  * query-string boundary that separates `route.ts` from these pages.
+ *
+ * Both stay inside this module: production code reaches them only through `codeOfRefusal` and
+ * `codeFrom` below, which is the point — a caller spelling `"TOO_MANY_REQUESTS"` for itself is the
+ * convention these two exist to replace. `failures.test.ts` does write the literals, and should:
+ * a test that imported the constant would assert only that it equals itself.
  */
-export const refusedForRate = "TOO_MANY_REQUESTS";
-export const refusedWithoutSayingWhy = "UNKNOWN";
+const refusedForRate = "TOO_MANY_REQUESTS";
+const refusedWithoutSayingWhy = "UNKNOWN";
 
 /** Said the same way in both places, because it is the same refusal. */
 const tooManyRequests = "Too many attempts. Wait a moment and try again.";

@@ -117,7 +117,7 @@ back, and the first visit is the only one most of them make.
 | Status | **Closed.** Not shared |
 | Condition outstanding | [CAN-59 Decide whether the Hobby plan can carry a public service](https://linear.app/jacobrees-canoncore/issue/CAN-59) — the plan is contractually non-commercial, and the decision is recorded as an ADR either way |
 | Condition outstanding | [CAN-60 Gate the front end on bytes, budgets and React lint](https://linear.app/jacobrees-canoncore/issue/CAN-60) — the front-end quality gates, once there is a stable application to measure |
-| Condition outstanding | [CAN-61 Keep the codebase and its dependencies from silting up](https://linear.app/jacobrees-canoncore/issue/CAN-61) — the two hygiene tools whose value scales with codebase age |
+| Condition **met** | [CAN-61 Keep the codebase and its dependencies from silting up](https://linear.app/jacobrees-canoncore/issue/CAN-61) — the two hygiene tools whose value scales with codebase age. Met 17 August 2026: knip gates in CI and Renovate owns dependency updates, *Dependency updates* below. The row stays rather than being deleted, so the gate's history reads as conditions met rather than conditions dropped |
 | Condition outstanding | **An explicit acceptance of Vercel Hobby's 30-day outage risk.** Exceeding an included limit takes the feature offline until 30 days have passed, and Hobby has neither a spend cap nor a configurable usage alert ([Hobby plan](https://vercel.com/docs/plans/hobby)). No ticket owns the acceptance: **CAN-59 Decide whether the Hobby plan can carry a public service** is where the reasoning lands, and deciding to stay on Hobby is not the same as having accepted this |
 | Recorded here since | 14 August 2026, by **CAN-93 Record the three bands, the two gates and the Later queue convention** |
 
@@ -249,7 +249,7 @@ contexts; `ci.yml` runs every one of them in one job so the first failure stops 
 means the pull request reports one check. Requiring three names that nothing emits is the trap above.
 
 **The job's name does not change when a step joins**, so it is a summary of what the job runs rather
-than a manifest of it — six steps have joined without it changing. That matters here because a
+than a manifest of it — seven steps have joined without it changing. That matters here because a
 rename is an edit to this table *and* to the live ruleset. `ci.yml` carries the argument, at the name
 itself, where a rename would be typed. Settled by **CAN-54 Fail a push that adds a known-vulnerable
 dependency** on 16 August 2026.
@@ -328,14 +328,47 @@ One alert is open: `GHSA-67mh-4wv8-2f99`, a moderate `esbuild` development-serve
 us through `drizzle-kit`, which nothing here can fix.
 
 **Why the three disabled rows are off.** *Security updates* raise fix pull requests, which is
-dependency updating rather than dependency alerting, and belongs to **CAN-61 Keep the codebase and
-its dependencies from silting up** with Renovate. *Validity checks* send a candidate secret to its
+dependency updating rather than dependency alerting. It stayed off for **CAN-61 Keep the codebase
+and its dependencies from silting up** to answer, and that ticket answered it on 17 August 2026:
+**Renovate does this job now and the row stays off**, because two bots raising a fix for the same
+advisory is two pull requests to reconcile rather than one to merge. Renovate reads the same alerts
+— *Dependency updates* below is where it and its config live. *Validity checks* send a candidate secret to its
 issuer to ask whether it is live, which is a disclosure decision of its own that nothing here needs.
 *Non-provider patterns* widen scanning to shapes no issuer vouches for, and their false positives are
 what push protection would then be enforcing.
 
 **None of this is the gate.** Alerts arrive after a merge, on GitHub's schedule. The gate is a step
 in the CI job, and [`docs/agents/workflow.md`](agents/workflow.md) → *The gates* owns it.
+
+### Dependency updates
+
+**Renovate, configured by [`renovate.jsonc`](../renovate.jsonc), which owns every decision in it.**
+Provisioned by **CAN-61 Keep the codebase and its dependencies from silting up** on 17 August 2026.
+What belongs here rather than there is the part that is not in the file: what had to be installed,
+and what the arrangement costs.
+
+**It is a GitHub App and a human installs it**, at
+[github.com/apps/renovate](https://github.com/apps/renovate), on the `jacobrees-canoncore`
+organisation and scoped to this repository. Renovate reads GitHub's own Dependabot alerts to raise a
+security fix, so the app has to be granted them — *"If using the Renovate app, ensure it has read
+permissions for Dependabot alerts"* ([Configuration
+options](https://docs.renovatebot.com/configuration-options/#vulnerabilityalerts)) — and the two
+repository settings feeding those alerts are the dependency graph and Dependabot alerts, both
+**enabled** in the table above.
+
+**Install it only once `renovate.jsonc` is on `main`.** Renovate decides a repository is already
+onboarded by looking for a config file **in the default branch's file list**
+(`lib/workers/repository/onboarding/branch/check.ts`), so installing while the config sits on a
+branch makes it open a *Configure Renovate* pull request proposing a default config of its own.
+
+**Two failure modes belong to this document rather than to that file, because both are about the
+estate rather than the configuration**, and each reads as fine until it is not:
+
+- **An uninstalled Renovate is indistinguishable from a quiet week**, and so is one that has stopped
+  running: nothing alerts on either, and the config file is inert either way. The Dependency
+  Dashboard issue is where both become visible, which is the only reason it is worth having.
+- **Majors are the ones that stop**, by construction. A major pull request sitting open is the
+  system working, not a stall — so it is not evidence that anything needs looking at.
 
 ## Environment variables
 
