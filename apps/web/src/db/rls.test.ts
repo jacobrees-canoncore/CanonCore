@@ -58,6 +58,29 @@ const snapshotOfA = { id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", story: ownedBy
 const snapshotOfB = { id: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb", story: ownedByB.id };
 const snapshotOfFounding = { id: "cccccccc-cccc-4ccc-8ccc-cccccccccccc", story: foundingStory.id };
 
+/**
+ * Two tombstones, written here rather than by a purge, because what the cross-tenant tests below
+ * are about is the policy over the table and not how a row got into it. The purge that writes them
+ * for real is tested further down, from its own fixtures.
+ *
+ * A tombstone carries the Visibility its Story had, so both branches of the policy need one.
+ */
+const tombstoneOwnedByA = { id: "dddddddd-dddd-4ddd-8ddd-dddddddddddd", owner: ownedByA.owner };
+const publicTombstone = { id: "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee", owner: "founding-operator" };
+
+/**
+ * A third and a fourth Source, and a third owner's three Stories: the fixtures the purge deletes.
+ *
+ * Both retentions are finite and identical, so nothing in the purge tests turns on the clock — a
+ * licence terminating is an event, and the whole point of it is that no retention window predicts
+ * it.
+ */
+const terminatedSource = { id: "55555555-5555-4555-8555-555555555555" };
+const survivingSource = { id: "66666666-6666-4666-8666-666666666666" };
+const onlyTheTerminatedSource = { id: "77777777-7777-4777-8777-777777777777", owner: "user-c" };
+const bothSources = { id: "88888888-8888-4888-8888-888888888888", owner: "user-c" };
+const onlyTheSurvivingSource = { id: "99999999-9999-4999-8999-999999999999", owner: "user-c" };
+
 describe.skipIf(!migratorUrl || !applicationUrl)("the schema, against a real PostgreSQL", () => {
   let migrator: Client;
   let withSession: typeof import("./session").withSession;
@@ -113,6 +136,13 @@ describe.skipIf(!migratorUrl || !applicationUrl)("the schema, against a real Pos
       ],
     );
 
+    await migrator.query(
+      `insert into tombstone (id, former_type, owner_id, visibility) values
+         ($1, 'story', $2, 'private'), ($3, 'story', $4, 'public')
+       on conflict (id) do nothing`,
+      [tombstoneOwnedByA.id, tombstoneOwnedByA.owner, publicTombstone.id, publicTombstone.owner],
+    );
+
     // The application connects the way a request does, through the same modules a page uses.
     // Pointed at the application role's connection string and at nothing else, so every
     // assertion below is made by a role that cannot bypass what it is asserting about.
@@ -125,6 +155,9 @@ describe.skipIf(!migratorUrl || !applicationUrl)("the schema, against a real Pos
   });
 
   afterAll(async () => {
+    await migrator?.query("delete from tombstone where id = any($1)", [
+      [tombstoneOwnedByA.id, publicTombstone.id],
+    ]);
     await migrator?.query("delete from snapshot where id = any($1)", [
       [snapshotOfA.id, snapshotOfB.id, snapshotOfFounding.id],
     ]);
@@ -173,6 +206,24 @@ describe.skipIf(!migratorUrl || !applicationUrl)("the schema, against a real Pos
       const result = await session.execute<{ id: string; story_id: string; fetched_at: string }>(
         sql`select id, story_id, fetched_at from snapshot`,
       );
+      return result.rows;
+    });
+  }
+
+  /**
+   * The same read of `tombstone`: no `where` clause, so the policy is the filter.
+   *
+   * `former_type` and `deleted` are read rather than only the keys, because those two are the whole
+   * of what a tombstone is for — and a policy that returned somebody else's would be leaking that a
+   * record of theirs existed and when it went.
+   */
+  async function readTombstonesAs(userId: string) {
+    return withSession(userId, async (session) => {
+      const result = await session.execute<{
+        id: string;
+        former_type: string;
+        deleted: string;
+      }>(sql`select id, former_type, deleted from tombstone`);
       return result.rows;
     });
   }
@@ -311,6 +362,63 @@ describe.skipIf(!migratorUrl || !applicationUrl)("the schema, against a real Pos
     });
   });
 
+  // ADR-0005 rule 2 for the third table to have a policy. A tombstone holds no value any Source
+  // supplied, which is why it may remain at all — and it does hold the fact that one person's
+  // record existed and the moment it stopped, so it is user-scoped like `story` rather than shared
+  // like `source`.
+  //
+  // The rule is `story`'s, written a second time because it cannot be delegated: `snapshot`'s
+  // policy asks whether the Story is readable, and a tombstone exists precisely when that row does
+  // not. `schema.ts` carries that argument on the table.
+  describe("row-level security on tombstone", () => {
+    test("a reader sees their own tombstones and every public one", async () => {
+      const ids = (await readTombstonesAs(ownedByA.owner)).map((row) => row.id);
+
+      expect(ids).toContain(tombstoneOwnedByA.id);
+      expect(ids).toContain(publicTombstone.id);
+    });
+
+    test("a cross-tenant read of tombstone returns zero rows", async () => {
+      const rows = await readTombstonesAs(ownedByB.owner);
+
+      expect(rows.map((row) => row.id)).not.toContain(tombstoneOwnedByA.id);
+      expect(rows.map((row) => row.id)).toEqual([publicTombstone.id]);
+    });
+
+    test("a session that sets nothing at all reads no owned tombstones", async () => {
+      const rows = await withRawSession(async (application) => {
+        await application.query("begin");
+        const { rows } = await application.query<{ id: string }>("select id from tombstone");
+        await application.query("commit");
+        return rows;
+      });
+
+      expect(rows.map((row) => row.id)).toEqual([publicTombstone.id]);
+    });
+
+    // Decision 8's own reversal test, asked of the table rather than of a reviewer: "if the shape
+    // ever grows a title 'so the page reads better', the decision has been reversed by accident".
+    // The whole column list, for `source`'s reason below — a column called `former_title` reverses
+    // it exactly as much as one called `title`, and only an exact list catches both.
+    test("a tombstone carries the identity, the kind and the time, and nothing else", async () => {
+      const { rows } = await migrator.query<{ column_name: string }>(
+        `select column_name from information_schema.columns
+          where table_schema = 'public' and table_name = 'tombstone'
+          order by column_name`,
+      );
+
+      // `owner_id` and `visibility` are here because the policy above needs them, and neither is a
+      // value any Source supplied. Anything else arriving is the accident Decision 8 names.
+      expect(rows.map((row) => row.column_name)).toEqual([
+        "deleted",
+        "former_type",
+        "id",
+        "owner_id",
+        "visibility",
+      ]);
+    });
+  });
+
   // The first of the two tripwires, and the one that is about every table rather than about
   // `source`: a table arriving with no policy is a decision somebody has to have taken, and this
   // is where they are made to take it. It will fire when better-auth's tables land, which is the
@@ -326,6 +434,7 @@ describe.skipIf(!migratorUrl || !applicationUrl)("the schema, against a real Pos
       { relname: "snapshot", relrowsecurity: true },
       { relname: "source", relrowsecurity: false },
       { relname: "story", relrowsecurity: true },
+      { relname: "tombstone", relrowsecurity: true },
     ]);
   });
 
@@ -360,6 +469,7 @@ describe.skipIf(!migratorUrl || !applicationUrl)("the schema, against a real Pos
       { relname: "snapshot", ...readOnly },
       { relname: "source", ...readOnly },
       { relname: "story", ...readOnly },
+      { relname: "tombstone", ...readOnly },
     ]);
   });
 
@@ -461,6 +571,206 @@ describe.skipIf(!migratorUrl || !applicationUrl)("the schema, against a real Pos
           [foundingStory.id, indefiniteSource.id],
         ),
       ).rejects.toThrow(/fetched_at/);
+    });
+  });
+
+  // What `§1.D` requires when a Source's licence terminates, which is an event rather than a
+  // duration and therefore nothing `source.retention` can express:
+  // docs/adr/0014-shell-providers-and-per-source-retention.md -> It models §1.C and cannot
+  // represent §1.D. Run by hand, as `canoncore_migrator` — docs/runbook.md -> A Source's licence
+  // terminates is the procedure and names the operator.
+  //
+  // Its own fixtures, and deliberately not the ones above: a purge deletes rows, and a test that
+  // deleted the fixtures the rest of this file reads would fail whichever order vitest chose. The
+  // Sources here are a third and a fourth, and the Stories a third owner's. They are seeded and
+  // removed by this suite rather than by the file, which is what the exact reads above depend on —
+  // one of these Stories is public, and a tombstone of it outliving the suite would join them.
+  describe("purging a Source whose licence has terminated", () => {
+    let purgeSource: typeof import("./purge-source").purgeSource;
+    let assertEveryTableIsClassified: typeof import("./purge-source").assertEveryTableIsClassified;
+    let howThePurgeTreatsEachTable: typeof import("./purge-source").howThePurgeTreatsEachTable;
+    let report: Awaited<ReturnType<typeof purgeSource>>;
+
+    beforeAll(async () => {
+      ({ purgeSource, assertEveryTableIsClassified, howThePurgeTreatsEachTable } = await import(
+        "./purge-source"
+      ));
+
+      await migrator.query(
+        `insert into source (id, retention) values ($1, '6 months'), ($2, '6 months')
+         on conflict (id) do nothing`,
+        [terminatedSource.id, survivingSource.id],
+      );
+
+      // The one public Story of the three, and it is the one the purge empties: a tombstone has to
+      // carry the Visibility its Story had, and a `visibility` the purge defaulted to `private`
+      // would pass every assertion a private fixture could make.
+      await migrator.query(
+        `insert into story (id, title, owner_id, visibility) values
+           ($1, 'A Story only the terminated Source said anything about', $2, 'public'),
+           ($3, 'A Story two Sources both said something about', $4, 'private'),
+           ($5, 'A Story only the surviving Source said anything about', $6, 'private')
+         on conflict (id) do nothing`,
+        [
+          onlyTheTerminatedSource.id,
+          onlyTheTerminatedSource.owner,
+          bothSources.id,
+          bothSources.owner,
+          onlyTheSurvivingSource.id,
+          onlyTheSurvivingSource.owner,
+        ],
+      );
+
+      await migrator.query(
+        `insert into snapshot (story_id, source_id, fetched_at) values
+           ($1, $2, $3), ($4, $2, $3), ($4, $5, $3), ($6, $5, $3)`,
+        [
+          onlyTheTerminatedSource.id,
+          terminatedSource.id,
+          readLongAgo,
+          bothSources.id,
+          survivingSource.id,
+          onlyTheSurvivingSource.id,
+        ],
+      );
+
+      report = await purgeSource(migrator, terminatedSource.id);
+    });
+
+    afterAll(async () => {
+      await migrator?.query("delete from tombstone where owner_id = $1", [
+        onlyTheTerminatedSource.owner,
+      ]);
+      await migrator?.query("delete from story where id = any($1)", [
+        [onlyTheTerminatedSource.id, bothSources.id, onlyTheSurvivingSource.id],
+      ]);
+      await migrator?.query("delete from source where id = any($1)", [
+        [terminatedSource.id, survivingSource.id],
+      ]);
+    });
+
+    /** Every Snapshot of the three fixture Stories, whichever Source it came from. */
+    async function survivingSnapshots() {
+      const { rows } = await migrator.query<{ story_id: string; source_id: string }>(
+        `select story_id, source_id from snapshot where story_id = any($1) order by story_id`,
+        [[onlyTheTerminatedSource.id, bothSources.id, onlyTheSurvivingSource.id]],
+      );
+      return rows;
+    }
+
+    // The acceptance criterion in one assertion: two Sources seeded, one purged, the other proved
+    // untouched. What makes it worth asserting rather than obvious is that the purge is a
+    // cross-tenant delete over a shared table, so the predicate that selects rows is the only thing
+    // standing between "this Source's content" and everybody's.
+    test("deletes every Snapshot of the purged Source and touches no Snapshot of the other", async () => {
+      expect(report.snapshotsDeleted).toBe(2);
+      expect(await survivingSnapshots()).toEqual([
+        { story_id: bothSources.id, source_id: survivingSource.id },
+        { story_id: onlyTheSurvivingSource.id, source_id: survivingSource.id },
+      ]);
+    });
+
+    test("replaces a Story it emptied with a tombstone carrying what it was and when it went", async () => {
+      expect(report.storiesTombstoned).toEqual([onlyTheTerminatedSource.id]);
+
+      const { rows } = await migrator.query<{
+        id: string;
+        former_type: string;
+        deleted: Date;
+        owner_id: string;
+        visibility: string;
+      }>("select id, former_type, deleted, owner_id, visibility from tombstone where id = $1", [
+        onlyTheTerminatedSource.id,
+      ]);
+
+      expect(rows).toEqual([
+        {
+          id: onlyTheTerminatedSource.id,
+          former_type: "story",
+          deleted: expect.any(Date),
+          owner_id: onlyTheTerminatedSource.owner,
+          // Carried from the Story rather than defaulted, which is why this fixture is the public one.
+          visibility: "public",
+        },
+      ]);
+      // The moment the purge ran, not the moment the Story was written. Two minutes of slack rather
+      // than none, because the assertion is about which event the column records.
+      expect(Date.now() - rows[0]!.deleted.getTime()).toBeLessThan(120_000);
+
+      const { rowCount } = await migrator.query("select 1 from story where id = $1", [
+        onlyTheTerminatedSource.id,
+      ]);
+      expect(rowCount).toBe(0);
+    });
+
+    // The other half of decision 8: a record with something left is not a tombstone. Here what is
+    // left is another Source's Snapshot; when Overrides exist it will also be a value its owner
+    // typed, and the classification tripwire below is what will make that a decision rather than an
+    // omission.
+    test("leaves standing a Story another Source still says something about", async () => {
+      expect(report.storiesKeptForAnotherSource).toBe(1);
+
+      const { rows } = await migrator.query<{ id: string }>(
+        "select id from story where id = any($1) order by id",
+        [[bothSources.id, onlyTheSurvivingSource.id]],
+      );
+      expect(rows.map((row) => row.id)).toEqual([bothSources.id, onlyTheSurvivingSource.id]);
+
+      const tombstones = await migrator.query("select 1 from tombstone where id = any($1)", [
+        [bothSources.id, onlyTheSurvivingSource.id],
+      ]);
+      expect(tombstones.rowCount).toBe(0);
+    });
+
+    test("takes the Source's own row with it, and leaves the other Source's", async () => {
+      const { rows } = await migrator.query<{ id: string }>(
+        "select id from source where id = any($1)",
+        [[terminatedSource.id, survivingSource.id]],
+      );
+
+      expect(rows.map((row) => row.id)).toEqual([survivingSource.id]);
+    });
+
+    // Why deleting that row is the proof rather than a tidy-up. `snapshot.source_id` references
+    // `source` with `on delete no action`, so the statement above could only succeed because no
+    // Snapshot of it survived anywhere — including rows this transaction never looked at.
+    test("a Source cannot be deleted while a Snapshot of it survives", async () => {
+      await expect(
+        migrator.query("delete from source where id = $1", [survivingSource.id]),
+      ).rejects.toThrow(/snapshot_source_id_source_id_fk/);
+    });
+
+    // A purge of nothing reads exactly like a purge that worked, and the report it would print is
+    // the evidence that the duty was discharged. So a Source that is not there is a refusal.
+    test("refuses a Source that is not there rather than reporting a purge of nothing", async () => {
+      await expect(
+        purgeSource(migrator, "0f0f0f0f-0f0f-4f0f-8f0f-0f0f0f0f0f0f"),
+      ).rejects.toThrow(/no Source/);
+    });
+
+    // The tripwire, and the reason this ticket can land while two of the things a `§1.D` purge must
+    // reach do not exist yet: `supersededValue` and the audit payloads
+    // (docs/adr/0014-shell-providers-and-per-source-retention.md -> Decision 6, unresolved items 2
+    // and 3). A purge that silently skipped either would report success and leave Source content
+    // behind, so the shape of the schema itself is checked before anything is deleted.
+    test("refuses to run at all in a schema carrying a table nothing has classified", async () => {
+      await migrator.query("begin");
+      await migrator.query('create table "audit_payload" (id uuid primary key)');
+
+      await expect(assertEveryTableIsClassified(migrator)).rejects.toThrow(/audit_payload/);
+
+      await migrator.query("rollback");
+    });
+
+    // The same list, stated where a reader can check it against the schema rather than only being
+    // enforced. Adding a table means answering the question this record asks.
+    test("says what the purge does with every table that exists", () => {
+      expect(Object.keys(howThePurgeTreatsEachTable).sort()).toEqual([
+        "snapshot",
+        "source",
+        "story",
+        "tombstone",
+      ]);
     });
   });
 

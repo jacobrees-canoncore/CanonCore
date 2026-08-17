@@ -15,7 +15,8 @@ every five minutes and can tell you only that a check failed. Which URL it check
 setting, so [`infrastructure.md`](infrastructure.md) → *Uptime monitoring: UptimeRobot* is the one
 place that says; the URL everything below assumes is
 [`/api/health`](../apps/web/src/app/api/health/route.ts). Turning that one bit into a cause is what
-the rest of this file is.
+most of this file is. The exception is *A Source's licence terminates*, which no monitor can see and
+which starts by saying so.
 
 ## Contents
 
@@ -23,6 +24,7 @@ the rest of this file is.
 - [Triage: two requests](#triage-two-requests)
 - [The database does not answer](#the-database-does-not-answer)
 - [A Vercel Hobby usage limit tripped](#a-vercel-hobby-usage-limit-tripped)
+- [A Source's licence terminates](#a-sources-licence-terminates)
 - [The weekly usage check](#the-weekly-usage-check)
 
 ## The alert, and what it cannot tell you
@@ -142,6 +144,112 @@ before an outage rather than during one.
 
 The one thing to do *during* it: an upgrade takes effect immediately, so if the site has to be back
 today, that is the only route back.
+
+## A Source's licence terminates
+
+**Nothing pages you for this one, and that is why it is written down.** The alert route above
+watches whether the site answers; a Source's licence ending does not stop it answering. What it
+starts is a deadline.
+
+**Symptom. Four ways it happens, and the last looks exactly like an outage.** *"Your license to use
+the TMDB APIs terminates automatically if (i) TMDB determines, in its sole discretion, that You have
+violated or are in violation of these terms and conditions, (ii) TMDB publicly posts a written
+notice of termination on themoviedb.org, (iii) TMDB sends a written notice of termination to You
+(via electronic or other means), or (iv) TMDB disables Your access to the TMDB APIs"*
+([API Terms of Use](https://www.themoviedb.org/api-terms-of-use), read 17 August 2026). So a
+Provider suddenly getting 401s is one of the two things: a credential problem, or the licence gone.
+Establish which before anything else.
+
+**The deadline is real and carries no figure.** On termination *"you must promptly delete or
+otherwise purge all TMDB Content, including any cached content"* (same page). **No number of days
+appears**, which is stricter rather than kinder: *prompt* is judged after the event against how
+quickly you could have acted, and a purge that already exists as a tested command is the answer to
+that question. Act the day you learn, and let the dispatched run below be the record of when.
+
+**The operator is Jacob**, because there is nobody else and a runbook that says "an operator" says
+nothing. No credential to fetch: the workflow below already holds one.
+
+**Check, in this order.**
+
+1. **The mail on the account that registered with the Source**, Junk included — a written notice is
+   one of the four routes above. `macos-mail-mcp` reads it; note the standing rule that it may be
+   used for nothing but mail this project sent or received.
+2. **The Source's own site**, for a publicly posted notice.
+3. **The credential, by hand.** Whether the key still answers is the difference between (iv) and an
+   ordinary outage, and *"TMDB revocation is eventual"* — regenerating our own key left the old one
+   answering sixteen minutes later
+   ([incident](incidents.md#regenerating-a-tmdb-key-does-not-revoke-the-old-one-promptly)) — so a
+   key that still works is weak evidence and a key that has stopped is not proof either.
+4. **Nothing in this application can tell you.** Under
+   [ADR-0014](adr/0014-shell-providers-and-per-source-retention.md#decision-1--the-app-is-a-shell)
+   it does not know which Sources exist, and the credential lives in the Provider. There is no check
+   to add here; that is what makes the three above the procedure rather than a fallback.
+
+**Fix. One dispatched command, and read the id back first.**
+
+Step 1 is a query, run wherever you can reach the database as something other than the application
+role — the `neon` MCP's `run_sql`, the Neon console, or `psql` with `canoncore_migrator`'s string.
+**Nothing in the `source` table names which Source a row is**: it carries an id and a retention and
+deliberately nothing else, so the id has to be matched against the Provider that wrote it. When one
+identifies itself, that is a capability declaration (**CAN-104 Read a Provider's capability
+declaration, and refuse what it does not serve**).
+
+```sql
+select id, retention from source;
+```
+
+Then dispatch the purge. `--ref main` because a dispatch reads the workflow from the default branch,
+and the run's own log is the report:
+
+```bash
+gh workflow run purge-source.yml --ref main -f source_id=<id>
+gh run list --workflow purge-source.yml --limit 1        # its id, and whether it is still going
+gh run view <run-id> --log                               # what it removed
+```
+
+The run prints what it removed: Snapshots deleted, Stories tombstoned, Stories left standing because
+another Source still says something about them. **A Story it emptied is now a tombstone** — the
+identity, what kind of thing it was, and when it went, and no value any Source supplied
+([ADR-0014](adr/0014-shell-providers-and-per-source-retention.md) → *Decision 8*). Its own row is
+gone, title included: today a title has no provenance to prove it was not the Source's, and a purge
+that leaves one behind is not a purge.
+
+**It is not undoable, and it is not meant to be.** Undo works on Operations, and `CONTEXT.md`'s
+glossary says in terms that what the product does unbidden — a retention sweep, a purge — is never
+one: an undo buffer holding purged Source content would be the breach again under a friendlier
+name. It also reaches every user's rows at once, which is the obligation cost
+[ADR-0003](adr/0003-no-shared-catalogue.md) records.
+
+**Cross-check, and run it as `canoncore_migrator`.**
+
+```sql
+select (select count(*) from source   where id        = '<id>') as source_rows,
+       (select count(*) from snapshot where source_id = '<id>') as snapshot_rows;
+```
+
+Both must be `0`. Two things about this query rather than the query itself:
+
+- **The application role would answer `0` whether or not it is true.** `snapshot` is behind a policy
+  keyed on the Story's owner, so a count run as `canoncore_app` with no session user returns only
+  rows belonging to public Stories — a false negative that reads exactly like proof. Anything with
+  `BYPASSRLS` or the table owner is fine; the application role is not.
+- **A non-zero `snapshot_rows` was already impossible**, because the command deletes the `source`
+  row last and `snapshot.source_id` references it `on delete no action` — so the delete could only
+  have succeeded with no Snapshot of it left anywhere. What the query adds is a check on rows written
+  by something other than that command.
+
+**What this does not yet reach, and what stops that going quiet.** `supersededValue` and the audit
+payloads are both Source content living outside `snapshot`, and neither table exists yet
+([ADR-0014](adr/0014-shell-providers-and-per-source-retention.md) → *Decision 6*, unresolved items 2
+and 3). **The command refuses to run at all against a schema carrying a table nothing has
+classified** — `apps/web/src/db/purge-source.ts` — so the day one of them lands, the purge stops
+rather than silently under-purging. If a dispatch fails that way, the fix is to decide what the purge
+does with the new table, not to reach past it.
+
+**And today there is nothing to purge.** No Provider exists yet (**CAN-101 Create the provider-tmdb
+repository, and give it the TMDB credential**), nothing writes a `source` row, and no Snapshot has
+ever been fetched. This entry is here so that the first time it is needed is not the first time it is
+written.
 
 ## The weekly usage check
 

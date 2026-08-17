@@ -311,6 +311,27 @@ TMDB's two clauses are different shapes, and only one of them is a duration.
 **CAN-98 Make every document agree with the new architecture decisions** does not resolve these;
 they need their own decision and their own tickets.
 
+> **Amended 17 August 2026 by
+> [CAN-118 Purge every Snapshot of a Source whose licence terminates, and tombstone what it touched](https://linear.app/jacobrees-canoncore/issue/CAN-118),
+> which built the purge all four items are about.** What each is now:
+>
+> - **Item 1 stands, unresolved.** Nothing watches for termination and nothing in `apps/web` can,
+>   since under decision 1 it does not know which Sources exist. What exists is a named check, a
+>   named operator and a dispatched command — [`../runbook.md`](../runbook.md) → *A Source's licence
+>   terminates* — which is a procedure rather than a detector, and the distinction is left standing
+>   rather than papered over.
+> - **Items 2 and 3 stand, and are no longer silent.** Neither the override table nor an audit
+>   payload exists, so neither can be purged yet; the purge **refuses to run at all** against a
+>   schema carrying a table nothing has classified
+>   ([`purge-source.ts`](../../apps/web/src/db/purge-source.ts)). The day `supersededValue` or a
+>   payload lands, a dispatched purge stops instead of reporting success over content it never
+>   reached. It is a tripwire, not an answer: what the purge should *do* with `supersededValue` is
+>   still item 2's question, and ADR-0004's disjoint-tables property is still what makes it hard.
+> - **Item 4 is built.** The purge is the cross-tenant delete it describes, keyed on the Source and
+>   run as `canoncore_migrator` because the application role holds no write privilege on anything
+>   (**CAN-123 Revoke the application role's write privileges, and decide whether the blanket
+>   default privilege should exist**).
+
 ### The `/tv/changes` trap: refreshing only what changed is prohibited
 
 The obvious refresh strategy is TMDB's own changes feed — poll
@@ -476,6 +497,19 @@ shape ever grows a title "so the page reads better", the decision has been rever
 
 **What a tombstone renders as** beyond this shape is deliberately not decided here; **CAN-90 Decide
 how an Ordering reads, and what the interface calls its parts** owns it.
+
+> **The shape landed 17 August 2026** as the `tombstone` table, under
+> [CAN-118 Purge every Snapshot of a Source whose licence terminates, and tombstone what it touched](https://linear.app/jacobrees-canoncore/issue/CAN-118),
+> which needed something to write. **Its own table, with the Story's row deleted** — rather than
+> `former_type` and `deleted` columns on a `story` row that stays. Both shapes destroy the title,
+> because a purge that leaves it behind is not a purge; what separates them is which one makes the
+> accidental reversal above cheap. A table with no title column can only grow one by a migration,
+> where a surviving `story` row keeping a nullable title grows one by deleting a line — and *"the
+> object is replaced by a `Tombstone`"* is what ActivityPub describes anyway. It carries `owner_id`
+> and `visibility` as well, because a policy needs them and neither is a value a Source supplied;
+> `schema.ts` holds that argument and `rls.test.ts` asserts the whole column list against this
+> paragraph. **CAN-111 Decide and build what a dropped Story renders as still owns the 410** and
+> everything a reader sees.
 
 ## Decision 9 — per-field provenance on every displayed value
 

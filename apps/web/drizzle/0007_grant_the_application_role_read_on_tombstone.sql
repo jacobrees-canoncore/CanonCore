@@ -1,0 +1,11 @@
+-- The grant migration 0001 makes for `story`, for the table the tombstone lands in. A policy
+-- narrows what a role may read and grants nothing, so without this the application role is refused
+-- the table outright.
+--
+-- **SELECT only, and the application never writes one.** The purge writes tombstones and it runs as
+-- `canoncore_migrator` — `src/db/purge-source.ts`, and migration 0005 for why the application role
+-- holds no write privilege on anything. What reads them is CAN-111 Decide and build what a dropped
+-- Story renders as, which owns the 410; the grant lands with the table rather than with its first
+-- reader so that the privilege and the policy that narrows it arrive together, which is migration
+-- 0001's own rule.
+GRANT SELECT ON TABLE "tombstone" TO "canoncore_app";

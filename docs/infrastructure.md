@@ -353,7 +353,7 @@ for its own credentials**; the pointer here is *Where a Source credential lives*
 | `EMAIL_FROM` | Vercel | Production, Preview | Sensitive | `CanonCore <noreply@mail.canoncore.com>` |
 | `SENTRY_DSN` | Vercel | Production, Preview | Sensitive | Also recorded under *Error reporting* below, since a DSN is not a secret |
 | `SENTRY_AUTH_TOKEN` | Vercel | Production, Preview | Sensitive | Organisation auth token, scope `org:ci`, for source-map upload |
-| `MIGRATION_DATABASE_URL` | GitHub Actions secret | — | — | The migration role's connection string, which has to ask for `sslmode=verify-full`. Not in Vercel: migrations run in Actions, not in the build |
+| `MIGRATION_DATABASE_URL` | GitHub Actions secret | — | — | The migration role's connection string, which has to ask for `sslmode=verify-full`. Not in Vercel: migrations run in Actions, not in the build. **Two workflows consume it**: `ci.yml`'s migration step, and `purge-source.yml`, which is dispatched by hand and holds the credential so that an operator under a licence deadline has none to fetch — [`runbook.md`](runbook.md) → *A Source's licence terminates* |
 | `VERCEL_TOKEN` | GitHub Actions secret | — | — | **Account-scoped, and it has to be.** Two steps of `ci.yml` consume it: the `node scripts/check-docs.ts --verbose` run, and **Build and promote the production deployment**. A *project*-scoped token fails both, and fails them differently. Replaced 14 August 2026, **expires 14 August 2027** — *Why this one is account-scoped* below holds the identity, the expiry and the scope, and `scripts/check-docs.ts` compares that expiry against Vercel on every run, in CI as well as locally |
 
 **No `NEON_*` variables.** All sixteen the Marketplace integration had written were removed on 13

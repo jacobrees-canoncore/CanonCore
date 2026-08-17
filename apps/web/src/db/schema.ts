@@ -174,3 +174,95 @@ export const snapshot = pgTable(
     }),
   ],
 );
+
+/**
+ * What kind of thing a Tombstone used to be — ActivityStreams' `formerType`, which "identifies the
+ * type of the object that was deleted"
+ * ([ActivityStreams 2.0 Vocabulary](https://www.w3.org/TR/activitystreams-vocabulary/#dfn-tombstone)).
+ *
+ * One value, because one kind of thing exists to be tombstoned. Version joins it when Versions do,
+ * and an enum rather than free text is what makes that an `ALTER TYPE` somebody has to write rather
+ * than a string a caller can invent.
+ */
+export const formerType = pgEnum("former_type", ["story"]);
+
+/**
+ * What is left where a Story used to be — `CONTEXT.md` → *Tombstone*, and
+ * [ADR-0014](../../../../docs/adr/0014-shell-providers-and-per-source-retention.md) →
+ * *Decision 8*. The identity, what kind of thing it was, and when it went, and nothing else.
+ *
+ * **Its own table, and the Story's row is deleted rather than flagged** — settled 17 August 2026 by
+ * CAN-118 Purge every Snapshot of a Source whose licence terminates, and tombstone what it touched,
+ * against columns on `story`. Both shapes destroy the title, since a purge that leaves it behind is
+ * not a purge; what separates them is what happens *next*. Decision 8 names one way it can be
+ * reversed by accident — "if the shape ever grows a title 'so the page reads better', the decision
+ * has been reversed by accident" — and a table with no title column can only grow one by a
+ * migration, where a `story` row keeping its own nullable title grows one by deleting a line. It is
+ * also what ActivityPub describes: the object is *replaced* by a `Tombstone`. `CONTEXT.md` →
+ * *Placement* already allows a Placement with no Story behind it, so an Ordering survives the hole.
+ *
+ * **Nothing in the application writes one.** The purge does, as `canoncore_migrator` —
+ * `purge-source.ts` — because the application role holds `SELECT` and nothing else. What reads one
+ * is CAN-111 Decide and build what a dropped Story renders as, which owns the 410.
+ */
+export const tombstone = pgTable(
+  "tombstone",
+  {
+    /**
+     * The former Story's id, which is the whole of what "the identity survives" means: a URL that
+     * used to answer 200 can answer 410 at the same address.
+     *
+     * **No `defaultRandom()`, unlike every other primary key here.** A tombstone with an id of its
+     * own would be a new record about a deletion rather than what the deleted thing became, and
+     * the address the reader has would resolve to nothing.
+     */
+    id: uuid().primaryKey(),
+
+    formerType: formerType("former_type").notNull(),
+
+    /**
+     * When the object was deleted, which is ActivityStreams' `deleted` — "a timestamp for when the
+     * object was deleted" — carried under that name rather than a clearer one because ADR-0014
+     * adopts the vocabulary verbatim. It is a timestamp and never a flag: a boolean here would be
+     * the soft delete `CONTEXT.md` → *Tombstone* tells you not to reach for, and Decision 8
+     * rejects keeping the row and hiding it.
+     *
+     * **`defaultNow()`, where `snapshot.fetched_at` deliberately has no default.** The two look
+     * alike and are opposites: `fetched_at` is when something *else* happened, so a default would
+     * quietly record the wrong moment, while this is when *this row was written* — the purge's own
+     * transaction is the deletion, and `now()` inside it is the truest value available.
+     */
+    deleted: timestamp({ withTimezone: true }).notNull().defaultNow(),
+
+    /**
+     * The two columns the policy below needs, copied from the Story as it went.
+     *
+     * **Neither is a value any Source supplied**, which is what keeps this table inside Decision
+     * 8's "never the Source's values": who owned a record and whether it was public are this
+     * product's own facts about it. A tombstone of a private Story stays private, so a reader
+     * learns "this existed and is gone" exactly where they could have learnt "this exists".
+     *
+     * `owner_id` is personal data all the same, so erasure has to reach this table — **CAN-30 GDPR
+     * export and erasure**, which owns that job.
+     *
+     * **`snapshot`'s trick of delegating to `story`'s policy is unavailable here**, and the reason
+     * is the shape rather than an oversight: that policy asks whether the Story is readable, and
+     * this table exists precisely when the Story's row does not. So the rule is stated twice, in
+     * two places that can never be in force at once.
+     */
+    ownerId: text("owner_id").notNull(),
+    visibility: visibility().notNull(),
+  },
+  (t) => [
+    // `story`'s constraint, for `story`'s reason: the empty string is the anonymous session user,
+    // and no owner may equal it.
+    check("tombstone_owner_id_not_blank", sql`length(${t.ownerId}) > 0`),
+
+    pgPolicy("tombstone_readable_by_owner_or_when_public", {
+      as: "permissive",
+      for: "select",
+      to: applicationRole,
+      using: sql`${t.visibility} = 'public' or ${t.ownerId} = ${currentSessionUser}`,
+    }),
+  ],
+);

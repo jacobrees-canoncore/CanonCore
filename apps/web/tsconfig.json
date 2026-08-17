@@ -11,6 +11,11 @@
     "moduleResolution": "bundler",
     "resolveJsonModule": true,
     "isolatedModules": true,
+    // `node apps/web/scripts/purge-source.ts` runs that file with no build step, stripping the
+    // types as it reads it — so its import specifiers have to name the real `.ts` files rather
+    // than a compiled `.js` that never exists. `scripts/tsconfig.json` carries the same flag for
+    // the same reason, and `next build` resolves those specifiers unchanged.
+    "allowImportingTsExtensions": true,
     "jsx": "react-jsx",
     "incremental": true,
     "plugins": [

@@ -292,8 +292,8 @@ on `main`, where every push is its own release and a cancelled run is not a pass
 **One check is not optional, because its failure mode is silence: every row-level-security-protected
 table has a test asserting that a cross-tenant read returns zero rows.** A misconfigured RLS policy
 returns an empty result rather than an error, so it is indistinguishable from "no data" in the UI
-and cannot be caught by looking. `story` and `snapshot` are those tables today, and every one of
-them is tested from [`apps/web/src/db/rls.test.ts`](../../apps/web/src/db/rls.test.ts) — one file
+and cannot be caught by looking. `story`, `snapshot` and `tombstone` are those tables today, and
+every one of them is tested from [`apps/web/src/db/rls.test.ts`](../../apps/web/src/db/rls.test.ts) — one file
 rather than one per table, for the reason that file's own header gives and cites. ADR-0005 rule 2 is what requires it.
 
 **A table deliberately left unprotected still owes the gate three tripwires**, because an exclusion
