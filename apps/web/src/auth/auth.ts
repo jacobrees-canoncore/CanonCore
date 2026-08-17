@@ -167,12 +167,23 @@ export function auth() {
  * which is the one flow an attacker can drive at a stranger.
  *
  * **`backgroundTasks.handler` rather than a `void` in each callback**, and that is the difference
- * between a rule and a mechanism. better-auth 1.6.29 routes every send through
+ * between a rule and a mechanism. better-auth 1.6.29 routes its sends through
  * `runInBackgroundOrAwait`, which hands the promise here when a handler exists and **awaits it
  * itself when one does not** — so the documented `void sendEmail(…)` shape is answering a version
- * that had no such seam. Putting it here covers the two sends configured below *and* the four others
- * the library can make (a re-send on sign-in, a change-of-email confirmation, its two halves), so a
- * later ticket cannot add a flow that forgot.
+ * that had no such seam. Putting it here covers every flow at once rather than each callback
+ * separately, including the ones nothing below configures: a re-send on sign-in, a change-of-email
+ * confirmation and its second half, and account deletion when CAN-30 GDPR export and erasure brings
+ * it.
+ *
+ * **One call site is the exception, and it is not covered by this.** `sendVerificationEmailFn`
+ * *awaits* `sendVerificationEmail` directly rather than through `runInBackgroundOrAwait`
+ * (`better-auth/dist/api/routes/email-verification.mjs`, 1.6.29) — read there rather than assumed,
+ * after a review found this comment claiming otherwise. It is reached only by
+ * `/send-verification-email`, which nothing here links to and the catch-all route mounts anyway. **The
+ * library flattens that path itself**: for a caller with no session it enforces a 500ms floor, whose
+ * own comment gives this exact reason — *"so an attacker cannot distinguish … by comparing response
+ * times"*. So there is no leak to fix, and it is written down because the generalisation above is what
+ * a later reader would otherwise trust.
  *
  * **`after` rather than `waitUntil` from `@vercel/functions`.** `after` *is* that call — Next reads
  * `waitUntil` off the request context and hands the promise to it
@@ -329,7 +340,7 @@ function configure() {
        * fact about the library rather than a choice, and it is recorded rather than merely known
        * because one published promise turns on it: `content/legal/terms-of-service.md` says an error
        * report carries no email address, and an error reporter sends the whole URL of the request.
-       * `docs/infrastructure.md` → *The two query strings CAN-31 landed* is the record, and
+       * `docs/infrastructure.md` → *The two query strings the email flows put in a URL* is the record, and
        * **CAN-51 Keep a record of server errors past the hour Vercel keeps them** is what has to
        * scrub it. Nothing reports anywhere yet, so there is nothing to fix here today — and this
        * comment is why that stays true.
@@ -396,21 +407,36 @@ function configure() {
      * The window and the two limits are better-auth's own defaults, restated because a limiter
      * whose numbers live only in a library's changelog is a limiter nobody can review.
      *
-     * **The three mail rules are tighter than the credential ones, and the resource they protect is
-     * different.** A wrong password costs a scrypt hash; a request that sends an email spends one of
-     * 100 a day (`docs/infrastructure.md` → *Transactional email*), and a spent quota is an account
-     * nobody can recover for the rest of the day. The global 100-per-60s would let one caller drain it
-     * in a minute.
+     * **The three mail rules protect a different resource from the credential ones.** A wrong password
+     * costs a scrypt hash; a request that sends an email spends one of 100 a day
+     * (`docs/infrastructure.md` → *Transactional email*), and a spent quota is an account nobody can
+     * recover for the rest of the day.
      *
-     * **`/send-verification-email` is on the list though nothing links to it**, which is the point:
-     * it is mounted by the catch-all route whether or not this application offers it, and it takes any
-     * address. Rate limiting is the control available — better-auth has no switch to remove an
-     * endpoint — and it is the one of the three that no page of ours would have led anybody to.
+     * **What each rule actually changes, which is not what an earlier version of this comment claimed.**
+     * better-auth already special-cases two of the three in `getDefaultSpecialRules`
+     * (`better-auth/dist/api/rate-limiter/index.mjs`, 1.6.29), so the global limit never reached them —
+     * a review caught this comment asserting otherwise. `customRules` are applied *after* those and
+     * override them, so all three below do take effect:
      *
-     * **What this still does not bound is a distributed caller**, because the limiter keys on the
-     * address the request came from. Three per ten minutes each is 432 a day from one host against a
-     * 100-a-day quota, so it narrows the hole rather than closing it; closing it needs a per-recipient
-     * count, which is a counter of ours rather than a setting here.
+     * | Endpoint | better-auth's default | Here |
+     * | --- | --- | --- |
+     * | `/request-password-reset` | 3 per 60s | 3 per **600s** |
+     * | `/send-verification-email` | 3 per 60s | 3 per **600s** |
+     * | `/reset-password` | the global 100 per 60s | 3 per 10s |
+     *
+     * So for the two that send, the win is a **ten-times longer window at the same count** — 432 sends
+     * a day from one host rather than 4,320 — and for `/reset-password`, which sends nothing, it is a
+     * real tightening of a limit that was only ever the global one.
+     *
+     * **`/send-verification-email` is on the list though nothing links to it.** It is mounted by the
+     * catch-all route whether or not this application offers it, and it takes any address. better-auth
+     * has no switch to remove an endpoint, so a window is the control available — and this is the one
+     * of the three that no page of ours would have led anybody to.
+     *
+     * **What none of it bounds is a distributed caller**, because the limiter keys on the address the
+     * request came from. 432 a day from one host is still over a 100-a-day quota, so this narrows the
+     * hole rather than closing it; closing it needs a per-recipient count, which is a counter of ours
+     * rather than a setting here.
      */
     rateLimit: {
       enabled: true,
@@ -421,12 +447,13 @@ function configure() {
       customRules: {
         "/sign-in/email": { window: 10, max: 3 },
         "/sign-up/email": { window: 10, max: 3 },
-        // Ten minutes rather than the ten seconds its siblings get: nobody legitimately asks for a
-        // fourth reset link inside ten minutes, and each request is a send.
+        // Ten minutes, against better-auth's own 60 seconds for these two: the count was already 3,
+        // so the window is the whole of what these lines buy. Nobody legitimately asks for a fourth
+        // link inside ten minutes, and each request is a send.
         "/request-password-reset": { window: 600, max: 3 },
         "/send-verification-email": { window: 600, max: 3 },
         // Seconds, not minutes: this one sends nothing. It is here because it is a guess at a token,
-        // which is the one thing on the reset path worth throttling for its own sake.
+        // and because it is the one of the three better-auth leaves on the global limit.
         "/reset-password": { window: 10, max: 3 },
       },
     },

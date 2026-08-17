@@ -81,30 +81,19 @@ test("sign-in offers the reset flow, and the way back is whole", async ({ page }
 });
 
 /**
- * **Asking for a link answers the same way whether or not that address has an account**, which is this
- * flow's enumeration protection and the one part of it a deployed run can prove.
+ * **This suite deliberately submits nothing, and that is a fourth bound worth writing down.**
  *
- * It is safe to post to `/api/auth` from here for `signed-out-path.spec.ts`'s reason turned around: the
- * address is at `.invalid`, reserved by [RFC 2606](https://www.rfc-editor.org/rfc/rfc2606) so it cannot
- * be anybody's, and no account holds it — so better-auth's own code path sends nothing at all. What is
- * exercised is the answer, not a send.
+ * A draft of it posted to `/api/auth/request-password-reset` with an address at `.invalid` — which
+ * sends no mail, because no account holds it and better-auth returns early. It was dropped anyway, for
+ * two reasons that are properties of *this* endpoint rather than of posting in general:
  *
- * **This does spend one request against the reset endpoint's rate limit** (three per ten minutes per
- * caller), which is worth knowing if this spec is ever run repeatedly against one deployment.
+ * - **It is rate limited at three per ten minutes per caller** (`../src/auth/auth.ts` → `rateLimit`),
+ *   so a fourth run of this suite inside ten minutes would fail on the limiter rather than on
+ *   anything about the service. The failed sign-in in `signed-out-path.spec.ts` does post, and gets
+ *   away with it because its window is ten *seconds*.
+ * - **The claim is already proved, and proved better.** That an unknown address gets the same answer
+ *   as a known one is asserted in [`../src/db/rls.test.ts`](../src/db/rls.test.ts), which can check
+ *   the thing a browser cannot: that no email was sent at all.
+ *
+ * So what is left here is what a deployment alone can add, and nothing that writes.
  */
-test("asking for a link reveals nothing about whether the address has an account", async ({
-  page,
-}) => {
-  await page.goto("/forgot-password");
-
-  await page.getByLabel("Email address").fill("nobody@can-31.invalid");
-  await page.getByRole("button", { name: "Send the link" }).click();
-
-  // A page, not a JSON body, and the notice is conditional: "if that email address has an account".
-  // A notice claiming a link had been sent would answer, to anybody who asked, which addresses have
-  // accounts here.
-  await expect(page).toHaveURL(/\/forgot-password\?sent$/);
-  const notice = page.getByRole("status");
-  await expect(notice).toContainText("If that email address has an account");
-  await expect(notice).not.toContainText("We have sent");
-});

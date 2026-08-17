@@ -106,54 +106,78 @@ test("a signed-in reader's own email address is not linkified either", () => {
   expect(linksWithinOwnRoutes()).toEqual([]);
 });
 
-// Every page the navigation exists for. Their anchors are the reason this file's assertion had to
-// change shape, so they are the ones it has to cover. **The two reset pages render a different set
-// depending on what they were given**, and both renders are listed rather than only the fuller one:
-// the branch is what a case-per-page test would miss.
-test.each([
-  ["the sign-in page", <SignInPage key="in" />, ["/forgot-password", "/sign-up"]],
-  ["the sign-up page", <SignUpPage key="up" />, ["/sign-in"]],
-  ["the forgot-password page", <ForgotPasswordPage key="forgot" />, ["/sign-in"]],
-  ["the forgot-password page, having sent one", <ForgotPasswordPage key="sent" sent />, ["/sign-in"]],
-  [
-    "the reset page with a token",
-    <ResetPasswordPage key="token" token="a-token" />,
-    ["/forgot-password"],
-  ],
-  [
-    "the reset page with no token",
-    <ResetPasswordPage key="no-token" />,
-    ["/forgot-password", "/sign-in"],
-  ],
-])("%s links only to this application's own routes", (_name, page, expected) => {
-  render(page);
+/**
+ * **What each page's anchors are, stated once**, and everything below reads from it.
+ *
+ * The exact set is what the compliance finding rests on, so the cost of stating it three times — once
+ * per assertion shape — is three places that can drift apart while each still passes. A review flagged
+ * that; this is the fix.
+ *
+ * **A page whose links depend on what it was given gets an entry per render**, not one for the fuller
+ * case: `/reset-password` drops its "sign in" offer once it has a token to submit, and a table holding
+ * only the richer render would pass while the other branch went unchecked.
+ *
+ * `render` is a function rather than an element so that each case can be given a refusal or a notice
+ * without a second table restating the same expectations.
+ */
+const surfaces = [
+  {
+    name: "the sign-in page",
+    render: (extra: { problem?: string } = {}) => <SignInPage {...extra} />,
+    links: ["/forgot-password", "/sign-up"],
+  },
+  {
+    name: "the sign-up page",
+    render: (extra: { problem?: string } = {}) => <SignUpPage {...extra} />,
+    links: ["/sign-in"],
+  },
+  {
+    name: "the forgot-password page",
+    render: (extra: { problem?: string } = {}) => <ForgotPasswordPage {...extra} />,
+    links: ["/sign-in"],
+  },
+  {
+    name: "the forgot-password page, having sent one",
+    render: (extra: { problem?: string } = {}) => <ForgotPasswordPage sent {...extra} />,
+    links: ["/sign-in"],
+  },
+  {
+    name: "the reset page with a token",
+    render: (extra: { problem?: string } = {}) => <ResetPasswordPage token="a-token" {...extra} />,
+    links: ["/forgot-password"],
+  },
+  {
+    // No token, so no form to submit — and the offer to sign in instead, which the render above drops.
+    name: "the reset page with no token",
+    render: (extra: { problem?: string } = {}) => <ResetPasswordPage {...extra} />,
+    links: ["/forgot-password", "/sign-in"],
+  },
+] as const;
 
-  expect(linksWithinOwnRoutes()).toEqual(expected);
-});
+// Every page the navigation exists for. Their anchors are the reason this file's assertion had to
+// change shape, so they are the ones it has to cover.
+test.each(surfaces.map((surface) => [surface.name, surface] as const))(
+  "%s links only to this application's own routes",
+  (_name, surface) => {
+    render(surface.render());
+
+    expect(linksWithinOwnRoutes()).toEqual(surface.links);
+  },
+);
 
 // A refusal sentence is the one string on those pages that arrives from a request, so it is where an
 // injected link would land if `failures.ts` ever reflected better-auth's message instead of mapping
 // a code to a sentence of its own. Asserted on every page that renders one, because each has its own
 // anchors and it is the *set* that this file pins.
-test.each([
-  ["the sign-in page", (problem: string) => <SignInPage problem={problem} />, ["/forgot-password", "/sign-up"]],
-  ["the sign-up page", (problem: string) => <SignUpPage problem={problem} />, ["/sign-in"]],
-  [
-    "the forgot-password page",
-    (problem: string) => <ForgotPasswordPage problem={problem} />,
-    ["/sign-in"],
-  ],
-  [
-    "the reset page",
-    (problem: string) => <ResetPasswordPage token="a-token" problem={problem} />,
-    ["/forgot-password"],
-  ],
-])("a refusal sentence on %s adds no anchor, whatever it says", (_name, page, expected) => {
-  render(page(`Try ${hostile}`));
+test.each(surfaces.map((surface) => [surface.name, surface] as const))(
+  "a refusal sentence on %s adds no anchor, whatever it says",
+  (_name, surface) => {
+    render(surface.render({ problem: `Try ${hostile}` }));
 
-  expect(screen.getByRole("alert").textContent).toBe(`Try ${hostile}`);
-  expect(linksWithinOwnRoutes()).toEqual(expected);
-});
+    expect(screen.getByRole("alert").textContent).toBe(`Try ${hostile}`);
+    expect(linksWithinOwnRoutes()).toEqual(surface.links);
+  },
+);
 
 /**
  * **The notice a *successful* action comes back with, which is a second string arriving from a
@@ -171,6 +195,9 @@ test.each([
 ])("the notice for %s adds no anchor either", (_name, page) => {
   render(page);
 
+  // The sign-in page's own set, read from the table above rather than restated here — all three of
+  // these notices are that page's.
+  const signIn = surfaces.find((surface) => surface.name === "the sign-in page")!;
   expect(screen.getByRole("status").textContent).not.toContain(hostile);
-  expect(linksWithinOwnRoutes()).toEqual(["/forgot-password", "/sign-up"]);
+  expect(linksWithinOwnRoutes()).toEqual(signIn.links);
 });

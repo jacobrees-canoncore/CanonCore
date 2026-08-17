@@ -197,15 +197,22 @@ test("the handler survives having no response to defer behind, and keeps the pro
 /**
  * **The three endpoints that can spend the Resend quota, each with a limit of its own.**
  *
- * The free tier is 100 emails a day (`docs/infrastructure.md` → *Transactional email*), and the global
- * limit is 100 requests per 60 seconds — so without these one caller could drain a day's quota in a
- * minute, and account recovery would be unavailable to everybody else until midnight.
+ * The free tier is 100 emails a day (`docs/infrastructure.md` → *Transactional email*), and a spent
+ * quota is an account nobody can recover until midnight.
  *
- * **`/send-verification-email` is the one worth naming.** Nothing in this application links to it, and
- * it is mounted anyway by the catch-all route, so it is the endpoint a reader of the pages would never
- * know to protect.
+ * **What is asserted is the window, and that is the correction rather than the original claim.** An
+ * earlier version of this test compared `max` against the global 100 and its comment said the rules
+ * were what stopped one caller draining the quota in a minute. Both were wrong, and a review caught
+ * them: better-auth already special-cases `/request-password-reset` and `/send-verification-email` at
+ * 3 per 60 seconds in `getDefaultSpecialRules`, so their `max` was **already** 3 and the comparison
+ * proved nothing. The window is the whole of what these two lines buy — 600 seconds against 60 — and
+ * `auth.ts` carries the table.
+ *
+ * **`/send-verification-email` is still the one worth naming.** Nothing in this application links to
+ * it and the catch-all route mounts it anyway, so it is the endpoint a reader of the pages would never
+ * know to look at.
  */
-test("every endpoint that can send an email is rate limited more tightly than the default", async () => {
+test("every endpoint that can send an email is given a longer window than better-auth's own", async () => {
   const options = await configured();
   // Widened from the literal type `customRules` infers, so a rule that is *absent* fails the
   // assertion below rather than the compile: an endpoint nobody wrote a rule for is exactly what this
@@ -220,20 +227,19 @@ test("every endpoint that can send an email is rate limited more tightly than th
     return rule!;
   };
 
-  for (const endpoint of [
-    "/request-password-reset",
-    "/send-verification-email",
-    "/reset-password",
-  ]) {
-    // Tighter than the global 100 per 60 seconds, which is the whole point of naming them.
-    expect(ruleFor(endpoint).max).toBeLessThan(options.rateLimit!.max!);
-  }
-
-  // The two that actually send are given ten-minute windows rather than the ten seconds the
-  // credential endpoints get: nobody legitimately asks for a fourth link inside ten minutes.
+  // The two that actually send. `window` is the assertion that means something here; `max` is 3 either
+  // way, so a rule setting only `max` would change nothing at all.
   for (const endpoint of ["/request-password-reset", "/send-verification-email"]) {
     expect(ruleFor(endpoint).window).toBe(600);
+    expect(ruleFor(endpoint).window).toBeGreaterThan(options.rateLimit!.window!);
+    expect(ruleFor(endpoint).max).toBe(3);
   }
+
+  // `/reset-password` sends nothing and better-auth leaves it on the global limit, so here the count
+  // *is* the tightening — this is the one endpoint of the three where comparing `max` says something.
+  const guessingAToken = ruleFor("/reset-password");
+  expect(guessingAToken.max).toBeLessThan(options.rateLimit!.max!);
+  expect(guessingAToken.window).toBe(10);
 });
 
 /**

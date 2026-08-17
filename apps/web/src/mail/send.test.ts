@@ -62,8 +62,14 @@ afterEach(() => {
  * The guard, asked directly rather than inferred from a send that did not happen.
  *
  * **A send that was never attempted looks exactly like a send that was refused**, which is why this is
- * an exported function with its own test rather than an `if` inside `send`. The four addresses Resend
- * simulates are the ones a preview is allowed to reach; everything else is a real person.
+ * an exported function with its own test rather than an `if` inside `send`.
+ *
+ * **The allowance is the whole domain, not only the four addresses Resend simulates**, and that is
+ * worth being exact about because the comments nearby name the four. `delivered@`, `bounced@`,
+ * `complained@` and `suppressed@resend.dev` are the ones that mean something; the guard admits any
+ * local part there, because what it has to decide is whether a recipient could be a *person*, and
+ * nobody's mailbox is on Resend's own domain. A tighter guard listing exactly four would be no safer
+ * and would refuse a fifth the day Resend documents one.
  */
 test("outside production only a resend.dev recipient may be sent to", () => {
   for (const environment of [undefined, "preview", "development"]) {

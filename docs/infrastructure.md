@@ -1227,10 +1227,10 @@ it, not the other way round. What has to stay true of that configuration:
 | No IP address | **Not one setting.** `sendDefaultPii: false` keeps `user.ip_address` off the event, but not the request headers, which are sent by default and carry the address Vercel puts in `x-forwarded-for`. The IP-bearing headers have to go too — in `beforeSend` today, because `requestDataIntegration`'s `include.headers` is all-or-nothing, and through `dataCollection.httpHeaders`'s deny list from v11 |
 | No name, email address or account | Nothing calls `Sentry.setUser`, and local variables are not captured in stack frames |
 | Neither survives a version bump by itself | **From v11 `sendDefaultPii` is gone and every `dataCollection` category defaults to collecting**, `userInfo` and `stackFrameVariables` among them. Each has to be turned off explicitly or the promises break on upgrade alone |
-| Only the address, the failure and technical detail of the request are sent | Cookies and request bodies stay withheld. The full URL and its query string are **always** sent, so nothing personal may be put in one — and **CAN-31 Email verification and password reset landed links that do**, which is *The two query strings CAN-31 landed* below. Scrubbing them is CAN-51's, and it is no longer optional |
+| Only the address, the failure and technical detail of the request are sent | Cookies and request bodies stay withheld. The full URL and its query string are **always** sent, so nothing personal may be put in one — and **CAN-31 Email verification and password reset landed links that do**, which is *The two query strings the email flows put in a URL* below. Scrubbing them belongs to **CAN-51 Keep a record of server errors past the hour Vercel keeps them**, and is no longer optional |
 | Text a user typed may appear inside an error message | Nothing configures that away, which is why the terms disclose it instead |
 
-#### The two query strings CAN-31 landed
+#### The two query strings the email flows put in a URL
 
 **Recorded 17 August 2026 by CAN-31 Email verification and password reset, which is the ticket the row
 above already named.** The row said nothing personal may go in a URL; these two are what that now
@@ -1245,7 +1245,7 @@ record of server errors past the hour Vercel keeps them** configures the SDK wit
 
 **The shape is better-auth's and is not ours to change.** It builds both URLs itself
 (`sendVerificationEmailFn` and `requestPasswordReset` in 1.6.29) and offers no hook that moves a token
-out of a query string, so this cannot be fixed at the point the link is made. **What CAN-51 has to do
+out of a query string, so this cannot be fixed at the point the link is made. **What that ticket has to do
 is scrub the `token` parameter of every event's URL**, not only the request headers, and the terms are
 what makes that a promise rather than a preference.
 
