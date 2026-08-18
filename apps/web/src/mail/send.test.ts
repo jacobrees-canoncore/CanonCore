@@ -232,3 +232,59 @@ test("a missing sender refuses too, rather than letting Resend pick one", async 
 
   expect(requests).toEqual([]);
 });
+
+/**
+ * **Presence is not well-formedness**, and Resend's reply cannot tell a malformed value from a wrong
+ * one — so only a check on this side can. `send.ts` → `wellFormed` cites the evidence.
+ *
+ * Named per case, so a failure says which shape got through rather than which iteration did.
+ */
+test.each([
+  ["surrounding spaces", "  re_a-key-with-surrounding-spaces  "],
+  ["a trailing newline", "re_a-key-with-a-trailing-newline\n"],
+  ["an interior space", "re_a key with an interior space"],
+  ["quotes it kept from the shell", '"re_a-key-that-kept-its-quotes"'],
+  ["no re_ prefix at all", "not-prefixed-at-all"],
+  ["a prefix and nothing else", "re_"],
+])("a credential with %s refuses to send rather than sending a broken header", async (_, malformed) => {
+  vi.stubEnv("RESEND_API_KEY", malformed);
+  await withFetch(accepted);
+
+  await expect(send(simulated, email)).rejects.toThrow(/RESEND_API_KEY is set but/);
+
+  expect(requests).toEqual([]);
+});
+
+/**
+ * **The refusal must not quote the credential**, for the reason the recipient is never quoted: this
+ * message is what would reach an error report. A guard that printed the value to show what was wrong
+ * with it would put a live sending key in the logs — which is worse than the malformation it
+ * describes, and is the obvious way to write this message.
+ */
+test("the malformed-credential refusal does not quote the credential", async () => {
+  const secret = "re_a-secret-that-must-not-be-logged ";
+  vi.stubEnv("RESEND_API_KEY", secret);
+  await withFetch(accepted);
+
+  const refusal = await send(simulated, email).catch((error: unknown) =>
+    error instanceof Error ? error.message : "",
+  );
+
+  expect(refusal).not.toContain("a-secret-that-must-not-be-logged");
+});
+
+/**
+ * **A Resend key carries an underscore inside it as well as in the prefix**, so the guard has to
+ * admit one. Invented rather than copied: a real key in a test file is a credential in the
+ * repository, and the shape is the only thing being asserted.
+ */
+test("a well-formed key is accepted, including the underscore Resend puts inside it", async () => {
+  const shaped = "re_NotARealKey_OnlyTheShapeMatters";
+  vi.stubEnv("RESEND_API_KEY", shaped);
+  await withFetch(accepted);
+
+  await send(simulated, email);
+
+  expect(requests).toHaveLength(1);
+  expect(requests[0]!.headers.get("authorization")).toBe(`Bearer ${shaped}`);
+});

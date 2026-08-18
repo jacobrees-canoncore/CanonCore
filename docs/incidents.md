@@ -69,6 +69,8 @@ is what the rule was built on.
 - [Seven Resend DNS records published two unaccounted DKIM keys](#seven-resend-dns-records-published-two-unaccounted-dkim-keys)
 - [Three unscoped Resend API keys were revoked](#three-unscoped-resend-api-keys-were-revoked)
 - [The orphaned Resend key, and how it stopped being anonymous](#the-orphaned-resend-key-and-how-it-stopped-being-anonymous)
+- [A Resend key that was provisioned and never worked](#a-resend-key-that-was-provisioned-and-never-worked)
+- [Resend's published error table disagrees with its own API on 401](#resends-published-error-table-disagrees-with-its-own-api-on-401)
 - [What the Sentry token was checked against](#what-the-sentry-token-was-checked-against)
 - [No event had reached Sentry when the terms disclosed it](#no-event-had-reached-sentry-when-the-terms-disclosed-it)
 
@@ -1296,6 +1298,91 @@ it was on the other account all along.
 **The trap, if this is ever re-derived:** iCloud forwards `jacobrees@me.com` to
 `jacobreesnew@gmail.com`, so `me.com` mail sits in Gmail mailboxes. Mailbox location identifies the
 wrong account; only `To:` / `Original-Recipient:` headers separate them.
+
+## A Resend key that was provisioned and never worked
+
+**18 August 2026, CAN-136 Production cannot send email: Resend refuses the API key with 401.**
+Production's `RESEND_API_KEY` was set on 10 August by **CAN-20 Set up a transactional email
+provider** and first exercised on 17 August by **CAN-31 Email verification and password
+reset**. Every send in between was impossible and every send after it was refused, so the
+variable spent eight days recorded as provisioned while authenticating nothing.
+
+| Key | Id | Created | Last used, read 18 August |
+| --- | --- | --- | --- |
+| `canoncore-production`, deleted | `fe0bb980-4998-4343-9a60-f03fd607bbfd` | 10 August 2026 | **No activity** |
+| `canoncore-preview` | `49af56bc-d365-4f5c-9cb1-6b85a638a2df` | 10 August 2026 | minutes earlier, by the probe below |
+| `canoncore-production`, replacement | `e39e8cf5-5989-4423-a6da-9f6231c9ac94` | 18 August 2026 | minutes earlier, by the probe below |
+
+**What it proves.** *No activity* against a key that production had been sending with all week means
+the value the Production variable carried was never that key. Whether it was a wrong value or a
+well-formed one with whitespace around it cannot be recovered — a Vercel Sensitive variable cannot be
+read back ([above](#a-vercel-sensitive-variable-cannot-be-read-back-by-anyone)) and a Resend key
+cannot be read back either, so **both ends of the comparison are write-only** and rotation is the
+only available repair.
+
+**Read the *last used* column with the caution earned by
+[CAN-39 Account for the three Resend API keys that predate CAN-20, and revoke the unused
+ones](#three-unscoped-resend-api-keys-were-revoked)**, which found a key page reporting "Total uses: 0 times" while the list carried a last-used date. What makes the reading above
+safe is that the field was watched moving on the same account the same day: two keys went from *No
+activity* to a timestamp within two to four minutes of a send. So the column updates, promptly, and a
+key showing nothing after eight days of attempted sends was not being used.
+
+**The preview key was sound, and was proved rather than assumed.** A sign-up on preview deployment
+`dpl_EntBwJAznZVjYGfH5aZtkE4vPe4W` addressed to `delivered@resend.dev` logged no refusal; the same
+form on the same deployment addressed to a non-simulator domain logged the guard's refusal loudly. The
+negative control is what makes the silence evidence — without it, a send that was never attempted
+looks exactly like one that succeeded. Confirmed directly afterwards against Resend's own send log,
+which records that send as **delivered** at 05:51:38Z, id `5aa9e3e3-4be1-4802-a206-a49815e29d4e`.
+
+**Resend's send log is the other half of the proof, and it is empty where it matters.** The account's
+entire history is eight messages, and **none of them is from 17 August** — the day production
+attempted the sends that failed. A rejected credential never creates a message record, so the
+absence is what an authentication failure looks like from the provider's side, as against a delivery
+failure, which would appear as a `bounced` row. The replacement key's own probe is in the same log as
+**delivered** at 05:58:43Z, id `2d98e71a-a851-4ac1-bd54-64b61c0cceb9`.
+
+Both readings came from the `resend` MCP, which signs in by OAuth and so can read what the two
+`sending_access` keys cannot — the second, independent route to facts the dashboard had already
+shown, which is why they are stated here as observations rather than inferences.
+
+**What was already right, and is worth not "fixing".** The application logged the refusal with the
+status and Resend's own slug, quoted no email address, and made the diagnosis possible in minutes.
+The defect was in a credential and in what the roster check can reach, never in this code.
+
+## Resend's published error table disagrees with its own API on 401
+
+**18 August 2026, on CAN-136 Production cannot send email: Resend refuses the API key with 401.**
+Triage of that ticket argued from Resend's
+[error table](https://resend.com/docs/api-reference/errors) that an invalid key is a **403**
+`invalid_api_key`, that **no `401 validation_error` row exists**, and therefore that the observed
+`401 validation_error` had to be a malformed `Authorization` header rather than a rejected key — so
+the fix was to inspect the value rather than rotate it. Probed directly, one bogus key against three
+endpoints:
+
+| Request | `Authorization` sent | Status | `name` |
+| --- | --- | --- | --- |
+| `POST /emails` | `Bearer re_thiskeydoesnotexist_…` | **`401`** | `validation_error` |
+| `POST /emails` | `Bearer ` (empty) | **`401`** | `validation_error` |
+| `POST /emails` | `Bearer  re_thiskeydoesnotexist_…` (stray space) | **`401`** | `validation_error` |
+| `POST /emails` | header absent | `401` | `missing_api_key` |
+| `GET /domains` | `Bearer re_thiskeydoesnotexist_…` | **`400`** | `validation_error` |
+| `GET /emails/{id}` | `Bearer re_thiskeydoesnotexist_…` | **`400`** | `validation_error` |
+
+**What it proves.** `401 validation_error` is exactly what Resend returns for a key it will not
+accept **on `POST /emails`**, the documented table notwithstanding — so the ticket's original
+diagnosis was right and the correction was wrong. **The status is endpoint-dependent and the slug is
+not**: the same rejected key is a `400` on both `GET`s and a `401` on the send, while `name` stays
+`validation_error` throughout. So `403 invalid_api_key`, the only row the published table offers for
+this, was returned by none of them. **Scope any claim here to the endpoint it was measured on.**
+
+**An absent header is the one case that is distinguishable**, by its own `missing_api_key` slug; a
+present-but-unacceptable value is not distinguishable from a present-but-malformed one, because both
+give the identical reply. That is why
+[`apps/web/src/mail/send.ts`](../apps/web/src/mail/send.ts) checks well-formedness on this side
+rather than hoping to read it off a response.
+
+**The general lesson.** A vendor's published error table is a claim about its API, not the API. Where
+a wrong reading would change the fix, probe it — this one cost nothing and reversed the conclusion.
 
 ## What the Sentry token was checked against
 

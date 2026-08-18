@@ -461,11 +461,22 @@ reads.
 > [`apps/web/src/mail/send.ts`](../apps/web/src/mail/send.ts), which refuses to send without either
 > of them. The Sentry rows still wait on the first thing that reports to it.
 >
+> **Read is not the same as accepted, and the Production `RESEND_API_KEY` proved the difference.**
+> From 10 to 18 August 2026 that row was recorded here as provisioned while the value it held
+> authenticated nothing: the first sends ever attempted, on 17 August, were refused, and the key the
+> row named had *No activity* against it throughout. **A row in this table means a variable is set,
+> never that its value works** — `scripts/check-docs.ts` compares names, environments and
+> sensitivity, and no value. What closes that for Resend is the probe in *Rotating a Resend key*
+> below, not anything in this table.
+>
 > **One of the two is only ever read in production, and that is the guard rather than a gap.** Outside
 > production `send.ts` refuses any recipient not at `resend.dev` before it builds the request, so a
 > preview reaches Resend only for one of those four addresses — *Transactional email* below has why
 > that refusal is the only isolation Resend offers. So a preview carrying a broken `RESEND_API_KEY`
-> would look healthy until the first send that got past the guard.
+> would look healthy until the first send that got past the guard. **The preview key was checked that
+> way on 18 August 2026 and is sound**: a sign-up on a live preview addressed to
+> `delivered@resend.dev` logged no refusal, on a deployment where the same form addressed to a real
+> domain logged one, and Resend's own send log records that message as **delivered**.
 >
 > **This no longer waits on CAN-26 Import a series from TMDB, with the overlay behind it.** That
 > ticket used to be named here as the consumer of `TMDB_API_READ_ACCESS_TOKEN`, and under
@@ -1168,17 +1179,58 @@ variable — the same failure mode the `NEON_` prefix exists to avoid.
 
 | Variable | Environment | Resend key | Id |
 | --- | --- | --- | --- |
-| `RESEND_API_KEY` | Production | `canoncore-production` | `fe0bb980-4998-4343-9a60-f03fd607bbfd` |
+| `RESEND_API_KEY` | Production | `canoncore-production` | `e39e8cf5-5989-4423-a6da-9f6231c9ac94` |
 | `RESEND_API_KEY` | Preview | `canoncore-preview` | `49af56bc-d365-4f5c-9cb1-6b85a638a2df` |
 
 **The account holds exactly these two.** Both are `sending_access` restricted to
 `mail.canoncore.com`, so neither can read logs, manage domains or create further keys; both stored
-Sensitive; read from their dashboard pages on 10 August 2026. Three older keys were revoked by
-CAN-39 the same day ([incident](incidents.md#three-unscoped-resend-api-keys-were-revoked)).
+Sensitive. The preview row was read from its dashboard page on 10 August 2026, the production row on
+**18 August 2026**, when it was replaced. Three older keys were revoked on 10 August 2026 by
+**CAN-39 Account for the three Resend API keys that predate CAN-20, and revoke the unused ones**
+([incident](incidents.md#three-unscoped-resend-api-keys-were-revoked)).
 
-To rotate: "You cannot view or edit an API Key value after it has been created"
-([API keys](https://resend.com/docs/dashboard/api-keys/introduction)), so create a replacement in
-the dashboard, overwrite the Vercel variable, then delete the old key by the id above.
+**The production key was replaced by CAN-136 Production cannot send email: Resend refuses the API
+key with 401.** The key it replaced, `fe0bb980-4998-4343-9a60-f03fd607bbfd`, was deleted the same
+day and **had never once authenticated**: its dashboard row read *No activity* eight days after it
+was issued, through the week production was attempting sends. So the value the Production variable
+carried was never this key, and the row above recorded provisioning rather than function
+([incident](incidents.md#a-resend-key-that-was-provisioned-and-never-worked)).
+
+### Rotating a Resend key
+
+"You cannot view or edit an API Key value after it has been created"
+([API keys](https://resend.com/docs/dashboard/api-keys/introduction)), and a Vercel Sensitive
+variable cannot be read back either — so **neither end of this can be inspected, only replaced**.
+
+1. Create the replacement in the dashboard, `sending_access` restricted to `mail.canoncore.com`.
+   The permission defaults to **Full access** and the domain to **All domains**; both have to be
+   changed, and neither can be after the key exists.
+2. **Probe it before wiring it in**, which is the step that makes this a rotation rather than a
+   hope:
+   ```
+   curl -s -X POST https://api.resend.com/emails \
+     -H "Authorization: Bearer $KEY" -H 'Content-Type: application/json' \
+     -d '{"from":"CanonCore <noreply@mail.canoncore.com>","to":"delivered@resend.dev",
+          "subject":"key validation","text":"."}'
+   ```
+   A `200` with an id is the only evidence that the value authenticates. `delivered@resend.dev` is
+   one of the four Resend simulates, so this reaches no person and costs one of the 100 a day.
+3. Overwrite the Vercel variable **without a trailing newline** — `printf '%s' "$KEY" | vercel env
+   add RESEND_API_KEY production`. A here-string or `echo` appends one, and
+   [`apps/web/src/mail/send.ts`](../apps/web/src/mail/send.ts) now refuses such a value rather than
+   sending a broken `Authorization` header.
+4. **Deploy.** A Vercel environment variable only reaches a deployment created after it was set, and
+   production deployments come from CI on `main`
+   ([ADR-0019](adr/0019-ci-owns-the-production-release.md)) — so the new value is live only once a
+   release has run, never at the moment the variable is set.
+5. Delete the old key by its id, and update the table above.
+
+**Why the probe is the check, and nothing automated is.** A check in `scripts/check-docs.ts` that
+sent mail would need `RESEND_API_KEY` as a GitHub Actions secret — a second store for a credential
+that lives in Vercel — and it would still only prove that *CI's copy* authenticates, never the value
+the production deployment reads. That is precisely the thing that failed here, so the automated
+version would have gone green throughout. The gap that is accepted, deliberately, is that a key can
+sit unexercised between rotations; what closes it is that rotation now ends with a live send.
 
 > **This departs from CAN-20 as written**, which asked that "**an** API key" be a variable for
 > production and preview. Two were issued instead, one per environment under the same name, so that
@@ -1553,8 +1605,10 @@ A second reason to hold the line while this is a solo repo: project-scoped serve
 for approval, but `claude -p` runs, Agent SDK sessions and cloud sessions cannot show that prompt
 and load project-scoped servers without asking ([MCP docs](https://code.claude.com/docs/en/mcp)).
 
-**The `resend` MCP is the exception** and is scoped to this project in `.claude/settings.json`,
-because it is pinned to this product's own Resend account and domain.
+**The `resend` MCP is the exception** and is scoped to this project in
+[`.mcp.json`](../.mcp.json) at the repository root, because it is pinned to this product's own
+Resend account and domain. It authenticates by OAuth against `https://mcp.resend.com/mcp` and
+holds no key of its own, so it is outside *The keys* above rather than a third entry in it.
 
 ## Firewall
 
