@@ -88,7 +88,13 @@ the wrong place".
 
 ## Which servers are project scope and which are user scope
 
-`resend` is scoped to this project in `.claude/settings.json`.
+`resend` is scoped to this project in [`.mcp.json`](../../.mcp.json) at the repository root, and its
+plugin is enabled in `.claude/settings.json`. It is declared `"type": "http"` there, at
+`https://mcp.resend.com/mcp`, and signs in by OAuth rather than by an API key, so it needs **no**
+credential of its own and does not widen the two `sending_access` keys in
+`docs/infrastructure.md` → *The keys*. Sign-in is per session and is not a standing fact:
+an unauthenticated server of this kind exposes only its sign-in tools
+([incident](../incidents.md#an-unauthenticated-oauth-mcp-server-exposes-only-its-sign-in-tools)).
 
 **`macos-mail-mcp` is user scope and reads every account in Jacob's Mail.app**, work and personal,
 so it is his tool rather than this project's — never use it for anything but checking mail this

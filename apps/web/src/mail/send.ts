@@ -40,6 +40,24 @@ const endpoint = "https://api.resend.com/emails";
 const simulator = "resend.dev";
 
 /**
+ * The shape a Resend key has, checked because **presence is not well-formedness**.
+ *
+ * **Resend's reply cannot tell a malformed value from a wrong one**: an unacceptable key, an empty
+ * `Bearer` and a key with a stray space around it all come back identically, so nothing in the
+ * response distinguishes them and only a check on this side can. Do not reason from Resend's
+ * published error table, which disagrees with its own API here —
+ * `docs/incidents.md` → *Resend's published error table disagrees with its own API on 401* holds
+ * the probe and the measurements.
+ *
+ * **Deliberately a prefix-and-whitespace rule rather than a character set.** The realistic
+ * malformations are a trailing newline, surrounding spaces and kept quotes, which `\S` catches;
+ * enumerating the alphabet Resend happens to use today would buy nothing and would refuse a valid
+ * key the day it widened — a worse failure than the one this prevents, because it would take
+ * production's mail down rather than let a broken value through.
+ */
+const wellFormed = /^re_\S+$/;
+
+/**
  * Whether this recipient may be sent to from this environment.
  *
  * **`@resend.dev` rather than `resend.dev`**, so the `@` anchors the match to the whole domain: an
@@ -66,6 +84,16 @@ function credential(): string {
     throw new Error(
       "RESEND_API_KEY is not set, so no email can be sent. docs/infrastructure.md -> " +
         "Transactional email holds the two keys and which environment carries which.",
+    );
+  }
+  if (!wellFormed.test(env.RESEND_API_KEY)) {
+    throw new Error(
+      "RESEND_API_KEY is set but is not shaped like a Resend key: it must begin `re_` and " +
+        "contain no whitespace. **The value is deliberately not quoted here**, for the reason the " +
+        "recipient is not quoted below — this message is what reaches an error report, and a live " +
+        "sending key in a log is worse than the malformation it describes. A Vercel Sensitive " +
+        "variable cannot be read back, so set it again rather than trying to inspect it: " +
+        "docs/infrastructure.md -> Transactional email.",
     );
   }
   return env.RESEND_API_KEY;
