@@ -52,17 +52,17 @@ job summary fixed — [`workflow.md`](workflow.md) → *The gates*. A green run'
 check as skipped rather than leaving the tick to imply it ran.
 
 **What was rejected.** A Linear API token in Actions would replace the desktop CLI and buy real
-enforcement. It was turned down, and **on one ground rather than the two this once claimed**: it
-would need a roster row, an expiry and a rotation story of its own — a credential added to gate
-eight strings, when a credential is the thing these checks exist to keep honest.
+enforcement. It was turned down **on the cost of holding a credential**: it would need a roster row,
+an expiry and a rotation story of its own — a credential added to gate eight strings, when a
+credential is the thing these checks exist to keep honest.
 
-**Not because such a key must be broad, which is what this used to say.** It read "user-scoped and
-workspace-wide", and the second half is false: Linear offers to "restrict it to certain permissions
-(Read, Write, Admin, Create issues, Create comments)" and to "limit an API key's access to specific
-teams in your workspace" ([API and webhooks](https://linear.app/docs/api-and-webhooks), read
-18 August 2026). So a read-only key confined to team `CAN` is available, and the refusal has to rest
-on the cost of holding a credential rather than on the reach of this one. The first half stands —
-a key still inherits the access of whoever made it.
+**Not because such a key must be broad.** Linear offers to "restrict it to certain permissions (Read,
+Write, Admin, Create issues, Create comments)" and to "limit an API key's access to specific teams in
+your workspace" ([API and webhooks](https://linear.app/docs/api-and-webhooks), read 18 August 2026),
+so a read-only key confined to team `CAN` is available. A key does still inherit the access of
+whoever made it. **This corrects a second ground that used to stand here** — that such a key is
+"workspace-wide" — which Linear's own documentation contradicts; it is recorded rather than deleted
+so the reach of the key is not offered again as a reason to reopen.
 
 **What that leaves exposed is small, because the two ways this table can drift are not
 symmetrical:**

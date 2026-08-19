@@ -36,7 +36,10 @@ and should be made to rest on it. *Linear's key model has moved*, below.
 
 ## What the two runs actually report
 
-**Locally, 18 August 2026**, `node scripts/check-docs.ts --verbose` on `main` at `f3ffd2d`:
+**Locally, 18 August 2026**, `node scripts/check-docs.ts --verbose`, run in the CAN-136 worktree
+shortly before that branch landed on `main` as `852dd84`. The commit it ran against was amended
+away and is reachable from nothing, which is why it is not named: the check reads the working tree
+rather than a commit, so the report below is a property of those files, not of a SHA.
 
 ```
 PASS  the label roster matches the tracker                 8 labels agree
