@@ -47,8 +47,7 @@ appear, and they are what settles the central question rather than any documenta
 
 **Use Resend's own inbound receiving on `mail.canoncore.com`. It is already provisioned, it is
 already a catch-all, and it already works — the round trip was measured at 2.4 seconds.** No new
-vendor, no new account, no SMTP host, and nothing that
-[ADR-0016](../adr/0016-provisioning-plain-api-keys-neon-excepted.md) has to weigh.
+vendor, no new account and no SMTP host.
 
 Three facts make it the answer rather than merely an option, and each was measured rather than read:
 
@@ -356,9 +355,15 @@ put differently, and its custom-domain support — the only way to test the real
 than `*.mailosaur.net` — is Enterprise-only, so the version of it we could buy would not exercise
 `mail.canoncore.com` at all.
 
-**None of the four survives [ADR-0016](../adr/0016-provisioning-plain-api-keys-neon-excepted.md)'s
-test as things stand**, because every one of them is a new vendor with a new account and a new key,
-bought to do something the vendor we already pay nothing to already does.
+**None of the four is worth buying as things stand**, because every one of them is a new vendor with
+a new account and a new key, bought to do something the vendor we already pay nothing to already does.
+
+**That is a cost-and-redundancy argument, not an
+[ADR-0016](../adr/0016-provisioning-plain-api-keys-neon-excepted.md) one**, and the distinction is
+worth keeping straight because the ADR is easy to misread as a bar on new vendors. Its test is
+whether a Marketplace *integration* buys something a plain key cannot, and its own consequence is
+that "a new vendor arrives as an account and a key". A plain API key from any of these four would
+therefore **pass** that test. What refuses them is that the capability is already held.
 
 ## Per-test addresses: plus-addressing and catch-alls
 

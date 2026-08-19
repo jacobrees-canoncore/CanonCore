@@ -27,9 +27,10 @@ rather than the arrangement needing a change.**
 | `the security-settings roster matches the repository` | **Accept** | Closing it needs repository **Administration**, on the repository whose ruleset is the merge gate — and it is not even documented that an installation token would then receive the block |
 | `the label roster matches the tracker` | **Accept** | A tracker's label taxonomy is not a property of the commit. Nothing about a runner makes it a better place to compare eight strings than the laptop that already does |
 
-**The one thing to change is a sentence, not a workflow.**
+**The one thing to change is a sentence, not a workflow — but it is written in two places.**
 [`docs/agents/triage-labels.md`](../agents/triage-labels.md) → *Where this check gates, and where it
-does not* refuses a Linear credential on the grounds that "a personal API key is user-scoped and
+does not* and [`docs/infrastructure.md`](../infrastructure.md) → *What this check compares, and what
+it cannot* both refuse a Linear credential on the grounds that such a key is "user-scoped and
 workspace-wide". **The second half of that is no longer true** — Linear now documents both
 permission-restricted and team-restricted personal keys. The decision survives on its other clause,
 and should be made to rest on it. *Linear's key model has moved*, below.
@@ -59,10 +60,16 @@ SKIP  the security-settings roster matches the repository  the repository carrie
 8 passed, 3 skipped, 0 failed  (a skipped check reached no source; it is not a pass)
 ```
 
-**The local run's advantage is an identity, not a machine.** `gh api repos/jacobrees-canoncore/CanonCore`
-read back `"permissions": {"admin": true, …}` for the signed-in account on 18 August 2026. Every one
-of the three gaps below is that difference and nothing else: the laptop holds `admin` on an
-Organization-owned public repository, and a runner holds a repository-scoped app installation token.
+**For two of the three, the local run's advantage is an identity rather than a machine.**
+`gh api repos/jacobrees-canoncore/CanonCore` read back `"permissions": {"admin": true, …}` for the
+signed-in account on 18 August 2026: the laptop holds `admin` on an Organization-owned public
+repository, and a runner holds a repository-scoped app installation token. That difference is the
+whole of the secret-roster and security-settings gaps.
+
+**The label roster is not that, and the distinction matters to the remedy.** It skips on
+`spawnSync orca ENOENT` — a binary that is absent, not a permission that is missing — so no
+credential a runner could hold would fix it, and the route that would is a different one entirely.
+*The label roster*, below.
 
 ## The secret roster
 
@@ -327,9 +334,12 @@ a reason to reopen.
   nothing published overnight can turn `knip` red, which is the line that file itself draws between
   the five local gates and the two remote ones. A label roster fails when somebody renames a label in
   Linear, with no commit involved and nobody's push at fault. That is the "red on arrival" class this
-  repository already refuses twice over — the `high` audit threshold, and the decision not to count
-  down to `VERCEL_TOKEN`'s expiry, both argued on the grounds that a gate which is red for reasons
-  outside the change is a gate that gets ignored.
+  repository already refuses twice over, though on two different grounds and it is worth keeping them
+  apart. The `high` audit threshold is argued exactly this way — a gate red for reasons outside the
+  change is a gate that gets ignored ([`workflow.md`](../agents/workflow.md) → *The gates*). The
+  refusal to count down to `VERCEL_TOKEN`'s expiry is argued from the consequence instead: doing so
+  "would turn a stopped release into a blocked merge, which is worse than what it warns of"
+  ([`docs/infrastructure.md`](../infrastructure.md) → *Why this one is account-scoped*).
 - **The exposure is already asymmetric and the loud half is loud at the right moment.** The document
   inventing a label fails at the point of use, because `orca linear` cannot create a label definition.
   The silent half — the tracker gaining a label the document does not map — is handled by `/triage`
