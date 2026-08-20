@@ -60,6 +60,19 @@ export const howThePurgeTreatsEachTable = {
   story:
     "Deleted where the purge emptied it, and replaced by a tombstone. A Story another Source " +
     "still says something about is left standing (ADR-0014 decision 8).",
+  version:
+    "Deleted with the Story it belongs to, by the cascade on `version.story_id` rather than by any " +
+    "statement here. Like `story` it holds no Source value directly — the displayed record is " +
+    "derived and never written onto the row (ADR-0004) — so what a purge does with a Version is " +
+    "decided entirely by what it does with its Story.",
+  part_of:
+    "Deleted with either Story it names, by the cascade, for `version`'s reason. An edge is this " +
+    "product's own fact about two records rather than a value any Source supplied.",
+  anchor:
+    "Untouched, and not because it is out of reach. An Anchor carries no metadata at all, so no " +
+    "Source ever supplied anything on it; it is also the row separate people's records are joined " +
+    "on (ADR-0003), so deleting one would reach into catalogues this purge has no business in. An " +
+    "Anchor whose last Story has gone is inert rather than orphaned.",
   tombstone:
     "Written, and never read or deleted here. It carries no value any Source supplied, which is " +
     "the whole of why it may remain.",
@@ -127,8 +140,9 @@ export async function unclassifiedTables(client: Client): Promise<string[]> {
  * **Run by hand, as `canoncore_migrator`, because termination is learnt by a person reading mail
  * rather than from a webhook.** `docs/runbook.md` → *A Source's licence terminates* is the
  * procedure, names the operator and holds the cross-check. The application role cannot run this at
- * all: it holds `SELECT` and nothing else (migration 0005), which is why this takes a client rather
- * than going through `session.ts`.
+ * all: it may read these tables and write none of them (migration 0005), and the one write it holds
+ * anywhere — minting an Anchor, migration 0011 — reaches nothing this deletes. Which is why this
+ * takes a client rather than going through `session.ts`.
  *
  * **One transaction, and it is not an Operation.** Nothing here is undoable and nothing should be:
  * `CONTEXT.md`'s glossary says that what the product does unbidden — a retention sweep, a purge — is

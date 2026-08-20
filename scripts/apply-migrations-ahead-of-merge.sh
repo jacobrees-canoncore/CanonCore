@@ -329,7 +329,7 @@ verify() {
   fi
 }
 
-# The five invariants that hold on any branch carrying this schema, whatever its migration state.
+# The six invariants that hold on any branch carrying this schema, whatever its migration state.
 # Checked on both, because an invariant true of production and false of the rehearsal makes the
 # rehearsal worthless, and one true of the rehearsal and false of production is a production finding.
 verify_invariants() {
@@ -343,6 +343,27 @@ verify_invariants() {
                 where relnamespace = 'public'::regnamespace and relkind in ('r','p','f','m')
                   and pg_get_userbyid(relowner) <> 'canoncore_migrator'")"
 
+  # **The same question of everything else a migration creates**, added 21 August 2026 because the
+  # check above was passed by a branch that was unmigratable: `preview` had the `drizzle` schema, its
+  # journal table and both enums owned by `neondb_owner`, and a table check cannot see any of them.
+  # The schema is the one that bites first — an incoming owner needs CREATE on it, so a wrongly owned
+  # schema refuses the ownership transfer of the table inside it.
+  # docs/infrastructure.md -> The ownership repair of 21 August 2026 holds the account.
+  #
+  # `public` is excluded because it is owned by `pg_database_owner` on both branches, which is
+  # Neon's shape and not ours to change.
+  verify "no schema, enum or journal object is owned by anything but canoncore_migrator" \
+    "0" \
+    "$(psql_q "$url" "select
+        (select count(*) from pg_namespace
+          where nspname = 'drizzle' and pg_get_userbyid(nspowner) <> 'canoncore_migrator')
+      + (select count(*) from pg_type
+          where typnamespace = 'public'::regnamespace and typtype = 'e'
+            and pg_get_userbyid(typowner) <> 'canoncore_migrator')
+      + (select count(*) from pg_class
+          where relnamespace = 'drizzle'::regnamespace and relkind in ('r','S')
+            and pg_get_userbyid(relowner) <> 'canoncore_migrator')")"
+
   # ADR-0005 rule 1, asked of every role the application or better-auth connects as.
   verify "neither application role can bypass row-level security" \
     "0" \
@@ -350,14 +371,22 @@ verify_invariants() {
                 where rolname in ('canoncore_app', 'canoncore_auth') and rolbypassrls")"
 
   # Migration 0005's rule, as an invariant rather than a matrix: the application role reads, and
-  # never writes. Any table it can write is a finding whatever the table is.
-  verify "canoncore_app can write no table at all" \
+  # writes one table. Any *other* table it can write is a finding whatever the table is.
+  #
+  # **`anchor` is named here for the same reason `source` is named in the check below** — an
+  # exception a script cannot see is indistinguishable from a mistake. An Anchor carries no metadata
+  # at all, so minting one leaks nothing and changes nobody's records
+  # (docs/adr/0003-no-shared-catalogue.md); the grant is migration 0011, which holds the argument.
+  # The role still holds no UPDATE and no DELETE anywhere, including there, and this query would
+  # report it if it did.
+  verify "canoncore_app can write no table but anchor, and can only insert into that" \
     "0" \
     "$(psql_q "$url" "select count(*) from pg_class c
                 where c.relnamespace = 'public'::regnamespace and c.relkind in ('r','p','f','m')
-                  and (has_table_privilege('canoncore_app', c.oid, 'INSERT')
-                    or has_table_privilege('canoncore_app', c.oid, 'UPDATE')
-                    or has_table_privilege('canoncore_app', c.oid, 'DELETE'))")"
+                  and (has_table_privilege('canoncore_app', c.oid, 'UPDATE')
+                    or has_table_privilege('canoncore_app', c.oid, 'DELETE')
+                    or (c.relname <> 'anchor'
+                        and has_table_privilege('canoncore_app', c.oid, 'INSERT')))")"
 
   # **Every table either has a policy or is granted to nobody.** This is the general form of the
   # two tripwires in src/db/rls.test.ts: a table reachable by a role with no policy over it is

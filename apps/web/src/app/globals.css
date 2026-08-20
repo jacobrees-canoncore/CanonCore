@@ -153,6 +153,14 @@ button {
 }
 
 /*
+  The one link back, on a page that is not the front one. It is the site's name, so it reads as
+  where you are rather than as a control.
+*/
+p.site {
+  margin: 0 0 1.5rem;
+}
+
+/*
   Inherit the text colour rather than taking a link colour of its own. Every anchor this application
   renders points at one of its own routes — the closed set is in `no-linkification.test.tsx` — so an
   anchor is navigation furniture rather than a destination, and the underline does the work.

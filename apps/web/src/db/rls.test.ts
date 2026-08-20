@@ -59,8 +59,56 @@ const migrationsFolder = fileURLToPath(new URL("../../drizzle", import.meta.url)
 
 /** Owned by nobody who signs in, and the row the public URL renders. Inserted by migration 0002. */
 const foundingStory = { id: "00000000-0000-4000-8000-000000000001", title: "Rose" };
+
+/**
+ * The rest of the founding catalogue, seeded by migration 0012: the Story the founding one is part
+ * of, and the Version it names as the one that represents it. Both are public and owned by the same
+ * placeholder operator, so an anonymous reader sees the whole shape.
+ */
+const foundingSeries = { id: "00000000-0000-4000-8000-000000000002", title: "Series 1" };
+const foundingVersion = { id: "00000000-0000-4000-8000-0000000000b1", runtimeSeconds: 2700 };
+
 const ownedByA = { id: "11111111-1111-4111-8111-111111111111", owner: "user-a" };
 const ownedByB = { id: "22222222-2222-4222-8222-222222222222", owner: "user-b" };
+
+/**
+ * A second Story of user-b's, and this one is public.
+ *
+ * **It exists for the `part_of` policy**, which asks whether **both** Stories of an edge are
+ * readable: the private Story above is part of this public one, which is the ordinary case of a
+ * season being public while an episode of it is not, and it is the only shape that tells a policy
+ * asking about one end from a policy asking about both.
+ *
+ * **user-b's rather than user-a's, and that is not arbitrary.** The cross-tenant read below is
+ * asked as user-b and asserts that *no* row owned by user-a comes back; a public Story of user-a's
+ * would come back correctly and make that assertion need a caveat, which is the last thing ADR-0005
+ * rule 2's own test should have.
+ */
+const publicOfB = {
+  id: "23232323-2323-4323-8323-232323232323",
+  owner: "user-b",
+  title: "A Story of user-b's that anyone may read",
+};
+
+/** Every Story a reader with no account may see, in id order: two from migrations, one fixture. */
+const publicStories = [foundingStory.id, foundingSeries.id, publicOfB.id];
+
+/**
+ * The one row in this file written *through a policy* rather than by the migrator: `anchor` is the
+ * single table the application role may insert into, so minting one is the only write any test here
+ * can make as the role a page runs as.
+ */
+const mintedByAReader = "3c3c3c3c-3c3c-4c3c-8c3c-3c3c3c3c3c3c";
+
+/** One Version each, so that a cross-tenant read of `version` has something to fail to return. */
+const versionOfA = { id: "1a1a1a1a-1a1a-4a1a-8a1a-1a1a1a1a1a1a", story: ownedByA.id };
+const versionOfB = { id: "2b2b2b2b-2b2b-4b2b-8b2b-2b2b2b2b2b2b", story: ownedByB.id };
+
+/**
+ * The three Stories this file seeds, as one list: `beforeAll` mints an Anchor apiece under these
+ * ids and `afterAll` removes both tables by them, so the two cannot drift apart.
+ */
+const storyFixtures = [ownedByA.id, ownedByB.id, publicOfB.id];
 
 /**
  * The two shapes `source.retention` can take, held by no Source anyone has heard of — naming a
@@ -101,6 +149,16 @@ const survivingSource = { id: "66666666-6666-4666-8666-666666666666" };
 const onlyTheTerminatedSource = { id: "77777777-7777-4777-8777-777777777777", owner: "user-c" };
 const bothSources = { id: "88888888-8888-4888-8888-888888888888", owner: "user-c" };
 const onlyTheSurvivingSource = { id: "99999999-9999-4999-8999-999999999999", owner: "user-c" };
+
+/** The purge's three Stories as one list, for `storyFixtures`' reason. */
+const purgeFixtures = [onlyTheTerminatedSource.id, bothSources.id, onlyTheSurvivingSource.id];
+
+/**
+ * A Version of the Story the purge empties, and it is not deleted by the purge: it goes with the
+ * `story` row, by the cascade. Nothing in the purge names `version` at all, which is what
+ * `howThePurgeTreatsEachTable` records and what makes this fixture worth having.
+ */
+const versionOfThePurgedStory = { id: "5c5c5c5c-5c5c-4c5c-8c5c-5c5c5c5c5c5c" };
 
 /** A fifth Source and a fourth owner's Story, for the purge that runs against a grown schema. */
 const unclassifiedTableSource = { id: "0a0a0a0a-0a0a-4a0a-8a0a-0a0a0a0a0a0a" };
@@ -311,6 +369,7 @@ describe.skipIf(noDatabase)("the schema, against a real PostgreSQL", () => {
   let withSession: typeof import("./session").withSession;
   let anonymous: typeof import("./session").anonymous;
   let readVisibleStories: typeof import("./stories").readVisibleStories;
+  let readStory: typeof import("./stories").readStory;
   let databaseAnswers: typeof import("./health").databaseAnswers;
   let auth: typeof import("../auth/auth").auth;
   /** The route the browser posts to, so the redirect is exercised as well as the endpoint. */
@@ -330,14 +389,50 @@ describe.skipIf(noDatabase)("the schema, against a real PostgreSQL", () => {
     await migrator.connect();
     await migrate(drizzle(migrator), { migrationsFolder });
 
-    // Written by the role that owns the table, which is the only role that can: an owner
-    // bypasses row security, and the application role holds SELECT and nothing else.
+    // Written by the role that owns the tables, which is the only role that can: an owner bypasses
+    // row security, and the application role may read these and write none of them. `anchor` is the
+    // one table it could insert into, and it is seeded here with the rest so that the tests below
+    // read fixtures rather than each other's leftovers.
+    //
+    // **An Anchor first, because `story.anchor_id` is `not null`.** Each fixture's Anchor is given
+    // its Story's own id, which nothing in the product would ever do — an Anchor is minted
+    // separately and is the one row two people share. Here it means one list of ids seeds and
+    // removes both tables, rather than two lists that have to be kept in step.
     await migrator.query(
-      `insert into story (id, title, owner_id, visibility) values
-         ($1, 'A Story only user-a may read', $2, 'private'),
-         ($3, 'A Story only user-b may read', $4, 'private')
+      `insert into anchor (id) select unnest($1::uuid[]) on conflict (id) do nothing`,
+      [storyFixtures],
+    );
+
+    await migrator.query(
+      `insert into story (id, title, owner_id, visibility, anchor_id) values
+         ($1, 'A Story only user-a may read', $2, 'private', $1),
+         ($3, 'A Story only user-b may read', $4, 'private', $3),
+         ($5, $7, $6, 'public', $5)
        on conflict (id) do nothing`,
-      [ownedByA.id, ownedByA.owner, ownedByB.id, ownedByB.owner],
+      [
+        ownedByA.id,
+        ownedByA.owner,
+        ownedByB.id,
+        ownedByB.owner,
+        publicOfB.id,
+        publicOfB.owner,
+        publicOfB.title,
+      ],
+    );
+
+    // One Version each, and one edge: user-b's private Story is part of user-b's public one.
+    await migrator.query(
+      `insert into version (id, story_id, medium, runtime) values
+         ($1, $2, 'television', interval '50 minutes'),
+         ($3, $4, 'audio', null)
+       on conflict (id) do nothing`,
+      [versionOfA.id, versionOfA.story, versionOfB.id, versionOfB.story],
+    );
+
+    await migrator.query(
+      `insert into part_of (part_id, whole_id) values ($1, $2)
+       on conflict (part_id, whole_id) do nothing`,
+      [ownedByB.id, publicOfB.id],
     );
 
     // Two Sources and a Snapshot on each of the three Stories, written here rather than by a
@@ -403,7 +498,7 @@ describe.skipIf(noDatabase)("the schema, against a real PostgreSQL", () => {
 
     vi.resetModules();
     ({ withSession, anonymous } = await import("./session"));
-    ({ readVisibleStories } = await import("./stories"));
+    ({ readVisibleStories, readStory } = await import("./stories"));
     ({ databaseAnswers } = await import("./health"));
     ({ auth } = await import("../auth/auth"));
     ({ POST: authPost, GET: authGet } = await import("../app/api/auth/[...all]/route"));
@@ -430,7 +525,15 @@ describe.skipIf(noDatabase)("the schema, against a real PostgreSQL", () => {
     await migrator?.query("delete from source where id = any($1)", [
       [expiringSource.id, indefiniteSource.id],
     ]);
-    await migrator?.query("delete from story where id = any($1)", [[ownedByA.id, ownedByB.id]]);
+    // The Stories first and the Anchors after them, which is the order the foreign keys allow: a
+    // Story's Versions and its edges go with it by cascade, and its Anchor deliberately does not —
+    // nothing deletes an Anchor, so these are removed by id like any other fixture.
+    await migrator?.query("delete from story where id = any($1)", [storyFixtures]);
+    // The fixtures' Anchors, and the one a test minted through the policy — that one belongs to no
+    // Story, which is why it is named here rather than caught by the list above.
+    await migrator?.query("delete from anchor where id = any($1)", [
+      [...storyFixtures, mintedByAReader],
+    ]);
     await migrator?.end();
   });
 
@@ -438,7 +541,9 @@ describe.skipIf(noDatabase)("the schema, against a real PostgreSQL", () => {
   async function readAs(userId: string) {
     return withSession(userId, async (session) => {
       const result = await session.execute<{ id: string; owner_id: string }>(
-        sql`select id, owner_id from story`,
+        // Ordered, because three tests below assert the exact list. A heap scan returns rows in
+        // whatever order the last `update` left them, and migration 0012 updates every Story.
+        sql`select id, owner_id from story order by id`,
       );
       return result.rows;
     });
@@ -471,6 +576,26 @@ describe.skipIf(noDatabase)("the schema, against a real PostgreSQL", () => {
       // this database rather than assumed, because the two clients are both used in this file.
       const result = await session.execute<{ id: string; story_id: string; fetched_at: string }>(
         sql`select id, story_id, fetched_at from snapshot`,
+      );
+      return result.rows;
+    });
+  }
+
+  /** The same read of `version`: no `where` clause, so the policy is the filter. */
+  async function readVersionsAs(userId: string) {
+    return withSession(userId, async (session) => {
+      const result = await session.execute<{ id: string; story_id: string; runtime: string | null }>(
+        sql`select id, story_id, runtime from version order by id`,
+      );
+      return result.rows;
+    });
+  }
+
+  /** And of `part_of`, whose whole content is the pair of Stories it names. */
+  async function readEdgesAs(userId: string) {
+    return withSession(userId, async (session) => {
+      const result = await session.execute<{ part_id: string; whole_id: string }>(
+        sql`select part_id, whole_id from part_of order by part_id`,
       );
       return result.rows;
     });
@@ -547,19 +672,21 @@ describe.skipIf(noDatabase)("the schema, against a real PostgreSQL", () => {
     test("the anonymous session user owns nothing, so it reads only what is public", async () => {
       const rows = await readAs(anonymous);
 
-      expect(rows.map((row) => row.id)).toEqual([foundingStory.id]);
+      expect(rows.map((row) => row.id)).toEqual(publicStories);
     });
 
     // The case that catches a policy treating a missing setting as a wildcard.
     test("a session that sets nothing at all reads no owned rows", async () => {
       const rows = await withRawSession(async (application) => {
         await application.query("begin");
-        const { rows } = await application.query<{ id: string }>("select id from story");
+        const { rows } = await application.query<{ id: string }>(
+          "select id from story order by id",
+        );
         await application.query("commit");
         return rows;
       });
 
-      expect(rows.map((row) => row.id)).toEqual([foundingStory.id]);
+      expect(rows.map((row) => row.id)).toEqual(publicStories);
     });
 
     // ADR-0005 rule 3. `SET LOCAL` rather than `SET` is what keeps a pooled connection from handing
@@ -575,18 +702,168 @@ describe.skipIf(noDatabase)("the schema, against a real PostgreSQL", () => {
         await application.query("select set_config('canoncore.user_id', $1, true)", [
           ownedByA.owner,
         ]);
-        const inside = await application.query<{ id: string }>("select id from story");
+        const inside = await application.query<{ id: string }>("select id from story order by id");
         await application.query("commit");
-        const afterwards = await application.query<{ id: string }>("select id from story");
+        const afterwards = await application.query<{ id: string }>(
+          "select id from story order by id",
+        );
         return { inside: inside.rows, afterwards: afterwards.rows };
       });
 
       expect(inside.map((row) => row.id)).toContain(ownedByA.id);
-      expect(afterwards.map((row) => row.id)).toEqual([foundingStory.id]);
+      expect(afterwards.map((row) => row.id)).toEqual(publicStories);
     });
 
-    test("the page's own query returns the public Story to an anonymous reader", async () => {
-      expect(await readVisibleStories(anonymous)).toEqual([foundingStory]);
+    // By title, which is the order `readVisibleStories` asks for.
+    test("the front page's own query returns every public Story to an anonymous reader", async () => {
+      expect(await readVisibleStories(anonymous)).toEqual([
+        { id: publicOfB.id, title: publicOfB.title },
+        foundingStory,
+        foundingSeries,
+      ]);
+    });
+  });
+
+  /**
+   * ADR-0005 rule 2 for `version`, whose policy delegates to `story`'s exactly as `snapshot`'s does:
+   * a Version is one way of consuming a Story and is readable when that Story is.
+   */
+  describe("row-level security on version", () => {
+    test("a reader sees the Versions of their own Stories and of every public one", async () => {
+      const ids = (await readVersionsAs(ownedByA.owner)).map((row) => row.id);
+
+      expect(ids).toContain(versionOfA.id);
+      expect(ids).toContain(foundingVersion.id);
+    });
+
+    // The runtime is read rather than only the keys, because it is what this table exists to carry
+    // and what the Story page states: a leak of it is a leak of somebody else's catalogue.
+    //
+    // **Zero rows of user-a's, not merely "the fixture is absent"** — `story`'s test above filters
+    // by owner for the same reason. A second Version of user-a's would go unchecked by an assertion
+    // naming one id, and this table can hold any number of them per Story.
+    //
+    // **The reader's own is asserted rather than the whole visible list**, which is `snapshot`'s
+    // shape above and is deliberate: every public Story's Versions are visible to everybody, and a
+    // later `describe` in this file seeds one, so an exact list would be pinned by the order vitest
+    // happens to run the blocks in rather than by any policy.
+    test("a cross-tenant read of version returns zero rows", async () => {
+      const rows = await readVersionsAs(ownedByB.owner);
+
+      expect(rows.filter((row) => row.story_id === ownedByA.id)).toEqual([]);
+      expect(rows.map((row) => row.id)).toContain(versionOfB.id);
+    });
+
+    test("a session that sets nothing at all reads only the public Versions", async () => {
+      const rows = await withRawSession(async (application) => {
+        await application.query("begin");
+        const { rows } = await application.query<{ id: string }>("select id from version");
+        await application.query("commit");
+        return rows;
+      });
+
+      expect(rows.map((row) => row.id)).toEqual([foundingVersion.id]);
+    });
+  });
+
+  /**
+   * ADR-0005 rule 2 for `part_of`, whose policy asks about **both** Stories an edge names.
+   *
+   * **The both-ends clause is what the fixtures are shaped for.** user-b's private Story is part of
+   * user-b's public one, so an anonymous reader can see one end and not the other — and an edge
+   * returned to them would say that a private Story exists and what it belongs to, which is the
+   * leak a policy asking about one end would allow.
+   */
+  describe("row-level security on part_of", () => {
+    test("a reader sees the edges between their own Stories, and every public one", async () => {
+      const edges = await readEdgesAs(ownedByB.owner);
+
+      expect(edges).toContainEqual({ part_id: ownedByB.id, whole_id: publicOfB.id });
+      expect(edges).toContainEqual({ part_id: foundingStory.id, whole_id: foundingSeries.id });
+    });
+
+    test("a cross-tenant read of part_of returns zero rows", async () => {
+      const edges = await readEdgesAs(ownedByA.owner);
+
+      expect(edges).not.toContainEqual({ part_id: ownedByB.id, whole_id: publicOfB.id });
+      expect(edges).toEqual([{ part_id: foundingStory.id, whole_id: foundingSeries.id }]);
+    });
+
+    // Both ends, and this is the assertion that says so: the whole of this edge is public and its
+    // part is not, so a policy asking only about `whole_id` would return it here.
+    test("an edge is hidden when one of its two Stories is not readable", async () => {
+      const edges = await withRawSession(async (application) => {
+        await application.query("begin");
+        const { rows } = await application.query<{ part_id: string }>(
+          "select part_id, whole_id from part_of",
+        );
+        await application.query("commit");
+        return rows;
+      });
+
+      expect(edges).toEqual([{ part_id: foundingStory.id, whole_id: foundingSeries.id }]);
+    });
+  });
+
+  /**
+   * **The Story page's own query**, which is the one read in this file that crosses all three of
+   * the catalogue's tables in a single transaction — and therefore the one that would show a policy
+   * on any of them returning what another's returns.
+   */
+  describe("the Story page's own query", () => {
+    test("an anonymous reader gets the founding Story whole", async () => {
+      const found = await readStory(anonymous, foundingStory.id);
+
+      expect(found).toEqual({
+        id: foundingStory.id,
+        title: foundingStory.title,
+        // From its canonical Version, and it is the Version's runtime rather than the Story's:
+        // ADR-0001 puts length on the Version, and this is the pointer that lets a Story state one.
+        runtimeSeconds: foundingVersion.runtimeSeconds,
+        versions: [
+          {
+            id: foundingVersion.id,
+            medium: "television",
+            runtimeSeconds: foundingVersion.runtimeSeconds,
+          },
+        ],
+        partOf: [foundingSeries],
+      });
+    });
+
+    // The Story a season is, rather than the episode: it is part of nothing and names no canonical
+    // Version, which is the ordinary state and not an error.
+    test("a Story with no Version and nothing to be part of comes back empty rather than missing", async () => {
+      expect(await readStory(anonymous, foundingSeries.id)).toEqual({
+        id: foundingSeries.id,
+        title: foundingSeries.title,
+        runtimeSeconds: null,
+        versions: [],
+        partOf: [],
+      });
+    });
+
+    // The three states the page answers 404 to, and they have to be indistinguishable: a private
+    // Story of somebody else's must not be told apart from one that was never there.
+    test("a Story this reader may not see is nothing at all, exactly as one that does not exist is", async () => {
+      expect(await readStory(anonymous, ownedByA.id)).toBeUndefined();
+      expect(await readStory(ownedByB.owner, ownedByA.id)).toBeUndefined();
+      expect(await readStory(anonymous, "00000000-0000-4000-8000-00000000ffff")).toBeUndefined();
+    });
+
+    // `story.id` is a uuid column, so this would be a syntax error from PostgreSQL rather than an
+    // empty result — an error page where a 404 is the truth.
+    test("an address that is not a uuid is nothing at all rather than an error", async () => {
+      expect(await readStory(anonymous, "not-a-uuid")).toBeUndefined();
+    });
+
+    // The reader's own private Story, read the same way, which is what makes the assertions above
+    // about the policy rather than about the query returning nothing whatever it is asked.
+    test("a reader's own private Story comes back to them", async () => {
+      const found = await readStory(ownedByA.owner, ownedByA.id);
+
+      expect(found?.id).toBe(ownedByA.id);
+      expect(found?.versions.map((each) => each.id)).toEqual([versionOfA.id]);
     });
   });
 
@@ -685,6 +962,115 @@ describe.skipIf(noDatabase)("the schema, against a real PostgreSQL", () => {
     });
   });
 
+  /**
+   * **The exclusion CAN-25 The catalogue: Version, part of, Anchor, canonical version asks for, with
+   * its reason, beside the cross-tenant tests it is the exception to.**
+   *
+   * `anchor` has no cross-tenant read test and never will, and that is a decision rather than an
+   * oversight: an Anchor carries no metadata at all, so there is nothing on it that could belong to
+   * one person and nothing to leak. It is the row two people's records are joined on
+   * ([ADR-0003](../../../../docs/adr/0003-no-shared-catalogue.md)), so a policy scoping it to its
+   * minter would break the one thing it is for.
+   *
+   * **It differs from `source`, the other table nobody's policy narrows, in the way that matters.**
+   * `source` has no policy at all and stands on its grant alone, which is why it owes three
+   * tripwires. `anchor` has two policies, so row-level security is *on*: what is written down is
+   * that anyone may read one and that minting requires a session user, and the four tests below are
+   * both of those in both directions. The column list is the tripwire it does share, for `source`'s
+   * reason — a column arriving here is ADR-0003 being reversed.
+   */
+  describe("anchor, which is deliberately not tenant-scoped", () => {
+    const readAnchorsAs = (userId: string) =>
+      withSession(userId, async (session) => {
+        const result = await session.execute<{ id: string }>(sql`select id from anchor`);
+        return result.rows.map((row) => row.id).sort();
+      });
+
+    // Compared with each other rather than against a list, because the Anchors in this database are
+    // whatever the migrations minted plus whatever this file did — and what is being asserted is
+    // that the three readers are shown the same thing, not what that thing is.
+    test("every reader sees the same Anchors, because an Anchor belongs to nobody", async () => {
+      const asA = await readAnchorsAs(ownedByA.owner);
+
+      expect(asA).toContain(ownedByA.id);
+      expect(await readAnchorsAs(ownedByB.owner)).toEqual(asA);
+      expect(await readAnchorsAs(anonymous)).toEqual(asA);
+    });
+
+    // `source`'s tripwire, for `source`'s reason: a column called `minted_by` leaks exactly as much
+    // as one called `owner_id`, and only an exact list catches both. When this fails, the question
+    // to answer is whether the new column belongs to somebody — and if it does, ADR-0003 says this
+    // is the wrong table for it.
+    test("an Anchor carries nothing at all but its identity", async () => {
+      const { rows } = await migrator.query<{ column_name: string }>(
+        `select column_name from information_schema.columns
+          where table_schema = 'public' and table_name = 'anchor'
+          order by column_name`,
+      );
+
+      expect(rows.map((row) => row.column_name)).toEqual(["id"]);
+    });
+
+    test("any signed-in reader may mint one, and everybody can then see it", async () => {
+      await withSession(ownedByA.owner, (session) =>
+        session.execute(sql`insert into anchor (id) values (${mintedByAReader})`),
+      );
+
+      expect(await readAnchorsAs(anonymous)).toContain(mintedByAReader);
+    });
+
+    // The other branch of the same policy, and the whole of what *signed-in* means here: the
+    // anonymous session user is the empty string, which the `WITH CHECK` refuses.
+    test("an anonymous visitor may not mint one", async () => {
+      const refusal = await whyRefused(() =>
+        withSession(anonymous, (session) =>
+          session.execute(sql`insert into anchor (id) values (gen_random_uuid())`),
+        ),
+      );
+
+      expect(refusal).toMatch(/row-level security policy for table "anchor"/);
+    });
+
+    // The third state, and the one the `WITH CHECK` reaches by a different route: a transaction that
+    // set nothing at all leaves `current_setting(..., true)` NULL rather than empty, and a
+    // comparison with NULL is NULL. `withSession` cannot produce this — it always sets the
+    // setting — so it takes a transaction opened by hand, exactly as the read tests above do.
+    test("a session that sets nothing at all mints nothing either", async () => {
+      const refusal = await withRawSession(async (application) => {
+        await application.query("begin");
+        try {
+          await application.query("insert into anchor (id) values (gen_random_uuid())");
+          return "the insert was allowed";
+        } catch (error) {
+          return error instanceof Error ? error.message : String(error);
+        } finally {
+          await application.query("rollback");
+        }
+      });
+
+      expect(refusal).toMatch(/row-level security policy for table "anchor"/);
+    });
+
+    /**
+     * *Never updatable* — and never deletable — enforced by there being no privilege rather than by
+     * a policy, which is why these are refusals and not empty results. A restrictive policy would
+     * give back the silence ADR-0005 rule 2 is entirely about; `permission denied` is a sentence.
+     */
+    test("nobody may change an Anchor or remove one", async () => {
+      const changed = await whyRefused(() =>
+        withSession(ownedByA.owner, (session) =>
+          session.execute(sql`update anchor set id = gen_random_uuid()`),
+        ),
+      );
+      const removed = await whyRefused(() =>
+        withSession(ownedByA.owner, (session) => session.execute(sql`delete from anchor`)),
+      );
+
+      expect(changed).toBe("permission denied for table anchor");
+      expect(removed).toBe("permission denied for table anchor");
+    });
+  });
+
   // The first of the two tripwires, and the one that is about every table rather than about
   // `source`: a table arriving with no policy is a decision somebody has to have taken, and this
   // is where they are made to take it.
@@ -703,6 +1089,11 @@ describe.skipIf(noDatabase)("the schema, against a real PostgreSQL", () => {
 
     expect(rows).toEqual([
       { relname: "account", relrowsecurity: true },
+      // **`anchor` is not tenant-scoped and is `true` all the same**, which is the difference
+      // between it and `source` below: it carries two policies rather than none, so it is a table
+      // whose rules are written down rather than one standing on a grant alone.
+      { relname: "anchor", relrowsecurity: true },
+      { relname: "part_of", relrowsecurity: true },
       { relname: "rate_limit", relrowsecurity: true },
       { relname: "session", relrowsecurity: true },
       { relname: "snapshot", relrowsecurity: true },
@@ -711,6 +1102,7 @@ describe.skipIf(noDatabase)("the schema, against a real PostgreSQL", () => {
       { relname: "tombstone", relrowsecurity: true },
       { relname: "user", relrowsecurity: true },
       { relname: "verification", relrowsecurity: true },
+      { relname: "version", relrowsecurity: true },
     ]);
   });
 
@@ -725,7 +1117,7 @@ describe.skipIf(noDatabase)("the schema, against a real PostgreSQL", () => {
   //
   // **Asked of both roles, from one query written once.** Since CAN-24 A signed-in and a signed-out
   // path there are two roles whose reach has to be pinned, and they are pinned by the same four
-  // questions over the same nine tables — so what differs between the two tests below is the
+  // questions over the same twelve tables — so what differs between the two tests below is the
   // expected table and nothing else.
   async function whatEachTableAllows(role: string) {
     const { rows } = await migrator.query<{
@@ -749,6 +1141,17 @@ describe.skipIf(noDatabase)("the schema, against a real PostgreSQL", () => {
   }
 
   const readOnly = { may_select: true, may_insert: false, may_update: false, may_delete: false };
+  /**
+   * `anchor`'s, and no other table's: read by anyone, minted by any signed-in reader, and never
+   * updated or deleted by anybody.
+   *
+   * **The two `false`s are the enforcement of *never updatable*, not a policy.** An absent
+   * privilege is `permission denied for table "anchor"`, where a restrictive policy would give the
+   * silent empty result ADR-0005 rule 2 is about. Migration 0011 holds the argument for the
+   * `INSERT`, including why granting it now rather than with the first thing that mints an Anchor
+   * is what keeps its policy from being a rule nothing has ever run.
+   */
+  const readAndMint = { may_select: true, may_insert: true, may_update: false, may_delete: false };
   /** No privilege at all, which is a refusal the role gets told about rather than an empty result. */
   const unreachable = {
     may_select: false,
@@ -757,12 +1160,15 @@ describe.skipIf(noDatabase)("the schema, against a real PostgreSQL", () => {
     may_delete: false,
   };
 
-  test("the application role may read every table and write none", async () => {
+  test("the application role may read every table, and write one", async () => {
     expect(await whatEachTableAllows("canoncore_app")).toEqual([
       // **All five of better-auth's tables are `unreachable`, not `readOnly`.** Nothing in the
       // application reads one, so there is no grant — migration 0009 holds the argument, including
       // why an earlier draft's `SELECT` on `user` and `session` was removed.
       { relname: "account", ...unreachable },
+      // The one exception in the column, and the only write privilege this role holds anywhere.
+      { relname: "anchor", ...readAndMint },
+      { relname: "part_of", ...readOnly },
       { relname: "rate_limit", ...unreachable },
       { relname: "session", ...unreachable },
       { relname: "snapshot", ...readOnly },
@@ -771,6 +1177,7 @@ describe.skipIf(noDatabase)("the schema, against a real PostgreSQL", () => {
       { relname: "tombstone", ...readOnly },
       { relname: "user", ...unreachable },
       { relname: "verification", ...unreachable },
+      { relname: "version", ...readOnly },
     ]);
   });
 
@@ -792,6 +1199,8 @@ describe.skipIf(noDatabase)("the schema, against a real PostgreSQL", () => {
     };
     expect(await whatEachTableAllows("canoncore_auth")).toEqual([
       { relname: "account", ...writable },
+      { relname: "anchor", ...unreachable },
+      { relname: "part_of", ...unreachable },
       { relname: "rate_limit", ...writable },
       { relname: "session", ...writable },
       { relname: "snapshot", ...unreachable },
@@ -800,6 +1209,7 @@ describe.skipIf(noDatabase)("the schema, against a real PostgreSQL", () => {
       { relname: "tombstone", ...unreachable },
       { relname: "user", ...writable },
       { relname: "verification", ...writable },
+      { relname: "version", ...unreachable },
     ]);
   });
 
@@ -929,14 +1339,20 @@ describe.skipIf(noDatabase)("the schema, against a real PostgreSQL", () => {
         [terminatedSource.id, survivingSource.id],
       );
 
+      // An Anchor apiece, carrying the Story's own id for the reason the outer fixtures do.
+      await migrator.query(
+        `insert into anchor (id) select unnest($1::uuid[]) on conflict (id) do nothing`,
+        [purgeFixtures],
+      );
+
       // The one public Story of the three, and it is the one the purge empties: a tombstone has to
       // carry the Visibility its Story had, and a `visibility` the purge defaulted to `private`
       // would pass every assertion a private fixture could make.
       await migrator.query(
-        `insert into story (id, title, owner_id, visibility) values
-           ($1, 'A Story only the terminated Source said anything about', $2, 'public'),
-           ($3, 'A Story two Sources both said something about', $4, 'private'),
-           ($5, 'A Story only the surviving Source said anything about', $6, 'private')
+        `insert into story (id, title, owner_id, visibility, anchor_id) values
+           ($1, 'A Story only the terminated Source said anything about', $2, 'public', $1),
+           ($3, 'A Story two Sources both said something about', $4, 'private', $3),
+           ($5, 'A Story only the surviving Source said anything about', $6, 'private', $5)
          on conflict (id) do nothing`,
         [
           onlyTheTerminatedSource.id,
@@ -946,6 +1362,20 @@ describe.skipIf(noDatabase)("the schema, against a real PostgreSQL", () => {
           onlyTheSurvivingSource.id,
           onlyTheSurvivingSource.owner,
         ],
+      );
+
+      // A Version of the Story the purge empties, and an edge from it to one that survives. Neither
+      // is deleted by the purge itself: both go by the cascade on the `story` row it deletes, which
+      // is what `howThePurgeTreatsEachTable` says of them and what the test below reads back.
+      await migrator.query(
+        `insert into version (id, story_id, medium, runtime) values ($1, $2, 'television', interval '25 minutes')
+         on conflict (id) do nothing`,
+        [versionOfThePurgedStory.id, onlyTheTerminatedSource.id],
+      );
+      await migrator.query(
+        `insert into part_of (part_id, whole_id) values ($1, $2)
+         on conflict (part_id, whole_id) do nothing`,
+        [onlyTheTerminatedSource.id, onlyTheSurvivingSource.id],
       );
 
       await migrator.query(
@@ -968,9 +1398,8 @@ describe.skipIf(noDatabase)("the schema, against a real PostgreSQL", () => {
       await migrator?.query("delete from tombstone where owner_id = $1", [
         onlyTheTerminatedSource.owner,
       ]);
-      await migrator?.query("delete from story where id = any($1)", [
-        [onlyTheTerminatedSource.id, bothSources.id, onlyTheSurvivingSource.id],
-      ]);
+      await migrator?.query("delete from story where id = any($1)", [purgeFixtures]);
+      await migrator?.query("delete from anchor where id = any($1)", [purgeFixtures]);
       await migrator?.query("delete from source where id = any($1)", [
         [terminatedSource.id, survivingSource.id],
       ]);
@@ -1034,6 +1463,35 @@ describe.skipIf(noDatabase)("the schema, against a real PostgreSQL", () => {
     // left is another Source's Snapshot; when Overrides exist it will also be a value its owner
     // typed, and the classification tripwire below is what will make that a decision rather than an
     // omission.
+    /**
+     * **What the cascade takes with a purged Story**, which is the half of the classification record
+     * that no statement in `purge-source.ts` performs: `version` and `part_of` are deleted by
+     * PostgreSQL because their Story went, and a purge that left either behind would leave a
+     * runtime and a containment edge describing a record that is now a tombstone.
+     */
+    test("takes the purged Story's Versions and its containment with it", async () => {
+      const { rowCount: versions } = await migrator.query("select 1 from version where id = $1", [
+        versionOfThePurgedStory.id,
+      ]);
+      const { rowCount: edges } = await migrator.query(
+        "select 1 from part_of where part_id = $1",
+        [onlyTheTerminatedSource.id],
+      );
+
+      expect(versions).toBe(0);
+      expect(edges).toBe(0);
+    });
+
+    // And its Anchor is left standing, which is the other half: an Anchor carries nothing any Source
+    // supplied, and it is the row other people's records are joined on.
+    test("leaves the purged Story's Anchor where it is", async () => {
+      const { rowCount } = await migrator.query("select 1 from anchor where id = $1", [
+        onlyTheTerminatedSource.id,
+      ]);
+
+      expect(rowCount).toBe(1);
+    });
+
     test("leaves standing a Story another Source still says something about", async () => {
       expect(report.storiesKeptForAnotherSource).toBe(1);
 
@@ -1086,9 +1544,11 @@ describe.skipIf(noDatabase)("the schema, against a real PostgreSQL", () => {
     //
     // The record's contents rather than a live read: the test above is the live one, and this is why
     // a new table has to be written down here by hand.
-    test("classifies exactly nine tables, and names each of them", () => {
+    test("classifies exactly twelve tables, and names each of them", () => {
       expect(Object.keys(howThePurgeTreatsEachTable).sort()).toEqual([
         "account",
+        "anchor",
+        "part_of",
         "rate_limit",
         "session",
         "snapshot",
@@ -1097,6 +1557,7 @@ describe.skipIf(noDatabase)("the schema, against a real PostgreSQL", () => {
         "tombstone",
         "user",
         "verification",
+        "version",
       ]);
     });
   });
@@ -1120,9 +1581,12 @@ describe.skipIf(noDatabase)("the schema, against a real PostgreSQL", () => {
       await migrator.query(`insert into source (id, retention) values ($1, '6 months')`, [
         unclassifiedTableSource.id,
       ]);
+      await migrator.query(`insert into anchor (id) values ($1) on conflict (id) do nothing`, [
+        purgedWhileUnclassified.id,
+      ]);
       await migrator.query(
-        `insert into story (id, title, owner_id, visibility)
-         values ($1, 'A Story purged while the schema had grown', $2, 'private')`,
+        `insert into story (id, title, owner_id, visibility, anchor_id)
+         values ($1, 'A Story purged while the schema had grown', $2, 'private', $1)`,
         [purgedWhileUnclassified.id, purgedWhileUnclassified.owner],
       );
       await migrator.query(
@@ -1139,6 +1603,7 @@ describe.skipIf(noDatabase)("the schema, against a real PostgreSQL", () => {
         purgedWhileUnclassified.owner,
       ]);
       await migrator?.query("delete from story where id = $1", [purgedWhileUnclassified.id]);
+      await migrator?.query("delete from anchor where id = $1", [purgedWhileUnclassified.id]);
       await migrator?.query("delete from source where id = $1", [unclassifiedTableSource.id]);
     });
 
@@ -1497,17 +1962,21 @@ describe.skipIf(noDatabase)("the schema, against a real PostgreSQL", () => {
         ownerId = (await userIdBehind(cookieFrom(await signIn(firstAccount))))!;
         strangerId = (await userIdBehind(cookieFrom(await signIn(secondAccount))))!;
 
-        // Written by the role that owns the table, because the application role holds SELECT and
-        // nothing else. Nothing in this release lets a person create a Story, so the row an owner
-        // reads has to be put there by the migrator.
+        // Written by the role that owns the table, because the application role cannot write a
+        // Story — `anchor` is the one table it may insert into. Nothing in this release lets a
+        // person create a Story, so the row an owner reads has to be put there by the migrator.
+        await migrator.query("insert into anchor (id) values ($1) on conflict (id) do nothing", [
+          privateStory.id,
+        ]);
         await migrator.query(
-          "insert into story (id, title, owner_id, visibility) values ($1, $2, $3, 'private')",
+          "insert into story (id, title, owner_id, visibility, anchor_id) values ($1, $2, $3, 'private', $1)",
           [privateStory.id, privateStory.title, ownerId],
         );
       });
 
       afterAll(async () => {
         await migrator?.query("delete from story where id = $1", [privateStory.id]);
+        await migrator?.query("delete from anchor where id = $1", [privateStory.id]);
       });
 
       test("the owner sees their own private Story", async () => {

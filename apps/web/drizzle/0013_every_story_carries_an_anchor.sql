@@ -1,0 +1,1 @@
+ALTER TABLE "story" ALTER COLUMN "anchor_id" SET NOT NULL;

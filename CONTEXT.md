@@ -72,7 +72,11 @@ _Avoid_: Type, variant, edit type
 
 **Medium**:
 The form a Version takes. It belongs to the Version rather than the Story, because a change of
-form alone is what makes a new Version.
+form alone is what makes a new Version. **The schema holds these seven as a closed set** — a database
+enum since 20 August 2026, CAN-25 The catalogue: Version, part of, Anchor, canonical version — so an
+eighth is a migration somebody writes rather than a string a caller invents. That is the opposite of
+Entry type below, which says in terms that it is open, and it is a statement about the column rather
+than a ruling that no eighth Medium exists.
 _e.g._ Television, prose, audio, comic, webcast, game, stage.
 _Avoid_: Format, type, kind, category
 

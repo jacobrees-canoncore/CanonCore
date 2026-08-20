@@ -15,7 +15,11 @@ first needed an identity at all.
 **This is not a relaxation of [ADR-0005](0005-stack.md) rule 1.** That rule is about the role *the
 application* connects as, and this leaves it exactly as it was: `canoncore_app` holds `SELECT` and
 nothing else, has no `BYPASSRLS`, and reads every row through a policy. `canoncore_auth` has no
-`BYPASSRLS` either.
+`BYPASSRLS` either. *(Corrected 20 August 2026 by CAN-25 The catalogue: Version, part of, Anchor,
+canonical version: that role now also holds `INSERT` on `anchor` and on nothing else — a decision
+that ticket took and migration 0011 argues, and one this ADR's claim does not rest on. It still has
+no `BYPASSRLS`, still reads every row through a policy, and still reaches none of the five tables
+below.)*
 
 ## Contents
 
@@ -67,12 +71,14 @@ each covers what the other cannot:
 | | What it does | What it cannot do |
 | --- | --- | --- |
 | A policy naming `canoncore_auth`, on each of the five | Turns row-level security **on** for the table, which is what stops it being readable in full by whoever is granted it next | Nothing, on a table it does not name |
-| No grant at all on the four product tables | Refuses every statement, loudly | — |
+| No grant at all on any product table | Refuses every statement, loudly | — |
 
 **The absent grant is the load-bearing half, and it is easy to get wrong.** `canoncore_auth` has no
-policy on `story`, `source`, `snapshot` or `tombstone`, so a *read* returns nothing — but a **write
-would succeed**, because no policy at all is not the same as a restrictive one and there is no
-`FOR INSERT` policy to refuse it. Only the missing privilege stops it. That is why migration 0009
+policy on `story`, `version`, `part_of`, `anchor`, `source`, `snapshot` or `tombstone` — four of them
+when this was written, seven since **CAN-25 The catalogue: Version, part of, Anchor, canonical
+version** — so a *read* returns nothing on any of them, but a **write would succeed**, because no
+policy at all is not the same as a restrictive one and there is no `FOR INSERT` policy to refuse it.
+Only the missing privilege stops it. That is why migration 0009
 grants one table at a time rather than `ON ALL TABLES IN SCHEMA public`.
 
 `apps/web/src/db/rls.test.ts` asserts the whole matrix for both roles, over every table, in both

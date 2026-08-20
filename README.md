@@ -3,8 +3,8 @@
 A catalogue for a media collection where one Story legitimately belongs in more than one place at
 once.
 
-**Live at [www.canoncore.com](https://www.canoncore.com)** — a holding page with one public Story
-under it. See [Status](#status) for what actually exists.
+**Live at [www.canoncore.com](https://www.canoncore.com)** — a holding page, with two public
+Stories under it and a page for each. See [Status](#status) for what actually exists.
 
 ## The problem
 
@@ -51,15 +51,17 @@ credit block in a footer cannot give it. Both are in
 
 ## Status
 
-**The walking skeleton is complete.** One Story is stored in Neon behind row-level security and
-rendered on the public URL to an anonymous visitor; you can sign up, sign in and sign out, and the
-identity better-auth establishes is the identity the database policies read. CI gates run on every
-push and the release migrates the database before it promotes production. **The catalogue itself is
-not built yet**: nothing in the product creates a record, so an account can hold one and author
-nothing with it, and there is still no way to add a second Story.
+**The walking skeleton is complete, and the catalogue's shape now sits on top of it.** Stories are
+stored in Neon behind row-level security and rendered on the public URL to an anonymous visitor; you
+can sign up, sign in and sign out, and the identity better-auth establishes is the identity the
+database policies read. CI gates run on every push and the release migrates the database before it
+promotes production. A Story now has Versions, is part of other Stories, carries an Anchor and may
+name a canonical Version, and a public Story page shows all of it. **What is still missing is every
+way of putting something there**: nothing in the product creates a record, so an account can hold one
+and author nothing with it, and the rows that exist arrive in a migration.
 
-What that means concretely: roughly 900 lines of application code under `apps/web/src`, ignoring
-tests, blank lines and comments — a little over twice that with the comments — against twenty-two
+What that means concretely: roughly 1,450 lines of application code under `apps/web/src`, ignoring
+tests, blank lines and comments — a little over twice that with the comments — against twenty-four
 architecture decision records and a domain model. The design work ran ahead of the implementation on
 purpose, and the ratio will correct itself as vertical slices land, not by adding more planning.
 

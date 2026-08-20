@@ -809,29 +809,44 @@ rules out — including the one that looks cheapest, giving `canoncore_app` thos
 them, which would hand the role every page runs as a table of email addresses and password hashes readable
 in full. That is this section's own recorded failure, one table wider.
 
-**Rule 1 is about the role the application connects as, and `canoncore_app` is untouched by this**: still
-`SELECT` only, still no `BYPASSRLS`, still reading every row through a policy. `canoncore_auth` has no
+**Rule 1 is about the role the application connects as, and `canoncore_app` is untouched by this**: it
+holds no privilege on any of better-auth's five tables, still has no `BYPASSRLS`, and still reads every
+row through a policy. Its one write anywhere is the Anchor mint in the matrix above, which arrived with
+**CAN-25 The catalogue: Version, part of, Anchor, canonical version** and reaches none of these five. `canoncore_auth` has no
 `BYPASSRLS` either. What bounds it is written down rather than assumed: a policy naming it on five tables,
 and no privilege at all on the other four.
 
 #### What each role may do to a table, and the default privileges there are not
 
-**`canoncore_app` holds `SELECT` and nothing else, on every table it holds anything on** — and since
-17 August 2026 there are five it holds nothing on at all, which are better-auth's own.
-`canoncore_migrator` needs no grant at all — it owns each table, and an owner bypasses row security,
-which is why ownership sits with it rather than with the application's role.
+**`canoncore_app` holds `SELECT` and, on one table, `INSERT`** — and since 17 August 2026 there are
+five it holds nothing on at all, which are better-auth's own. `canoncore_migrator` needs no grant at
+all — it owns each table, and an owner bypasses row security, which is why ownership sits with it
+rather than with the application's role.
 
-**The full matrix, as migrations 0008 and 0009 leave it**, and `apps/web/src/db/rls.test.ts` asserts every
+**The full matrix, as migrations 0009 and 0011 leave it**, and `apps/web/src/db/rls.test.ts` asserts every
 cell of it for both roles:
 
 | Table | `canoncore_app` | `canoncore_auth` |
 | --- | --- | --- |
-| `story`, `source`, `snapshot`, `tombstone` | `SELECT` | **nothing** |
+| `story`, `version`, `part_of`, `source`, `snapshot`, `tombstone` | `SELECT` | **nothing** |
+| `anchor` | `SELECT`, `INSERT` | **nothing** |
 | `user`, `session`, `account`, `verification`, `rate_limit` | **nothing** | `SELECT`, `INSERT`, `UPDATE`, `DELETE` |
+
+**`anchor` is the one write privilege in this table, and it arrived with the row it is about.** An
+Anchor is a shared identity carrying no metadata at all
+([ADR-0003](adr/0003-no-shared-catalogue.md)), and **CAN-25 The catalogue: Version, part of, Anchor,
+canonical version** states its access model: readable by anyone, insertable by any signed-in user,
+never updatable. The `INSERT` policy is what makes the second clause mean *signed-in*; this grant is
+what makes it possible at all, since a policy narrows a privilege and never confers one — and
+without the grant that policy would be a rule nothing could ever run. **`UPDATE` and `DELETE` are
+absent rather than refused by a policy**, so an attempt at either is `permission denied for table
+anchor`, which is a sentence where a policy matching nothing is the silence ADR-0005 rule 2 is about.
+Migration 0011 holds the whole argument, and names all four places that carried a blanket "writes
+nothing" invariant and now carry one with `anchor` named in it.
 
 **The two sets of blanks are controls, and they are controls of different kinds.**
 
-**`canoncore_auth` has no policy on the four product tables**, so a read returns nothing — but **a write
+**`canoncore_auth` has no policy on any of the product tables**, so a read returns nothing — but **a write
 would succeed**, because no policy at all is not the same as a restrictive one, and only the absent grant
 refuses it. That grant is the whole of what keeps better-auth's role out of the catalogue.
 
@@ -901,14 +916,21 @@ Three things follow from that, and the third is why no reading of the repository
 > until it has been taken this section describes what the migration establishes rather than what
 > has been observed.
 >
-> **Read back from production on 17 August 2026, after migrations 0008 and 0009.** The matrix above is
-> what `has_table_privilege` reports for all nine tables: `canoncore_app` holds `SELECT` on the four
-> product tables and nothing on better-auth's five, `canoncore_auth` holds all four privileges on its
-> five and nothing on the product tables. Also read: nine tables all owned by `canoncore_migrator`,
-> neither application role holding `BYPASSRLS`, and `pg_default_acl` empty of both — so the two
-> `ALTER DEFAULT PRIVILEGES` rows migration 0005 removed have not returned. Taken by
+> **Read back from production on 17 August 2026, after migrations 0008 and 0009**, when there were
+> nine tables rather than twelve: `has_table_privilege` reported `canoncore_app` holding `SELECT` on
+> the four product tables of that date and nothing on better-auth's five, and `canoncore_auth`
+> holding all four privileges on its five and nothing on the product tables. Also read: nine tables
+> all owned by `canoncore_migrator`, neither application role holding `BYPASSRLS`, and
+> `pg_default_acl` empty of both — so the two `ALTER DEFAULT PRIVILEGES` rows migration 0005 removed
+> have not returned. Taken by
 > [`../scripts/apply-migrations-ahead-of-merge.sh`](../scripts/apply-migrations-ahead-of-merge.sh),
 > whose six checks are exactly these.
+>
+> **The three rows migrations 0010 to 0013 add have not been read back from production**, because
+> those migrations have not run there: the release runs them on merge
+> ([ADR-0019](adr/0019-ci-owns-the-production-release.md)). Until that reading is taken, the rows for
+> `version`, `part_of` and `anchor` describe what the migrations establish rather than what has been
+> observed — which is the same standing this section had for migration 0005 before its release ran.
 
 ### Schema
 
@@ -932,9 +954,12 @@ and Drizzle's migrator needs it before it will read its own journal
 ([incident](incidents.md#drizzles-migrator-needs-create-on-the-database-before-it-reads-anything)).
 `canoncore_app` has neither that nor `CREATE` on `public`, which is unchanged.
 
-Since then the schema has grown by every migration the release runs, and **nine tables carry the two
-tripwires** in `apps/web/src/db/rls.test.ts`: the four product tables, and the five better-auth's own
-models need — `user`, `session`, `account`, `verification` and `rate_limit`, created by migration 0008 with
+Since then the schema has grown by every migration the release runs, and **twelve tables carry the two
+tripwires** in `apps/web/src/db/rls.test.ts`: the seven product tables — `story`, `version`, `part_of`,
+`anchor`, `source`, `snapshot` and `tombstone`, three of them — `version`, `part_of` and `anchor` —
+added by migration 0010 under
+**CAN-25 The catalogue: Version, part of, Anchor, canonical version** — and the five better-auth's own
+models need: `user`, `session`, `account`, `verification` and `rate_limit`, created by migration 0008 with
 a policy on each. `rate_limit` is not incidental: better-auth's default rate-limit storage is *memory*, and
 Vercel Functions are per-invocation isolates, so a memory-backed counter is per-process and enforces
 nothing. `docs/research/production-readiness-baseline.md` → *Security posture* holds the evidence.
@@ -974,6 +999,14 @@ one branch per deployment, and what it cost.
 > carry grants and policies, and a Neon role does belong to the project rather than to a branch.
 > Both were assumptions until they were read.
 >
+> **What that reading did not cover was ownership, and ownership was the thing schema-only did not
+> carry.** Read on 21 August 2026: every one of `preview`'s nine tables was owned by `neondb_owner`,
+> where production's are owned by `canoncore_migrator` — and so were the `drizzle` schema, its
+> table and sequence, and both enums. Neon's
+> [schema-only branching guide](https://neon.com/docs/guides/branching-schema-only) says the feature
+> replicates the schema and does not mention ownership either way, so this is undocumented behaviour
+> rather than something the dialog warned about. *Repaired the same day — the next subsection.*
+>
 > **The branch count went from 62 to 2 in the same change**, the other 61 being the integration's
 > `parent-data` clones. Every one was checked as `creation_source: vercel`, `init_source:
 > parent-data` and named `preview/*` before deletion, and none backed an open pull request: there
@@ -999,6 +1032,56 @@ of ten. Left that way, the next `drizzle-kit migrate` tries to create tables tha
 journal was seeded from `main`'s ten rows as the last step of provisioning, and
 [`../scripts/apply-migrations-ahead-of-merge.sh`](../scripts/apply-migrations-ahead-of-merge.sh)
 checks the count on every run — a mis-seeded journal fails there rather than at the next migration.
+
+**A seeded journal is not a run migration, and the difference bites the next data migration rather
+than that one.** Those ten rows say 0000 to 0009 happened; on this branch their *statements* never
+did, so nothing any of them inserted is there. `preview` holds **no `story` row at all** — read on
+21 August 2026 as zero, against production's one — because migration 0002's founding Story was
+seeded by an `INSERT` that only ever ran on `main`. So **a later migration referencing a row an
+earlier one inserted fails here and succeeds on production**, which is the one direction the
+rehearsal is meant to catch and the one that reads as a mystery when it does. It was caught this way
+by **CAN-25 The catalogue: Version, part of, Anchor, canonical version**, whose migration 0012 seeds
+a Version *of* that Story: written unconditionally it dies on a foreign key against `part_of` and
+`version`, so every statement in it is conditional on the Story being present and the whole seed is
+a no-op where it is not. **A data migration that assumes a previous data migration's rows is the
+shape to look for**; a schema migration is unaffected, because the schema is what schema-only copied.
+
+#### The ownership repair of 21 August 2026
+
+**`preview` was provisioned with every object owned by `neondb_owner`, which made it unmigratable**,
+and the failure is worth stating precisely because nothing had exercised it: `ALTER TABLE` requires
+ownership, so `canoncore_migrator` could not alter a single table there. The first migration to try
+was **CAN-25 The catalogue: Version, part of, Anchor, canonical version**, whose 0010 adds two
+columns to `story`. Until then every migration on this branch had been a `CREATE`, and the journal
+was seeded rather than run, so nothing had ever needed to own anything.
+
+**The repair could not be done by the role that owned the objects.** `neondb_owner` holds
+`admin_option` on all three application roles but `set_option = false`, and PostgreSQL requires the
+current role to be able to `SET ROLE` to an incoming owner — so
+`ALTER TABLE story OWNER TO canoncore_migrator` is refused with *must be able to SET ROLE
+"canoncore_migrator"*. What that clause costs is exactly what
+[`../scripts/apply-migrations-ahead-of-merge.sh`](../scripts/apply-migrations-ahead-of-merge.sh)
+says it costs: the credential is not the only reason a person runs that script.
+
+So the sequence was: grant `canoncore_migrator` to `neondb_owner` `WITH SET TRUE`, reassign the ten
+tables, the `drizzle` schema and both enums, apply CAN-25's four migrations as
+`canoncore_migrator`, then `REVOKE … GRANTED BY neondb_owner` to leave the membership exactly as
+`cloud_admin` had granted it. **Two orderings in that are load-bearing.** The schema moves *before*
+the table inside it, because an incoming owner needs `CREATE` on the table's schema and
+`canoncore_migrator` had none on `drizzle` — reversed, it fails with *permission denied for schema
+drizzle*, which names the schema rather than the rule. And the verification runs *before* the
+revoke, because afterwards `neondb_owner` can neither read those tables nor become the role that
+can, which is the same posture production has and the proof that the door shut behind the repair.
+
+**Read back afterwards**: twelve tables, the sequence, both enums and the `drizzle` schema all owned
+by `canoncore_migrator`; `public` still owned by `pg_database_owner`; the journal at fourteen rows;
+all five invariants the script then carried passing, and the sixth that this repair prompted —
+ownership of the `drizzle` schema, its objects and both enums — reading zero on `preview` **and** on
+production; the privilege matrix identical to the one in *Roles*; and the three membership rows back
+to `grantor=cloud_admin admin=true inherit=false set=false`. One object was
+deliberately left alone — `public.show_db_tree`, a function the Neon Console creates for its own
+table browser, which exists on `preview` and not on production and is not ours to reassign. That is
+also why the repair names each object instead of using `REASSIGN OWNED BY`.
 
 #### Migrations
 
@@ -1660,21 +1743,34 @@ is only one.
 
 ## The served surface
 
-`www.canoncore.com` serves `apps/web`, a Next.js application, and its one route is rendered per
-request. CAN-22 A page on a public URL, deployed, with CI deleted `public/index.html` and the root
-`vercel.json` that served it.
+`www.canoncore.com` serves `apps/web`, a Next.js application, and **every route it serves is
+rendered per request**. CAN-22 A page on a public URL, deployed, with CI deleted `public/index.html`
+and the root `vercel.json` that served it.
 
-The page still says the product is being rebuilt, because it is, and that copy is unchanged since
-CAN-22. What CAN-23 One Story from Neon, behind row-level security added beneath it is **one public
-Story, read from Neon**: the row migration
+The front page still says the product is being rebuilt, because it is, and that copy is unchanged
+since CAN-22. What CAN-23 One Story from Neon, behind row-level security added beneath it is **one
+public Story, read from Neon**: the row migration
 0002 inserts, fetched as the anonymous session user inside a transaction, filtered by the policy on
 `story` rather than by the query. That is the walking skeleton finished — a push reaches a public
 URL, and a row reaches a stranger — and it is why the route is no longer static.
 
-Nothing else about a stranger's view changed. There is still nothing to sign in to and no way for
-anyone but the operator to put a row here.
+**Four account pages joined it** with CAN-24 A signed-in and a signed-out path and CAN-31 Email
+verification and password reset — `/sign-in`, `/sign-up`, `/forgot-password` and `/reset-password` —
+so there is something to sign in to, and *Gate one: lawfulness* above is where what that does and
+does not change is worked through.
 
-**One route is served that is not a page.** `/api/health` answers **200 with an empty body** while
+**And one Story page**, `/story/<id>`, with **CAN-25 The catalogue: Version, part of, Anchor,
+canonical version**: a public Story with its Versions, what it is part of, and a runtime taken from
+its canonical Version. **Nothing links to it**, and that is deliberate rather than unfinished — an
+`href` built from a row's id is the one change
+[`compliance/illegal-content-risk-assessment.md`](compliance/illegal-content-risk-assessment.md) →
+*Step 4* says must not ship before that assessment is redone, so the page is reached by its address.
+
+**There is still no way for anyone but the operator to put a row here**, which is the sentence *Gate
+one* rests on: nothing in the product creates a record, so an account holds nothing its holder
+authored.
+
+**One route is served that is not a page at all.** `/api/health` answers **200 with an empty body** while
 PostgreSQL answers it, and **503** when three asks in a row do not; `HEAD` gets the same, from the
 same handler. It is the uptime monitor's target rather than anything a visitor is meant to find,
 and it is deliberately not a debugging surface — no version, no host, no error, nothing about the
