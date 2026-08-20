@@ -1,0 +1,23 @@
+# The whole of a Provider repository's CI. Copy this file to `.github/workflows/ci.yml` in the
+# Provider repository, change nothing in it, and commit it with the repository's first push, before
+# the baseline is provisioned.
+#
+# **Every decision in this file is argued in one place, and it is not this file.** Why the `uses:`
+# is a branch rather than a tag, why no `secrets:` are passed, why neither job carries a `name:`,
+# what the repository has to hold for the gate to run at all, and the order the whole thing goes in:
+# https://github.com/jacobrees-canoncore/CanonCore/blob/main/docs/infrastructure.md#the-provider-repository-baseline
+#
+# The link is absolute because this file's home is another repository, where a relative pointer into
+# CanonCore's `docs/` would resolve to nothing.
+name: CI
+
+on: push
+
+jobs:
+  # **`baseline` is half of the required status check context this repository's ruleset requires by
+  # name**, so renaming this job blocks every merge here until the ruleset is edited too.
+  #
+  # Jobs of your own may sit beside it: the baseline is the floor rather than the ceiling, and
+  # provisioning looks for the job that calls it rather than for a file with one job in it.
+  baseline:
+    uses: jacobrees-canoncore/CanonCore/.github/workflows/provider-ci.yml@main

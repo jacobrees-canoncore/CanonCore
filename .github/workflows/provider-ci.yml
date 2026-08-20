@@ -1,0 +1,56 @@
+name: Provider baseline
+
+# The gates every Provider repository inherits by calling this file, rather than by copying it.
+# What the baseline is, what it leaves to per-repository settings, why it is deliberately not
+# shared with this repository's own gate, and how a new repository adopts it:
+# docs/infrastructure.md -> The Provider repository baseline. The caller that adopts it is
+# docs/provider-baseline/ci.yml.
+#
+# `workflow_call` and nothing else, so this file never runs on a push here — and so nothing in this
+# repository ever runs it at all. `scripts/provider-baseline-workflows.test.ts` is what stands in
+# for that, and says why.
+on: workflow_call
+
+permissions:
+  # Nothing in the baseline writes anything. A called workflow gets whatever the caller's token
+  # allows unless it narrows it here, and narrowing costs nothing while the gates only read.
+  contents: read
+
+jobs:
+  # **This job id is half of the required status check context in every Provider repository's
+  # ruleset, and it carries no `name:` on purpose.** Rename it, or give it a name, and every merge
+  # in every Provider repository already requiring the old string is blocked until that repository's
+  # ruleset is edited too — CAN-40 Give main a ruleset that refuses an unchecked merge's failure,
+  # once per repository, and nothing there would report why.
+  #
+  # So the string is composed rather than written down, and `scripts/check-docs.ts` fails when the
+  # composition moves. GitHub's name format, the live call it was read off, and why the absent
+  # `name:` is the decision: docs/infrastructure.md -> The Provider repository baseline, which is
+  # also the one documented home for the composed string.
+  gates:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+
+      # Four scripts the Provider's root `package.json` has to declare, and **`pnpm run` rather
+      # than `pnpm -r run`**, which would impose this repository's workspace shape on every
+      # Provider. Whether a root script fans out is the Provider's own decision, and this file does
+      # not need to know. What the recursive form fails with, and why `build` is a gate here though
+      # the ticket named three rather than four: docs/infrastructure.md -> The Provider repository
+      # baseline.
+      - run: pnpm run test
+      - run: pnpm run typecheck
+      - run: pnpm run lint
+      - run: pnpm run build
+
+      # Last, and after the four. The order, the threshold and the deliberately unpassed
+      # `--ignore-registry-errors` are all docs/agents/workflow.md -> The gates' decisions rather
+      # than this file's, and are not restated here.
+      - run: pnpm audit --audit-level=high

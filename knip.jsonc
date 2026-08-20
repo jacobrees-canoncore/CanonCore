@@ -15,6 +15,18 @@
   // for this file type — it is what allows the comments above and below.
   "$schema": "https://unpkg.com/knip@6/schema-jsonc.json",
   "workspaces": {
+    "scripts": {
+      // One entry point knip cannot find for itself. It resolves `check-docs.ts` through its
+      // GitHub Actions plugin, which reads `.github/workflows/ci.yml` and sees a step run it — and
+      // naming that one here as well is reported as redundant. Nothing runs
+      // `provision-provider-repository.ts`: a person runs it by hand, once per Provider repository
+      // (docs/infrastructure.md -> The Provider repository baseline), so no workflow and no script
+      // reaches it and knip reads it as a file nothing uses.
+      //
+      // This declares an entry point rather than suppressing a report. A genuinely dead file added
+      // to this workspace later is still reported, which an `ignore` entry would have stopped.
+      "entry": ["provision-provider-repository.ts"]
+    },
     "apps/web": {
       // The drizzle plugin's whole job is to load `drizzle.config.ts` and read the `schema` and
       // `out` paths out of it. It cannot here: that file throws at import when
