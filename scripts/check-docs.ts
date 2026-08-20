@@ -19,6 +19,8 @@
 //                            agent documents: policy, procedure and incidents get their own homes
 //                            replaced the duplication: one owning module, N one-line pointers
 //   9. always-loaded size -  CLAUDE.md  vs  the target its own maintainer comment states
+//  10. Provider baseline  -  docs/infrastructure.md  vs  the two workflow files that compose the
+//                            status check context every Provider repository's ruleset requires
 //
 // Run:  node scripts/check-docs.ts [--verbose]
 //
@@ -37,6 +39,10 @@ import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import type { Attempt, Result } from "./lib/doc-checks.ts";
+import {
+  composeRequiredContext,
+  parseDocumentedProviderContext,
+} from "./lib/provider-baseline.ts";
 import {
   Skip,
   anchorsOf,
@@ -83,6 +89,8 @@ const CI_WORKFLOW = ".github/workflows/ci.yml";
 const LABEL_HOME = "docs/agents/triage-labels.md";
 const REPOSITORY = "jacobrees-canoncore/CanonCore";
 const ALWAYS_LOADED = "CLAUDE.md";
+const PROVIDER_CALLER = "docs/provider-baseline/ci.yml";
+const PROVIDER_WORKFLOW = ".github/workflows/provider-ci.yml";
 
 const results: Result[] = [];
 const read = (p: string) => readFileSync(join(ROOT, p), "utf8");
@@ -163,9 +171,21 @@ check("ci.yml job name matches the documented context", () => {
   return `"${documented.join('", "')}"`;
 });
 
-check("the job name has exactly one documented home", () => {
-  const jobs = parseCiJobNames(read(CI_WORKFLOW));
-  const allowed = new Set([CONTEXT_HOME, CI_WORKFLOW]);
+/**
+ * Every tracked file outside `allowed` that carries one of `strings`, and how many were searched.
+ *
+ * Shared by the two contexts that each have one documented home: this repository's job name and
+ * the composed Provider baseline context. They are the same rule about two strings, so a second
+ * copy of the scan would be the drift the scan is for.
+ *
+ * Nothing scanned is not nothing found, the same distinction the document set draws below: an
+ * empty list means it searched nowhere, which reads from the report exactly like having searched
+ * and found none. What emptied the list is not the point — `git ls-files` returning nothing and
+ * the filters removing everything leave the check equally vacuous. **That guard is here rather
+ * than in each caller**, because it is a property of the scan rather than of what is being scanned
+ * for: a third caller cannot forget it.
+ */
+function secondHomes(strings: string[], allowed: Set<string>, what: string) {
   const tracked = source("git", ["ls-files"], "cannot list tracked files")
     .split("\n")
     .filter((f) => /\.(md|yml|ts)$/.test(f))
@@ -173,13 +193,8 @@ check("the job name has exactly one documented home", () => {
     // The research archive quotes history verbatim, on purpose; the tests quote the name as
     // fixture data. Neither is a second home a reader could mistake for the register.
     .filter((f) => !f.startsWith("docs/research/") && !f.endsWith(".test.ts"));
-  // Nothing scanned is not nothing found, the same distinction the document set draws below: this
-  // check searches the tracked tree for a second home, so an empty list means it searched nowhere,
-  // which reads from the report exactly like having searched and found none. What emptied the list
-  // is not the point — `git ls-files` returning nothing and the four filters above removing
-  // everything leave the check equally vacuous.
   if (tracked.length === 0)
-    fail("no tracked .md, .yml or .ts file was left to search for a second copy of the job name");
+    fail(`no tracked .md, .yml or .ts file was left to search for a second copy of ${what}`);
   const offenders: string[] = [];
   for (const file of tracked) {
     let body: string;
@@ -188,14 +203,24 @@ check("the job name has exactly one documented home", () => {
     } catch {
       continue;
     }
-    for (const job of jobs) if (body.includes(job)) offenders.push(`${file} ("${job}")`);
+    for (const s of strings) if (body.includes(s)) offenders.push(`${file} ("${s}")`);
   }
+  return { searched: tracked.length, offenders };
+}
+
+check("the job name has exactly one documented home", () => {
+  const jobs = parseCiJobNames(read(CI_WORKFLOW));
+  const { searched, offenders } = secondHomes(
+    jobs,
+    new Set([CONTEXT_HOME, CI_WORKFLOW]),
+    "the job name",
+  );
   if (offenders.length)
     fail(
       `the CI job name is copied into ${offenders.join(", ")}. It must be named only in ` +
         `${CI_WORKFLOW} and ${CONTEXT_HOME}; everywhere else, point at that table.`,
     );
-  return `${tracked.length} tracked files carry no copy`;
+  return `${searched} tracked files carry no copy`;
 });
 
 check("the live ruleset requires the documented contexts", () => {
@@ -550,6 +575,47 @@ check(`${ALWAYS_LOADED} is within its own stated line target`, () => {
         "docs/research/document-length-for-agents.md, not an edit to make here.",
     );
   return `${loaded} loaded of ${target}`;
+});
+
+// ---------------------------------------------------------------------------
+// 10. The Provider baseline's required status check context.
+//
+// The same failure as check 1, one repository further out and worse for being multiplied: the
+// context every Provider repository's ruleset requires is composed from two files here — the
+// caller a Provider copies and the reusable workflow it calls — and renaming either job blocks
+// every merge in every Provider repository that already requires the old string. Nothing in a
+// Provider repository would report that, and there is no ruleset here to compare against.
+//
+// So the composition is checked where both halves live. What it cannot reach is the Provider
+// rulesets themselves: none exists yet, and a check iterating an empty roster is the vacuous pass
+// this file fails on elsewhere. That comparison belongs to the first ticket that creates one.
+// ---------------------------------------------------------------------------
+
+check("the Provider baseline context matches the documented one", () => {
+  const composed = composeRequiredContext(read(PROVIDER_CALLER), read(PROVIDER_WORKFLOW));
+  const documented = parseDocumentedProviderContext(read(CONTEXT_HOME));
+  if (composed !== documented)
+    fail(
+      `${PROVIDER_CALLER} and ${PROVIDER_WORKFLOW} compose "${composed}" but ${CONTEXT_HOME} ` +
+        `records "${documented}". Every Provider repository's ruleset requires the documented ` +
+        `string, so a job renamed here blocks every merge in every one of them at once.`,
+    );
+  return `"${composed}"`;
+});
+
+check("the Provider baseline context has exactly one documented home", () => {
+  const composed = composeRequiredContext(read(PROVIDER_CALLER), read(PROVIDER_WORKFLOW));
+  const { searched, offenders } = secondHomes(
+    [composed],
+    new Set([CONTEXT_HOME]),
+    "the composed context",
+  );
+  if (offenders.length)
+    fail(
+      `the composed Provider context is written out in ${offenders.join(", ")}. It is composed ` +
+        `from two files and recorded in ${CONTEXT_HOME} alone; everywhere else, point there.`,
+    );
+  return `${searched} tracked files carry no copy`;
 });
 
 const width = Math.max(...results.map((r) => r.name.length));

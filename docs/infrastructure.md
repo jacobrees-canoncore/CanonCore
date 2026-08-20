@@ -21,6 +21,7 @@ changes, it is evidence and does not belong here.
 - [The URL-sharing gate](#the-url-sharing-gate)
 - [Hosting](#hosting)
 - [The repository, and what `main` refuses](#the-repository-and-what-main-refuses)
+- [The Provider repository baseline](#the-provider-repository-baseline)
 - [Environment variables](#environment-variables)
 - [Database](#database)
 - [External data source: TMDB](#external-data-source-tmdb)
@@ -372,6 +373,201 @@ estate rather than the configuration**, and each reads as fine until it is not:
   Dashboard issue is where both become visible, which is the only reason it is worth having.
 - **Majors are the ones that stop**, by construction. A major pull request sitting open is the
   system working, not a stall — so it is not evidence that anything needs looking at.
+
+## The Provider repository baseline
+
+Every Listed Provider is a repository of its own and a deployment of its own
+([ADR-0014](adr/0014-shell-providers-and-per-source-retention.md) → *Decision 2 — Listed Providers
+are written and run by this project*), so at the first one the gates above stop being all of the
+gates there are. Six or more repositories with no lint gate, no dependency audit and no secret
+scanning is a worse posture than the one this repository's own gates protect: the protection would
+scale with the number of repositories, downwards. Built by **CAN-107 Give every Provider repository
+a CI baseline** on 20 August 2026, **before the first Provider repository exists**, which is the
+whole of why the ticket blocks **CAN-101 Create the provider-tmdb repository, and give it the TMDB
+credential** rather than the reverse. A baseline that arrives second is a retrofit, and the
+repository it was retrofitted onto had already merged something unchecked.
+
+**It is two artefacts and one dashboard step, not one workflow**, because half of what a baseline
+has to carry is not workflow-shaped: a `uses:` line cannot enable secret scanning and cannot create
+a ruleset.
+
+| Part | Shape | How a repository gets it |
+| --- | --- | --- |
+| test, typecheck, lint, build, dependency audit | A reusable workflow, [`.github/workflows/provider-ci.yml`](../.github/workflows/provider-ci.yml) | One `uses:` line, in one file copied unchanged from [`docs/provider-baseline/ci.yml`](provider-baseline/ci.yml) |
+| Secret scanning, push protection, Dependabot alerts, squash-only merges, the ruleset | Repository settings | [`scripts/provision-provider-repository.ts`](../scripts/provision-provider-repository.ts), one run per repository |
+| The dependency graph | A repository setting with no REST route | By hand, at Settings → Advanced Security |
+
+**The required context is `baseline / gates`**, and it is composed rather than chosen: for a
+reusable workflow *"the name format is `<job name> / <reusable job name>`"*
+([Troubleshooting rules](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-rulesets/troubleshooting-rules#troubleshooting-required-status-checks)),
+so it is the caller's job id followed by the called job's. **This is the only place it is written
+down**, and `scripts/check-docs.ts` composes the two halves on every run and fails if they have
+moved — the same rule as *The ruleset* above, and for a worse failure: a job renamed here blocks
+every merge in every Provider repository at once, and none of them would report why.
+
+**Neither job carries a `name:`**, so each job id is the name GitHub reports and there is one
+string on each side rather than two that have to agree. That shape was read off a live
+cross-repository call rather than derived: `withastro/astro`'s job `prettier` calls
+`withastro/automation`'s job `format`, and the check run is named `prettier / format` (read
+20 August 2026).
+
+### Why the workflow lives in this repository
+
+**Nothing else here needs it, and it is still the right home.** The alternative was a seventh
+repository holding one file. Three reasons against that:
+
+- **Renovate runs here.** [`renovate.jsonc`](../renovate.jsonc) is scoped to this repository, so
+  the action versions in the baseline are updated by the same weekly pull request as everything
+  else. In a repository nothing watches they would rot, and a pinned `actions/checkout` is exactly
+  the thing that rots quietly.
+- **It sits beside the gates it mirrors.** `.github/workflows/ci.yml` and the baseline differ on
+  purpose (below), and a reader comparing them has both in one tree.
+- **`check-docs` can reach both halves.** The composition check above needs the caller template and
+  the called workflow in one checkout.
+
+**It is deliberately not shared with this repository's own job.** `ci.yml` carries a production
+release, a `postgres:17` service, `knip` and the documents check — none of which a Provider has or
+could use, and the release is one it must never have. Two files that agree where it matters and
+diverge where they should is the honest arrangement; one file with five conditionals in it is not.
+
+### Why the `uses:` reference works, and what would break it
+
+**Both repositories are public, and that is the whole access policy.** A reusable workflow may be
+called when *"the called workflow is stored in a public repository, and your organization allows you
+to use public reusable workflows"*
+([Reusing workflow configurations](https://docs.github.com/en/actions/reference/workflows-and-actions/reusing-workflow-configurations)),
+so nothing has to be granted per Provider. **This holds only while every Provider repository is
+public**, which [ADR-0014](adr/0014-shell-providers-and-per-source-retention.md) →
+*Decision 3 — reachability splits by credential, in three classes* requires in every class — and
+`repositoryProblems` in [`scripts/lib/provider-baseline.ts`](../scripts/lib/provider-baseline.ts)
+refuses a private one rather than provisioning it, because the failure mode is a *cannot find
+reusable workflow* error that reads like a typo in the `uses:` line.
+
+**The reference is `@main` rather than a tag or a SHA**, which is allowed — the same page says a
+public reusable workflow *"can be referenced using a SHA, a release tag, or a branch name"*. A
+branch means a fix reaches every Provider at once instead of through six pull requests; the cost is
+that a rename reaches them all at once too, which is what the composition check exists for. It is
+our own repository on both ends, so this is not a third-party pin.
+
+**No `secrets: inherit`.** The baseline needs no secret: a Source credential lives in the Provider's
+own Vercel project and never in Actions (*Where a Source credential lives* below). Inheriting would
+also bind the arrangement to one organisation — it works only for callers *"in the same organization
+or enterprise"* ([Reuse workflows](https://docs.github.com/en/actions/how-tos/reuse-automations/reuse-workflows))
+— and a self-hosted copy of a keyless Provider is neither.
+
+### What the gate runs, and what it deliberately does not
+
+`pnpm run test`, `pnpm run typecheck`, `pnpm run lint`, `pnpm run build`, then
+`pnpm audit --audit-level=high`. The order, the threshold and the missing `--ignore-registry-errors`
+are [`agents/workflow.md`](agents/workflow.md) → *The gates*' decisions rather than new ones.
+
+**`pnpm run` and not `pnpm -r run`.** The recursive form fails with
+`ERR_PNPM_RECURSIVE_RUN_NO_SCRIPT` when no selected package declares the script (observed on pnpm
+11.20.0), so it would impose this repository's workspace shape on every Provider. A root script that
+fans out is the Provider's own decision. What the baseline does require is that the root
+`package.json` declares all four, and provisioning refuses a repository missing any of them: a gate
+that is red on arrival is a gate that gets ignored.
+
+**A Provider may add jobs of its own beside the calling one**, and provisioning looks for the job
+that calls the baseline rather than for a caller with one job in it. Requiring a single job would
+refuse a Provider that had added a deploy job, and the only remedy would be deleting it. What must
+not change is that job's id, which its ruleset requires by name.
+
+**`knip` and the documents check are not in it.** Both are configured against this repository —
+`knip.jsonc` carries a Drizzle override, and `check-docs.ts` reads this register. A Provider adding
+either is welcome to; the baseline is the floor, not the ceiling.
+
+**`Vercel` is not in the ruleset**, though it is one of the two contexts this repository requires.
+Whether a Provider repository has the Vercel app installed is a per-repository fact, and a required
+context that never reports blocks every merge for ever — a worse failure than the one it guards
+against. It joins a Provider's ruleset when that Provider has a deployment reporting it.
+
+### Provisioning one repository
+
+The order matters, and the script enforces it rather than documenting it and hoping:
+
+1. **Create the repository, public**, and commit `docs/provider-baseline/ci.yml` to
+   `.github/workflows/ci.yml` unchanged, together with a root `package.json` declaring **the four
+   scripts and a package manager**. Both halves of that `package.json` are things whose absence
+   makes the gate red on its first run: the scripts are what the workflow calls, and the pnpm
+   version is what resolves the toolchain, since `pnpm/action-setup` is given no `version:` and its
+   README makes that *"Optional when there is a `packageManager` or `devEngines.packageManager`
+   field in the `package.json`"* ([pnpm/action-setup](https://github.com/pnpm/action-setup), read
+   20 August 2026).
+2. **The workflow file is copied rather than written by the script, and that is a limit rather than
+   a preference.** For the contents endpoint *"the workflow scope is also required in order to
+   modify files in the `.github/workflows` directory"*
+   ([repository contents](https://docs.github.com/en/rest/repos/contents)), and the token behind
+   `gh` here holds `repo` and not `workflow` (`gh auth status`, read 20 August 2026). So the file
+   travels with the repository's own first commit, and the script verifies that it arrived rather
+   than putting it there.
+3. **Let one run finish**, so the composed context has actually reported. The script reports what
+   that run concluded and never refuses on it: a red default branch is a reason to provision rather
+   than a reason not to, since the ruleset is what stops the *next* unchecked merge.
+4. `node scripts/provision-provider-repository.ts provider-tmdb`, which refuses before it writes
+   anything if the repository is not the shape above — no job calling the baseline, a copied gate
+   rather than a call, a missing script or package manager, or a context no check run has been seen
+   reporting. That last one is **CAN-40 Give main a ruleset that refuses an unchecked merge**'s
+   lesson in code: nothing is required of a repository until a run has been seen emitting it.
+5. **Turn the dependency graph on by hand**, then re-run the script. It reports SKIP rather than
+   PASS while the graph is off, because with the graph off Dependabot alerts report nothing while
+   still reading as enabled ([incident](incidents.md#dependabot-alerts-were-enabled-and-blind)).
+
+It then reads back everything it set — the merge methods, both secret-scanning settings, the alerts
+and the whole ruleset including its bypass actors — because what was asked for is not what is true
+until it has been read.
+
+**No write has been run against a real Provider repository, because none exists** — and the
+distinction from *nothing has been run* is the useful one:
+
+- **The whole preflight was run against this repository on 20 August 2026**, which is not a
+  Provider and is refused as one. It read the repository, `.github/workflows/ci.yml`, the root
+  `package.json` and `main`'s check runs, and reported exactly three reasons: no job calling the
+  baseline, no `test`, `typecheck`, `lint` or `build` script at the root, and no check run named
+  `baseline / gates` — naming `test, typecheck, lint, build` as what reported instead. It exited
+  non-zero **before the first write**. Two details of that run are worth keeping rather than
+  rounding off: the package-manager half of the third check did **not** fire, because this
+  repository declares `packageManager`, so the two halves are independently live; and an earlier
+  version of the check-runs step reported `(.name)` there, which is what sent the parsing into
+  `provider-baseline.ts` where it is tested — a step that refuses for a plausible-looking reason is
+  indistinguishable from one that is working.
+- **The ruleset it would have written is this repository's own**, read back from the live ruleset on
+  20 August 2026 and reproduced with one context instead of two. Every comparison in it is under
+  test in [`scripts/lib/provider-baseline.test.ts`](../scripts/lib/provider-baseline.test.ts), and
+  the two workflow files' shape in
+  [`scripts/provider-baseline-workflows.test.ts`](../scripts/provider-baseline-workflows.test.ts).
+- **What no run here can prove is the write half**: that GitHub accepts this ruleset payload on a
+  fresh repository, and that the composed context is the name it reports there. **Treat the first
+  provisioning run as the thing that proves both**, and correct this section from what it says.
+
+### Where a Provider's failure surfaces
+
+A Provider that fails silently looks to the application like a Source with nothing to say, which is
+the failure this baseline exists to make loud. Three failures, three routes, and only the first is
+in place today:
+
+| The failure | Where it surfaces | State |
+| --- | --- | --- |
+| Its gate goes red | GitHub's own Actions notification: *"you'll receive a notification when any workflow runs that you've triggered have completed"* ([Notifications for workflow runs](https://docs.github.com/en/actions/concepts/workflows-and-actions/notifications-for-workflow-runs)) | **Inherited rather than built here**, and it holds only while every push to a Provider repository is a person's: it reaches whoever triggered the run and nobody else, so installing Renovate on a Provider repository would make its failures silent. The alternative was a notifying step in the baseline, which would put a sending credential in six public repositories to buy what GitHub already does today |
+| The deployment is gone | An UptimeRobot monitor of its own, from the fifty [ADR-0018](adr/0018-observability-sentry-and-an-uptime-monitor-outside-it.md) holds in reserve for exactly this | **Not provisioned.** No Provider deployment exists yet |
+| An exception inside it | A Sentry project of its own, as `apps/mobile` and `apps/tv` each get one | **Not provisioned**, and blocked: nothing reports to Sentry at all yet, and **CAN-51 Keep a record of server errors past the hour Vercel keeps them** owns the SDK's shape |
+
+**One thing has to be decided before the second row can be provisioned, and it is not a settings
+edit.** The contract's `/capabilities` is the obvious thing to poll, and on an Authenticated
+Provider it answers `401` to a caller with no bearer token — while UptimeRobot marks anything
+*"answering with an erroneous HTTP status"* down *"instantly ... without verification"*
+(*Uptime monitoring: UptimeRobot* below). So a free monitor pointed at a closed Provider's contract
+endpoint would page the phone every five minutes for ever. The Provider needs an unauthenticated
+liveness route, or the monitor needs a header the free plan may not send.
+
+**CAN-141 Decide how a monitor asks a closed Provider whether it is alive** owns that decision, and
+it is a ticket of its own rather than a criterion added to a neighbour. **CAN-101 Create the
+provider-tmdb repository, and give it the TMDB credential** is the first repository to meet the
+problem but carries no monitor, uptime or liveness-route criterion, so assigning it there would have
+been the same homeless scope **CAN-107 Give every Provider repository a CI baseline**'s own amendment
+flagged when it found supply-chain scanning assumed to live in **CAN-61 Keep the codebase and its
+dependencies from silting up**. It has to be settled before a monitor is pointed at anything, which
+is why it is not blocked by the deployment it will watch.
 
 ## Environment variables
 

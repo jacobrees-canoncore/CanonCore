@@ -108,8 +108,9 @@ Nothing here is derived from any earlier attempt at this product. It was built f
 | Where | What |
 | --- | --- |
 | [`CONTEXT.md`](CONTEXT.md) | The domain vocabulary. Read this first |
-| [`docs/adr/`](docs/adr/) | Twenty-two decisions, each naming its rejected alternatives and what would reverse it |
+| [`docs/adr/`](docs/adr/) | Twenty-four decisions, each naming its rejected alternatives and what would reverse it |
 | [`docs/provider-contract/`](docs/provider-contract/) | The contract every Provider speaks, as an OpenAPI document. Normative, and additive-only |
+| [`docs/provider-baseline/`](docs/provider-baseline/) | The one file a Provider repository copies to inherit this project's CI gates |
 | [`docs/research/`](docs/research/) | The evidence under the decisions, cited to the page that owns each claim |
 | [`docs/compliance/`](docs/compliance/) | Online Safety Act duties: risk assessments, reporting, review policy |
 | [`docs/infrastructure.md`](docs/infrastructure.md) | The register: what is provisioned right now, and what is unverified |

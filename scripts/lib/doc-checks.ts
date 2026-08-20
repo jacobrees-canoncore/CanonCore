@@ -6,6 +6,8 @@
 
 import { posix } from "node:path";
 
+import { parse } from "yaml";
+
 import GithubSlugger from "github-slugger";
 import type { Nodes } from "mdast";
 import { fromMarkdown } from "mdast-util-from-markdown";
@@ -118,41 +120,49 @@ function parseTable(markdown: string, ...columns: string[]): Record<string, stri
   return rows;
 }
 
+/** One job in a workflow: the check name it reports, and what it calls. */
+export type WorkflowJob = { id: string; display: string; uses?: string };
+
 /**
- * The check context each job in a workflow emits, in order.
+ * The jobs a workflow declares, in order.
  *
- * GitHub's rule is that the context is the job's `name:`, falling back to the job **id** when
- * none is set ("the name format is `<job name>`"). That fallback is why this walks the `jobs:`
- * block rather than grepping for `name:`: deleting a job's name silently renames the required
- * status check, which blocks every merge for ever, and the caller has to be told the new
- * context rather than that the workflow looks broken.
+ * GitHub's rule is that a job's check context is its `name:`, falling back to the job **id** when
+ * none is set ("the name format is `<job name>`"), so both are read here: deleting a job's name
+ * silently renames a required status check, which blocks every merge for ever, and the caller has
+ * to be told the new context rather than that the workflow looks broken.
+ *
+ * **Parsed as YAML rather than walked line by line**, because one caller reads a workflow this
+ * repository does not own. `provider-baseline.ts` reads `.github/workflows/ci.yml` out of a
+ * Provider repository, where the layout is the Provider's own: any consistent indentation is valid
+ * YAML, and a hand-rolled walk keyed to this repository's two-space style would report a
+ * differently indented file as one with no jobs in it at all.
  */
-export function parseCiJobNames(yaml: string): string[] {
-  const lines = yaml.split("\n");
-  const start = lines.findIndex((l) => /^jobs:/.test(l));
-  if (start === -1) fail("the workflow has no `jobs:` block");
-
-  const contexts: string[] = [];
-  let id: string | null = null;
-  let name: string | null = null;
-  const flush = () => {
-    if (id) contexts.push(name ?? id);
-    id = null;
-    name = null;
-  };
-  for (const line of lines.slice(start + 1)) {
-    if (/^\S/.test(line)) break; // a new top-level key ends the jobs block
-    const job = line.match(/^ {2}([A-Za-z0-9_-]+):\s*$/);
-    if (job) {
-      flush();
-      id = job[1];
-      continue;
-    }
-    const named = line.match(/^ {4}name:[ \t]*(.+?)[ \t]*$/);
-    if (named && id && name === null) name = named[1].replace(/^['"]|['"]$/g, "");
+export function parseWorkflowJobs(source: string, what = "the workflow"): WorkflowJob[] {
+  let document: unknown;
+  try {
+    document = parse(source);
+  } catch (err) {
+    fail(`${what} is not valid YAML: ${(err as Error).message}`);
   }
-  flush();
+  const jobs =
+    typeof document === "object" && document !== null
+      ? (document as { jobs?: unknown }).jobs
+      : undefined;
+  if (typeof jobs !== "object" || jobs === null) fail(`${what} declares no \`jobs:\` block`);
+  return Object.entries(jobs as Record<string, unknown>).map(([id, job]) => {
+    const declared = (typeof job === "object" && job !== null ? job : {}) as Record<string, unknown>;
+    const named = typeof declared.name === "string" ? declared.name : undefined;
+    return {
+      id,
+      display: named ?? id,
+      uses: typeof declared.uses === "string" ? declared.uses : undefined,
+    };
+  });
+}
 
+/** The check context each job in a workflow emits, in order. */
+export function parseCiJobNames(source: string): string[] {
+  const contexts = parseWorkflowJobs(source).map((job) => job.display);
   if (contexts.length === 0) fail("the workflow declares no jobs");
   return contexts;
 }

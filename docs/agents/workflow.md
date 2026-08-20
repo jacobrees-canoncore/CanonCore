@@ -303,12 +303,14 @@ too little — a required context that never reports blocks every merge for ever
 
 **A seventh step checks the documents against the sources they describe**, `node scripts/check-docs.ts`
 — the required contexts, the label roster, the variable roster, the Actions secrets, the release
-token's expiry, the repository's security settings, every cross-document pointer, and `CLAUDE.md`
-against its own line target. **Not all of it reaches CI, and the difference is not an oversight:**
+token's expiry, the repository's security settings, the Provider baseline's composed context,
+every cross-document pointer, and `CLAUDE.md` against its own line target. **Not all of it reaches
+CI, and the difference is not an oversight:**
 
 | Check | Where it gates | Why |
 | --- | --- | --- |
 | Job name, ruleset, links, pointers | CI | Local files, plus `gh` with the workflow's own token |
+| The Provider baseline's composed context | CI and locally | Both halves are files here, so it can never skip. What it cannot reach is the Provider rulesets requiring the composed string: none exists yet, and a check over an empty roster is the vacuous pass this script fails on elsewhere |
 | Variable roster vs `vercel env ls` | CI | The runner installs `vercel` and holds a `VERCEL_TOKEN` secret. An undocumented credential is how a roster goes stale, so this one is worth a secret |
 | Secret roster vs `gh secret list` | **Locally only** | The workflow's own token cannot be granted the secrets API, and every route that reaches a runner costs a credential |
 | Label roster vs the tracker | **Locally only** | `orca` drives a desktop app on Jacob's machine and cannot run on a runner. A Linear credential to reach it from CI was weighed and refused |
@@ -541,13 +543,24 @@ than merely going quiet, and each breaks in the direction that reads as fine:
   carrying the same identifier both drive the same issue and the first to land reports it `Done`
   while the other half is unmerged. **Give each repository its own ticket** and relate them in
   Linear. An extra issue costs nothing; a status that closed early is never re-opened by anything.
-- **The gates are this repository's gates.** *The gates* above describes one Actions job, and
-  `main`'s ruleset requires it — both are configuration of *this* repo, and a new repository has
-  neither until someone provisions them. `/review-pr` polls until checks appear and then reads the
-  ruleset for the contexts it must see; a repository emitting none gives it nothing to tell *not
-  registered yet* from *never will be*. **Provision the job, the ruleset and the deployment before
-  the first pull request in a Provider repository**, and record them as
-  [`docs/infrastructure.md`](../infrastructure.md) records this one.
+- **A Provider's gates are a shared baseline: not these gates, and not a copy of them.** *The
+  gates* above is one Actions job that carries a production release and a documents check, and
+  `main`'s ruleset requires it by name — both are configuration of *this* repository, and neither
+  can travel. What travels is the baseline **CAN-107 Give every Provider repository a CI baseline**
+  built: a Provider repository inherits test, typecheck, lint and build, plus the dependency audit,
+  by *calling* a reusable workflow that lives here, and gets secret scanning, push protection and its
+  own ruleset from one provisioning run.
+  [`../infrastructure.md`](../infrastructure.md) → *The Provider repository baseline* holds both
+  halves, the composed status check context — **written down there and nowhere else**, because a
+  rename would block every merge in every Provider repository at once — and what the baseline
+  deliberately leaves out.
+- **A Provider repository is provisioned before its first pull request, not after.** `/review-pr`
+  polls until checks appear and then reads the ruleset for the contexts it must see, so a
+  repository emitting none gives the wait nothing to tell *not registered yet* from *never will
+  be*. The baseline's own provisioning runs in the same direction and refuses to require a context
+  no run has been seen reporting, which is **CAN-40 Give main a ruleset that refuses an unchecked
+  merge**'s lesson rather than a new one. **The deployment is still per-Provider and the baseline
+  does not provision it** — nor the monitor that would say it had gone.
 - **A preview only reaches a Provider that admits it.** `provider-tmdb` and `provider-tardis-wiki`
   are closed endpoints — one because the key is ours, one because the permission is
   ([ADR-0014](../adr/0014-shell-providers-and-per-source-retention.md#decision-3--reachability-splits-by-credential-in-three-classes))

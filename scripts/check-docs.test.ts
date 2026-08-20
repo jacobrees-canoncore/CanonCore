@@ -49,6 +49,12 @@ function fixture({
     "| Dependabot alerts | **enabled** | `vulnerability-alerts` → `204 No Content` |",
     "| Dependency graph | **enabled** | `dependency-graph/sbom` → a package count while on |",
   ],
+  // The Provider baseline's two halves and the one string they compose. Parameters rather than
+  // fixture constants because the check that compares them is the check a case has to be able to
+  // break, and breaking it by rewriting the register would take every other check's source with it.
+  providerCallerJob = "baseline",
+  providerCalledJob = "gates",
+  documentedProviderContext = "baseline / gates",
 }: {
   jobName: string;
   documentedContext: string;
@@ -56,6 +62,9 @@ function fixture({
   untracked?: string[];
   tokenRows?: string[];
   securityRows?: string[];
+  providerCallerJob?: string;
+  providerCalledJob?: string;
+  documentedProviderContext?: string;
 }): Fixture {
   const dir = mkdtempSync(join(tmpdir(), "check-docs-"));
   const write = (rel: string, body: string) => {
@@ -66,6 +75,16 @@ function fixture({
   write(
     ".github/workflows/ci.yml",
     ["name: CI", "on: push", "jobs:", "  check:", `    name: ${jobName}`, "    steps:", "      - run: echo"].join("\n"),
+  );
+  // The baseline's two halves. Both are read by path rather than through the document set, so a
+  // fixture without them fails every case on a missing file rather than on what the case is about.
+  write(
+    ".github/workflows/provider-ci.yml",
+    ["name: Provider baseline", "on: workflow_call", "jobs:", `  ${providerCalledJob}:`, "    steps:", "      - run: pnpm run test"].join("\n"),
+  );
+  write(
+    "docs/provider-baseline/ci.yml",
+    ["name: CI", "on: push", "jobs:", `  ${providerCallerJob}:`, "    uses: owner/repo/.github/workflows/provider-ci.yml@main"].join("\n"),
   );
   write(
     "docs/infrastructure.md",
@@ -95,6 +114,11 @@ function fixture({
       "| Token | Scope | Expires | State |",
       "| --- | --- | --- | --- |",
       ...tokenRows,
+      "",
+      "## The Provider repository baseline",
+      "",
+      `**The required context is \`${documentedProviderContext}\`**, composed from the caller and`,
+      "the workflow it calls rather than written down twice.",
       "",
       "## Dependency and secret scanning",
       "",
@@ -290,7 +314,10 @@ test("a listing that came back empty fails rather than passing over nothing", ()
   const { run, gitOnly } = fixture({
     jobName: "the register's context",
     documentedContext: "the register's context",
-    untracked: ["docs/", "CLAUDE.md"],
+    // The Provider baseline's called workflow is hidden with them: it is a tracked `.yml` outside
+    // both allowed sets, so leaving it in the index would give the two scans one file to search
+    // and the vacuous-pass this case is about would no longer be vacuous.
+    untracked: ["docs/", "CLAUDE.md", ".github/workflows/provider-ci.yml"],
   });
   const { code, output } = run(gitOnly);
 
@@ -437,4 +464,43 @@ test("a document sitting exactly on its target passes, because that is where it 
   // boundary itself, and the case the wording "under" would read the other way. A passing check
   // prints its detail only under `--verbose`, so the count is asserted where it always appears.
   assert.match(summary, /\| PASS \| CLAUDE\.md is within its own stated line target \| 5 loaded of 5 \|/);
+});
+
+test("a Provider baseline job renamed out from under the register fails the build", () => {
+  // The same failure as the first case in this file, multiplied: the context is composed from the
+  // caller and the workflow it calls, and every Provider repository's ruleset requires the string
+  // the register records. Renaming either job blocks every merge in every one of them at once, and
+  // no Provider repository would report it — there is no ruleset here for the live check to read.
+  const { run, gitOnly } = fixture({
+    jobName: "the register's context",
+    documentedContext: "the register's context",
+    providerCalledJob: "checks",
+    documentedProviderContext: "baseline / gates",
+  });
+  const { code, output } = run(gitOnly);
+
+  assert.equal(code, 1, output);
+  assert.match(output, /^FAIL {2}the Provider baseline context matches the documented one/m);
+  assert.match(output, /compose "baseline \/ checks" but docs\/infrastructure\.md records "baseline \/ gates"/);
+});
+
+test("the composed Provider context written out a second time fails the build", () => {
+  // One composed string, one documented home. A copy in prose is a copy nobody updates when the
+  // job moves, and the reader is then told to require a context nothing emits.
+  const { run, gitOnly } = fixture({
+    jobName: "the register's context",
+    documentedContext: "the register's context",
+    documents: {
+      "docs/agents/workflow.md": [
+        "# Workflow",
+        "",
+        "A Provider's ruleset requires `baseline / gates`, which this file should not be saying.",
+      ].join("\n"),
+    },
+  });
+  const { code, output } = run(gitOnly);
+
+  assert.equal(code, 1, output);
+  assert.match(output, /^FAIL {2}the Provider baseline context has exactly one documented home/m);
+  assert.match(output, /docs\/agents\/workflow\.md \("baseline \/ gates"\)/);
 });
