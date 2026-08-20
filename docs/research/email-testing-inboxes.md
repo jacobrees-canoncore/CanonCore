@@ -61,6 +61,13 @@ Three facts make it the answer rather than merely an option, and each was measur
   retrieved without any endpoint being configured. The account carries **zero webhooks** and the
   round-trip message was still readable.
 
+> **Acted on, 20 August 2026, by CAN-140 Verify a real send against our own inbox, not a personal
+> mailbox.** All three steps of *The one real change* below have landed: the guard admits
+> `@mail.canoncore.com`, `apps/web/e2e/verification-by-inbox.spec.ts` reads the inbox by hand against a
+> preview, and the `full_access` key exists — `canoncore-inbox-reading`, held in a password manager and
+> in no variable anywhere. This document is the evidence under that change and is left as it was
+> measured; `docs/infrastructure.md` → *Reading the inbox* is the record of what was built.
+
 **Three things it does not do, and one of them is the reason not to stop here.**
 
 It does not answer *Inbox or Junk*, because it is not a consumer mailbox provider and has no spam
@@ -223,6 +230,10 @@ That fact should decide *where* such a key may live, not whether inbound is used
   one that argument was about.
 
 ## The guard in `send.ts`, and what any proposal has to do about it
+
+> **The first option below is what was done**, on 20 August 2026. The code quoted here is the version
+> this was researched against; `apps/web/src/mail/send.ts` now admits both domains, and its
+> `receiving` constant carries the argument beside the code.
 
 ```ts
 export function mayBeSentTo(recipient: string, environment: string | undefined): boolean {
@@ -544,7 +555,8 @@ preview. Its first bound, that these specs drive a deployed environment, is sati
 broken by a preview: a preview points at the shared schema-only branch
 ([ADR-0023](../adr/0023-one-shared-schema-only-preview-branch.md)), not at production's rows.
 
-Three things have to be true and each is small:
+Three things have to be true and each is small. **All three landed on 20 August 2026** — the note in
+*The answer* above says where each one lives now:
 
 1. **Widen `mayBeSentTo` to admit `@mail.canoncore.com` as well as `@resend.dev`**, with the
    justification stated next to it: the domain is a catch-all we own, so an address at it reaches no
@@ -605,7 +617,8 @@ kept so nobody re-opens them.
 | Whether the free tier's "30-day data retention" covers *received* messages as well as sent ones | The pricing page states one retention figure and does not distinguish the two. A message received 10 August was readable on 18 August, which is consistent with 30 days and does not establish it | Re-read the 10 August round trip after 9 September 2026 |
 | Whether Resend imposes any size or rate limit on inbound mail | No Resend page states one. The attachment pages describe processing large attachments without naming a ceiling | Ask Resend support, or send a large message to the catch-all |
 | Whether a Resend-managed `<id>.resend.app` receiving domain consumes the free tier's one-domain allowance | Resend documents both the managed receiving domain and the one-domain limit and never relates them | Moot under this recommendation, which uses `mail.canoncore.com`. Settle only if a second domain is ever wanted |
-| The distribution of the inbound round-trip latency | **One message, one measurement, 2.4 seconds.** Nothing here supports a claim about a worst case, which is exactly what a polling timeout has to be set against | Send ten and record the spread before any test hard-codes a timeout |
+| Whether `GET /emails/receiving` is ordered newest-first | **Measured twice and documented nowhere.** The list came back newest-first on 18 and 20 August 2026, and Resend's OpenAPI specification carries no ordering field at all — only `limit`, `before`, `after` and `has_more`. `apps/web/e2e/verification-by-inbox.spec.ts` reads one page of 100 and notes that at three messages ever, volume rather than order is what makes that sound | Ask Resend, or add a cursor the day the account holds more than 100 received messages |
+| The distribution of the inbound round-trip latency | **Three measurements now, not one: 2.4 seconds on 10 August 2026, then 2.39 and 2.88 seconds on 20 August 2026** — the later pair from sign-up to receipt, so each is an upper bound on the round trip rather than the round trip itself. Three points still support no claim about a worst case, which is exactly what a polling timeout has to be set against. `apps/web/e2e/verification-by-inbox.spec.ts` does hard-code one: **90 seconds**, roughly thirty times the slowest seen, chosen so that the failure it reports is an absence rather than a delay | Send ten and record the spread. Until then the timeout's margin is the defence, not the measurement |
 | Whether Mailpit, MailHog, Inbucket or maildev can lawfully or workably be an MX for a public domain | None of the four mentions MX. Each binds a configurable SMTP address, so nothing prevents it technically. Established by absence | Irrelevant under this recommendation |
 | Mailtrap Email Sandbox message retention | Stated nowhere in Mailtrap's sandbox docs or on its pricing page. The Inbound Email product does publish body retention (3 days free) | Only matters if Mailtrap is reconsidered |
 | MailSlurp's free tier: whether one exists at all, and every numeric limit on it | Its pricing page shows only a 7-day Pro trial while its own support and guides pages still describe a free personal tier. **The vendor's pages contradict each other** | Only settleable by signing up. MailSlurp is rejected above on price regardless |

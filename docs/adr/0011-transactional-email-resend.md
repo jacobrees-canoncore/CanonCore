@@ -64,7 +64,16 @@ because the region selector implies otherwise.
 **There is no test mode.** Isolation comes from the recipient — `delivered@`, `bounced@`,
 `complained@` and `suppressed@resend.dev` simulate outcomes without touching domain reputation — so
 a mistyped real address in a preview deployment **will send for real**. Any code sending mail must
-refuse non-`resend.dev` recipients outside production. Test sends still consume the daily quota.
+therefore refuse, outside production, every recipient that could be a **person**. Test sends still
+consume the daily quota.
+
+**Two domains satisfy that rule and a third needs the same argument, not an exception.** Resend's
+simulator is one. The other is our own receiving domain, `mail.canoncore.com`, admitted by
+**CAN-140 Verify a real send against our own inbox, not a personal mailbox**: it is a catch-all we
+own, so every address at it is a mailbox we can read and none of them is anybody — which is the
+property above rather than a relaxation of it, and it is what lets a preview send somewhere readable
+instead of a personal mailbox. What it buys, what it costs and which key reads it are
+[`docs/infrastructure.md`](../infrastructure.md) → *Reading the inbox*.
 
 **Mail is sent from a subdomain, never the apex.** Resend's own guidance is to send from a subdomain
 "to conform to deliverability best practices". A sending domain accumulates reputation, and keeping

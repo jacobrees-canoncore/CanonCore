@@ -669,11 +669,13 @@ reads.
 > below, not anything in this table.
 >
 > **One of the two is only ever read in production, and that is the guard rather than a gap.** Outside
-> production `send.ts` refuses any recipient not at `resend.dev` before it builds the request, so a
-> preview reaches Resend only for one of those four addresses — *Transactional email* below has why
-> that refusal is the only isolation Resend offers. So a preview carrying a broken `RESEND_API_KEY`
-> would look healthy until the first send that got past the guard. **The preview key was checked that
-> way on 18 August 2026 and is sound**: a sign-up on a live preview addressed to
+> production `send.ts` refuses any recipient at neither `resend.dev` nor `mail.canoncore.com` before it
+> builds the request — *Transactional email* below has why that refusal is the only isolation Resend
+> offers, and *Reading the inbox* has why the second domain is the guard's own reason rather than an
+> exception to it. So a preview reaches Resend only for an address that cannot be a person, and a
+> preview carrying a broken `RESEND_API_KEY` would look healthy until the first send that got past the
+> guard. **The preview key was checked that way on 18 August 2026 and is sound**: a sign-up on a live
+> preview addressed to
 > `delivered@resend.dev` logged no refusal, on a deployment where the same form addressed to a real
 > domain logged one, and Resend's own send log records that message as **delivered**.
 >
@@ -1356,7 +1358,7 @@ is [transactional-email-providers.md](research/transactional-email-providers.md)
 | Sending domain | `mail.canoncore.com`, id `5e9ca08d-ddae-444f-9d7b-066979148a73` |
 | Region | `eu-west-1` (Ireland). **Cannot be changed** without deleting and re-adding the domain |
 | Sending address | `CanonCore <noreply@mail.canoncore.com>` |
-| Receiving | **Enabled** on `mail.canoncore.com`, for DMARC reports |
+| Receiving | **Enabled** on `mail.canoncore.com`, and a **catch-all**: DMARC reports, and the route by which a real send is verified — *Reading the inbox* below |
 | Marketplace integration | **Not installed.** A plain API key, deliberately |
 | Account | `jacobreesnew@gmail.com` |
 
@@ -1381,12 +1383,17 @@ variable — the same failure mode the `NEON_` prefix exists to avoid.
 | `RESEND_API_KEY` | Production | `canoncore-production` | `e39e8cf5-5989-4423-a6da-9f6231c9ac94` |
 | `RESEND_API_KEY` | Preview | `canoncore-preview` | `49af56bc-d365-4f5c-9cb1-6b85a638a2df` |
 
-**The account holds exactly these two.** Both are `sending_access` restricted to
+**These two are the whole of what any deployment carries.** Both are `sending_access` restricted to
 `mail.canoncore.com`, so neither can read logs, manage domains or create further keys; both stored
 Sensitive. The preview row was read from its dashboard page on 10 August 2026, the production row on
 **18 August 2026**, when it was replaced. Three older keys were revoked on 10 August 2026 by
 **CAN-39 Account for the three Resend API keys that predate CAN-20, and revoke the unused ones**
 ([incident](incidents.md#three-unscoped-resend-api-keys-were-revoked)).
+
+**A third key exists, and it is a variable nowhere**: `canoncore-inbox-reading`, created on
+20 August 2026 by **CAN-140 Verify a real send against our own inbox, not a personal mailbox**. It is
+`full_access`, because reading inbound mail admits no narrower scope, and it is held in Jacob's
+password manager alone. *Reading the inbox* below is what it is for, and what it must never become.
 
 **The production key was replaced by CAN-136 Production cannot send email: Resend refuses the API
 key with 401.** The key it replaced, `fe0bb980-4998-4343-9a60-f03fd607bbfd`, was deleted the same
@@ -1506,6 +1513,110 @@ it. Resend stays as the raw archive; Postmark is the reader.
 
 `p=none` is monitor-only and changes nothing about delivery.
 
+### Reading the inbox, which is how a real send is verified
+
+**Confirming that a send works no longer means reading a personal mailbox.** Until
+**CAN-140 Verify a real send against our own inbox, not a personal mailbox** it did: a message was
+addressed to `jacob.rees@vepple.com` and Mail.app was opened to see where it landed. The replacement
+was already provisioned and unused — receiving on `mail.canoncore.com`, on since 10 August 2026.
+
+**Every address at the domain is already a mailbox.** Resend receives "any email sent to your
+receiving domain", so `e2e-8f21@mail.canoncore.com` needs no alias, no forward and no configuration
+([Receiving Emails](https://resend.com/docs/dashboard/receiving/introduction)). No webhook is needed
+either: "Resend stores emails as soon as they come in", and this account carries none.
+
+**What an inbound copy proves, which is more than a send log does.** The round trip was measured at
+**2.4 seconds**, and the received message carries `spf=pass`, `dkim=pass`, `dmarc=pass` and
+`X-SES-Spam-Verdict: PASS` computed by the *receiver* rather than by us — a real check on the DNS in
+*DNS for mail* above, which is the thing most likely to break silently. **It is not a placement
+claim**: Resend inbound has no spam folder, so *How delivery is checked* below still owns Inbox
+versus Junk. The evidence, the measurements and the vendors this made unnecessary are
+[email-testing-inboxes.md](research/email-testing-inboxes.md).
+
+**A round trip spends two of the hundred a day, not one.** "Both sent and received emails count
+towards these quotas" ([Usage Limits](https://resend.com/docs/api-reference/rate-limit)), so the
+ceiling is fifty round trips a day against the free tier — ample by hand, and one of the reasons this
+is on no gate.
+
+**The guard admits the domain, and that is the guard's own reason rather than a hole in it.** Outside
+production [`apps/web/src/mail/send.ts`](../apps/web/src/mail/send.ts) refuses any recipient at
+neither `resend.dev` nor `mail.canoncore.com`, anchored on the `@`: what it exists to prevent is a
+stray recipient being a *person*, and a catch-all we own is nobody. The anchor is what keeps
+`notmail.canoncore.com` out, a domain anybody may register. **The apex is out because it is a
+different domain, and it must stay out** — `report@canoncore.com` is the reporting mailbox and a
+person reads it in Mail.app, so widening that constant from `mail.canoncore.com` to `canoncore.com`
+would undo the whole guard.
+
+#### The key that can read it
+
+| Key | Permission | Id | Where it lives |
+| --- | --- | --- | --- |
+| `canoncore-inbox-reading` | **`full_access`** | `2babd4ef-14db-4a63-8ffe-28c4ef202d09` | **Jacob's password manager only.** Created 20 August 2026 |
+
+**Resend has exactly two permissions and reading inbound needs the larger one.** `full_access` "can
+create, delete, get, and update any resource"; `sending_access` "can only send emails"
+([Create API key](https://resend.com/docs/api-reference/api-keys/create-api-key), whose `domain_id`
+is "only used when the permission is `sending_access`" — so this key cannot be restricted to the
+domain the way the two sending keys are). There is no narrower scope to ask for, so **this one key can
+delete the sending domain and mint further keys.**
+
+**Which decides where it may live rather than whether inbound is used.** It is deliberately **not a
+Vercel variable and not a GitHub Actions secret**: *What this check compares, and what it cannot*
+above already refuses a Resend credential in Actions as "a second store for a credential that lives
+in Vercel", and this key is strictly more powerful than the one that argument was about. It is passed
+on the command line of the run that needs it, and this project stores it nowhere.
+
+**The password manager rather than the Keychain, which departs from what the research asked for.**
+[email-testing-inboxes.md](research/email-testing-inboxes.md) → *The one real change* says to hold it
+"through `resend login`, which stores it in the macOS Keychain". A Keychain entry is the right home
+for the *CLI* and the wrong one for the only caller that needs the key: the spec reads an environment
+variable, not the Keychain, so a key that lived only there would have to be pulled back out on every
+run. The password manager is therefore where the value is kept, and `resend login` is an optional
+extra for anyone using the CLI. **Neither is a store this repository can check**, which is why the
+row above records a name and an id and no value.
+
+**Three routes read the inbox, and the cheapest needs no credential at all:**
+
+| Route | Credential |
+| --- | --- |
+| The `resend` MCP — `list-received-emails`, `get-received-email` | **None.** OAuth against a browser login |
+| `resend emails receiving list` and `get`, from the CLI | `--api-key`, then `RESEND_API_KEY`, then whatever `resend login` saved to the macOS Keychain — the CLI's own priority order |
+| `GET /emails/receiving` and `GET /emails/receiving/:id` | The key above, as a `Bearer` |
+
+**So an agent or a person should reach for the MCP**, which is how every measurement above was taken.
+The key exists for the one caller that cannot use it.
+
+#### The spec that reads it
+
+[`apps/web/e2e/verification-by-inbox.spec.ts`](../apps/web/e2e/verification-by-inbox.spec.ts) signs up
+on a preview, polls for the message, follows the verification link and signs in — the one claim no
+stub can make. **Run by hand, on no gate**, and it skips with the reason on the run unless given both
+variables:
+
+```bash
+CANONCORE_E2E_BASE_URL=<preview url> \
+CANONCORE_E2E_RESEND_API_KEY=<the key above> \
+  pnpm --filter @canoncore/web test:e2e verification-by-inbox
+```
+
+**A `next dev` server is the cheaper target, and it is a real send either way.** The guard admits our
+own domain from every environment that is not production, so `CANONCORE_E2E_BASE_URL=http://localhost:3000`
+against a local dev server exercises the whole path — the send leaves Resend, the message arrives, the
+link works. **It was first run that way on 20 August 2026 and passed in 6.2 seconds**, leaving an
+account whose `email_verified` column read `true` and one session row. What a local run cannot prove
+is the environment: no Vercel routing, no CDN, no `*.vercel.app` host, and a database of your own
+rather than the shared `preview` branch. **A preview run is still owed**, and it is what the two
+`*.vercel.app` facts above are about.
+
+**It must never be pointed at production**, because a sign-up there creates an account nothing can
+erase until **CAN-30 GDPR export and erasure**. Two separate things stop it, and they stop different
+mistakes. **An unset `CANONCORE_E2E_BASE_URL` skips the spec**, which covers the whole-suite run whose
+target defaults to production. **A base URL naming any of the three hostnames that serve production
+fails it**, which covers the deliberate one. The key's absence skips too, but it is not what defends
+against production: it defends against a run that could not read the inbox anyway. The spec's own
+header records what neither check can see — a production deployment's per-deployment `*.vercel.app`
+URL is indistinguishable from a preview's by name.
+
 ### How delivery is checked
 
 Resend reporting a send as `delivered` means it handed the message over, not that anyone saw it. A
@@ -1528,6 +1639,14 @@ lands.
 
 Mail sent to `*@mail.canoncore.com` needs no such check, because receiving is enabled and the
 `resend` MCP reads that mailbox directly.
+
+**And the first row is where a personal mailbox stopped being the answer.** *Did it arrive, and is it
+intact?* is answered by a round trip through our own inbox — *Reading the inbox* above — which needs
+no mailbox of Jacob's and no key at all. What still needs a real receiver is the second question
+alone, Inbox or Junk, and a purpose-made seed account at a consumer provider is what would answer it
+without reading a personal mailbox either
+([email-testing-inboxes.md](research/email-testing-inboxes.md) → *Deliverability is a second
+question*).
 
 ## Reporting address
 

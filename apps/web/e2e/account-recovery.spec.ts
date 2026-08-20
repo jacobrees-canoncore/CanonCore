@@ -15,10 +15,15 @@ import { expect, test } from "@playwright/test";
  *   database, on a service whose URL is deliberately not shared. `signed-out-path.spec.ts` records
  *   that bound and its reason; **CAN-30 GDPR export and erasure** is what would make such an account
  *   disposable.
- * - **There is no inbox to read.** Both flows turn on a link that arrives by email. Resend has no
- *   mailbox to poll, and on a preview the guard in [`../src/mail/send.ts`](../src/mail/send.ts)
- *   refuses every recipient that is not at `resend.dev` — which is the guard working, not an
- *   obstacle to route around.
+ * - **There was no inbox to read, and now there is one — for verification only, and not from here.**
+ *   Both flows turn on a link that arrives by email. Resend does have a mailbox to poll: receiving on
+ *   `mail.canoncore.com` is a catch-all, and the guard in
+ *   [`../src/mail/send.ts`](../src/mail/send.ts) admits it since **CAN-140 Verify a real send against
+ *   our own inbox, not a personal mailbox** — deliberately widened rather than routed around.
+ *   [`verification-by-inbox.spec.ts`](verification-by-inbox.spec.ts) is what reads it, and it is a
+ *   separate file because it must never run against this suite's default target: it signs up. What
+ *   stays out of reach *here* is the reset flow, for the bullet below rather than for want of an
+ *   inbox.
  * - **A reset link is a one-hour capability over a real account.** Even given an inbox, driving the
  *   reset flow against production would mean changing a real password.
  *
