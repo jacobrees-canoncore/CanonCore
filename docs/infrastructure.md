@@ -115,10 +115,10 @@ back, and the first visit is the only one most of them make.
 | | |
 | --- | --- |
 | Status | **Closed.** Not shared |
-| Condition outstanding | [CAN-59 Decide whether the Hobby plan can carry a public service](https://linear.app/jacobrees-canoncore/issue/CAN-59) — the plan is contractually non-commercial, and the decision is recorded as an ADR either way |
+| Condition **met** | [CAN-59 Decide whether the Hobby plan can carry a public service](https://linear.app/jacobrees-canoncore/issue/CAN-59) — decided 20 August 2026, [ADR-0024](adr/0024-vercel-pro-for-a-spend-cap-rather-than-an-outage.md). **The decision is met; the upgrade is not done** — *Hosting* below carries that |
 | Condition outstanding | [CAN-60 Gate the front end on bytes, budgets and React lint](https://linear.app/jacobrees-canoncore/issue/CAN-60) — the front-end quality gates, once there is a stable application to measure |
 | Condition **met** | [CAN-61 Keep the codebase and its dependencies from silting up](https://linear.app/jacobrees-canoncore/issue/CAN-61) — the two hygiene tools whose value scales with codebase age. Met 17 August 2026: knip gates in CI and Renovate owns dependency updates, *Dependency updates* below. The row stays rather than being deleted, so the gate's history reads as conditions met rather than conditions dropped |
-| Condition outstanding | **An explicit acceptance of Vercel Hobby's 30-day outage risk.** Exceeding an included limit takes the feature offline until 30 days have passed, and Hobby has neither a spend cap nor a configurable usage alert ([Hobby plan](https://vercel.com/docs/plans/hobby)). No ticket owns the acceptance: **CAN-59 Decide whether the Hobby plan can carry a public service** is where the reasoning lands, and deciding to stay on Hobby is not the same as having accepted this |
+| Condition **dissolves on upgrade** | **An explicit acceptance of Vercel Hobby's 30-day outage risk**, a condition no ticket owned. [ADR-0024](adr/0024-vercel-pro-for-a-spend-cap-rather-than-an-outage.md) removes the risk rather than accepting it, so there is nothing left to accept — **but only once the plan actually moves.** Until then the risk is live and this condition stands. Recorded rather than deleted, so the gate reads as a risk removed rather than a condition dropped |
 | Recorded here since | 14 August 2026, by **CAN-93 Record the three bands, the two gates and the Later queue convention** |
 
 **Design is deliberately not a condition**, and that is a decision rather than an omission. A stranger reads
@@ -132,7 +132,9 @@ that is v1's scope rather than a condition here, and this gate would open withou
 
 | | |
 | --- | --- |
-| Vercel account | `jacobreesnew-7380's projects` (Hobby, user `jacobreesvercel`) |
+| Vercel account | `jacobreesnew-7380's projects` (user `jacobreesvercel`) |
+| Plan | **Hobby.** Pro decided 20 August 2026, upgrade outstanding — [ADR-0024](adr/0024-vercel-pro-for-a-spend-cap-rather-than-an-outage.md) |
+| Spend Management | **Not configured.** Pro-only, so it lands with the upgrade. Threshold and seat count belong in this row once set — [ADR-0024](adr/0024-vercel-pro-for-a-spend-cap-rather-than-an-outage.md) |
 | Project | `canoncore`, `prj_BMzP9Dq7Qx3Eev8WwsvVoH5khnaU` |
 | Repository | `jacobrees-canoncore/CanonCore`, production branch `main` |
 | Function region | `lhr1` (London) |
@@ -160,8 +162,9 @@ private again, both break.
 
 Hobby "restricts users to non-commercial, personal use only"
 ([Vercel Hobby plan](https://vercel.com/docs/plans/hobby), citing the
-[fair use guidelines](https://vercel.com/docs/limits/fair-use-guidelines#commercial-usage)). v1 is a
-public service carrying a terms of service, so the plan is worth revisiting before launch.
+[fair use guidelines](https://vercel.com/docs/limits/fair-use-guidelines#commercial-usage)). **Settled
+20 August 2026**: the plan moves to Pro, where the restriction does not apply — [ADR-0024](adr/0024-vercel-pro-for-a-spend-cap-rather-than-an-outage.md). Live until the
+upgrade lands.
 
 The Vercel GitHub App is installed on `jacobrees-canoncore`, scoped to this one repository, and
 installing it displaced nothing
@@ -761,8 +764,8 @@ it had cited rather than observed.
 > **The production branch `main` is not protected, and cannot be on this plan** (checked live 16
 > August 2026: `protected: false`). Branch protection is a Neon **paid-plan** feature — Launch
 > allows 2 protected branches, Free none — so this is plan-gated rather than forgotten. The
-> upgrade question is owned by **CAN-59 Decide whether the Hobby plan can carry a public
-> service**; the outstanding-work record is **CAN-69 Record the credential purge, regenerate the
+> upgrade question is a *Neon* plan question and is not what **CAN-59 Decide whether the Hobby plan
+> can carry a public service** settled — that decided the *Vercel* plan, on 20 August 2026; the outstanding-work record is **CAN-69 Record the credential purge, regenerate the
 > credentials table, and lint-ban NEON\_ reads**.
 
 ### Roles
