@@ -138,9 +138,9 @@ included per month, and what a month costs you when it runs out
 **Fix. There is no lever, and that is the point of the entry.** *"In most cases, if you exceed your
 usage limits on the Hobby plan, you will have to wait until 30 days have passed before you can use
 the feature again"* — and Spend Management is unavailable on Hobby, so nothing can be capped ahead
-of time either (same page). The two real options are to wait it out or to upgrade to Pro, which is
-**CAN-59 Decide whether the Hobby plan can carry a public service** and is a decision to take
-before an outage rather than during one.
+of time either (same page). The two real options are to wait it out or to upgrade to Pro. **That
+decision is taken** — 20 August 2026, [ADR-0024](adr/0024-vercel-pro-for-a-spend-cap-rather-than-an-outage.md) — so the
+question during an outage is only whether the upgrade has landed yet, not which way to go.
 
 The one thing to do *during* it: an upgrade takes effect immediately, so if the site has to be back
 today, that is the only route back.
@@ -341,6 +341,7 @@ the outage, not the warning before it.
 
 **Readings are deliberately not logged here.** A month of ordinary numbers would bury the four
 entries above, which is the growth [`infrastructure.md`](infrastructure.md) was split to avoid. Act
-on a reading instead: anything past half its allowance with a week of the month left is evidence
-for **CAN-59 Decide whether the Hobby plan can carry a public service**, and belongs in that
-ticket rather than in this file.
+on a reading instead: anything past half its allowance with a week of the month left is a reason to
+bring the Pro upgrade forward — decided 20 August 2026, [ADR-0024](adr/0024-vercel-pro-for-a-spend-cap-rather-than-an-outage.md).
+**Once that lands this check changes character**: Spend Management notifies and pauses on a threshold,
+so the reading stops being the only warning and this section should be revisited then.
