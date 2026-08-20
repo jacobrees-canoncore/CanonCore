@@ -548,7 +548,7 @@ two of them:
 | --- | --- | --- |
 | 1 | Accept it, and make the skip visible rather than a log line | **Taken, for the label roster** and now for this half too. The job summary is the mechanism |
 | 2 | Widen the comparison to reach the Actions secrets | **Taken, and it lands locally.** The two rows leave the unchecked list because they are genuinely compared, just not everywhere |
-| 3 | A Linear API token in Actions, to enforce the label roster from CI | **Refused.** A user-scoped, workspace-wide credential with a roster row, an expiry and a rotation story, to gate eight strings |
+| 3 | A Linear API token in Actions, to enforce the label roster from CI | **Refused**, on the cost of holding a credential: a roster row and a rotation story of its own, to gate eight strings. **Not on its reach** — Linear documents both permission-restricted and team-restricted personal keys, so a read-only key confined to team `CAN` is available ([research](research/closing-the-ci-check-gaps.md)) |
 | 4 | `toJSON(secrets)`, which would have made option 2 reach CI for nothing | **Blocked by GitHub**, and would have blocked every merge with it |
 
 **`scripts/check-docs.ts` was deliberately not widened past one Vercel project.** It reads
