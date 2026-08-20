@@ -700,8 +700,11 @@ recipient addresses in code** — because Resend has no test credential.
   simulate each outcome "without damaging your domain reputation". But "Test emails count against
   your account's sending quota", and a mistyped real address in a preview **will send for real**. The
   mitigation is a separate API key per environment, so a leaked or abused preview key can be revoked
-  alone, plus a guard in the application that refuses non-`resend.dev` recipients outside production.
-  The free tier allows **one domain**, so previews cannot have their own.
+  alone, plus a guard in the application that refuses, outside production, any recipient that could be
+  a person — `resend.dev` was its whole allowance until **CAN-140 Verify a real send against our own
+  inbox, not a personal mailbox** added our own catch-all receiving domain beside it
+  ([email-testing-inboxes.md](email-testing-inboxes.md)). The free tier allows
+  **one domain**, so previews cannot have their own.
 - **Postmark** isolates at the credential: a Sandbox Server's messages "are sent to a black hole", and
   `POSTMARK_API_TEST` validates without sending. A wrong recipient cannot escape.
 - **SES** has the mailbox simulator, which uniquely does not consume the daily quota or affect

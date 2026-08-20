@@ -137,10 +137,12 @@ const secondAccount = {
 /**
  * The one account whose address is **not** at `.invalid`, and the reason is the guard.
  *
- * `mail/send.ts` refuses any recipient outside `resend.dev` unless `VERCEL_ENV` is `production`, which
- * it is not here and must not be — `auth.ts`'s `hostsAllowedToIssueSessions` would then refuse every
- * form posted from `localhost`. So an account that is going to exercise the two mail flows has to be at
- * a domain the guard admits, and this is the only one that is.
+ * `mail/send.ts` refuses any recipient at neither `resend.dev` nor `mail.canoncore.com` unless
+ * `VERCEL_ENV` is `production`, which it is not here and must not be — `auth.ts`'s
+ * `hostsAllowedToIssueSessions` would then refuse every form posted from `localhost`. So an account
+ * that is going to exercise the two mail flows has to be at a domain the guard admits, and
+ * `resend.dev` is the right one of the two: it reaches nothing at all, where the other is a mailbox
+ * whose contents somebody would then have to ignore.
  *
  * **Nothing leaves the process either way**: `interceptResend` below replaces `fetch`, so what makes
  * this safe is the stub rather than the domain. The domain is what makes the send happen at all, which
@@ -1254,14 +1256,15 @@ describe.skipIf(noDatabase)("the schema, against a real PostgreSQL", () => {
 
     /**
      * **The guard, in the flow rather than in isolation.** `mail/send.ts`'s own tests prove the
-     * function refuses a non-`resend.dev` recipient; only this can show that the refusal is actually
-     * wired into a sign-up, which is the claim that matters — a guard nothing reaches is a guard.
+     * function refuses a recipient at neither domain it admits; only this can show that the refusal is
+     * actually wired into a sign-up, which is the claim that matters — a guard nothing reaches is a
+     * guard.
      *
      * The address here is at `.invalid`, so nothing at all should have been handed to Resend for it.
      * That is also why the two fixture accounts above are confirmed with an `update` rather than by
      * following a link: for them, there is no link.
      */
-    test("a sign-up outside production sends nothing at all to a non-resend.dev address", async () => {
+    test("a sign-up outside production sends nothing at all to an address the guard refuses", async () => {
       const email = `guarded@${testEmailDomain}`;
 
       await signUp({ ...firstAccount, email });
@@ -1539,12 +1542,18 @@ describe.skipIf(noDatabase)("the schema, against a real PostgreSQL", () => {
      * `fetch` for that one host, so the message asserted on below is the real body `mail/send.ts`
      * built, carrying the real URL better-auth put in it.
      *
-     * **It cannot be a Playwright spec**, and that is worth stating because "end-to-end test" usually
-     * means one. That suite drives a *deployed* URL, defaults to production, and
-     * `../../e2e/signed-out-path.spec.ts` records why it deliberately never creates an account. It
-     * also could not read an email: on a preview the guard refuses every recipient that is not at
-     * `resend.dev`, and Resend has no inbox to read. `../../e2e/account-recovery.spec.ts` covers what
-     * only a deployment can add, which is that the two pages exist and render.
+     * **It cannot be a Playwright spec on any gate**, and that is worth stating because "end-to-end
+     * test" usually means one. That suite drives a *deployed* URL and defaults to production, where
+     * `../../e2e/signed-out-path.spec.ts` records why it deliberately never creates an account.
+     * `../../e2e/account-recovery.spec.ts` covers what only a deployment can add, which is that the
+     * two pages exist and render.
+     *
+     * **One spec does now read a real inbox**, and it is the exception rather than a replacement for
+     * this block: `../../e2e/verification-by-inbox.spec.ts` signs up on a *preview*, reads the message
+     * out of Resend's inbound store and follows the link, since CAN-140 Verify a real send against our
+     * own inbox, not a personal mailbox. It runs by hand, because reading inbound needs a
+     * `full_access` key and a run spends two of the hundred sends a day. So the claim stays split: it
+     * proves a message left and arrived, and this block proves everything either flow does with it.
      *
      * ## The order these run in is load-bearing
      *

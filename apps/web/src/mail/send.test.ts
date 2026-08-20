@@ -71,7 +71,7 @@ afterEach(() => {
  * nobody's mailbox is on Resend's own domain. A tighter guard listing exactly four would be no safer
  * and would refuse a fifth the day Resend documents one.
  */
-test("outside production only a resend.dev recipient may be sent to", () => {
+test("outside production a resend.dev recipient may be sent to, and a real address may not", () => {
   for (const environment of [undefined, "preview", "development"]) {
     expect(mayBeSentTo("delivered@resend.dev", environment)).toBe(true);
     expect(mayBeSentTo("bounced@resend.dev", environment)).toBe(true);
@@ -100,6 +100,50 @@ test("a domain merely ending in the simulator's name is not the simulator", () =
 
 test("the case of the address does not decide whether the guard applies", () => {
   expect(mayBeSentTo("Delivered@Resend.Dev", "preview")).toBe(true);
+  expect(mayBeSentTo("E2E-8F21@Mail.CanonCore.com", "preview")).toBe(true);
+});
+
+/**
+ * **The second allowed domain.** Why an address at our own catch-all is admitted by the guard's own
+ * reason rather than against it is argued once, in `send.ts` → `allowedOutsideProduction`, and is
+ * deliberately not restated here.
+ *
+ * What this adds is the assertion: **any local part**, like the `resend.dev` case above, because the
+ * property belongs to the whole domain. `../../e2e/verification-by-inbox.spec.ts` invents
+ * `e2e-<id>@` per run, so a guard listing local parts would be a list nothing could keep.
+ */
+test("outside production a recipient at our own receiving domain may be sent to", () => {
+  for (const environment of [undefined, "preview", "development"]) {
+    expect(mayBeSentTo("e2e-8f21@mail.canoncore.com", environment)).toBe(true);
+    expect(mayBeSentTo("noreply@mail.canoncore.com", environment)).toBe(true);
+    expect(mayBeSentTo("dmarc@mail.canoncore.com", environment)).toBe(true);
+  }
+});
+
+/**
+ * **The sibling of the `notresend.dev` test above, and the third case is a different claim.**
+ *
+ * The first two are about the anchor: `notmail.canoncore.com` is a domain anybody may register, and
+ * without the `@` it would pass.
+ *
+ * **The apex is refused by the domain string rather than by the anchor** — `canoncore.com` is not a
+ * suffix of `mail.canoncore.com` — and it is asserted anyway because of what lives there.
+ * `report@canoncore.com` is the Online Safety Act reporting mailbox, a real inbox a person reads in
+ * Mail.app (`docs/infrastructure.md` → *Reporting address*), and the apex carries Namecheap Private
+ * Email's `MX` records rather than Resend's. So widening the constant to the apex — the obvious
+ * "surely our own domain is fine" move — would put a preview's mistyped mail in front of a person.
+ * This test is what would fail if somebody made it.
+ */
+test("a domain merely ending in the receiving domain's name is not that domain", () => {
+  expect(mayBeSentTo("somebody@notmail.canoncore.com", "preview")).toBe(false);
+  expect(mayBeSentTo("somebody@mail.canoncore.com.example.com", "preview")).toBe(false);
+  expect(mayBeSentTo("report@canoncore.com", "preview")).toBe(false);
+  // A subdomain of it is not it either, as for `mail.resend.dev` above — and here the reason is
+  // sharper than symmetry: the `MX` that makes this a catch-all is published at `mail` and there is no
+  // wildcard under it, so `sub.mail.canoncore.com` has neither an `MX` nor an `A` and receives nothing
+  // at all. Checked with `dig` on 20 August 2026 rather than inferred from the zone's own listing
+  // (`docs/infrastructure.md` → *DNS for mail*).
+  expect(mayBeSentTo("somebody@sub.mail.canoncore.com", "preview")).toBe(false);
 });
 
 // The guard in its real position: refused *before* the request is built, so nothing reaches Resend and
@@ -109,7 +153,9 @@ test("a refused recipient means no request at all, not merely an error", async (
   vi.stubEnv("VERCEL_ENV", "preview");
   await withFetch(accepted);
 
-  await expect(send("somebody@example.com", email)).rejects.toThrow(/must be at resend\.dev/);
+  await expect(send("somebody@example.com", email)).rejects.toThrow(
+    /must be at resend\.dev or mail\.canoncore\.com/,
+  );
 
   expect(requests).toEqual([]);
 });

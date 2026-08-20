@@ -404,6 +404,13 @@ CANONCORE_E2E_BASE_URL=<preview url> pnpm --filter @canoncore/web test:e2e
 Without that variable it runs against production, which is a check on a deploy that has already
 happened — *After the merge* below, not a gate.
 
+**One spec in that suite skips unless it is given a second variable, and the skip is the safety.**
+`apps/web/e2e/verification-by-inbox.spec.ts` signs up for real and reads the verification email out of
+Resend's inbound store, so it needs a preview URL *and* a `full_access` Resend key in
+`CANONCORE_E2E_RESEND_API_KEY` — [`../infrastructure.md`](../infrastructure.md) → *Reading the inbox*
+holds the key, the two quota units a run spends, and why that credential must never become an Actions
+secret. Every other spec in the suite writes nothing.
+
 **A path that crosses a closed Provider is out of the suite's reach from a preview**, which bounds
 what an end-to-end run can prove about an import. *Work that spans two repositories* below says why,
 and it is a Provider deployment decision rather than anything this file can fix.

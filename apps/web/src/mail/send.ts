@@ -1,3 +1,4 @@
+import { mailReceivingDomain } from "@canoncore/config";
 import { env } from "@/env";
 import type { Email } from "./messages";
 
@@ -24,8 +25,13 @@ import type { Email } from "./messages";
  * touching the sending domain's reputation
  * ([ADR-0011](../../../../docs/adr/0011-transactional-email-resend.md) → *What choosing it commits us
  * to*). So a mistyped real address in a preview deployment **will send a real email to a real
- * person**, and refusing every non-`resend.dev` recipient outside production is not hygiene — it is
+ * person**, and refusing every recipient outside production that could be one is not hygiene — it is
  * the only mechanism there is. Test sends still spend the 100-a-day quota.
+ *
+ * **Two domains satisfy that, not one**, since CAN-140 Verify a real send against our own inbox, not
+ * a personal mailbox: Resend's simulator, and our own catch-all receiving domain.
+ * `allowedOutsideProduction` below is why the second one is the same property rather than an exception
+ * to it.
  *
  * **Production is the only environment exempt**, read off `VERCEL_ENV`, which Vercel sets on every
  * deployment and nothing sets on a laptop. So a preview and a dev server are both inside the guard,
@@ -36,8 +42,32 @@ import type { Email } from "./messages";
 /** Resend's send endpoint. One request, one email. */
 const endpoint = "https://api.resend.com/emails";
 
-/** The only domain a recipient may be on outside production. */
+/** Resend's simulator domain: `delivered@`, `bounced@`, `complained@`, `suppressed@`. */
 const simulator = "resend.dev";
+
+/**
+ * Where a recipient may be outside production. **Both domains are ours; neither can be a person.**
+ *
+ * **The second is a widening of the guard for the guard's own reason rather than an exception to it.**
+ * What the refusal below protects against is a stray recipient being a **person**; Resend receives
+ * "any email sent to your receiving domain", so every address at ours is a mailbox this team owns and
+ * can read, and none of them is anybody
+ * ([Receiving Emails](https://resend.com/docs/dashboard/receiving/introduction)). The catch-all is
+ * therefore load-bearing: it is what makes the property true of the whole domain rather than of a list
+ * of addresses somebody has to keep.
+ *
+ * **It is the same domain mail is sent *from*** — `EMAIL_FROM` is `noreply@` there — taken from
+ * `@canoncore/config` rather than parsed out of that variable, which carries a display name and would
+ * have to be unpicked before it could be trusted. That module says why the string has exactly one
+ * home: the spec named below addresses a recipient at this domain, so a guard disagreeing with it
+ * would present as mail that never arrived rather than as an error.
+ *
+ * **What it buys is the one claim no stub can make**: that a message this code composed left, arrived,
+ * and that the link inside it works. [`../../e2e/verification-by-inbox.spec.ts`](../../e2e/verification-by-inbox.spec.ts)
+ * is the only thing that needs it, `docs/research/email-testing-inboxes.md` is the evidence behind
+ * it, and `docs/infrastructure.md` → *Reading the inbox* is what it costs.
+ */
+const allowedOutsideProduction = [simulator, mailReceivingDomain];
 
 /**
  * The shape a Resend key has, checked because **presence is not well-formedness**.
@@ -64,10 +94,20 @@ const wellFormed = /^re_\S+$/;
  * address at `notresend.dev` ends with the second string and not the first. Exported so the refusal
  * can be asserted directly rather than inferred from a send that did not happen — a send that was
  * never attempted looks exactly like a send that was refused.
+ *
+ * **The second domain needs the anchor for the same reason and no more**: without the `@`,
+ * `notmail.canoncore.com` would pass, and that is a domain anybody may register.
+ *
+ * **What keeps the *apex* out is the string rather than the anchor**, and the distinction is worth
+ * being exact about: `canoncore.com` is not a suffix of `mail.canoncore.com`, so no anchor is
+ * involved. It matters because `report@canoncore.com` is the Online Safety Act reporting mailbox and
+ * a person reads it, so what must never happen is somebody widening this constant to the apex.
+ * `send.test.ts` holds all three cases.
  */
 export function mayBeSentTo(recipient: string, environment: string | undefined): boolean {
   if (environment === "production") return true;
-  return recipient.toLowerCase().endsWith(`@${simulator}`);
+  const address = recipient.toLowerCase();
+  return allowedOutsideProduction.some((domain) => address.endsWith(`@${domain}`));
 }
 
 /**
@@ -149,9 +189,9 @@ async function whyRefused(response: Response): Promise<string> {
 export async function send(recipient: string, { subject, text }: Email): Promise<void> {
   if (!mayBeSentTo(recipient, env.VERCEL_ENV)) {
     throw new Error(
-      `Refusing to send "${subject}": outside production a recipient must be at ${simulator}, and ` +
-        "this one is not. Resend has no test credential and no sandbox, so this refusal is the " +
-        "only isolation there is and a real address here would reach a real person — " +
+      `Refusing to send "${subject}": outside production a recipient must be at ${simulator} or ` +
+        `${mailReceivingDomain}, and this one is not. Resend has no test credential and no sandbox, so this ` +
+        "refusal is the only isolation there is and a real address here would reach a real person — " +
         "docs/adr/0011-transactional-email-resend.md. **The address is deliberately not quoted " +
         "here**: content/legal/terms-of-service.md tells readers an error report carries no email " +
         "address, and this message is exactly what would end up in one.",
