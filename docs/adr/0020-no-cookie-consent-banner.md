@@ -51,8 +51,10 @@ privacy notice rather than bolted on after it exists.
 > [CAN-24 A signed-in and a signed-out path](https://linear.app/jacobrees-canoncore/issue/CAN-24)
 > brought the session cookie, and **CAN-60 Gate the front end on bytes, budgets and React lint**
 > brought the analytics: `@vercel/analytics` and `@vercel/speed-insights` are in
-> [`apps/web/package.json`](../../apps/web/package.json) as of 21 August 2026. There is still no
-> banner, and what discharges the two conditions instead is named under *Consequences* below.
+> [`apps/web/package.json`](../../apps/web/package.json) as of 21 August 2026, and **Web Analytics
+> is switched on at Vercel** ([`docs/infrastructure.md`](../infrastructure.md) → *Hosting*, which
+> also records why Speed Insights is not). There is still no banner, and what discharges the two
+> conditions instead is named under *Consequences* below.
 
 ## The two limbs
 
@@ -111,7 +113,15 @@ complicating it:
 **One constraint travels with adopting analytics at all, and it is imposed here rather than merely
 noted**: a URL in this product can carry an Ordering's name and an author's, and automatic page-view
 tracking captures URLs, so **`beforeSend` redaction is a condition of adopting analytics** and not a
-later refinement. Vercel's own warning and what its analytics collect are
+later refinement.
+
+**`beforeSend` turned out not to be the whole surface, which sharpens this rather than weakening
+it.** Both Vercel scripts send the *route* beside the URL, and it never reaches `beforeSend`; the
+route their own helper computes falls back to the raw path whenever a parameter value is encoded
+differently in it, which is any Ordering slug carrying a space or an accent. So the condition is
+**the redaction, not the hook** — whatever surface carries a path has to go through it.
+[`apps/web/src/analytics/analytics.tsx`](../../apps/web/src/analytics/analytics.tsx) holds the
+evidence and the answer. Found by review on 21 August 2026, before anything had been collected. Vercel's own warning and what its analytics collect are
 [`docs/research/production-readiness-baseline.md`](../research/production-readiness-baseline.md) →
 *UK PECR, and why a cookie banner is probably not needed*.
 

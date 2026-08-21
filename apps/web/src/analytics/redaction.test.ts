@@ -6,7 +6,7 @@
 import { readdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, test } from "vitest";
-import { redactUrl, staticPaths } from "./redaction";
+import { redactPath, redactUrl, staticPaths } from "./redaction";
 
 const origin = "https://www.canoncore.com";
 
@@ -54,6 +54,36 @@ describe("redactUrl", () => {
  * it just arrives as `/*` and stops being distinguishable from every other unknown page. The
  * second is about *safety*, and is the one ADR-0020 rests on.
  */
+describe("redactPath", () => {
+  // The half `beforeSend` cannot do for us. `analytics.tsx` says why the vendors get this rather
+  // than computing a route themselves; these are the cases that made it necessary.
+  test("keeps a known static path", () => {
+    expect(redactPath("/sign-in")).toBe("/sign-in");
+    expect(redactPath("/")).toBe("/");
+  });
+
+  test("reduces a known dynamic route to its shape", () => {
+    expect(redactPath("/story/2f8b0e1a-0000-4000-8000-000000000000")).toBe("/story/*");
+  });
+
+  test("reduces an encoded slug the vendor's own computeRoute would pass through whole", () => {
+    // `computeRoute("/ordering/the%20war%20doctor", { slug: "the war doctor" })` returns the path
+    // unchanged, because the decoded parameter does not appear in the encoded pathname.
+    expect(redactPath("/ordering/the%20war%20doctor")).toBe("/*");
+    expect(redactPath("/caf%C3%A9-author/a-list")).toBe("/*");
+  });
+
+  test("says nothing when there is no path to reduce", () => {
+    expect(redactPath(null)).toBe("/*");
+  });
+
+  test("is idempotent, because what it returns is passed on as a path in its own right", () => {
+    for (const path of ["/", "/sign-in", "/story/*", "/*"]) {
+      expect(redactPath(redactPath(path))).toBe(redactPath(path));
+    }
+  });
+});
+
 describe("every route this application serves", () => {
   const appDirectory = fileURLToPath(new URL("../app", import.meta.url));
 

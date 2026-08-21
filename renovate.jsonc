@@ -74,7 +74,7 @@
   // The one digest is `millionco/react-doctor` in `.github/workflows/frontend.yml`, pinned by
   // CAN-60 Gate the front end on bytes, budgets and React lint. It is the first third-party Action
   // here — everything else is `actions/*` or `pnpm/*` — and a mutable major tag on a third party is
-  // a supply-chain decision rather than a default. That workflow argues it beside the pin.
+  // a supply-chain decision rather than a default. `docs/agents/workflow.md` argues it.
   //
   // **It costs nothing on a security fix.** `vulnerabilityAlerts` defaults to `minimumReleaseAge:
   // null` and `prCreation: "immediate"`, and "security updates bypass any `minimumReleaseAge`

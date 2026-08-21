@@ -398,9 +398,12 @@ so the $0 tier applies as things stand.
 > system", and (2) *"Selling the Software, or offering it to third parties as a paid, hosted, or
 > managed product or service (including any commercial API or SaaS offering) whose value derives
 > entirely or substantially from the Software"*
-> ([LICENSE](https://github.com/millionco/react-doctor/blob/main/LICENSE), read 21 August 2026).
-> **"Large-scale commercial use" appears in the docs page and not in the licence; the $30 tier
-> appears on the pricing page and not in the licence either.**
+> — read on 21 August 2026 **from the `LICENSE` inside the published `react-doctor@0.9.12` tarball**,
+> which is the artefact that runs, rather than from the repository's `main`. The two agree word for
+> word; the distinction is made because they are separate artefacts and only one of them is what CI
+> executes. npm reports the package's licence field as `SEE LICENSE IN LICENSE`, so the file is the
+> whole of it. **"Large-scale commercial use" appears in the docs page and not in the licence; the
+> $30 tier appears on the pricing page and not in the licence either.**
 >
 > **Running the Action in CI here triggers neither clause, on any plan.** Nothing trains a model on
 > it, and CanonCore is not sold, hosted for third parties, or offered as a service. Separately, on
@@ -410,9 +413,13 @@ so the $0 tier applies as things stand.
 >
 > **What would change it**, and the second is the live one: selling or hosting CanonCore for others,
 > or the vendor changing the `LICENSE` file — which is the document that binds, and which is worth
-> re-reading rather than re-reading the pricing page. The pin in
-> [`.github/workflows/frontend.yml`](../../.github/workflows/frontend.yml) means a licence change
-> cannot arrive without a commit here.
+> re-reading rather than re-reading the pricing page.
+>
+> **Two pins, and it is the second that holds the licence.** The commit digest in
+> [`.github/workflows/frontend.yml`](../../.github/workflows/frontend.yml) pins the *Action*; the
+> `version: 0.9.12` input beside it pins the *package*, and the package is what carries the
+> `LICENSE` read above. So new licence terms cannot arrive without a commit here — but the pin that
+> does that work is the version input, not the digest, and a bump of it is a bump of the terms.
 
 ### What to gate on, and what not to
 

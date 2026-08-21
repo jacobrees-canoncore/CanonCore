@@ -2,7 +2,7 @@
  * The front-end budgets, and the argument for every number in them.
  *
  * **What is gated here is bytes and lab load metrics, because those are exact.** Two of the three
- * Core Web Vitals cannot be measured in a lab at all: the Chrome team's position is that lab tests
+ * Core Web Vitals cannot be had from a lab as the field defines them: the Chrome team's position is that lab tests
  * "cannot accurately predict when users will choose to interact with a page", and that lab CLS
  * "only considers layout shifts that occur above the fold and during load"
  * (https://web.dev/articles/lab-and-field-data-differences). Those two are watched in Speed
@@ -27,20 +27,20 @@
  *
  * | URL | LCP, worst of 5 | TBT, worst of 5 | script bytes |
  * | --- | --- | --- | --- |
- * | `/` | 2013 ms | 9 ms | 139,219 |
- * | `/sign-in` | 2009 ms | 6 ms | 139,219 |
- * | `/privacy/analytics` | 2017 ms | 12 ms | 143,617 |
+ * | `/` | 2170 ms | 6 ms | 138,835 |
+ * | `/sign-in` | 2165 ms | 5 ms | 138,835 |
+ * | `/privacy/analytics` | 2172 ms | 7 ms | 143,233 |
  *
- * **Byte counts are identical across all five runs of a URL; the two timings are not.** Across four
- * collections of the same tree on the same idle laptop, worst-run LCP ranged 2009-2175 ms and
- * worst-run TBT 6-12 ms. That spread is the argument both timing budgets below make for themselves,
+ * **Byte counts are identical across all five runs of a URL; the two timings are not.** Across five
+ * collections of this tree on the same idle laptop, worst-run LCP ranged 2009-2175 ms and worst-run
+ * TBT 5-12 ms. That spread is the argument both timing budgets below make for themselves,
  * and it is why the job writes what it measured to the run summary on a pass as well as a failure:
  * a budget nobody can see the distance to is one that is either silently loose for ever or about to
  * start flaking. `apps/web/scripts/lighthouse-summary.mts`.
  *
  * ## What the LCP number is, which is not what it looks like
  *
- * **These pages paint their largest element in about 68 ms, and the 2 s figure is the simulator.**
+ * **These pages paint their largest element in 63-142 ms, and the 2 s figure is the simulator.**
  * Every report carries both: `observedLargestContentfulPaint` is 63-142 ms across all 15 runs and
  * is *identical to* `observedFirstContentfulPaint` on every one of them — the largest element is
  * server-rendered text, so it arrives with the first paint, exactly as it should. The asserted
@@ -55,7 +55,7 @@
  *
  * **It also bounds the flake risk.** The worst run seen on any collection is 2175 ms against a
  * 2500 ms budget. Simulation derives its timings from observed CPU task durations, so a slower
- * runner does move the number — but it is multiplying up 68 ms of real work, not measuring a paint
+ * runner does move the number — but it is multiplying up under 150 ms of real work, not a paint
  * that was already slow. If CI breaches it, the answer is not a looser budget: the cap is the Core
  * Web Vitals threshold itself, and the thing to look at is what arrived in the script graph.
  *
@@ -129,11 +129,13 @@ module.exports = {
       // reader in five.
       aggregationMethod: "pessimistic",
       assertions: {
-        // 2017 ms measured, and the measurement plus any slack worth the name lands above 2500, so
-        // the threshold is what sets this. That leaves 483 ms of headroom, about a fifth.
+        // 2172 ms measured, and the measurement plus any slack worth the name lands above 2500, so
+        // the threshold is what sets this. Against the worst run seen on any collection, 2175 ms,
+        // that leaves 325 ms of headroom — about 13%, quoted off the worst run because that is the
+        // aggregation these assertions use.
         //
         // Read it as the script-graph budget it actually is — *What the LCP number is* above — not
-        // as half a second of paint time. The pages paint in 68 ms.
+        // as half a second of paint time. The pages paint in 63-142 ms.
         //
         // **Kept at the threshold rather than tightened to the measurement**, even knowing that,
         // because the threshold is the number the metric is judged by in the field and a budget
@@ -147,21 +149,23 @@ module.exports = {
         // of variability, and this runs on a shared VM.
         //
         // So it is set from the other end — a quarter under the 200 ms threshold — and what the
-        // measurement establishes is that the page sits twenty times inside it. What this catches
+        // measurement establishes is that the page sits about twelve times inside it even at the
+        // worst run seen on any collection, 12 ms. What this catches
         // is a step change, a heavy client component arriving, rather than drift.
         "total-blocking-time": [
           "error",
           { maxNumericValue: totalBlockingTimeThreshold - totalBlockingTimeThreshold / 4 },
         ],
 
-        // 143,617 bytes measured on the heaviest of the three, identical byte-for-byte across all
+        // 143,233 bytes measured on the heaviest of the three, identical byte-for-byte across all
         // five runs — it is a build output, not a timing — so the slack is 10% rather than the
-        // multiple a noisy metric would need. About 14 kB of headroom.
+        // multiple a noisy metric would need. About 14.7 kB of headroom.
         //
-        // **It has already earned its keep once, on the change that introduced it.** A `next/link`
-        // on the front page, added to satisfy a react-doctor warning, cost 8,401 bytes on the page
-        // a stranger loads, and nothing but this number would have said so. `src/app/front-page.tsx`
-        // carries the trade.
+        // **The measurement found something on the change that introduced it; this assertion did
+        // not.** A `next/link` on the front page cost 8,401 bytes, and at 147,620 it would still
+        // have passed. What surfaced it was the run summary, which is the argument for reporting
+        // what was measured rather than only the verdict. `src/app/front-page.tsx` carries the
+        // trade itself.
         //
         // **A legitimate increase past this re-baselines the number on purpose.** That is the gate
         // working rather than the gate being wrong, and it is the whole reason a budget beats a

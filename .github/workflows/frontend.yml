@@ -1,8 +1,9 @@
 name: Front end
 
-# **`docs/agents/workflow.md` -> *Two more gates, on pull requests only* owns every decision in this
-# file, and this file points there rather than repeating them** — the arrangement `ci.yml` already
-# has with the same document. Four are argued there: why the trigger is `pull_request` rather than
+# **`docs/agents/workflow.md` -> *Two more gates, on pull requests only* owns the decisions that
+# outlive this file, and this file points there rather than repeating them** — the arrangement
+# `ci.yml` already has with the same document. What is decided here and nowhere else is local to a
+# run: the concurrency group, the artifact retention, and the throwaway secret the server needs. Four are argued there: why the trigger is `pull_request` rather than
 # `push`, why neither job is a required context, why `@lhci/cli` is installed on the runner instead
 # of declared as a dependency, and why the react-doctor Action is pinned to a digest and granted no
 # write scope. What is repeated below is only what a reader needs at the line they are looking at.
@@ -65,7 +66,7 @@ jobs:
 
       # Installed rather than declared as a dependency, which is forced rather than tidy: it
       # reaches an advisory no override can clear. The version is pinned here in place of a
-      # lockfile pinning it. Argued in workflow.md, with the advisory ids.
+      # lockfile pinning it. Argued in workflow.md, which names the advisory.
       - run: npm i -g @lhci/cli@0.15.1
 
       # `lhci autorun` starts the server itself, collects, and asserts. `lighthouserc.cjs` carries
@@ -104,26 +105,16 @@ jobs:
   react-doctor:
     name: React lint on the diff
     runs-on: ubuntu-latest
-    # `contents: read` is inherited. `pull-requests: read` is granted on top of it and is the
-    # narrowest thing that closes a *silent* failure: when a compare scope cannot reach the base
-    # branch the Action falls back to `pulls.listFiles`, and failing that it reports every issue in
-    # the changed files rather than only the introduced ones. `fetch-depth: 0` below is the real
-    # remedy and this is the belt. Read, never write — the three write scopes its comment, review
-    # and status outputs would need are refused at the step below.
+    # `contents: read` is inherited; `pull-requests: read` closes a silent degradation of
+    # `scope: changed`. Read, never write. Argued in workflow.md.
     permissions:
       contents: read
       pull-requests: read
     steps:
-      # **The Action does not check the repository out, and nothing says so on the tin.** It is a
-      # composite whose first step is `actions/setup-node`, so without this the workspace is empty
-      # and the CLI exits non-zero with `ProjectNotFoundError: No React project found` — a job red
-      # on arrival for a reason that has nothing to do with the diff, which is the failure this
-      # file's own header refuses.
-      #
-      # `fetch-depth: 0` rather than the default 1, because `scope: changed` compares against the
-      # base branch and a shallow checkout cannot reach it. The Action's own
-      # `silence-missing-baseline-warning` input documents that degradation and names this as the
-      # fix: "fixing the checkout with `fetch-depth: 0` is the real remedy".
+      # **Not optional, and not the Action's own doing: it is a composite that never checks the
+      # repository out.** Without this it scans an empty workspace and fails for a reason unrelated
+      # to the diff. `fetch-depth: 0` because `scope: changed` needs the base branch. Both argued in
+      # workflow.md, which is also where the evidence for each is.
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0

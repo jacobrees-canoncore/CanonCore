@@ -39,6 +39,24 @@ export const staticPaths: ReadonlySet<string> = new Set([
 const shapedPrefixes: ReadonlySet<string> = new Set(["story"]);
 
 /**
+ * What a path is allowed to say about itself.
+ *
+ * **Separate from {@link redactUrl} because the vendors send the path twice**, and only one of the
+ * two goes through `beforeSend`. `analytics.tsx` carries the finding; this is the half of the
+ * answer that both callers share.
+ */
+export function redactPath(pathname: string | null): string {
+  // `usePathname` is typed `string` and returns `null` outside a router — which is not only a test
+  // condition, it is any render that happens before one is in place. Not knowing the path is
+  // answered the same way as not recognising it: say nothing about it.
+  if (pathname === null) return "/*";
+  const path = pathname.length > 1 ? pathname.replace(/\/$/, "") : "/";
+  if (staticPaths.has(path)) return path;
+  const [, first] = path.split("/");
+  return shapedPrefixes.has(first) ? `/${first}/*` : "/*";
+}
+
+/**
  * The URL to report for a page, or `null` when there is nothing safe to report and the event
  * should be dropped instead.
  */
@@ -53,11 +71,5 @@ export function redactUrl(url: string): string | null {
   }
 
   // Everything after the path goes, always: no query, no fragment, no credentials.
-  const { origin } = parsed;
-  const path = parsed.pathname.length > 1 ? parsed.pathname.replace(/\/$/, "") : "/";
-
-  if (staticPaths.has(path)) return origin + path;
-
-  const [, first] = path.split("/");
-  return shapedPrefixes.has(first) ? `${origin}/${first}/*` : `${origin}/*`;
+  return parsed.origin + redactPath(parsed.pathname);
 }

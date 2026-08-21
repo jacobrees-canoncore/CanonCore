@@ -117,7 +117,7 @@ back, and the first visit is the only one most of them make.
 | --- | --- |
 | Status | **Closed.** Not shared |
 | Condition **met** | [CAN-59 Decide whether the Hobby plan can carry a public service](https://linear.app/jacobrees-canoncore/issue/CAN-59) — decided 20 August 2026, [ADR-0024](adr/0024-vercel-pro-for-a-spend-cap-rather-than-an-outage.md), and **applied on 21 August 2026**: the plan is Pro and Spend Management is set with a pause. *Hosting* below carries the figures |
-| Condition **met** | [CAN-60 Gate the front end on bytes, budgets and React lint](https://linear.app/jacobrees-canoncore/issue/CAN-60) — the front-end quality gates. Met 21 August 2026: Lighthouse budgets and react-doctor gate every pull request, [`agents/workflow.md`](agents/workflow.md) → *Two more gates, on pull requests only*, and the two measurement products are instrumented with the redaction and the objection route ADR-0020 requires. **What it does not close is the premise**: the budgets were measured against a skeleton, and CAN-89 Give the product a visual identity and a reading surface changes what these pages are |
+| Condition **met** | [CAN-60 Gate the front end on bytes, budgets and React lint](https://linear.app/jacobrees-canoncore/issue/CAN-60) — the front-end quality gates. Met 21 August 2026: Lighthouse budgets and react-doctor gate every pull request, [`agents/workflow.md`](agents/workflow.md) → *Two more gates, on pull requests only*, and the measurement products are instrumented with the redaction and the objection route ADR-0020 requires, with Web Analytics switched on and Speed Insights deliberately not — *Hosting* below. **What it does not close is the premise**: the budgets were measured against a skeleton, and CAN-89 Give the product a visual identity and a reading surface changes what these pages are |
 | Condition **met** | [CAN-61 Keep the codebase and its dependencies from silting up](https://linear.app/jacobrees-canoncore/issue/CAN-61) — the two hygiene tools whose value scales with codebase age. Met 17 August 2026: knip gates in CI and Renovate owns dependency updates, *Dependency updates* below. The row stays rather than being deleted, so the gate's history reads as conditions met rather than conditions dropped |
 | Condition **dissolved** | **An explicit acceptance of Vercel Hobby's 30-day outage risk**, a condition no ticket owned. [ADR-0024](adr/0024-vercel-pro-for-a-spend-cap-rather-than-an-outage.md) removed the risk rather than accepting it, and the plan moved on **21 August 2026**, so there is nothing left to accept. Recorded rather than deleted, so the gate reads as a risk removed rather than a condition dropped |
 | Recorded here since | 14 August 2026, by **CAN-93 Record the three bands, the two gates and the Later queue convention** |
@@ -148,38 +148,48 @@ that is v1's scope rather than a condition here, and this gate would open withou
 | Framework Preset | Next.js |
 | Include files outside the root directory | On |
 | Node.js version | 24.x |
-| Web Analytics | **On.** `webAnalytics.id` `3fbYLkD1qpY5qrtCaPl0kV7Ba`, no `disabledAt` |
-| Speed Insights | **On.** `speedInsights.id` `EKL37pxaQMvbkLwNUNHVZg1OgPh`, no `disabledAt`, `hasData` `false` |
+| Web Analytics | **On**, enabled 21 August 2026 on the tier included in Pro. **Not** the `Web Analytics Plus` add-on, which the enable dialog offers at $10 a month and which was declined |
+| Speed Insights | **Off**, and deliberately. $10 per project per month on Pro, for a product whose subject is field traffic there is none of — the note below has the figures and what turning it on would buy |
 
 *Read back with `vercel project inspect canoncore`; the Root Directory row and the three under it
-set by CAN-22 A page on a public URL, deployed, with CI on 11 August 2026. Preview protection was set on 13 August 2026 and turned off since —
+set by CAN-22 A page on a public URL, deployed, with CI, on 11 August 2026. Preview protection was set on 13 August 2026 and turned off since —
 the row above records the 16 August acceptance.*
 
-**The last two rows are not `vercel project inspect`'s to report** — it prints neither — and were
-read from `GET /v9/projects/{id}` on 21 August 2026 under **CAN-60 Gate the front end on bytes,
-budgets and React lint**. **Both products were already provisioned**, which is why that ticket
-enabled nothing: what it supplied was the missing half, the two packages and the `beforeSend` that
-makes them lawful here — [`apps/web/src/analytics/analytics.tsx`](../apps/web/src/analytics/analytics.tsx),
-under [ADR-0020](adr/0020-no-cookie-consent-banner.md). `hasData: false` is consistent with that:
-nothing had ever sent an event.
+**The last two rows are not `vercel project inspect`'s to report, and the API cannot answer them
+either.** `GET /v9/projects/{id}` returns `webAnalytics: {id}` and `speedInsights: {id, hasData}`
+and **nothing that says whether either is enabled** — no `enabledAt`, no `disabledAt`, no status.
+The ids are there while the products are off. So these two rows were read from the dashboard, on
+21 August 2026 under **CAN-60 Gate the front end on bytes, budgets and React lint**.
+
+**That distinction cost this project a wrong record and a wrong instruction**, and is why it is
+written down rather than left as a lookup: the same ticket first recorded both products as *On*, on
+the strength of the ids alone, and acted on it. The dashboard showed Speed Insights behind a
+*Purchase* button and Web Analytics behind an *Enable* one. **Neither had ever been enabled.** What
+the ticket supplied was the instrumentation — the two packages, the redaction and the objection
+route that make them lawful here
+([`apps/web/src/analytics/analytics.tsx`](../apps/web/src/analytics/analytics.tsx), under
+[ADR-0020](adr/0020-no-cookie-consent-banner.md)) — and then Web Analytics was turned on to meet it.
+`hasData: false` was consistent with an enabled product that had seen no traffic *and* with a
+product that was off, which is exactly why it settled nothing.
 
 **On Pro the two are priced very differently, and one of them is a standing monthly charge.** Web
 Analytics has no base fee: unlimited projects, no included events, *"$0.03 per 1K events"* against
 the plan's monthly usage credit, and a 12-month reporting window. **Speed Insights has a base fee of
-*"$10.00 per-project, per-month"***, in exchange for no event cap and a 30-day window; it is charged
+*"$10.00 per-project, per-month"***, *plus* `$0.65 per 10,000 events` on top of the first 10,000, in
+exchange for no event cap and a 30-day window; the base fee is charged
 *"immediately … when enabling Speed Insights for each project"*, prorated for the remainder of the
 cycle ([Speed Insights limits](https://vercel.com/docs/speed-insights/limits-and-pricing),
 [Analytics limits](https://vercel.com/docs/analytics/limits-and-pricing), both read 21 August 2026).
 
-**So Speed Insights is $10 a month from the day the plan moved, and it currently has nothing to
-measure.** It was enabled while the plan was Hobby, where it is free; the upgrade of 21 August 2026
-turned that into a charge. The thing it is for — real INP and full-session CLS, which
+**So Speed Insights stays off, and that is a decision rather than an omission.** The thing it is for — real INP and full-session CLS, which
 [`research/production-readiness-baseline.md`](research/production-readiness-baseline.md) →
 *Front-end quality as a gate* explains cannot be had in a lab — needs field traffic, and *The
 URL-sharing gate* above is why there is none. It is a base fee rather than usage, so it is the shape
-the *What the $40 does not bound* row names, and Spend Management will not stop it. **Nothing is lost
-by turning it off until the gate opens**: `hasData` is `false`, so there is no history to forfeit,
-and re-enabling is not charged again until the next cycle.
+the *What the $40 does not bound* row names, and Spend Management would not bound it. **Nothing is
+lost by leaving it until the gate opens**: there is no history to forfeit, and Vercel's own page says
+that on re-enabling *"you won't be charged when you enable it. Instead, the usual 10 USD base fee
+will apply at the beginning of every upcoming billing cycle"*
+([Speed Insights limits](https://vercel.com/docs/speed-insights/limits-and-pricing)).
 
 *The plan, the seat count and the fee were read from the live team API on 21 August 2026 by
 **CAN-59 Decide whether the Hobby plan can carry a public service**: `plan: pro`, `planChangedAt`

@@ -14,10 +14,14 @@ describe("beforeSend", () => {
     });
   });
 
-  test("redacts the URL rather than the rest of the event", () => {
+  // The return keeps the rest of the event, which is about this staying a total function of its
+  // argument rather than about what is sent: neither vendor script reads anything but `url` back.
+  // What they *do* send beside it is the route, which never reaches here at all — `analytics.tsx`
+  // holds that finding and the fix.
+  test("redacts the URL and returns the rest of the event unchanged", () => {
     expect(
-      beforeSend({ type: "vital", url: "https://www.canoncore.com/story/1?x=y", route: "/story/[id]" }),
-    ).toEqual({ type: "vital", url: "https://www.canoncore.com/story/*", route: "/story/[id]" });
+      beforeSend({ type: "vital", url: "https://www.canoncore.com/story/1?x=y", route: "/story/*" }),
+    ).toEqual({ type: "vital", url: "https://www.canoncore.com/story/*", route: "/story/*" });
   });
 
   test("drops the event outright once an objection has been recorded", () => {
