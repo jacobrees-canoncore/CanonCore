@@ -9,10 +9,12 @@ the same action.** Not because Hobby's included usage is too small — at the ti
 untested and almost certainly ample — but because **Hobby's failure mode is an outage nobody can see
 coming, and Pro's is a threshold we choose.**
 
-**Decided, not yet applied.** The upgrade is a billing action and the threshold a dashboard one, and
-neither had happened when this was written. [`docs/infrastructure.md`](../infrastructure.md) →
-*Hosting* is the register and says which. This file is the reasoning, and it describes the decision in
-the present tense the way every ADR here does; it is not a claim about today's plan.
+**Applied on 21 August 2026**, both halves in one session, which is what the section below asks for:
+the plan is Pro and Spend Management is set with a pause.
+[`docs/infrastructure.md`](../infrastructure.md) → *Hosting* is the register and carries the figures,
+read back there because no API can state them
+([incident](../incidents.md#spend-management-saves-in-two-steps-and-abandoning-the-second-discards-it)).
+This file is the reasoning and is not a claim about today's settings.
 
 Decided on 20 August 2026 by
 [CAN-59 Decide whether the Hobby plan can carry a public service](https://linear.app/jacobrees-canoncore/issue/CAN-59).
@@ -96,13 +98,16 @@ the point at which a month of downtime costs the most.
 **$20 a month for the Pro platform fee, which includes one deploying team seat and $20 of usage
 credit.** The credit is **per plan, not per seat** — a second seat adds cost and no further credit —
 and the included allocations, 1 TB Fast Data Transfer and 10M Edge Requests, do not consume it
-([pricing](https://vercel.com/pricing)). One seat here, so $20 a month.
+([pricing](https://vercel.com/pricing)). One seat here, so $20 a month. **That is the list price**;
+tax is added on top against the billing address, and
+[`docs/infrastructure.md`](../infrastructure.md) → *Hosting* carries the figure that actually leaves
+the account.
 
 New Pro teams carry a **default on-demand budget of $200**, customisable
 ([Spend Management](https://vercel.com/docs/spend-management)). That default is a starting point
 rather than the decision: the figure actually set is the one that matters, and given the overshoot
 above it belongs **below** what we would tolerate paying.
-[`docs/infrastructure.md`](../infrastructure.md) → *Hosting* records it once it is set.
+[`docs/infrastructure.md`](../infrastructure.md) → *Hosting* records the figure that was set.
 
 **The upgrade and the threshold are one action, not two.** A Pro plan without Spend Management
 configured has traded a bounded outage for an unbounded bill, which is worse than either plan chosen
@@ -125,10 +130,11 @@ donations, and no donation route exists or is planned.
 
 ## What will try to reopen it
 
-**Cost, when the service has no users.** $240 a year for a service nobody has visited yet reads as
-waste, and the argument for reverting will be strongest precisely when the outage risk is most
-theoretical — before the URL is shared. The reasoning above does not depend on traffic levels, and
-should be re-read rather than re-derived.
+**Cost, when the service has no users.** About **$288 a year** — the $20 platform fee plus tax, which
+[`docs/infrastructure.md`](../infrastructure.md) → *Hosting* records as $24 a month — for a service
+nobody has visited yet reads as waste, and the argument for reverting will be strongest precisely when
+the outage risk is most theoretical: before the URL is shared. The reasoning above does not depend on
+traffic levels, and should be re-read rather than re-derived.
 
 **A suggestion to drop Spend Management to save the configuration step.** It is the thing being
 bought. Without it this decision is worse than staying on Hobby.

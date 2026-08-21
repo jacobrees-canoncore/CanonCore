@@ -1,6 +1,6 @@
 # Runbook
 
-**What to do when the site is down, and the one check nobody will be reminded to run.** One entry
+**What to do when the site is down, and the one failure nothing will page you about.** One entry
 per failure this product is actually expected to have, each with its symptom, its check and its
 fix, written to be followed by somebody who has just been woken up by a phone.
 
@@ -23,9 +23,9 @@ which starts by saying so.
 - [The alert, and what it cannot tell you](#the-alert-and-what-it-cannot-tell-you)
 - [Triage: two requests](#triage-two-requests)
 - [The database does not answer](#the-database-does-not-answer)
-- [A Vercel Hobby usage limit tripped](#a-vercel-hobby-usage-limit-tripped)
+- [Spend Management paused the production deployment](#spend-management-paused-the-production-deployment)
 - [A Source's licence terminates](#a-sources-licence-terminates)
-- [The weekly usage check](#the-weekly-usage-check)
+- [What warns you before a pause](#what-warns-you-before-a-pause)
 
 ## The alert, and what it cannot tell you
 
@@ -62,7 +62,7 @@ curl -s -o /dev/null -w '%{http_code}\n' https://www.canoncore.com/
 | --- | --- | --- |
 | `200`, 0 bytes | The application ran and PostgreSQL answered it. Whatever the monitor saw is not reproducing from here | Nothing to fix. Check the monitor is pointed at this URL |
 | `503`, 0 bytes | **Our own answer.** The application is running and three consecutive asks to PostgreSQL failed | [The database does not answer](#the-database-does-not-answer) |
-| `503` with a body | **Vercel's answer, not ours** — this route never sends one. A paused deployment serves `503 DEPLOYMENT_PAUSED` ([Vercel KB](https://vercel.com/kb/guide/why-is-my-account-deployment-blocked), read 16 August 2026) | [A Vercel Hobby usage limit tripped](#a-vercel-hobby-usage-limit-tripped) |
+| `503` with a body | **Vercel's answer, not ours** — this route never sends one. A paused deployment serves `503 DEPLOYMENT_PAUSED` ([Vercel KB](https://vercel.com/kb/guide/why-is-my-account-deployment-blocked), read 16 August 2026) | [Spend Management paused the production deployment](#spend-management-paused-the-production-deployment) |
 | `504`, or any other 5xx with a body | **Vercel's answer again.** `504 FUNCTION_INVOCATION_TIMEOUT` is *"a function invocation [that] takes longer than the allowed execution time"* ([Vercel](https://vercel.com/docs/errors/FUNCTION_INVOCATION_TIMEOUT), read 16 August 2026) — for this route, a connection attempt that neither failed nor succeeded. Treat it as the database entry below | [The database does not answer](#the-database-does-not-answer) |
 | `404` | The deployment in production does not carry this route, so the release did not land | `git log origin/main`, then the Actions run for that commit |
 | Nothing, or a DNS failure | Neither the application nor Vercel answered | [Vercel's status page](https://www.vercel-status.com/), then the DNS records in [`infrastructure.md`](infrastructure.md) → *Domains* |
@@ -80,11 +80,13 @@ being refused, so nothing answered before Vercel gave up on the function.
 
 **Check, in this order, because the first one expires.**
 
-1. **Vercel runtime logs**, which are kept for **one hour** on Hobby
-   ([Hobby plan](https://vercel.com/docs/plans/hobby), read 16 August 2026) and are therefore the
-   only evidence with a deadline. Two lines this application writes are worth finding: `[canoncore]
-   database host …`, which says which host the deployment actually reached, and `[canoncore] an
-   idle database connection was dropped: …`, which says the far side closed a pooled connection.
+1. **Vercel runtime logs**, which are kept for **one day** on Pro
+   ([runtime logs](https://vercel.com/docs/logs/runtime), read 21 August 2026) and are therefore the
+   only evidence with a deadline. It was one hour until the upgrade of 21 August 2026, so an outage
+   found the morning after is now recoverable where it was not. Two lines this application writes
+   are worth finding: `[canoncore] database host …`, which says which host the deployment actually
+   reached, and `[canoncore] an idle database connection was dropped: …`, which says the far side
+   closed a pooled connection.
 2. **The Neon branch's compute.** Project `steep-wave-52467839`, branch `main` — the `neon` MCP's
    `describe_branch`, or the console. `idle` is normal and means the compute scales to zero after
    inactivity and reactivates on the next query
@@ -116,34 +118,41 @@ being refused, so nothing answered before Vercel gave up on the function.
 > August 2026). So a suspended compute here means a payment or subscription problem — the
 > subscription is Vercel's, through the marketplace integration — and never a busy week.
 
-## A Vercel Hobby usage limit tripped
+## Spend Management paused the production deployment
 
 **Symptom.** Every URL on the domain answers `503` with Vercel's own error page naming
-`DEPLOYMENT_PAUSED`, including `/api/health`. **Or** the site is entirely fine and the release job
-stops deploying, which is the same failure against the 100-deployments-a-day cap.
+`DEPLOYMENT_PAUSED`, including `/api/health`.
 
-**Check.** The Vercel dashboard's **Usage** page for `jacobreesnew-7380's projects`. There is no
-CLI for it and no API this repository can call, which is why the weekly check below exists. What is
-included per month, and what a month costs you when it runs out
-([Hobby plan](https://vercel.com/docs/plans/hobby), read 16 August 2026):
+**Since the Pro upgrade of 21 August 2026 this has one expected cause, and it is a figure we chose.**
+On Hobby the entry here was an included-usage limit tripping, with no lever and up to thirty days of
+waiting. **On Pro there is no included-usage cliff** — Active CPU, provisioned memory and invocations
+are all usage-based, and the deployment cap is 6,000 a day rather than 100
+([limits](https://vercel.com/docs/limits), read 21 August 2026) — so what pauses this project is
+**Spend Management reaching the $40 on-demand budget** and executing the pause we configured
+([`infrastructure.md`](infrastructure.md) → *Hosting*).
+[ADR-0024](adr/0024-vercel-pro-for-a-spend-cap-rather-than-an-outage.md) is why that trade was made.
 
-| Resource | Included |
-| --- | --- |
-| Active CPU | 4 CPU-hours |
-| Provisioned memory | 360 GB-hours |
-| Function invocations | 1,000,000 |
-| Edge requests | 1,000,000 |
-| Deployments | 100 per day |
+**Check: the team's Activity log, not the Usage page.** Spend Management writes every pause and
+unpause to **Activity** in the team dashboard, so that is the one place that says whether this is what
+happened; **Usage** says only how much was spent. Neither has a CLI or an API this repository can
+call. **If Activity shows no pause, this is not the entry** — a `503 DEPLOYMENT_PAUSED` also covers a
+failed payment or a policy action, which the billing page will say instead.
 
-**Fix. There is no lever, and that is the point of the entry.** *"In most cases, if you exceed your
-usage limits on the Hobby plan, you will have to wait until 30 days have passed before you can use
-the feature again"* — and Spend Management is unavailable on Hobby, so nothing can be capped ahead
-of time either (same page). The two real options are to wait it out or to upgrade to Pro. **That
-decision is taken** — 20 August 2026, [ADR-0024](adr/0024-vercel-pro-for-a-spend-cap-rather-than-an-outage.md) — so the
-question during an outage is only whether the upgrade has landed yet, not which way to go.
+**Fix, two actions and the order matters.**
 
-The one thing to do *during* it: an upgrade takes effect immediately, so if the site has to be back
-today, that is the only route back.
+1. **Resume the project by hand.** *"Projects need to be resumed on an individual basis"*, and
+   *"Projects won't automatically unpause if you increase the spend amount, you must resume each
+   project manually"* ([Spend Management](https://vercel.com/docs/spend-management), read 21 August
+   2026). One project here, `canoncore`, from the dashboard or the REST API's unpause route. **Raising
+   the budget alone brings nothing back.**
+2. **Then decide the budget.** The pause fired because on-demand spend reached $40 in this billing
+   cycle, which is a spending decision rather than a runbook one. Resuming without changing it means
+   the next check pauses again — and the checks run *"every few minutes"* (same page).
+
+**What not to conclude from the timing.** The pause is not instantaneous: *"projects can keep serving
+traffic and accruing usage for several minutes after you cross the spend amount"* (same page). A site
+still up shortly after a 100% notification is not evidence the pause failed, and usage accrued in
+those minutes is still billed.
 
 ## A Source's licence terminates
 
@@ -331,23 +340,49 @@ repository, and give it the TMDB credential**), nothing writes a `source` row, a
 ever been fetched. This entry is here so that the first time it is needed is not the first time it is
 written.
 
-## The weekly usage check
+## What warns you before a pause
 
-**Every Monday, open the Vercel Usage page and read the five numbers above.** It takes a minute,
-and it is the only warning that reaches *you* rather than an inbox.
+**Nothing here is a scheduled reading any more, and that is the change.** Until 21 August 2026 this
+section asked for a weekly look at the Vercel Usage page, because on Hobby it was the only warning
+that reached *you* rather than an inbox. Spend Management now does that job:
 
-Vercel does send something: *"Usage notifications are set up automatically. Pro teams can also
-configure the threshold"*
-([manage and optimize usage](https://vercel.com/docs/pricing/manage-and-optimize-usage), read 16
-August 2026). Two things follow, and both are why this check exists anyway. **When it arrives is
-not ours to choose**, because setting the threshold is a Pro feature, as is Spend Management — the
-one thing that could act rather than notify ([Hobby plan](https://vercel.com/docs/plans/hobby)).
-And **an e-mail is an inbox**, which is the distinction this whole ticket rests on: the phone gets
-the outage, not the warning before it.
+| Threshold | Reaches | Of what |
+| --- | --- | --- |
+| 50%, 75%, 100% | Web, e-mail and **push** | The **$40 on-demand budget** |
+| 100% | Pauses the production deployment | The same $40 budget |
+| 100% | SMS — **available and off**, see below | The same $40 budget |
+| 75% | Web, e-mail and push | The **$20 monthly usage credit**, spent before on-demand billing starts |
+| End of cycle | E-mail and push, as an on-demand usage summary | The cycle's total |
 
-**Readings are deliberately not logged here.** A month of ordinary numbers would bury the four
-entries above, which is the growth [`infrastructure.md`](infrastructure.md) was split to avoid. Act
-on a reading instead: anything past half its allowance with a week of the month left is a reason to
-bring the Pro upgrade forward — decided 20 August 2026, [ADR-0024](adr/0024-vercel-pro-for-a-spend-cap-rather-than-an-outage.md).
-**Once that lands this check changes character**: Spend Management notifies and pauses on a threshold,
-so the reading stops being the only warning and this section should be revisited then.
+**Where each of those comes from.** The settings and figures are
+[`infrastructure.md`](infrastructure.md) → *Hosting*; the thresholds and the behaviour are
+[Spend Management](https://vercel.com/docs/spend-management) and
+[Pro plan](https://vercel.com/docs/plans/pro-plan), both read 21 August 2026.
+
+**Why the weekly check was retired rather than shrunk.** A human opening a usage page on a schedule
+is the mechanism [ADR-0018](adr/0018-observability-sentry-and-an-uptime-monitor-outside-it.md)
+already refuses for uptime, and
+[ADR-0024](adr/0024-vercel-pro-for-a-spend-cap-rather-than-an-outage.md)'s central argument was that
+**Hobby withheld the instrumentation** that would make the habit unnecessary. Buying the
+instrumentation and keeping the habit would have been paying for it twice. This file's own rule says
+an entry that stops being actionable is deleted rather than qualified.
+
+**Push is on and cannot be turned off**, which is the row that decides whether any of this reaches
+you rather than an inbox — its checkbox is rendered disabled and ticked for every Spend Management
+and usage threshold above. **What is not established here is whether push has anywhere to land**: it
+needs the Vercel mobile app installed and signed in, and nothing in this repository records that it
+is. Until someone confirms it, read the table above as e-mail and web only.
+
+**SMS is the one that would definitely reach the phone, and it is off.** Not by preference — the
+account has **no phone number** on it, so the SMS toggle cannot be turned on until a number is
+entered and verified by code. It fires only at 100%, so it would be the last warning rather than the
+first. Turning it on is two minutes and a phone.
+
+**The one thing a threshold cannot tell you.** It fires on *spend*, so it says nothing until money is
+moving. The first sign of a bad deployment loop or a crawler is the 50% notification, which on a $40
+budget is $20 — small enough that arriving late costs little, which is the whole point of setting the
+budget below what would be tolerable.
+
+**What no threshold covers at all: the database.** The $40 bounds Vercel's metered resources and
+explicitly not Marketplace integrations, and Neon is one — [`infrastructure.md`](infrastructure.md) →
+*Database*. Nothing warns you about that bill.

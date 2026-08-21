@@ -116,10 +116,10 @@ back, and the first visit is the only one most of them make.
 | | |
 | --- | --- |
 | Status | **Closed.** Not shared |
-| Condition **met** | [CAN-59 Decide whether the Hobby plan can carry a public service](https://linear.app/jacobrees-canoncore/issue/CAN-59) — decided 20 August 2026, [ADR-0024](adr/0024-vercel-pro-for-a-spend-cap-rather-than-an-outage.md). **The decision is met; the upgrade is not done** — *Hosting* below carries that |
+| Condition **met** | [CAN-59 Decide whether the Hobby plan can carry a public service](https://linear.app/jacobrees-canoncore/issue/CAN-59) — decided 20 August 2026, [ADR-0024](adr/0024-vercel-pro-for-a-spend-cap-rather-than-an-outage.md), and **applied on 21 August 2026**: the plan is Pro and Spend Management is set with a pause. *Hosting* below carries the figures |
 | Condition outstanding | [CAN-60 Gate the front end on bytes, budgets and React lint](https://linear.app/jacobrees-canoncore/issue/CAN-60) — the front-end quality gates, once there is a stable application to measure |
 | Condition **met** | [CAN-61 Keep the codebase and its dependencies from silting up](https://linear.app/jacobrees-canoncore/issue/CAN-61) — the two hygiene tools whose value scales with codebase age. Met 17 August 2026: knip gates in CI and Renovate owns dependency updates, *Dependency updates* below. The row stays rather than being deleted, so the gate's history reads as conditions met rather than conditions dropped |
-| Condition **dissolves on upgrade** | **An explicit acceptance of Vercel Hobby's 30-day outage risk**, a condition no ticket owned. [ADR-0024](adr/0024-vercel-pro-for-a-spend-cap-rather-than-an-outage.md) removes the risk rather than accepting it, so there is nothing left to accept — **but only once the plan actually moves.** Until then the risk is live and this condition stands. Recorded rather than deleted, so the gate reads as a risk removed rather than a condition dropped |
+| Condition **dissolved** | **An explicit acceptance of Vercel Hobby's 30-day outage risk**, a condition no ticket owned. [ADR-0024](adr/0024-vercel-pro-for-a-spend-cap-rather-than-an-outage.md) removed the risk rather than accepting it, and the plan moved on **21 August 2026**, so there is nothing left to accept. Recorded rather than deleted, so the gate reads as a risk removed rather than a condition dropped |
 | Recorded here since | 14 August 2026, by **CAN-93 Record the three bands, the two gates and the Later queue convention** |
 
 **Design is deliberately not a condition**, and that is a decision rather than an omission. A stranger reads
@@ -134,8 +134,12 @@ that is v1's scope rather than a condition here, and this gate would open withou
 | | |
 | --- | --- |
 | Vercel account | `jacobreesnew-7380's projects` (user `jacobreesvercel`) |
-| Plan | **Hobby.** Pro decided 20 August 2026, upgrade outstanding — [ADR-0024](adr/0024-vercel-pro-for-a-spend-cap-rather-than-an-outage.md) |
-| Spend Management | **Not configured.** Pro-only, so it lands with the upgrade. Threshold and seat count belong in this row once set — [ADR-0024](adr/0024-vercel-pro-for-a-spend-cap-rather-than-an-outage.md) |
+| Plan | **Pro**, since **21 August 2026** — [ADR-0024](adr/0024-vercel-pro-for-a-spend-cap-rather-than-an-outage.md) |
+| Seats | **One deploying seat**, the one the platform fee includes. No additional paid seats and no Viewer seats |
+| What it costs | **$24 a month.** The $20 platform fee, plus $4 of tax itemised against the UK billing address at checkout. The fee carries **$20 of monthly usage credit**, and 1 TB Fast Data Transfer and 10M Edge Requests are included on top without spending it ([Pro plan](https://vercel.com/docs/plans/pro-plan), read 21 August 2026) |
+| Spend Management | **On. On-demand budget $40, pausing production deployments at 100%.** Read back as `$0 / $40 (0%)`, `Notifications: On`, `Pause Projects: On`. **No webhook.** So a worst month is $24 plus at most $40 of on-demand usage, plus what the pause overshoots |
+| Spend Management notifications | **Web, e-mail and push at 50%, 75% and 100%**; push is ticked and disabled, so it cannot be turned off. **SMS is off and cannot be turned on**: the account carries **no phone number**, and the toggle needs one entered and verified first. SMS is the only channel that would reach a phone without the Vercel mobile app, and it fires only at 100% |
+| What the $40 does not bound | **Seats, add-ons and Marketplace integrations**, which Vercel bills monthly and which the spend amount *"does not include"* ([Spend Management](https://vercel.com/docs/spend-management), read 21 August 2026). **Neon is a Marketplace integration billed through Vercel**, so this cap does not bound the database bill at all — *Database* below |
 | Project | `canoncore`, `prj_BMzP9Dq7Qx3Eev8WwsvVoH5khnaU` |
 | Repository | `jacobrees-canoncore/CanonCore`, production branch `main` |
 | Function region | `lhr1` (London) |
@@ -149,6 +153,22 @@ that is v1's scope rather than a condition here, and this gate would open withou
 2026. Preview protection was set on 13 August 2026 and turned off since — the row above records
 the 16 August acceptance.*
 
+*The plan, the seat count and the fee were read from the live team API on 21 August 2026 by
+**CAN-59 Decide whether the Hobby plan can carry a public service**: `plan: pro`, `planChangedAt`
+11:34 UTC that day, the `pro` line item $20.00 at quantity 1 and `teamSeats` at quantity 0. **The
+Spend Management row is the one row here that no API can state**, so it was read back from the
+dashboard on 21 August 2026 after a full reload, which is the only way to see it
+([incident](incidents.md#spend-management-saves-in-two-steps-and-abandoning-the-second-discards-it)).
+Both Spend Management rows were read there again on 21 August 2026 from a second session, off a cold
+navigation rather than the one that set them.*
+
+> **Unverified, and it decides whether any of this reaches a human.** Push notification is forced on
+> for every Spend Management and usage threshold, but **push needs the Vercel mobile app installed
+> and signed in on a device**, and nobody has checked that it is. If it is not, the notifications are
+> e-mail and web only and no alert reaches a phone before the pause — SMS being off is then the whole
+> of the gap rather than a redundancy. [`docs/runbook.md`](runbook.md) → *What warns you before a
+> pause* carries the same caveat where it would be acted on.
+
 **The last five rows exist nowhere but here.** They are project settings, so no file in this
 repository can assert them, and `vercel.json` cannot set any of them either. Without the first two
 the build runs at the repository root, finds no application and produces a 404 on the production
@@ -156,16 +176,20 @@ domain; without the third it cannot see `packages/config`, which sits outside `a
 name for the third is `sourceFilesOutsideRootDirectory`, which is not the dashboard's wording
 ([incident](incidents.md#the-api-name-for-a-project-setting-is-not-the-dashboard-name)).
 
-**The repository is public, and that is a constraint rather than a default.** Vercel's Hobby plan
-refuses a private organisation-owned repo, and public is also what pays for `main`'s ruleset under
-GitHub Free ([incident](incidents.md#vercel-hobby-refuses-a-private-organisation-owned-repo)). Made
-private again, both break.
+**The repository is public, and that is still a constraint rather than a default — but only one of
+its two reasons survives.** Vercel's Hobby plan refused a private organisation-owned repo, and that
+half stopped binding with the Pro upgrade on 21 August 2026
+([incident](incidents.md#the-hobby-private-repo-refusal-stopped-binding-on-the-pro-upgrade)). **What
+remains is GitHub's**: public is what pays for `main`'s ruleset under GitHub Free
+([incident](incidents.md#vercel-hobby-refuses-a-private-organisation-owned-repo)). Made private
+again, the ruleset goes and every merge gate with it.
 
-Hobby "restricts users to non-commercial, personal use only"
-([Vercel Hobby plan](https://vercel.com/docs/plans/hobby), citing the
-[fair use guidelines](https://vercel.com/docs/limits/fair-use-guidelines#commercial-usage)). **Settled
-20 August 2026**: the plan moves to Pro, where the restriction does not apply — [ADR-0024](adr/0024-vercel-pro-for-a-spend-cap-rather-than-an-outage.md). Live until the
-upgrade lands.
+**The non-commercial restriction is gone.** Hobby "restricts users to non-commercial, personal use
+only" ([Vercel Hobby plan](https://vercel.com/docs/plans/hobby), citing the
+[fair use guidelines](https://vercel.com/docs/limits/fair-use-guidelines#commercial-usage)), which
+made a donate link a licence breach rather than a product decision. **It stopped applying on
+21 August 2026 with the upgrade** — [ADR-0024](adr/0024-vercel-pro-for-a-spend-cap-rather-than-an-outage.md). Recorded rather than
+deleted, because documents written before that date cite it as live.
 
 The Vercel GitHub App is installed on `jacobrees-canoncore`, scoped to this one repository, and
 installing it displaced nothing
@@ -922,6 +946,7 @@ whatever noticed can mint the replacement, is wrong in one direction only.
 | Preview branch | **One**, named `preview`, `br-calm-flower-zame56ly` — schema-only, shared by every preview deployment, and holding no production row. *The shared preview branch* below is what it is and how it is kept level |
 | Region | `eu-west-2` (London) |
 | Plan | Launch, billed through Vercel. **Five root branches**, of which `main` and `preview` are two ([Neon, schema-only branches](https://neon.com/docs/guides/branching-schema-only), whose *Schema-only branch allowances* section tables it per plan: Free 3, Launch 5, Scale 25) |
+| What bounds this bill | **Nothing here does.** Launch bills rather than suspending, and Vercel's $40 Spend Management budget explicitly excludes Marketplace integrations — *Hosting* above. So the cap that bounds the hosting bill does not reach the database one |
 | Neon Auth | **Disabled**, recorded 10 August 2026 by CAN-18 Provision the Vercel project, the Neon database and the production domain and unchanged since. The reason is [ADR-0016](adr/0016-provisioning-plain-api-keys-neon-excepted.md) → *What will try to reopen it*, which also records why the reason this row used to give stopped being true |
 | Create Database Branch For Deployment | **Neither box ticked.** `Production` never was; `Preview` was unticked on 17 August 2026 by **CAN-79 Previews clone production rows, and the integration has no switch to stop it**, which is what stops a preview branch being cloned from production — [ADR-0023](adr/0023-one-shared-schema-only-preview-branch.md) |
 | Require Active Resource Before Deploy | **Required** — it was the prerequisite that ungreyed the checkbox above, and it outlives it |
@@ -1456,8 +1481,12 @@ mail reputation must not reach `www.canoncore.com`. `mail.` is a sibling of `www
 untouched and the session cookie stays host-only.
 
 **The Vercel Marketplace integration was declined on purpose.** Resend is the only email provider on
-it, but it provisions a billable resource on a Hobby account and takes ownership of the environment
-variable — the same failure mode the `NEON_` prefix exists to avoid.
+it, but it takes ownership of the environment variable — the same failure mode the `NEON_` prefix
+exists to avoid — and it provisions a billable resource. **The billing half of that reason changed
+shape on 21 August 2026 rather than lapsing**: the account is no longer Hobby, so "billable on a
+Hobby account" no longer applies, but a Marketplace resource is one of the things the $40 Spend
+Management budget explicitly does not bound (*Hosting* above). The reason for declining is narrower
+and harder, not weaker.
 
 ### The keys
 
@@ -2013,11 +2042,15 @@ holds no key of its own, so it is outside *The keys* above rather than a third e
 
 ## Firewall
 
-**One custom rule, which is the whole allowance.** Hobby permits **1 rate-limit rule per project**, fixed
-window, keyed on IP or JA4 digest, and its counters are *"tracked on a per-region basis"*
-([Vercel, WAF rate limiting](https://vercel.com/docs/vercel-firewall/vercel-waf/rate-limiting)) — so the
-effective limit is the figure below times the number of regions a caller reaches, which is a ceiling rather
-than a guarantee. DDoS mitigation is on by default and is not this rule.
+**One custom rule, which is no longer the whole allowance.** It was, and that is what the rule below was
+written against: Hobby permits **1 rate-limit rule per project**. **Pro permits 40 per project**
+([Vercel, WAF rate limiting](https://vercel.com/docs/vercel-firewall/vercel-waf/rate-limiting), read
+21 August 2026), so since the upgrade of 21 August 2026 the count of one is a choice rather than a ceiling.
+**What the upgrade did not change** is everything the rule's shape depends on: fixed window is still the
+only algorithm below Enterprise, the keys are still IP and JA4 digest, the window is still 10s to 10min, and
+counters are still *"tracked on a per-region basis"* — so the effective limit is the figure below times the
+number of regions a caller reaches, which is a ceiling rather than a guarantee. DDoS mitigation is on by
+default and is not this rule.
 
 | | |
 | --- | --- |
@@ -2053,8 +2086,9 @@ guessing, and it is the one `apps/web/src/db/rls.test.ts` asserts.
 
 **Changing it is a two-step, on purpose.** `vercel firewall rules edit` stages a draft and
 `vercel firewall publish` makes it live, with `vercel firewall diff` in between; `vercel firewall discard`
-throws a draft away. **Spending this rule on anything else means taking it off `/api/auth/*`**, since there
-is only one.
+throws a draft away. **Adding a second rule is now a choice rather than a trade.** Until 21 August 2026
+spending this rule on anything else meant taking it off `/api/auth/*`, because there was only one; on Pro
+there are 40. Nothing here needs a second, and one is still the count.
 
 ## The served surface
 

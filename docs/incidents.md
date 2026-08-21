@@ -45,6 +45,8 @@ is what the rule was built on.
 
 **Hosting and the repository**
 - [Vercel Hobby refuses a private organisation-owned repo](#vercel-hobby-refuses-a-private-organisation-owned-repo)
+- [The Hobby private-repo refusal stopped binding on the Pro upgrade](#the-hobby-private-repo-refusal-stopped-binding-on-the-pro-upgrade)
+- [Spend Management saves in two steps, and abandoning the second discards it](#spend-management-saves-in-two-steps-and-abandoning-the-second-discards-it)
 - [The API name for a project setting is not the dashboard name](#the-api-name-for-a-project-setting-is-not-the-dashboard-name)
 - [Installing the Vercel GitHub App on a second org displaced nothing](#installing-the-vercel-github-app-on-a-second-org-displaced-nothing)
 - [The holding page was first deployed straight to production](#the-holding-page-was-first-deployed-straight-to-production)
@@ -699,6 +701,58 @@ repositories under GitHub Free, which is what pays for the ruleset `main` has ca
 ([about
 rulesets](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-rulesets/about-rulesets)).
 Going private would take the deployment *and* the ruleset.
+
+## The Hobby private-repo refusal stopped binding on the Pro upgrade
+
+**21 August 2026, CAN-59.** A follow-up to
+[Vercel Hobby refuses a private organisation-owned repo](#vercel-hobby-refuses-a-private-organisation-owned-repo)
+above, which is left as written.
+
+**What is now false.** That entry's first half was a Hobby restriction, and the account moved to Pro
+on 21 August 2026 ([ADR-0024](adr/0024-vercel-pro-for-a-spend-cap-rather-than-an-outage.md)). Pro does
+not refuse a private organisation-owned repository, so `repo_owned_by_org` is no longer a reason this
+repository has to be public.
+
+**Its second half is untouched, and is now the whole of the constraint.** Rulesets and required status
+checks are free on **public** repositories under GitHub Free, and that is what pays for the ruleset
+`main` has carried since CAN-40. Going private would still take the ruleset and every merge gate with
+it, and that has nothing to do with Vercel's plan.
+
+**The observation itself stands.** `repo_owned_by_org` was a real API response on 10 August 2026 on a
+Hobby account, and nothing here re-tested it — the entry stopped being load-bearing rather than
+stopped being true.
+
+## Spend Management saves in two steps, and abandoning the second discards it
+
+**21 August 2026, CAN-59.** Setting the on-demand budget and the pause on the newly-upgraded Pro team,
+observed in the dashboard because there is nowhere else to observe it.
+
+**Three things, in order of how much they cost.**
+
+**Saving takes two steps, and stopping after the first writes nothing.** Clicking **Save** opens a
+confirmation dialog that asks for the team name verbatim before anything is written — which is
+Vercel's own documented flow, *"Confirm the action by entering the team name and select Continue"*
+([Spend Management](https://vercel.com/docs/spend-management), read 21 August 2026). **Two attempts
+here reloaded the page while that dialog was still open, and both were silently discarded**: the page
+came back reading `$0 / $200` with the pause off, and no error was shown anywhere. Only a read-back
+after a full reload caught it.
+
+**There is no API and no CLI, so a read-back is the only verification available.** Four candidate
+endpoints — `/v1/teams/{id}/spend-management`, `/v1/spend-management`,
+`/v1/teams/{id}/billing/spend-management` and `/v1/billing/spend-management` — all answer `404`, and
+the team object's `billing.controls` carries only the Web Analytics sample rate and spend limit.
+**So no check in `scripts/check-docs.ts` can ever gate that row of `docs/infrastructure.md`**, which
+is why the register names the dashboard and the date instead.
+
+**The collapsed control reads as unset when it is not.** It renders as `0 On-Demand Budget` in the
+accessibility tree; its full label is `$0 / $200`. The `$200` is Vercel's documented default for new
+customers, so the display is misleading rather than the setting being absent.
+
+**One discrepancy left unresolved.** The toggle is labelled *Pause Production Deployments* and its
+description says projects become *"unavailable to visitors"*, but its confirmation dialog says **"All
+deployments are paused."** The documentation agrees with the toggle, not the dialog — it pauses *"the
+production deployment for all projects"* (same page). Nothing here depends on which is right, but
+anyone expecting previews to survive a pause should test it rather than read it.
 
 ## The API name for a project setting is not the dashboard name
 
