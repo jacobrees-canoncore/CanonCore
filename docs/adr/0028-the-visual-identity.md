@@ -36,6 +36,7 @@ document does that for the measure and for everything beside it.
 | Measure | 34 rem |
 | Leading | 1.6 for prose, 1.2 for headings, both unitless |
 | Focus | A 3 px accent ring at a 2 px offset, on bare `:focus-visible` |
+| Controls | 2.75 rem tall, which is 44 CSS pixels at the default root size |
 
 The values are in [`packages/config/src/design.ts`](../../packages/config/src/design.ts) and in
 [`apps/web/src/app/globals.css`](../../apps/web/src/app/globals.css), and
@@ -165,6 +166,14 @@ That is duplication on purpose, and the reason is that a stylesheet is not the o
   sheet from the module.
 - **The Open Graph image** CAN-57 Make a public Ordering discoverable and shareable will draw is
   satori, which supports a subset of CSS and no custom properties at all.
+
+**Two lengths that are not colours or scale steps are in the module for the same reason**, and they
+are there because this document's accessibility claims rest on them: the control height that 2.5.8
+and 2.5.5 turn on, and the focus ring's width and offset that 2.4.13 turns on. Both are drawn twice
+— once by the sheet, once by `global-error.tsx` — so both are checked, and neither can drift into a
+page that quietly stops meeting a criterion this ADR says it meets. The ring is in **CSS pixels**
+rather than rem, deliberately: 2.4.13 is written in CSS pixels, so an indicator sized in rem would
+meet or miss it depending on a font size the reader chose for something else.
 
 **The alternative is a build step, and ADR-0013 already preferred a check to a transform.** A Design
 Tokens Format Module file plus Style Dictionary would buy a pipeline nobody removes and a lossy

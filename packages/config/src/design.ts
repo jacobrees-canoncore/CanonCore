@@ -53,7 +53,12 @@ export const palette = {
     muted: "#6f6a61",
     /** Separators. Deliberately below 3:1 — see the note above. Never a control's border. */
     rule: "#e3ded5",
-    /** The border of anything you can type in or press. At or above 3:1, per 1.4.11. */
+    /**
+     * The border of anything that has to read as a thing rather than as a background: a control you
+     * can type in or press, the box a form's answer arrives in, the ring of the working indicator.
+     * **What the role is, exactly, is the 3:1 floor of 1.4.11** — that is what separates it from
+     * {@link palette.light.rule}, which carries no information and is held to nothing.
+     */
     edge: "#948e83",
     /** The focus ring, and the only accent this palette has. */
     focus: "#2f7d76",
@@ -153,3 +158,23 @@ export const fonts = {
 
 /** The one corner radius, in rem. 4 CSS pixels at the default root size. */
 export const radius = 0.25;
+
+/**
+ * The least a control may be tall, in rem — 44 CSS pixels at the default root size.
+ *
+ * WCAG 2.2 **2.5.8 Target Size (Minimum)** asks for 24 by 24 CSS pixels at AA. This is the 44 of
+ * **2.5.5 Target Size (Enhanced)**, which is AAA, because the difference between them costs nothing
+ * on a form with two fields and a button.
+ */
+export const controlHeight = 2.75;
+
+/**
+ * The focus ring, **in CSS pixels rather than rem**, and the exception is deliberate: WCAG 2.2
+ * **2.4.13 Focus Appearance** is written in CSS pixels — "at least as large as the area of a 2 CSS
+ * pixel thick perimeter" — so an indicator expressed in rem would meet or miss the criterion
+ * depending on a font size the reader chose for something else.
+ *
+ * The offset is what puts the ring on the page rather than on the control, which is what makes
+ * {@link palette.light.focus} against `bg` the pair the criterion's contrast half is about.
+ */
+export const focusRing = { width: 3, offset: 2 } as const;

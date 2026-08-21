@@ -320,8 +320,10 @@ test.each([
  * this repository wrote, and are pinned so that a later edit adding a "go back" link is a decision
  * rather than an accident.
  *
- * `global-error.tsx` is deliberately absent: it renders its own `<html>` and `<body>`, which is not
- * something `render` can put inside a `<div>`, and it carries no anchor at all.
+ * `global-error.tsx` is absent for a mechanical reason rather than an exemption: it renders its own
+ * `<html>` and `<body>`, which is not something `render` can put inside a `<div>`. It does carry an
+ * anchor — the reporting route, because it is the one page the footer cannot reach — and
+ * [`global-error.test.tsx`](global-error.test.tsx) pins its exact set over the rendered markup.
  */
 test.each([
   ["the not-found page", <NotFound key="not-found" />, []],

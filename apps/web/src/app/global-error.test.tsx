@@ -1,4 +1,4 @@
-import { palette } from "@canoncore/config";
+import { palette, reportingAddress } from "@canoncore/config";
 import { renderToStaticMarkup } from "react-dom/server";
 import { expect, test } from "vitest";
 import GlobalError from "./global-error";
@@ -35,4 +35,18 @@ test("it offers the digest, and nothing else from the error", () => {
 
   expect(html).toContain("abc123");
   expect(html).not.toContain("gone");
+});
+
+/**
+ * **The anchors on this page, pinned here because `no-linkification.test.tsx` cannot see them.**
+ * That file renders each surface into a container, which a component that draws its own `<html>`
+ * cannot go inside — so the closed-set assertion the illegal-content finding rests on is made here
+ * instead, over the same rule: the only `href` is a literal of this repository's own.
+ *
+ * It is also the ICU D2 assertion for the one page the footer does not reach.
+ */
+test("its only anchor is the reporting route", () => {
+  const hrefs = [...markup().matchAll(/href="([^"]*)"/g)].map(([, href]) => href);
+
+  expect(hrefs).toEqual([`mailto:${reportingAddress}`]);
 });

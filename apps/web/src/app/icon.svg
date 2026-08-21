@@ -1,8 +1,8 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="CanonCore">
   <!--
-    The mark: three entries, one of them placed differently from the other two. That is the whole
-    product in a shape a browser tab can still read at 16 pixels, and it is why the middle bar is
-    indented rather than merely shorter.
+    The mark: three Placements, one of them sitting differently from the other two. That is the
+    whole product in a shape a browser tab can still read at 16 pixels, and it is why the middle bar
+    is indented rather than merely shorter.
 
     The two colours are `focus` and `bg` from `@canoncore/config`'s palette, written out because an
     SVG asset cannot import. `design-tokens.test.ts` asserts they are still the palette's, so this

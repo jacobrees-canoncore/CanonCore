@@ -1,6 +1,8 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import {
+  controlHeight,
+  focusRing,
   fonts,
   leading,
   measure,
@@ -61,6 +63,11 @@ const expectedRoot = new Map<string, string>([
   ...Object.entries(leading).map(([name, value]) => [`--leading-${name}`, `${value}`] as const),
   ...Object.entries(fonts).map(([name, value]) => [`--font-${name}`, value] as const),
   ["--radius", `${radius}rem`],
+  // The two geometry values ADR-0028's accessibility claims rest on, and the only lengths here in
+  // CSS pixels: `design.ts` says why the focus ring cannot be in rem.
+  ["--control-height", `${controlHeight}rem`],
+  ["--focus-width", `${focusRing.width}px`],
+  ["--focus-offset", `${focusRing.offset}px`],
 ]);
 
 test("globals.css declares exactly the design tokens, with the exported values", () => {

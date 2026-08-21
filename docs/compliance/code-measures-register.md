@@ -69,7 +69,10 @@ names it alone.
 > **One half of D2 landed on 21 August 2026, and it moved no row.**
 > [CAN-89 Give the product a visual identity and a reading surface](https://linear.app/jacobrees-canoncore/issue/CAN-89)
 > gave the application its first footer, and the reporting address is in it on every page — which is
-> the first clause of D2.2 and the thing this register recorded as satisfied by nothing. **The rows
+> the first clause of D2.2 and the thing this register recorded as satisfied by nothing. **Every page
+> means every page**: `global-error.tsx` renders its own document with no footer in it, because
+> Next.js replaces the root layout when that layout is what threw, so that page carries the address
+> itself rather than being the exception nobody would have noticed. **The rows
 > still read *Not in effect*, and deliberately.** D1's substance is a route that tells a reporter what
 > they may complain about, and the document that does is still unpublished; D2 also asks for the link
 > on the public Ordering page, and there is no Ordering page. A row whose `Effective` column carried a

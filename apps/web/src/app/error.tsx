@@ -32,7 +32,7 @@ export default function PageError({
         This page did not finish loading, and the fault is at our end rather than yours.
       </Interruption>
       {error.digest === undefined ? null : (
-        <p className="account">
+        <p className="meta">
           If you tell us about it, quote <strong>{error.digest}</strong>.
         </p>
       )}

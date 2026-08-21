@@ -26,7 +26,7 @@ export function FrontPage({
         // Plain anchors rather than `next/link`, and react-doctor's `nextjs-no-a-element` is
         // knowingly accepted on both — a warning rather than a gate. `site-header.tsx` holds the
         // measurement the trade rests on, for every anchor in the application rather than these two.
-        <p className="account">
+        <p className="meta">
           <a href="/sign-in">Sign in</a> or <a href="/sign-up">create an account</a>.
         </p>
       ) : (
@@ -39,7 +39,7 @@ export function FrontPage({
         // body, and this form was refused with a 415 in a browser after a unit test said otherwise.
         // `../api/auth/[...all]/route.ts` records the wrong turn and re-encodes every form post
         // instead, so this form would work with fields as well as without them.
-        <form className="account" method="post" action="/api/auth/sign-out">
+        <form className="meta" method="post" action="/api/auth/sign-out">
           <span>
             Signed in as <strong>{signedInAs}</strong>.
           </span>{" "}

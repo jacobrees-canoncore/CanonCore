@@ -23,7 +23,17 @@ export const productionUrl = "https://www.canoncore.com";
  */
 export const mailReceivingDomain = "mail.canoncore.com";
 
-export { fonts, leading, measure, palette, radius, spacing, typeScale } from "./design";
+export {
+  controlHeight,
+  focusRing,
+  fonts,
+  leading,
+  measure,
+  palette,
+  radius,
+  spacing,
+  typeScale,
+} from "./design";
 
 /**
  * Where a member of the public reports content, and complains about what we did about it.

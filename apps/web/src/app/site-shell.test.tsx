@@ -1,5 +1,5 @@
 import { reportingAddress } from "@canoncore/config";
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import { expect, test } from "vitest";
 import { SiteShell } from "./site-shell";
 
@@ -40,10 +40,13 @@ test("the skip link comes first and lands on the content", () => {
   expect(landing?.getAttribute("tabindex")).toBe("-1");
 });
 
-// The masthead's way home, which is why no page draws one of its own any more.
+// The masthead's way home, which is why no page draws one of its own any more. It is navigation
+// rather than a bare link so that the landmark exists from the start — `site-header.tsx` says why
+// it holds one destination today, and which tickets add the next two.
 test("the masthead is a link to the front page and is not a heading", () => {
   shell();
 
-  expect(screen.getByRole("link", { name: "CanonCore" }).getAttribute("href")).toBe("/");
+  const site = screen.getByRole("navigation", { name: "Site" });
+  expect(within(site).getByRole("link", { name: "CanonCore" }).getAttribute("href")).toBe("/");
   expect(screen.queryAllByRole("heading")).toEqual([]);
 });

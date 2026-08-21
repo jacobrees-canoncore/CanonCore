@@ -50,6 +50,9 @@
   --font-ui: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
 
   --radius: 0.25rem;
+  --control-height: 2.75rem;
+  --focus-width: 3px;
+  --focus-offset: 2px;
 }
 
 /* The palette, and nothing else. A scale that differed between the two would be a second design. */
@@ -273,7 +276,7 @@ a {
 
 /*
   An empty list is a sentence, not a blank space. Italic and muted so it reads as the page talking
-  about itself rather than as one more entry.
+  about itself rather than as one more line of the list it stands in for.
 */
 .empty {
   color: var(--muted);
@@ -337,13 +340,15 @@ label {
 
 /*
   `--edge` rather than `--rule`: this border is the only thing that says a control is here, which
-  WCAG 1.4.11 Non-text Contrast holds at 3:1. `min-height` puts both controls past the 24 CSS px
-  WCAG 2.5.8 Target Size (Minimum) asks for, with enough over it to clear the 44 px of 2.5.5 as well.
+  WCAG 1.4.11 Non-text Contrast holds at 3:1 — and that floor, rather than the word "control", is
+  what the token is for, which is why `.notice` and the working ring take it too. `--control-height`
+  puts both controls past the 24 CSS px WCAG 2.5.8 Target Size (Minimum) asks for, with enough over
+  it to clear the 44 px of 2.5.5 as well.
 */
 input {
   display: block;
   width: 100%;
-  min-height: 2.75rem;
+  min-height: var(--control-height);
   padding: var(--space-2) var(--space-3);
   border: 1px solid var(--edge);
   border-radius: var(--radius);
@@ -354,7 +359,7 @@ input {
 }
 
 button {
-  min-height: 2.75rem;
+  min-height: var(--control-height);
   padding: var(--space-2) var(--space-6);
   border: 1px solid var(--fg);
   border-radius: var(--radius);
@@ -392,7 +397,12 @@ button {
   border-radius: var(--radius);
 }
 
-.account {
+/*
+  A line that is about the page rather than of it: who you are signed in as, the reference to quote
+  for an error. Named for the treatment rather than for the first thing that wanted it — it was
+  `.account`, which stopped being honest the moment a second kind of line took it.
+*/
+.meta {
   margin: 0;
   color: var(--muted);
   font-family: var(--font-ui);
@@ -401,13 +411,15 @@ button {
 
 /*
   **Bare `:focus-visible`, so it reaches every interactive element there will ever be** rather than a
-  list of selectors that a new control can be forgotten from. Three CSS pixels and an offset put it
-  past the two-pixel perimeter WCAG 2.4.13 Focus Appearance asks for, and `--focus` clears 3:1
-  against both the page and a filled control — `design-tokens.test.ts` asserts both ratios.
+  list of selectors that a new control can be forgotten from. The width and the offset are tokens
+  because `global-error.tsx` has to draw the same ring from its own sheet, and because they are what
+  ADR-0028's WCAG 2.4.13 Focus Appearance claim rests on: three CSS pixels past a two-pixel
+  perimeter. `--focus` clears 3:1 against both the page and a filled control —
+  `design-tokens.test.ts` asserts both ratios.
 */
 :focus-visible {
-  outline: 3px solid var(--focus);
-  outline-offset: 2px;
+  outline: var(--focus-width) solid var(--focus);
+  outline-offset: var(--focus-offset);
 }
 
 /*
