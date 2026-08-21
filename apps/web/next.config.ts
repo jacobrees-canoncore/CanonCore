@@ -4,11 +4,30 @@
 import "./src/env";
 
 import type { NextConfig } from "next";
+import { securityHeaders } from "./src/security/headers";
 
 const nextConfig: NextConfig = {
   // `@canoncore/config` ships TypeScript source with no build step, so the
   // consumer compiles it — see ADR-0005.
   transpilePackages: ["@canoncore/config"],
+
+  /**
+   * The security headers, on everything this deployment serves — **CAN-53 Set the security
+   * headers, with the CSP report-only first**. What each one is and why, including the two that
+   * are deliberately absent, is `src/security/headers.ts`.
+   *
+   * **Here rather than in a proxy**, which is the other place Next documents for this. A proxy is
+   * what a *nonce* needs, because a nonce is per-request; these headers are the same on every
+   * response, and `next.config` is the recipe Next gives for exactly that case
+   * (https://nextjs.org/docs/app/guides/content-security-policy → *Without Nonces*).
+   *
+   * `/(.*)`  rather than `/:path*`, following that recipe, and it reaches everything: `headers`
+   * are "checked before the filesystem which includes pages and `/public` files"
+   * (https://nextjs.org/docs/app/api-reference/config/next-config-js/headers).
+   */
+  headers() {
+    return [{ source: "/(.*)", headers: securityHeaders }];
+  },
 };
 
 export default nextConfig;

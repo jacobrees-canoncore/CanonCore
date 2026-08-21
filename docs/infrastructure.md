@@ -2404,6 +2404,27 @@ what makes that a promise rather than a preference.
 verification link is only ever *emailed*, so it reaches Vercel's logs and any error reporter only when
 somebody follows it — and following it is exactly when a `GET /api/auth/verify-email` could throw.
 
+#### The second route to Sentry, which no `beforeSend` can reach
+
+**Recorded 21 August 2026 by CAN-53 Set the security headers, with the CSP report-only first**, which
+found it while looking for somewhere to send Content Security Policy violation reports. The row above
+binds what the *SDK* sends. A CSP report is not sent by the SDK: **the browser posts it, straight to
+whatever address the policy names**, so no `beforeSend`, no `dataCollection` deny list and no
+scrubbing of ours is anywhere in its path.
+
+Two of this section's promises fail if that address is ever Sentry's own security endpoint:
+
+| The terms say | What a browser-posted report does |
+| --- | --- |
+| No IP address | The report is an HTTP request the *user's browser* makes to Sentry, so Sentry sees and records the address it came from. There is no setting in this repository that reaches it |
+| Nothing personal in a URL | The report's `document-uri` is the page's URL with its query string intact. CSP's own [strip URL for use in reports](https://www.w3.org/TR/CSP3/#strip-url-for-use-in-reports) removes the fragment, the username and the password, and nothing else — so both addresses in the table above would travel whole. Confirmed by observation on 21 August 2026, not read off the specification alone: a violation raised on `/reset-password?token=…` produced a report body carrying the token |
+
+**So the reports go to a route on this deployment instead**, [`apps/web/src/app/api/csp-report/route.ts`](../apps/web/src/app/api/csp-report/route.ts),
+which reduces every URL through the redaction the measurement products already use before anything is
+recorded. **CAN-51 Keep a record of server errors past the hour Vercel keeps them** may forward from
+there once it exists; what it must not do is point the policy at Sentry directly, which reads like the
+obvious simplification and is the one thing the shape exists to prevent.
+
 **11 sub-processors is the whole of Sentry's list**, eight general and three of Sentry's own group
 companies ([subprocessors](https://sentry.io/legal/subprocessors/), last updated 1 June 2026). Resend's
 22 in the same paragraph is the count from its own list

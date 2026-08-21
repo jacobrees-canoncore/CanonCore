@@ -1,5 +1,11 @@
 /**
- * What a measurement event is allowed to say about the page it came from.
+ * What an event is allowed to say about the page it came from.
+ *
+ * **Two callers, and the second is not analytics.** The measurement products are what this was
+ * written for, and a Content Security Policy violation report arrives with the same problem and is
+ * reduced by the same rule — [`../security/violation.ts`](../security/violation.ts) says why a
+ * browser-posted report cannot be scrubbed anywhere else. It lives here, beside the caller that
+ * needed it first, rather than moving to a neutral home the moment a second one appeared.
  *
  * Vercel warns that "automatic page view tracking may track personal information" in URLs
  * (https://vercel.com/docs/analytics/redacting-sensitive-data), and
