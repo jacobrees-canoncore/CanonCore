@@ -53,12 +53,10 @@ import { expect, test, type Page } from "@playwright/test";
  *   pnpm --filter @canoncore/web test:e2e measurement-on-the-wire
  * ```
  *
- * **A preview is the better target and production is not refused.** Unlike
- * [`verification-by-inbox.spec.ts`](verification-by-inbox.spec.ts), which must never run against
- * production because it creates an account nobody can erase, a run of this file leaves nothing but
- * page views — which is what the site is for, and what makes them valid evidence rather than a
- * simulation. What a production run does cost is signal: there is no real traffic yet, so this
- * spec's own visits would be most of the dataset.
+ * **Without that variable it skips, loudly**, and the reason is below `target`: this file *writes*
+ * where its siblings only read, and the suite's default target is production. Production is a
+ * legitimate thing to point it at — a page view is what the site is for, which is exactly what makes
+ * these valid evidence rather than a simulation — but it has to be chosen rather than defaulted into.
  *
  * ## What it deliberately does not do
  *
@@ -74,13 +72,39 @@ import { expect, test, type Page } from "@playwright/test";
 // automated browser, and the header says which half of that refusal each thing clears.
 test.use({
   launchOptions: { args: ["--disable-blink-features=AutomationControlled"] },
-  // A stranger, as in every sibling spec — and here it is load-bearing twice over, because the
-  // objection this file toggles is held in `localStorage` and would otherwise survive a run.
+  // A stranger, as `front-page.spec.ts`, `story-page.spec.ts` and `signed-out-path.spec.ts` each
+  // say it. **It changes nothing mechanically** — Playwright gives every test its own context and
+  // `playwright.config.ts` sets no `storageState`, so the objection toggled below cannot outlive a
+  // test anyway. It is here to state the starting state, which on the one file that writes to
+  // `localStorage` is worth stating.
   storageState: { cookies: [], origins: [] },
 });
 
+/** Which deployment this run was pointed at, and the reason the skip below exists. */
+const target = process.env.CANONCORE_E2E_BASE_URL;
+
+/**
+ * **Opt in by naming the deployment, because every run of this file writes to a real dataset.**
+ * Unlike its siblings, which only read, each test here posts a page view and a set of vitals that
+ * Vercel keeps — and this suite's default target is production, where the whole dataset is currently
+ * a handful of events that `docs/infrastructure.md` → *What the two measurement products were
+ * observed doing* cites as evidence. So `pnpm --filter @canoncore/web test:e2e` with no variable set
+ * would quietly triple it. Pointing at production deliberately is still allowed; doing it by
+ * accident is what this refuses.
+ *
+ * **Printed as well as skipped**, for `verification-by-inbox.spec.ts`'s reason: the `list` reporter
+ * renders a skip as a dash and no reason, so an unset variable would read as a spec that ran.
+ */
+test.beforeEach(() => {
+  const unconfigured =
+    "CANONCORE_E2E_BASE_URL is unset, and this suite's default target is production";
+  if (!target) console.log(`[measurement-on-the-wire] skipping: ${unconfigured}`);
+  test.skip(!target, unconfigured);
+});
+
 /** Migration 0002's Story, as `story-page.spec.ts` records it. Its identifier is the thing at risk. */
-const storyAddress = "/story/00000000-0000-4000-8000-000000000001";
+const storyIdentifier = "00000000-0000-4000-8000-000000000001";
+const storyAddress = `/story/${storyIdentifier}`;
 
 /**
  * A Web Analytics pageview, in the shape the live script posts. `o` is the URL it decided to report
@@ -122,17 +146,31 @@ async function watchMeasurement(page: Page): Promise<Sent> {
   return sent;
 }
 
+/** Forget what has been seen so far, so the next visit is asserted on its own. */
+function forget(sent: Sent): void {
+  sent.pageviews.length = 0;
+  sent.vitals.length = 0;
+  sent.bodies.length = 0;
+}
+
 /**
  * Load a page and give both products time to report.
  *
- * The click and the hiding are not decoration: Speed Insights holds its samples until the page is
- * hidden, which is what a reader leaving does, and an interaction is what finalises the largest
- * contentful paint. Without them the vitals half of this file would observe nothing and say so.
+ * **The interaction and the hiding are not decoration.** Speed Insights was observed sending nothing
+ * until the page was hidden — a bare load plus a four-second wait produced no `vitals` request at
+ * all on 21 August 2026, and dispatching the two events below produced one immediately — and an
+ * interaction is what finalises the largest contentful paint and gives `INP` a sample. The heading
+ * is clicked rather than a coordinate, because a coordinate can land on a link and navigate.
+ *
+ * **The waits are fixed on purpose, and cannot be event-driven.** Every assertion in this file is
+ * about how many requests arrived in a window — one, or none — and "none yet" is indistinguishable
+ * from "none ever" except by waiting. Waiting for a request instead would prove the first arrived
+ * and nothing about a second.
  */
 async function visit(page: Page, address: string): Promise<void> {
   await page.goto(address, { waitUntil: "load" });
   await page.waitForTimeout(1_500);
-  await page.mouse.click(200, 200);
+  await page.getByRole("heading").first().click();
   await page.waitForTimeout(1_000);
   await page.evaluate(() => {
     Object.defineProperty(document, "visibilityState", { value: "hidden", configurable: true });
@@ -152,10 +190,31 @@ async function visit(page: Page, address: string): Promise<void> {
 function onlyPageview(sent: Sent): Pageview {
   expect(
     sent.pageviews,
-    "no pageview left the browser. If this is a headless run the script refused it before " +
-      "reading anything — see this file's header — and nothing below would have been tested.",
+    "no pageview left the browser. If the launch flag in this file's `test.use` has gone, the " +
+      "script refused the browser before reading anything — see this file's header — and nothing " +
+      "below would have been tested.",
   ).toHaveLength(1);
   return sent.pageviews[0]!;
+}
+
+/**
+ * The samples that visit should have produced, having refused an empty set for the same reason
+ * {@link onlyPageview} does: an assertion over no samples is an assertion about nothing.
+ */
+function someVitals(sent: Sent): readonly Vital[] {
+  expect(sent.vitals, "Speed Insights reported no sample").not.toHaveLength(0);
+  return sent.vitals;
+}
+
+/**
+ * Every measurement body that went out, asserted not to carry `secret` anywhere in it.
+ *
+ * **The whole body rather than the fields the types above name**, because a field this file does not
+ * know about is exactly how something would travel unnoticed.
+ */
+function nothingCarried(sent: Sent, secret: string): void {
+  expect(sent.bodies, "no measurement body to search").not.toHaveLength(0);
+  for (const body of sent.bodies) expect(body).not.toContain(secret);
 }
 
 test("a Story is reported as its shape, and its identifier never leaves the browser", async ({
@@ -170,15 +229,11 @@ test("a Story is reported as its shape, and its identifier never leaves the brow
 
   // The route surface as well as the URL. Both vendors send the route beside the URL and it never
   // reaches `beforeSend`, which is the finding `../src/analytics/analytics.tsx` records.
-  expect(sent.vitals.length, "Speed Insights reported no sample").toBeGreaterThan(0);
-  for (const vital of sent.vitals) {
+  for (const vital of someVitals(sent)) {
     expect(vital, `the ${vital.type} sample`).toMatchObject({ route: "/story/*", href: shape });
   }
 
-  // The whole of every body, rather than the fields named above: a field this test does not know
-  // about is exactly how an identifier would travel.
-  const identifier = storyAddress.split("/").pop()!;
-  for (const body of sent.bodies) expect(body).not.toContain(identifier);
+  nothingCarried(sent, storyIdentifier);
 });
 
 test("nothing after a question mark is reported", async ({ page, baseURL }) => {
@@ -196,7 +251,14 @@ test("nothing after a question mark is reported", async ({ page, baseURL }) => {
     o: new URL("/reset-password", baseURL!).toString(),
     dp: "/reset-password",
   });
-  for (const body of sent.bodies) expect(body).not.toContain(invented);
+
+  // Both products, not only the pageview: the `href` Speed Insights sends is built from
+  // `location.href` too, so this page is a case for it as much as for Web Analytics.
+  for (const vital of someVitals(sent)) {
+    expect(vital, `the ${vital.type} sample`).toMatchObject({ route: "/reset-password" });
+  }
+
+  nothingCarried(sent, invented);
 });
 
 test("the objection stops every event, and withdrawing it starts them again", async ({ page }) => {
@@ -206,8 +268,11 @@ test("the objection stops every event, and withdrawing it starts them again", as
   await page.getByRole("button", { name: "Stop counting my visits" }).click();
   await expect(page.getByRole("status")).toHaveText(/not counted/);
 
-  sent.pageviews.length = 0;
-  sent.vitals.length = 0;
+  // **This half asserts an absence, and an absence is what a refused browser also produces** — so on
+  // its own it would be the vacuous pass this file exists to refuse. What rescues it is the
+  // withdrawal below, in the same browser and the same test: if the script had refused this browser,
+  // that assertion fails. The two halves are one claim and must not be split into two tests.
+  forget(sent);
   await visit(page, storyAddress);
   await visit(page, "/");
   expect(sent.pageviews, "an objection was recorded and pageviews carried on").toHaveLength(0);
@@ -217,9 +282,11 @@ test("the objection stops every event, and withdrawing it starts them again", as
   await page.getByRole("button", { name: "Count my visits" }).click();
   await expect(page.getByRole("status")).toHaveText(/are counted/);
 
-  sent.pageviews.length = 0;
+  forget(sent);
   await visit(page, storyAddress);
   // The withdrawal is the half a `localStorage` read cannot prove: measuring has to resume, or the
   // control is an off switch rather than an objection.
   expect(onlyPageview(sent)).toMatchObject({ dp: "/story/*" });
+  expect(someVitals(sent).length, "vitals did not resume with the objection withdrawn")
+    .toBeGreaterThan(0);
 });

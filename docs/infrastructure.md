@@ -279,9 +279,23 @@ the same bound.
 Speed Insights is **off** — never purchased — and it is receiving data anyway: the browser's own
 `/_vercel/speed-insights/vitals` request was captured going out from production at 13:57. So the row
 above saying *Off* and this section saying *receiving* are both true, and neither implies the other.
-**And `dataReceivedAt` is a first-receipt stamp rather than a latest-receipt one**: production vitals
-demonstrably left the browser at 13:57:29 and the field still read 13:28:27.512 when the API was read
-again at 13:58.
+**What Vercel does with those measurements while the product is off is not recorded here, because
+their documentation does not say** — searched on 21 August 2026 and answered only with how to enable
+it and what it costs. **And `dataReceivedAt` did not move for them**: it still read 13:28:27.512 when
+the API was read again at 13:58, half a minute after vitals demonstrably left the browser. That is
+one intervention rather than a documented contract, so it is written as what happened; it is at least
+not a latest-receipt stamp.
+
+> **This falsified a sentence on the page that discharges the information duty, and that is the most
+> consequential thing the run found.** `/privacy/analytics` told readers Speed Insights "is not
+> switched on, so nothing is being collected for it" — and something is being sent.
+> [ADR-0020](adr/0020-no-cookie-consent-banner.md) → *The conditions are the decision* makes "clear
+> and comprehensive information" one of the two conditions the whole no-banner position rests on, so
+> a reader told nothing is sent while something is, is that condition failing rather than a wording
+> nit. Corrected in the same change:
+> [`apps/web/src/app/privacy/analytics/page.tsx`](../apps/web/src/app/privacy/analytics/page.tsx) now
+> says the measurements are sent and that the objection stops them. **The terms of service needed no
+> change** — they describe the visit counting only and claim nothing about Speed Insights.
 
 **Both products redact the route as well as the URL, and only one of the two goes through
 `beforeSend`.** One Speed Insights request carried six samples — `FCP`, `TTFB`, `LCP`, `FID`, `INP`,
@@ -289,15 +303,27 @@ again at 13:58.
 `href: ".../story/*"`. That is the surface
 [`apps/web/src/analytics/analytics.tsx`](../apps/web/src/analytics/analytics.tsx) exists to close.
 
-> **What nearly made all of this unobservable, and would have looked like success.** Both scripts
-> open with `if(navigator.webdriver||navigator.userAgent.includes("Headless"))return;` — read off the
-> live `/_vercel/insights/script.js` and `/_vercel/speed-insights/script.js` on 21 August 2026 —
-> so a browser they refuse sends **nothing**, and every "the token did not leak" check passes on an
-> empty set. **A default Playwright run is such a browser.** The ticket's own plan, *drive it with
-> `playwright` and read it back with `vercel`*, therefore does not work as written; what makes it
-> work is the launch flag named in
-> [`apps/web/e2e/measurement-on-the-wire.spec.ts`](../apps/web/e2e/measurement-on-the-wire.spec.ts),
-> which is the same flag the `playwright` MCP server already launches Chrome with.
+> **What nearly made all of this unobservable, and would have looked like success.** Both
+> `/_vercel/insights/script.js` and `/_vercel/speed-insights/script.js` carry the same two lines,
+> read off the live scripts on 21 August 2026 — the first at the top of the bundle, the second just
+> inside the body that would otherwise install the handlers:
+>
+> ```js
+> function t(){return!!(navigator.webdriver||navigator.userAgent.includes("Headless"))}
+> if(t())return;
+> ```
+>
+> So a browser they refuse sends **nothing**, and every "the token did not leak" check passes on an
+> empty set. **A browser driven by the Playwright *test runner* is such a browser by default**, which
+> is what this spec had to be built around; the flag that clears it is named in
+> [`apps/web/e2e/measurement-on-the-wire.spec.ts`](../apps/web/e2e/measurement-on-the-wire.spec.ts).
+>
+> **The `playwright` MCP server the ticket prescribes is not affected**, and an earlier draft of this
+> section wrongly said its plan "does not work as written". Its Chrome runs headed and already
+> carries `--disable-blink-features=AutomationControlled`, read straight off the running process
+> (`ps` against `--user-data-dir=/Users/jacobrees/.config/pw-session`, 21 August 2026). So both halves
+> of the guard are clear on the route `CLAUDE.md` puts in charge of driving a browser, and the trap
+> belongs to the test runner alone.
 
 **This is now a spec rather than only a record**, so the next change to the redaction is checked
 rather than re-verified by hand: `measurement-on-the-wire.spec.ts` asserts the three wire claims
@@ -305,9 +331,11 @@ above against whatever deployment it is pointed at, and fails loudly when no pag
 of passing on nothing. It is off the gate with the rest of the Playwright suite
 ([ADR-0017](adr/0017-testing-stack.md)) and its header says how to run it.
 
-**One reading tool's default is worth knowing**: the `vercel` MCP's `get_web_analytics` returns
-**production only** unless the query filters on `environment eq 'preview'`, so a preview run read
-back without that filter looks like a run that sent nothing.
+**One reading tool's default is worth knowing**: the `vercel` MCP's `get_web_analytics` returned
+**production only** unless the query filtered on `environment eq 'preview'` — the same window queried
+both ways on 21 August 2026 gave three production paths unfiltered and five preview paths filtered,
+with the preview rows absent from the first. So a preview run read back without that filter looks
+like a run that sent nothing.
 
 **What this does not settle stays unsettled.** Real INP and full-session CLS need field traffic and
 the URL is deliberately not shared — *The URL-sharing gate* above. What is settled is that the pipe

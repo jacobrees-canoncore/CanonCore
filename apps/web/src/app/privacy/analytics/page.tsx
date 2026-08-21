@@ -46,14 +46,32 @@ export default function CountingVisits() {
         than ours: https://vercel.com/docs/analytics/privacy-policy.
       */}
       <p>
-        One thing runs on this site today: Web Analytics, provided by Vercel, which hosts it. It
-        records that a page was viewed, with the time, the address of the page, the site you arrived
-        from, your country, and your browser, operating system and device type.
+        Two things run on this site, both from Vercel, who host it. Web Analytics records that a
+        page was viewed, with the time, the address of the page, the site you arrived from, your
+        country, and your browser, operating system and device type.
       </p>
+      {/*
+        **This paragraph used to say Speed Insights was not switched on, "so nothing is being
+        collected for it", and that was false.** The product is indeed not switched on — nothing
+        reports it back to us — but the script is on the page and its measurements go to Vercel
+        anyway: a `/_vercel/speed-insights/vitals` request was captured leaving production on
+        21 August 2026, and the project's own `speedInsights.hasData` flipped to `true` while the
+        product was off. `docs/infrastructure.md` -> *What the two measurement products were
+        observed doing* holds the run.
+
+        This page is one of ADR-0020's two conditions for measuring without a consent banner, and
+        the condition is "clear and comprehensive information" — so a sentence telling a reader
+        nothing is sent, while something is, is the condition failing rather than a wording nit.
+        Corrected by CAN-147 Verify the analytics redaction and opt-out against a real deployment.
+
+        What is deliberately *not* claimed here is what Vercel does with those measurements while
+        the product is off. Their documentation does not say, so neither does this page.
+      */}
       <p>
-        A second, Speed Insights, would record how quickly pages drew and responded for you. It is
-        built into the site but <strong>is not switched on</strong>, so nothing is being collected
-        for it. If that changes, this page changes with it: the switch below governs both.
+        Speed Insights measures how quickly pages drew and responded for you, and sends those
+        measurements to Vercel in the same way. We have not switched on the product that reports
+        them back to us, so nobody here has seen them — but <strong>they are still sent</strong>,
+        and the switch below is what stops them.
       </p>
       <p>
         Neither sets a cookie. Vercel identifies a visit by a hash made from the request itself, and
