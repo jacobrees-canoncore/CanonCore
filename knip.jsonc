@@ -32,6 +32,11 @@
       // `sweep-worktree-databases.ts` is run from `/review-pr`. Both are reached from prose and a
       // YAML key knip has no plugin for, so both read as files nothing uses.
       //
+      // `next-lanes.ts` is the same case as `check-linear-bodies.ts`: it reads the board before a
+      // batch is dispatched (.claude/skills/next-lanes/SKILL.md), is reached only from that skill's
+      // prose, and cannot be a CI gate for the same reason — it asks the Orca CLI, which drives a
+      // desktop application.
+      //
       // `restore-database.ts` is the fifth, and it is a file nothing may ever run automatically:
       // restoring a backup needs the age identity, which is on a laptop and in no workflow by
       // design (docs/adr/0028-a-nightly-encrypted-backup-off-neon.md). `backup-database.ts` is not
@@ -43,6 +48,7 @@
       "entry": [
         "provision-provider-repository.ts",
         "check-linear-bodies.ts",
+        "next-lanes.ts",
         "provision-worktree-database.ts",
         "restore-database.ts",
         "sweep-worktree-databases.ts"
