@@ -953,6 +953,26 @@ and `gh`'s is not one however many scopes it carries — it answers `403` *"You 
 to modify this app"* to an account that is an organisation owner. So it is the App's own settings
 page, and the next Provider should expect the same step.
 
+#### What is true of the first Provider today
+
+**`provider-tmdb`, project `prj_JFaCr6WJQ7NEwUX4FBYcliXeTOdi`**, on the account *Hosting* above
+names. Its own roster is
+[that repository's `docs/infrastructure.md`](https://github.com/jacobrees-canoncore/provider-tmdb/blob/main/docs/infrastructure.md),
+and this section deliberately does not restate it — *Where a Source credential lives* below is why
+one checker reads one project. **Two things about it belong here rather than there**, because they
+are estate facts a sweep of this account would otherwise have to rediscover:
+
+- **Vercel Authentication was turned off**, 21 August 2026, read back as `ssoProtection: null`. It
+  had been at the platform's default, `all_except_custom_domains` — which covers the production URL
+  wherever there is no custom domain, and there is none here. **A Provider's caller is a server
+  holding a bearer token, not a person who can complete an SSO round trip**, so left on it would
+  have refused the application rather than an attacker. What closes that endpoint is
+  `CANONCORE_ACCESS_TOKEN` in the Provider's own application code; the platform wall was never what
+  was guarding it. `canoncore` holds the same posture and has since 16 August 2026 (*Hosting*
+  above), so this is the estate agreeing with itself rather than a new exception.
+- **The Git connection is not made**, so no deployment exists yet and the project is still `link:
+  null`. The blocker is the App grant two paragraphs above, and it is a person's step.
+
 #### The two ways a Provider's first deployment builds green and serves nothing
 
 Both were found by running `vercel build` against `provider-tmdb` rather than reasoning about it, on
@@ -1288,9 +1308,10 @@ documents it.
 in a project that served nothing. **CAN-152 Implement the Provider contract in provider-tmdb, and
 close its endpoint** is what reads it: the repository serves version 1 of the contract, closes its
 endpoint against `CANONCORE_ACCESS_TOKEN`, and derives `liveness` from TMDB's daily ID exports.
-**What still does not exist is the deployment** — [CAN-150 provider-tmdb is provisioned on GitHub and
-unwired on Vercel, so nothing deploys](https://linear.app/jacobrees-canoncore/issue/CAN-150) owns
-that, so the code is written and running nowhere.
+**What still does not exist is the deployment**, though how it will be made now does:
+[CAN-150 provider-tmdb is provisioned on GitHub and unwired on Vercel, so nothing deploys](https://linear.app/jacobrees-canoncore/issue/CAN-150)
+settled that on 21 August 2026 — *How a Provider deploys* above — and left one step that needs a
+person. So the code is written and running nowhere for a reason that is now named rather than open.
 
 **Held nowhere was a real state, and recording it rather than tidying it away is what made the
 change above legible.** A credential whose home is unrecorded is the failure this roster exists to
@@ -2878,7 +2899,7 @@ on 21 August 2026.*
 | Vercel project | Neon store | Values stored Non-sensitive, and so readable |
 | --- | --- | --- |
 | `canoncore` | `canoncore`, in *Database* above | **Five, none of them a credential** — two hostnames, a database name and two role names, each argued in place in the roster in *Environment variables* above |
-| `provider-tmdb` | — | **None.** It holds one variable, `TMDB_READ_ACCESS_TOKEN`, Sensitive. The TMDB Provider, under [ADR-0014](adr/0014-shell-providers-and-per-source-retention.md) |
+| `provider-tmdb` | — | **None.** It holds two variables, `TMDB_READ_ACCESS_TOKEN` and `CANONCORE_ACCESS_TOKEN`, both Sensitive. The TMDB Provider, under [ADR-0014](adr/0014-shell-providers-and-per-source-retention.md); how it deploys and what was changed on the project is *How a Provider deploys* above |
 | `portfolio` | — | **None**, and no variables at all. Not CanonCore; serves `www.jacobrees.co.uk` |
 | `waveger` | `waveger`, `store_xCNwLtRIQVOBig87` → Neon project `delicate-credit-61083163` | **Twenty-one, including `PGPASSWORD`, `POSTGRES_PASSWORD` and the six connection strings that embed them** — sixteen in all three environments, five more in Development only, the same five being Sensitive in Preview and Production. Not CanonCore — **CAN-149 waveger and waveger-archive store readable credentials, including a live Postgres password** |
 | `waveger-archive` | — | **Nine, including `SENTRY_AUTH_TOKEN`** — five in all three environments, four in Production only. Not CanonCore, and deliberate rather than abandoned — same ticket |
