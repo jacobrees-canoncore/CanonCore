@@ -1010,11 +1010,13 @@ exported `interface Response`, giving six `TS2339`s that `pnpm typecheck` cannot
 `vercel build` cannot join the shared baseline: that workflow passes no secrets, and the command
 needs a token. It belongs beside `scripts/check-docs.ts` as a command a person runs.
 
-**`Vercel` is still not in any Provider's ruleset**, and *What the gate runs, and what it deliberately
-does not* above says why: it joins one only when that Provider has been seen reporting it, which is
-the same rule that governs every other required context here. Connecting Git is what makes a
-Provider a candidate rather than a hypothetical, and adding the context afterwards is nobody's
-ticket yet.
+**`Vercel` is still not in any Provider's ruleset, and for the first time it could be.** *What the
+gate runs, and what it deliberately does not* above says the bar: a context joins a ruleset only once
+that repository has been seen reporting it, which is the rule that governs every other required
+context here. **`provider-tmdb` has now been seen** — `GET /repos/…/commits/{sha}/status` answers
+`context: "Vercel"`, `state: "success"` on a commit pushed after the Git connection, alongside a
+`Vercel Preview Comments` check run from the same app. So it is a candidate rather than a
+hypothetical, and requiring it is nobody's ticket yet.
 
 **Both rows in the table above are now observed, and they had to be observed differently.**
 `framework` is confirmed from the build: `vercel build` writes
