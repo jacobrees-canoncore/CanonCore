@@ -1,5 +1,11 @@
 /**
- * What a measurement event is allowed to say about the page it came from.
+ * What an event is allowed to say about the page it came from.
+ *
+ * **Two callers, and the second is not analytics.** The measurement products are what this was
+ * written for, and a Content Security Policy violation report arrives with the same problem and is
+ * reduced by the same rule — [`../security/violation.ts`](../security/violation.ts) says why a
+ * browser-posted report cannot be scrubbed anywhere else. It lives here, beside the caller that
+ * needed it first, rather than moving to a neutral home the moment a second one appeared.
  *
  * Vercel warns that "automatic page view tracking may track personal information" in URLs
  * (https://vercel.com/docs/analytics/redacting-sensitive-data), and
@@ -69,6 +75,13 @@ export function redactUrl(url: string): string | null {
     // travel on the strength of not having been understood.
     return null;
   }
+
+  // **Nor does one whose scheme is not the web's.** `origin` is the literal string `"null"` for
+  // every other scheme, so `javascript:alert(1)` would otherwise leave here as `"null/*"` — a
+  // value that is neither an address nor the refusal this function documents itself as returning.
+  // Nothing a browser reports as a page URL is anything but HTTP(S); an address that is comes from
+  // somewhere that was never a page, and there is nothing safe to say about it.
+  if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return null;
 
   // Everything after the path goes, always: no query, no fragment, no credentials.
   return parsed.origin + redactPath(parsed.pathname);
