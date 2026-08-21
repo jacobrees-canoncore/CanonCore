@@ -1,0 +1,57 @@
+# Reading a Provider's capability declaration, dispatched by hand.
+#
+# **There is no other trigger, and it is `purge-source.yml`'s reason rather than a limitation.** A
+# Listed Provider is one this project writes and runs, so a declaration is first read when its
+# operator deploys it and re-read when its operator changes it — both of which a person knows and
+# nothing here can poll for. docs/runbook.md -> A Provider's declaration is read or re-read is the
+# procedure, and the four ways a run can end.
+#
+# **Why Actions rather than a laptop.** The credential this needs already lives here, as the secret
+# the release's migration step uses, and nobody holds it on a laptop by design. A dispatched run is
+# also the dated record of what was declared and what it withholds, which is the only record there
+# is: the row keeps the declaration currently in force and no history of the ones before it. The
+# same command runs locally for anyone holding `canoncore_migrator`'s connection string —
+# apps/web/scripts/read-declaration.mts.
+#
+# **This is not the ingress a person uses to add a Provider.** That is a different act with different
+# duties, and it is CAN-113 Add a Provider by pasting its URL.
+name: Read a Provider's declaration
+
+on:
+  workflow_dispatch:
+    inputs:
+      provider_url:
+        description: The Provider's base URL, an origin and an optional path with no trailing slash
+        required: true
+        type: string
+
+# Deliberately not a required status check and deliberately not one of ci.yml's jobs: it never runs
+# on a push, and docs/infrastructure.md -> The ruleset holds the one job that reports a context.
+jobs:
+  read:
+    name: read a Provider's declaration
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+
+      # The URL reaches the shell as an environment variable rather than as an expression pasted into
+      # the command: *"For inline scripts, the preferred approach to handling untrusted input is to
+      # set the value of the expression to an intermediate environment variable"*
+      # (https://docs.github.com/en/actions/reference/security/secure-use -> Use an intermediate
+      # environment variable, read 17 August 2026).
+      #
+      # No migration step, for the purge's reason: this writes against the schema production is
+      # actually carrying. A declaration that cannot be read fails the Source closed and the step
+      # exits non-zero, having written nothing.
+      - name: Read what the Provider declares, and store it
+        run: pnpm --filter @canoncore/web db:read-declaration "$PROVIDER_URL"
+        env:
+          MIGRATION_DATABASE_URL: ${{ secrets.MIGRATION_DATABASE_URL }}
+          PROVIDER_URL: ${{ inputs.provider_url }}

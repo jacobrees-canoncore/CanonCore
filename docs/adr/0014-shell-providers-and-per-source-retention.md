@@ -625,6 +625,14 @@ all. Two of the surveyed sources already are; the roster as a whole will not be.
   what a TMDB `adult` flag is, so content classification is a contract field. If the graph response
   drops the series node when an episode is fetched, the `part of` derivation ADR-0012 depends on
   becomes impossible and the rule fails silently.
+
+  *Built 21 August 2026* under **CAN-104 Read a Provider's capability declaration, and refuse what it
+  does not serve**. The rule reads the flag a declared term carries and never the term itself, and
+  three absences each refuse rather than permit: a Provider with no vocabulary, a record nothing in
+  its containment chain classified, and a term outside the vocabulary its Provider declared. The
+  application contains that Source's field name nowhere, which a test over every file under
+  `apps/web/src` is what holds. [ADR-0022](0022-the-provider-contract.md) → *Decision 2* carries what
+  else that ticket settled.
 - **The compliance work is not this decision.** Decision 7 makes both risk assessments a v1 blocker
   under `s.9(4)` and `s.11(4)`, but that gates **shipping**, not documenting, and the assessments were
   correct about the service as it was.

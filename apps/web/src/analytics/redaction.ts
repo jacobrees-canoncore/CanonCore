@@ -36,6 +36,7 @@ export const staticPaths: ReadonlySet<string> = new Set([
   "/reset-password",
   "/sign-in",
   "/sign-up",
+  "/sources",
 ]);
 
 /**

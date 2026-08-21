@@ -1,0 +1,1124 @@
+{
+  "id": "4a364d29-ee37-4372-be74-1617b0d82c30",
+  "prevId": "b39babd5-1817-4fdc-aabe-23ad06895779",
+  "version": "7",
+  "dialect": "postgresql",
+  "tables": {
+    "public.account": {
+      "name": "account",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "account_id": {
+          "name": "account_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "provider_id": {
+          "name": "provider_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "access_token": {
+          "name": "access_token",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "refresh_token": {
+          "name": "refresh_token",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "id_token": {
+          "name": "id_token",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "access_token_expires_at": {
+          "name": "access_token_expires_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "refresh_token_expires_at": {
+          "name": "refresh_token_expires_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "scope": {
+          "name": "scope",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "password": {
+          "name": "password",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "account_user_id_idx": {
+          "name": "account_user_id_idx",
+          "columns": [
+            {
+              "expression": "user_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "account_user_id_user_id_fk": {
+          "name": "account_user_id_user_id_fk",
+          "tableFrom": "account",
+          "tableTo": "user",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {
+        "account_is_writable_by_the_auth_role": {
+          "name": "account_is_writable_by_the_auth_role",
+          "as": "PERMISSIVE",
+          "for": "ALL",
+          "to": [
+            "canoncore_auth"
+          ],
+          "using": "true",
+          "withCheck": "true"
+        }
+      },
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.anchor": {
+      "name": "anchor",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {
+        "anchor_readable_by_anyone": {
+          "name": "anchor_readable_by_anyone",
+          "as": "PERMISSIVE",
+          "for": "SELECT",
+          "to": [
+            "canoncore_app"
+          ],
+          "using": "true"
+        },
+        "anchor_mintable_by_any_signed_in_reader": {
+          "name": "anchor_mintable_by_any_signed_in_reader",
+          "as": "PERMISSIVE",
+          "for": "INSERT",
+          "to": [
+            "canoncore_app"
+          ],
+          "withCheck": "current_setting('canoncore.user_id', true) <> ''"
+        }
+      },
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.part_of": {
+      "name": "part_of",
+      "schema": "",
+      "columns": {
+        "part_id": {
+          "name": "part_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "whole_id": {
+          "name": "whole_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "part_of_whole_id_idx": {
+          "name": "part_of_whole_id_idx",
+          "columns": [
+            {
+              "expression": "whole_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "part_of_part_id_story_id_fk": {
+          "name": "part_of_part_id_story_id_fk",
+          "tableFrom": "part_of",
+          "tableTo": "story",
+          "columnsFrom": [
+            "part_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "part_of_whole_id_story_id_fk": {
+          "name": "part_of_whole_id_story_id_fk",
+          "tableFrom": "part_of",
+          "tableTo": "story",
+          "columnsFrom": [
+            "whole_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "part_of_part_id_whole_id_pk": {
+          "name": "part_of_part_id_whole_id_pk",
+          "columns": [
+            "part_id",
+            "whole_id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {
+        "part_of_readable_when_both_its_stories_are": {
+          "name": "part_of_readable_when_both_its_stories_are",
+          "as": "PERMISSIVE",
+          "for": "SELECT",
+          "to": [
+            "canoncore_app"
+          ],
+          "using": "exists (select 1 from \"story\" where \"story\".\"id\" = \"part_of\".\"part_id\")\n        and exists (select 1 from \"story\" where \"story\".\"id\" = \"part_of\".\"whole_id\")"
+        }
+      },
+      "checkConstraints": {
+        "part_of_is_not_its_own_whole": {
+          "name": "part_of_is_not_its_own_whole",
+          "value": "\"part_of\".\"part_id\" <> \"part_of\".\"whole_id\""
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.rate_limit": {
+      "name": "rate_limit",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "key": {
+          "name": "key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "count": {
+          "name": "count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "last_request": {
+          "name": "last_request",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "rate_limit_key_unique": {
+          "name": "rate_limit_key_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "key"
+          ]
+        }
+      },
+      "policies": {
+        "rate_limit_is_writable_by_the_auth_role": {
+          "name": "rate_limit_is_writable_by_the_auth_role",
+          "as": "PERMISSIVE",
+          "for": "ALL",
+          "to": [
+            "canoncore_auth"
+          ],
+          "using": "true",
+          "withCheck": "true"
+        }
+      },
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.session": {
+      "name": "session",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "expires_at": {
+          "name": "expires_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "token": {
+          "name": "token",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "ip_address": {
+          "name": "ip_address",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "user_agent": {
+          "name": "user_agent",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "session_user_id_idx": {
+          "name": "session_user_id_idx",
+          "columns": [
+            {
+              "expression": "user_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "session_user_id_user_id_fk": {
+          "name": "session_user_id_user_id_fk",
+          "tableFrom": "session",
+          "tableTo": "user",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "session_token_unique": {
+          "name": "session_token_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "token"
+          ]
+        }
+      },
+      "policies": {
+        "session_is_writable_by_the_auth_role": {
+          "name": "session_is_writable_by_the_auth_role",
+          "as": "PERMISSIVE",
+          "for": "ALL",
+          "to": [
+            "canoncore_auth"
+          ],
+          "using": "true",
+          "withCheck": "true"
+        }
+      },
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.snapshot": {
+      "name": "snapshot",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "story_id": {
+          "name": "story_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "source_id": {
+          "name": "source_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "fetched_at": {
+          "name": "fetched_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "source_declared_at": {
+          "name": "source_declared_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "snapshot_story_id_story_id_fk": {
+          "name": "snapshot_story_id_story_id_fk",
+          "tableFrom": "snapshot",
+          "tableTo": "story",
+          "columnsFrom": [
+            "story_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "snapshot_source_id_source_id_fk": {
+          "name": "snapshot_source_id_source_id_fk",
+          "tableFrom": "snapshot",
+          "tableTo": "source",
+          "columnsFrom": [
+            "source_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "snapshot_one_row_per_story_and_source": {
+          "name": "snapshot_one_row_per_story_and_source",
+          "nullsNotDistinct": false,
+          "columns": [
+            "story_id",
+            "source_id"
+          ]
+        }
+      },
+      "policies": {
+        "snapshot_readable_when_its_story_is": {
+          "name": "snapshot_readable_when_its_story_is",
+          "as": "PERMISSIVE",
+          "for": "SELECT",
+          "to": [
+            "canoncore_app"
+          ],
+          "using": "exists (select 1 from \"story\" where \"story\".\"id\" = \"snapshot\".\"story_id\")"
+        }
+      },
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.source": {
+      "name": "source",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "provider_base_url": {
+          "name": "provider_base_url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "declared_id": {
+          "name": "declared_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "url": {
+          "name": "url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "declared_at": {
+          "name": "declared_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "read_at": {
+          "name": "read_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "retention": {
+          "name": "retention",
+          "type": "interval",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "licence_spdx": {
+          "name": "licence_spdx",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "licence_name": {
+          "name": "licence_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "licence_url": {
+          "name": "licence_url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "licence_share_alike": {
+          "name": "licence_share_alike",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "attribution": {
+          "name": "attribution",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "restrictions": {
+          "name": "restrictions",
+          "type": "text[]",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "classification": {
+          "name": "classification",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "orderings_canonical": {
+          "name": "orderings_canonical",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "liveness_confirms_deletion": {
+          "name": "liveness_confirms_deletion",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "liveness_evidence": {
+          "name": "liveness_evidence",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "source_one_row_per_provider_and_declared_id": {
+          "name": "source_one_row_per_provider_and_declared_id",
+          "nullsNotDistinct": false,
+          "columns": [
+            "provider_base_url",
+            "declared_id"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "source_retention_is_positive": {
+          "name": "source_retention_is_positive",
+          "value": "\"source\".\"retention\" > interval '0'"
+        },
+        "source_provider_base_url_has_no_trailing_slash": {
+          "name": "source_provider_base_url_has_no_trailing_slash",
+          "value": "\"source\".\"provider_base_url\" not like '%/'"
+        },
+        "source_classification_vocabulary_is_not_empty": {
+          "name": "source_classification_vocabulary_is_not_empty",
+          "value": "\"source\".\"classification\" is null or jsonb_array_length(\"source\".\"classification\") > 0"
+        },
+        "source_liveness_evidence_belongs_to_a_liveness_declaration": {
+          "name": "source_liveness_evidence_belongs_to_a_liveness_declaration",
+          "value": "\"source\".\"liveness_evidence\" is null or \"source\".\"liveness_confirms_deletion\" is not null"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.story": {
+      "name": "story",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "title": {
+          "name": "title",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "owner_id": {
+          "name": "owner_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "visibility": {
+          "name": "visibility",
+          "type": "visibility",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'private'"
+        },
+        "anchor_id": {
+          "name": "anchor_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "canonical_version_id": {
+          "name": "canonical_version_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "story_anchor_id_anchor_id_fk": {
+          "name": "story_anchor_id_anchor_id_fk",
+          "tableFrom": "story",
+          "tableTo": "anchor",
+          "columnsFrom": [
+            "anchor_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "story_canonical_version": {
+          "name": "story_canonical_version",
+          "tableFrom": "story",
+          "tableTo": "version",
+          "columnsFrom": [
+            "canonical_version_id",
+            "id"
+          ],
+          "columnsTo": [
+            "id",
+            "story_id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {
+        "story_readable_by_owner_or_when_public": {
+          "name": "story_readable_by_owner_or_when_public",
+          "as": "PERMISSIVE",
+          "for": "SELECT",
+          "to": [
+            "canoncore_app"
+          ],
+          "using": "\"story\".\"visibility\" = 'public' or \"story\".\"owner_id\" = current_setting('canoncore.user_id', true)"
+        }
+      },
+      "checkConstraints": {
+        "story_owner_id_not_blank": {
+          "name": "story_owner_id_not_blank",
+          "value": "length(\"story\".\"owner_id\") > 0"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.tombstone": {
+      "name": "tombstone",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "former_type": {
+          "name": "former_type",
+          "type": "former_type",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "deleted": {
+          "name": "deleted",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "owner_id": {
+          "name": "owner_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "visibility": {
+          "name": "visibility",
+          "type": "visibility",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {
+        "tombstone_readable_by_owner_or_when_public": {
+          "name": "tombstone_readable_by_owner_or_when_public",
+          "as": "PERMISSIVE",
+          "for": "SELECT",
+          "to": [
+            "canoncore_app"
+          ],
+          "using": "\"tombstone\".\"visibility\" = 'public' or \"tombstone\".\"owner_id\" = current_setting('canoncore.user_id', true)"
+        }
+      },
+      "checkConstraints": {
+        "tombstone_owner_id_not_blank": {
+          "name": "tombstone_owner_id_not_blank",
+          "value": "length(\"tombstone\".\"owner_id\") > 0"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.user": {
+      "name": "user",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "email": {
+          "name": "email",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "email_verified": {
+          "name": "email_verified",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "image": {
+          "name": "image",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "user_email_unique": {
+          "name": "user_email_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "email"
+          ]
+        }
+      },
+      "policies": {
+        "user_is_writable_by_the_auth_role": {
+          "name": "user_is_writable_by_the_auth_role",
+          "as": "PERMISSIVE",
+          "for": "ALL",
+          "to": [
+            "canoncore_auth"
+          ],
+          "using": "true",
+          "withCheck": "true"
+        }
+      },
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.verification": {
+      "name": "verification",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "identifier": {
+          "name": "identifier",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "value": {
+          "name": "value",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "expires_at": {
+          "name": "expires_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "verification_identifier_idx": {
+          "name": "verification_identifier_idx",
+          "columns": [
+            {
+              "expression": "identifier",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {
+        "verification_is_writable_by_the_auth_role": {
+          "name": "verification_is_writable_by_the_auth_role",
+          "as": "PERMISSIVE",
+          "for": "ALL",
+          "to": [
+            "canoncore_auth"
+          ],
+          "using": "true",
+          "withCheck": "true"
+        }
+      },
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.version": {
+      "name": "version",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "story_id": {
+          "name": "story_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "medium": {
+          "name": "medium",
+          "type": "medium",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "runtime": {
+          "name": "runtime",
+          "type": "interval",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "version_story_id_idx": {
+          "name": "version_story_id_idx",
+          "columns": [
+            {
+              "expression": "story_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "version_story_id_story_id_fk": {
+          "name": "version_story_id_story_id_fk",
+          "tableFrom": "version",
+          "tableTo": "story",
+          "columnsFrom": [
+            "story_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "version_id_with_its_story": {
+          "name": "version_id_with_its_story",
+          "nullsNotDistinct": false,
+          "columns": [
+            "id",
+            "story_id"
+          ]
+        }
+      },
+      "policies": {
+        "version_readable_when_its_story_is": {
+          "name": "version_readable_when_its_story_is",
+          "as": "PERMISSIVE",
+          "for": "SELECT",
+          "to": [
+            "canoncore_app"
+          ],
+          "using": "exists (select 1 from \"story\" where \"story\".\"id\" = \"version\".\"story_id\")"
+        }
+      },
+      "checkConstraints": {
+        "version_runtime_is_positive": {
+          "name": "version_runtime_is_positive",
+          "value": "\"version\".\"runtime\" > interval '0'"
+        }
+      },
+      "isRLSEnabled": false
+    }
+  },
+  "enums": {
+    "public.former_type": {
+      "name": "former_type",
+      "schema": "public",
+      "values": [
+        "story"
+      ]
+    },
+    "public.medium": {
+      "name": "medium",
+      "schema": "public",
+      "values": [
+        "television",
+        "prose",
+        "audio",
+        "comic",
+        "webcast",
+        "game",
+        "stage"
+      ]
+    },
+    "public.visibility": {
+      "name": "visibility",
+      "schema": "public",
+      "values": [
+        "private",
+        "public"
+      ]
+    }
+  },
+  "schemas": {},
+  "sequences": {},
+  "roles": {},
+  "policies": {},
+  "views": {},
+  "_meta": {
+    "columns": {},
+    "schemas": {},
+    "tables": {}
+  }
+}

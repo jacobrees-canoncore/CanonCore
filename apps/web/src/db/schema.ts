@@ -8,6 +8,7 @@ import {
   index,
   integer,
   interval,
+  jsonb,
   pgEnum,
   pgPolicy,
   pgRole,
@@ -18,6 +19,7 @@ import {
   unique,
   uuid,
 } from "drizzle-orm/pg-core";
+import type { Attribution, ClassificationTerm } from "../providers/declaration.ts";
 
 /**
  * The name of the session setting that says who is asking. `session.ts` writes it and the
@@ -402,10 +404,23 @@ export const partOf = pgTable(
  * 6*. `rls.test.ts` carries the two tripwires that stand in for the cross-tenant test this table
  * cannot have.
  *
- * **Nothing in this repository writes a row**, and no migration seeds one: under decision 1 the
- * application does not know which Sources exist or what any of them permits, so the values arrive
- * from a Provider's capability endpoint. A migration stating a real Source's retention would be
- * the source-specific knowledge that decision removes from `apps/web`.
+ * **No migration seeds a row**: under decision 1 the application does not know which Sources exist
+ * or what any of them permits, so every value below arrives from a Provider's capability
+ * declaration. A migration stating a real Source's retention would be the source-specific knowledge
+ * that decision removes from `apps/web`.
+ *
+ * **The row *is* the declaration, and it is what one Provider declares about one Source** — read by
+ * [`read-declaration.ts`](../providers/read-declaration.ts), refused or accepted by
+ * [`declaration.ts`](../providers/declaration.ts), and written by
+ * [`record-declaration.ts`](record-declaration.ts) as `canoncore_migrator`, because the application
+ * role writes nothing anywhere but the Anchor mint. What each absence means is
+ * [`refusals.ts`](../providers/refusals.ts): a nullable column here is a Provider that does not do
+ * that thing, and the application withholds rather than assuming a default.
+ *
+ * **What is *not* here is a history of declarations**, and that is a decision rather than an
+ * omission. Nothing may be done under a superseded declaration — the one in force binds, and no
+ * judgement derived from any declaration is ever stored — so the only thing a consumer needs about
+ * the old one is that a Snapshot predates it, which `snapshot.source_declared_at` below carries.
  */
 export const source = pgTable(
   "source",
@@ -413,10 +428,55 @@ export const source = pgTable(
     id: uuid().primaryKey().defaultRandom(),
 
     /**
+     * The Provider this declaration was read from, as an origin and an optional path with no
+     * trailing slash — the address the contract says a consumer appends `/v1/...` to.
+     *
+     * **It is half of the Source's identity here, and that is load-bearing.** A declared identifier
+     * is *scoped to the Provider that declared it*: anyone may stand up a service claiming to serve
+     * any Source, so the identifier says what a Provider calls its Source and never that two
+     * Providers are serving the same one.
+     */
+    providerBaseUrl: text("provider_base_url").notNull(),
+
+    /**
+     * What that Provider calls its Source, from `source.id` in the declaration.
+     *
+     * Named `declared_id` rather than `source_id`, which on this table would read as a reference to
+     * itself, and rather than `id`, which is this row's own key. Nothing joins on it: it is what a
+     * second read of the same Provider is matched against, and what a person is shown.
+     */
+    declaredId: text("declared_id").notNull(),
+
+    /** The Source's name as a person should see it, and the Source's own address. */
+    name: text().notNull(),
+    url: text().notNull(),
+
+    /**
+     * When this declaration last changed, on the **Provider's** clock.
+     *
+     * It is what orders two reads. Comparing payloads detects that something changed and cannot say
+     * which is later, and a consumer holding two declarations with no order between them has to
+     * guess ([ADR-0022](../../../../docs/adr/0022-the-provider-contract.md) → *Decision 2*).
+     * `snapshot.source_declared_at` below is the same value copied against what was stored under it.
+     */
+    declaredAt: timestamp("declared_at", { withTimezone: true }).notNull(),
+
+    /**
+     * When the application read it, on **this** clock, so a declaration nothing has re-read in a
+     * long time is visible as one.
+     *
+     * **`defaultNow()`, where `snapshot.fetched_at` deliberately has none**, and the two are
+     * opposites for `tombstone.deleted`'s reason: this is when *this row* was written, and the
+     * transaction's own `now()` is the truest value there is for that.
+     */
+    readAt: timestamp("read_at", { withTimezone: true }).notNull().defaultNow(),
+
+    /**
      * How long a Snapshot of this Source may be kept, as a duration or as an explicit
      * `'infinity'` — never as a null, because "nobody has said yet" and "this Source imposes no
      * limit" would then be the same row, and the safe reading of the first is the opposite of the
-     * second.
+     * second. A declaration that says nothing about retention is refused whole, so no row exists
+     * for it at all.
      *
      * `interval` rather than a count of days, because the terms this represents are written in
      * months: TMDB's `§1.C` limits the age of what is held to six months, and
@@ -430,11 +490,102 @@ export const source = pgTable(
      * records production's alongside the container's.
      */
     retention: interval().notNull(),
+
+    /**
+     * The terms the Source's content is under. The identity carries the *version*, because two
+     * versions of one licence differ materially and a consumer cannot work out which it is looking
+     * at from the name alone.
+     *
+     * `shareAlike` is declared by the Provider rather than derived here: deriving it would mean
+     * shipping a licence table into the application, which is source knowledge by another name.
+     */
+    licenceSpdx: text("licence_spdx").notNull(),
+    licenceName: text("licence_name").notNull(),
+    licenceUrl: text("licence_url").notNull(),
+    licenceShareAlike: boolean("licence_share_alike").notNull(),
+
+    /**
+     * What must be displayed wherever this Source's values are, **including nothing at all**.
+     *
+     * **`jsonb` rather than a table of notices, and the reason is what the application does with
+     * it**: it renders the texts and their conditions verbatim and never queries into them, so a
+     * second table would buy joins nothing asks for. The shape is
+     * [`Attribution`](../providers/declaration.ts), which the parse guarantees before this is
+     * written and which reads it back on the way out.
+     */
+    attribution: jsonb().$type<Attribution>().notNull(),
+
+    /**
+     * What the Source's terms forbid, verbatim. An open vocabulary reserving `non-commercial` and
+     * `no-ai-training`, surfaced as written rather than mapped onto anything of this project's own.
+     *
+     * **Empty is the answer for "nothing", and never null.** The member is required in the contract
+     * for the reason `retention` is: silence read as permission is the one thing absence must never
+     * mean.
+     */
+    restrictions: text().array().notNull(),
+
+    /**
+     * This Provider's classification vocabulary, each term declaring what it obliges — and **null
+     * where it does not classify at all**, which refuses its Artwork.
+     *
+     * The null is the whole point of the column: a rule that runs on a flag cannot run on a Provider
+     * that has no flag, and an image displayed because the flag was absent rather than because it
+     * said no is the silent failure the declaration exists to prevent
+     * ([ADR-0012](../../../../docs/adr/0012-adult-works-catalogued-artwork-never-displayed.md),
+     * reached through the contract rather than through any Source's own field name).
+     */
+    classification: jsonb().$type<readonly ClassificationTerm[]>(),
+
+    /**
+     * Whether an Ordering from this Provider is the Source's own sequence — and **null where it
+     * serves no Ordering at all**, which refuses importing one as canonical.
+     *
+     * Three states in one nullable boolean, and each is a different answer: null is *no Orderings*,
+     * false is *one community's reading*, true is *the Source's own sequence*.
+     */
+    orderingsCanonical: boolean("orderings_canonical"),
+
+    /**
+     * Whether this Provider can tell a record that is genuinely gone from one it merely failed to
+     * fetch, and what evidence it claims — **null where it declares no liveness at all**.
+     *
+     * Null and false lead to the same refusal and are still two values, because they are two
+     * different claims: one Provider has said it cannot, and the other has said nothing.
+     */
+    livenessConfirmsDeletion: boolean("liveness_confirms_deletion"),
+    livenessEvidence: text("liveness_evidence"),
   },
   (t) => [
+    // ADR-0022's scoping rule, as a constraint rather than as a convention: one row per Source *per
+    // Provider*. Two Providers declaring the same identifier are two rows, and a second read of one
+    // Provider matches its own row.
+    unique("source_one_row_per_provider_and_declared_id").on(t.providerBaseUrl, t.declaredId),
+
     // Zero or less is not a duration any terms express, and a row carrying one would expire every
     // Snapshot of that Source the instant it was written.
     check("source_retention_is_positive", sql`${t.retention} > interval '0'`),
+
+    // The contract's own normalisation, held here rather than trusted to the caller: a Provider
+    // stored twice under two spellings of one address would be two Sources, and the unique above
+    // would not notice. `normaliseProviderUrl` in `../providers/read-declaration.ts` is what strips
+    // it; this is what makes the strip a fact about the table.
+    check("source_provider_base_url_has_no_trailing_slash", sql`${t.providerBaseUrl} not like '%/'`),
+
+    // A vocabulary with no term in it is neither "does not classify" nor a vocabulary, so it is a
+    // third state nothing could act on. The parse refuses one; this is what stops a row acquiring
+    // one by any other route.
+    check(
+      "source_classification_vocabulary_is_not_empty",
+      sql`${t.classification} is null or jsonb_array_length(${t.classification}) > 0`,
+    ),
+
+    // Evidence for a claim nobody made. The block is declared or it is not, and half of it is
+    // neither answer.
+    check(
+      "source_liveness_evidence_belongs_to_a_liveness_declaration",
+      sql`${t.livenessEvidence} is null or ${t.livenessConfirmsDeletion} is not null`,
+    ),
   ],
 );
 
@@ -445,7 +596,8 @@ export const source = pgTable(
  * additive and belongs to the tickets that import anything; what cannot be added later without a
  * data migration is `fetched_at`, which is why it lands with the table
  * ([ADR-0014](../../../../docs/adr/0014-shell-providers-and-per-source-retention.md) →
- * *Decision 6*).
+ * *Decision 6*). `source_declared_at` joined it for the same reason: it is what the row was stored
+ * under, so a row written before the column existed could never be given a truthful one.
  */
 export const snapshot = pgTable(
   "snapshot",
@@ -470,6 +622,24 @@ export const snapshot = pgTable(
      * direction that keeps values longer than their terms allow.
      */
     fetchedAt: timestamp("fetched_at", { withTimezone: true }).notNull(),
+
+    /**
+     * The `declared_at` of the Source's capability declaration that was in force when this Snapshot
+     * was stored.
+     *
+     * **This is what stops a declaration changing between reads being silent.** Nothing derived from
+     * a declaration is ever written down — every refusal is computed from the declaration in force
+     * at the moment it is asked (`../providers/refusals.ts`) — so the one thing a consumer still
+     * needs about the superseded declaration is that these values predate it. With this column that
+     * is a comparison; without it, a Provider narrowing what it declares would quietly re-govern
+     * values read under something else.
+     *
+     * **Copied rather than referenced**, because it is a fact about this row at the moment it was
+     * written, and a foreign key into `source` would move with the next declaration and take the
+     * fact with it. `readSnapshot` in `../providers/refusals.ts` is the comparison, and withholding
+     * until a refresh is what it decides.
+     */
+    sourceDeclaredAt: timestamp("source_declared_at", { withTimezone: true }).notNull(),
   },
   (t) => [
     // ADR-0004's key, `(record, source)`: one row per Story per Source, holding what that Source
