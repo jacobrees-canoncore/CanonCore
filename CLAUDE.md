@@ -203,8 +203,8 @@ whatever branch is current, so on `main` it commits to `main`, and pushing `main
 production database and releases. `docs/agents/workflow.md` has the command and the recovery.
 
 **`/implement` runs `/code-review` itself, and that is the review — never a repeat over one range.**
-It counts only when the review read the *committed* change; staging alone does not achieve that. A second round follows any commit
-the first produced; after it the pull request discloses. `docs/agents/workflow.md` → *The review runs once* has the argument, the exceptions and the bound.
+It counts only when the review read the *committed* change; staging alone does not achieve that. A second
+round follows any commit the first produced, then the PR discloses. `docs/agents/workflow.md` → *The review runs once*.
 
 `/draft-pr` and `/review-pr` are in `.claude/skills/`; run either from its own body. Policy: `docs/agents/workflow.md`.
 

@@ -59,7 +59,7 @@ green and it works". Nobody is being signalled — the states are for you.
 
 ## The review runs once, and `/implement` is normally where
 
-**Do not ask for a second review of a change `/implement` has already reviewed.** That overrides the
+**Do not ask for a second review over a range `/implement` has already reviewed.** That overrides the
 reflex, which is to treat the review as a step in the landing sequence and run it again now that the
 branch is pushed.
 
@@ -85,8 +85,8 @@ which is why the claim to make is *"a review ran against this range"* and never 
 **So the review has not happened** in three cases: `/implement` did not run; the diff it read was
 empty or partial; or the branch has since gained commits it never saw. A rebase or a review-driven
 edit after the fact puts you in the third. In each, run
-`/mattpocock-skills:code-review <branch-point>` against the pushed branch. **The third case is
-bounded**, below; the first two are not.
+`/mattpocock-skills:code-review <branch-point>` against the pushed branch. **A review-driven edit
+into the third case has an end**, below. A rebase into it does not, and neither do the first two.
 
 The middle case is the quiet one: a review of an empty range **reports no findings**, which reads
 exactly like a clean review.
@@ -133,17 +133,25 @@ by the two sections below, not by a claim that the branch is clean.
 Where the loop stops, what stops it has to be one kind of commit.
 
 **A correction applies findings the round itself raised, and nothing else.** Every hunk traces to a
-named finding. It may land unreviewed, provided the pull request discloses it.
+named finding, and the commit's own message enumerates those findings, so the correspondence can be
+checked rather than taken. A correction may land unreviewed, provided the pull request discloses it.
 
-**Anything that changes behaviour or adds scope is not a correction**, whatever prompted it — a
-better idea the review reminded you of, a neighbouring defect noticed while fixing, a refactor that
-would make the fix cleaner. That is new work, and new work does not land on the strength of a review
-that never saw it. Either it is reviewed, which is round one of its own loop rather than round three
-of this one, or it comes off the branch and becomes a ticket.
+**A finding that asks for a behaviour change is still a correction**, and the fix for a real defect
+nearly always is one. What decides is not the size or the kind of the change but the correspondence:
+findings beside the diff, each hunk either naming a finding or not. Same shape as *which diff command
+did it run* — a question with an answer, rather than one that asks you to trust yourself.
 
-**The test is a correspondence, not a verdict on your own work:** findings beside the diff, each
-hunk either naming a finding or not. Same shape as *which diff command did it run* — a question with
-an answer, rather than one that asks you to trust yourself.
+**Anything the findings did not name is not a correction**, whatever prompted it — a better idea the
+review reminded you of, a neighbouring defect noticed while fixing, a refactor that would make the
+fix cleaner. Nobody has reviewed the need for it or the answer to it, which is the risk a correction
+does not carry. **It comes off the branch and becomes a ticket.** It does not become round three,
+and it does not become round one of a fresh loop: the two rounds belong to the branch, and a count
+that can be restarted by renaming what sits on it is not a count.
+
+**A finding that rejects the implementation is the one thing that restarts the count.** The branch
+is then being implemented again rather than corrected, and it is a reviewer's judgement that put it there
+rather than the session's own. Say so in the pull request, where it is a fact about the branch
+instead of a private decision. Nothing else resets the count.
 
 ### What the pull request must disclose
 
@@ -156,11 +164,12 @@ told apart from one that was forgotten. It says:
   *"reviewed"* — the claim is *"a review ran against this range"*, for the reason above.
 - **Which commit is unreviewed, by SHA**, and that it is the response to the last round. Say *none*
   when round two found nothing: that is this line's other answer, not a line to drop.
-- **That every hunk in it traces to a finding of that round.** It is the licence the commit lands
-  under, so it is asserted rather than left to be assumed.
+- **That every hunk in it traces to a finding of that round, and where those findings are written
+  down** — the commit's own message, normally. It is the licence the commit lands under, so it is
+  asserted and left checkable rather than assumed.
 - **What stood in for the review** — what each fix was checked against, named. On CAN-54 that was a
   primary source apiece: GitHub's OpenAPI description, a fetch of `pnpm.io/cli/audit`, `ci.yml`'s
-  own `if:` conditions.
+  own `if:` conditions, and `git show 19223b0` for the step count.
 
 `/draft-pr` writes it, and `/review-pr` repeats it in the question it asks before merging, because
 the merge is the moment the disclosure is for.
