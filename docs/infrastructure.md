@@ -161,11 +161,25 @@ budgets and React lint**. **Both products were already provisioned**, which is w
 enabled nothing: what it supplied was the missing half, the two packages and the `beforeSend` that
 makes them lawful here — [`apps/web/src/analytics/analytics.tsx`](../apps/web/src/analytics/analytics.tsx),
 under [ADR-0020](adr/0020-no-cookie-consent-banner.md). `hasData: false` is consistent with that:
-nothing had ever sent an event. **Speed Insights on Hobby is one project, 10,000 events a month and
-a 7-day window, and past the cap "recording pauses until next day"**; Web Analytics is 50,000 events
-a month over a 1-month window with no custom events
-([Speed Insights limits](https://vercel.com/docs/speed-insights/limits-and-pricing),
-[Analytics limits](https://vercel.com/docs/analytics/limits-and-pricing)).
+nothing had ever sent an event.
+
+**On Pro the two are priced very differently, and one of them is a standing monthly charge.** Web
+Analytics has no base fee: unlimited projects, no included events, *"$0.03 per 1K events"* against
+the plan's monthly usage credit, and a 12-month reporting window. **Speed Insights has a base fee of
+*"$10.00 per-project, per-month"***, in exchange for no event cap and a 30-day window; it is charged
+*"immediately … when enabling Speed Insights for each project"*, prorated for the remainder of the
+cycle ([Speed Insights limits](https://vercel.com/docs/speed-insights/limits-and-pricing),
+[Analytics limits](https://vercel.com/docs/analytics/limits-and-pricing), both read 21 August 2026).
+
+**So Speed Insights is $10 a month from the day the plan moved, and it currently has nothing to
+measure.** It was enabled while the plan was Hobby, where it is free; the upgrade of 21 August 2026
+turned that into a charge. The thing it is for — real INP and full-session CLS, which
+[`research/production-readiness-baseline.md`](research/production-readiness-baseline.md) →
+*Front-end quality as a gate* explains cannot be had in a lab — needs field traffic, and *The
+URL-sharing gate* above is why there is none. It is a base fee rather than usage, so it is the shape
+the *What the $40 does not bound* row names, and Spend Management will not stop it. **Nothing is lost
+by turning it off until the gate opens**: `hasData` is `false`, so there is no history to forfeit,
+and re-enabling is not charged again until the next cycle.
 
 *The plan, the seat count and the fee were read from the live team API on 21 August 2026 by
 **CAN-59 Decide whether the Hobby plan can carry a public service**: `plan: pro`, `planChangedAt`

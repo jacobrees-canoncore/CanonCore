@@ -383,9 +383,10 @@ use)" and Team at $30/month for "Business & commercial use"
 This repository is public and MIT-licensed, and Vercel Hobby already requires non-commercial use,
 so the $0 tier applies as things stand.
 
-> **Re-derived 21 August 2026, and the answer no longer depends on the Vercel plan.**
+> **Re-derived 21 August 2026, and the answer no longer depends on the Vercel plan — which is now
+> Pro, so the sentence immediately above no longer describes this project.**
 > [ADR-0024](../adr/0024-vercel-pro-for-a-spend-cap-rather-than-an-outage.md) records that buying Pro
-> removes the non-commercial constraint the sentence above leans on, and requires
+> removes the non-commercial constraint that sentence leans on, and requires
 > **CAN-60 Gate the front end on bytes, budgets and React lint** to work the answer out again rather
 > than inherit it. It did, by reading the **licence file itself** rather than the summary of it — and
 > the three sources disagree.
