@@ -57,6 +57,7 @@ is what the rule was built on.
 - [A failing check reaches the phone, a recovering one may not](#a-failing-check-reaches-the-phone-a-recovering-one-may-not)
 - [Dependabot alerts were enabled, and blind](#dependabot-alerts-were-enabled-and-blind)
 - [The audit gate was proved by a critical advisory, then reverted](#the-audit-gate-was-proved-by-a-critical-advisory-then-reverted)
+- [A rollback turns off auto-assignment of production domains](#a-rollback-turns-off-auto-assignment-of-production-domains)
 
 **Database**
 - [Preview branching was switched off, so no preview ever got a branch](#preview-branching-was-switched-off-so-no-preview-ever-got-a-branch)
@@ -1000,6 +1001,42 @@ branch now returns 404 — while `5b1b590` still resolves, through the refs GitH
 That is GitHub retaining a pull request's history rather than this repository holding a reference
 anyone could find by looking, which is why the id and the SHA belong in an entry like this one
 before the merge and not after it.
+
+## A rollback turns off auto-assignment of production domains
+
+**21 August 2026, CAN-148 Say how a bad release is rolled back, and decide whether the schema can
+be. Run deliberately against production to prove the route, not to recover from anything.** The
+project had never been rolled back: `lastRollbackTarget` was `null` on
+`GET /v9/projects/prj_BMzP9Dq7Qx3Eev8WwsvVoH5khnaU`.
+
+`vercel rollback dpl_3KogHG7poVWAfNMJfsksRTuYpNzb` took production from `c6c15d4` to `9d9f356`, and
+`vercel promote dpl_B7sJLf1Va9h1Ah5nXJWxU8rRpQo1` restored it. Both returned in about two seconds.
+The observable was [`/api/alive`](../apps/web/src/app/api/alive/route.ts), which exists in the first
+commit and not the second: `404` under the rollback, `200` after the restore, while `/` and
+`/api/health` stayed `200` throughout and `/` came back byte-identical at 6,669 bytes.
+
+**Three things it established that no page states.**
+
+1. **Eligibility does not depend on Git.** Every deployment with `target: "production"` — all of them
+   promoted by Actions, since `main` does not deploy from Git — reports `isRollbackCandidate: true`
+   on `GET /v6/deployments`, and every preview reports `false`.
+2. **The rollback flipped the project's `autoAssignCustomDomains` from `true` to `false`, and the
+   promote flipped it back.** Vercel documents the behaviour but documents its consequence only for
+   *"new pushes to your production branch"*, which is a path this repository does not have. Whether a
+   CI release's `vercel deploy --prebuilt --prod` re-takes the domain while the flag is off was **not
+   tested**, and is the open question the runbook turns into a check.
+3. **`lastRollbackTarget` stayed `null` throughout**, so it is not the field that reports a
+   rolled-back state. `vercel rollback status` is no better: it reports a *pending* rollback, so it
+   answered `No deployment rollback in progress` once the work had finished, and immediately after
+   the undo it named the deployment that had been promoted rather than the one rolled back from.
+
+**Two CLI facts the same run settled.** `vercel rollback` and `vercel promote` take a deployment and
+no project, so `--scope` alone does not identify the project: from an unlinked directory the CLI
+searches *that* directory and offers to set a new project up. And `vercel list --prod` prints Age,
+Project, Deployment, Status, Environment, Duration and Username — neither the commit nor which
+deployment is current, though
+[Vercel's own guide](https://vercel.com/docs/deployments/rollback-production-deployment) says it
+"shows deployment URLs, timestamps, and the git commits that triggered them".
 
 ---
 

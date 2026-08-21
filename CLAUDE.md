@@ -162,9 +162,9 @@ answer first, then what will offer you something else.
   — every tool's reflex is to write fetched values onto the row, which destroys the Override beside them.
 - **Undo works on Operations; `deleted_at` is storage, not the undo model** ([ADR-0008](docs/adr/0008-operations-and-undo.md))
   — undo a row at a time reads as the simple answer, and makes a fifty-episode import fifty restores.
-- **CI releases `main`, and Vercel's Git deploys are off for it** ([ADR-0019](docs/adr/0019-ci-owns-the-production-release.md))
-  — `vercel:deploy` and every dashboard nudge assume Git deploys, which is a promotion no migration
-  preceded. Previews stay on Git: turning them off would block every merge.
+- **CI releases `main`, and Vercel's Git deploys are off for it** ([ADR-0019](docs/adr/0019-ci-owns-the-production-release.md)) — `vercel:deploy` and every dashboard nudge assume Git deploys, which is a promotion no migration preceded.
+  Previews stay on Git: turning them off would block every merge. **Instant Rollback still reaches what Actions promoted**, and is the whole of the recovery: [ADR-0027](docs/adr/0027-migrations-are-forward-only-and-a-rollback-moves-code-alone.md).
+- **Migrations are forward-only, and a rollback moves code alone** (ADR-0027) — drizzle-kit ships no down-migration and habit supplies one anyway; it cannot restore what the forward statement destroyed. The rule that replaces it: **every migration must leave the schema able to serve the previous release's code, writes included** — so a narrowing waits for a later change, and adding a `UNIQUE`, `CHECK` or `NOT NULL` is a narrowing however additive it reads.
 - **A Neon branch per worktree, child of a shared schema-only `preview` that is the fallback** ([ADR-0025](docs/adr/0025-a-preview-database-per-worktree.md), [ADR-0023](docs/adr/0023-one-shared-schema-only-preview-branch.md)) — per-deployment branches and schema-only
   branching are mutually exclusive, so **re-ticking Vercel's `Create Database Branch For Deployment → Preview` silently restores clones of production**: its webhook overrides our branch-scoped variable too, everything appears to work, and no check catches it. The `neon` MCP's `create_branch` takes no `init_source` and quietly makes a `parent-data` clone instead. **Vercel refuses a branch-scoped variable for a branch not yet on GitHub**, which is why `orca.yaml`'s hook creates the ref first.
 - **Adult works catalogued, their artwork never displayed**

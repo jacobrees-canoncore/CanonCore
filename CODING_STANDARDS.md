@@ -48,6 +48,25 @@ which is the exposure the shape exists to remove.
 `DATABASE_URL`, better-auth's secrets and `RESEND_API_KEY` are not Source credentials, and neither
 is `provider-tmdb`'s own — that one authenticates us to our own Provider.
 
+**A migration that narrows what the schema *accepts* is a finding unless the change says why it is
+safe now.** The rule it can break is *every migration must leave the schema able to serve the
+previous release's code* — reads and writes both — which is what keeps the migrate-then-promote
+window safe **and** what makes a rollback possible at all, since the schema is never rolled back
+([ADR-0027](docs/adr/0027-migrations-are-forward-only-and-a-rollback-moves-code-alone.md)).
+
+**Narrowing is about what is accepted, not about whether the diff adds or removes**, and that is the
+half a reviewer's eye slides over. `DROP COLUMN`, `DROP TABLE` and `SET NOT NULL` on a populated
+table are the obvious ones. **Adding a constraint is the same kind of change and does not look like
+it** — a `NOT NULL` with no default, a `UNIQUE`, a `CHECK`, a new foreign key each reject writes the
+previous release makes, while reading as tidying up in a diff. Dropping a constraint is the opposite
+and is safe. drizzle-kit generates all of them without comment.
+
+Nothing in the diff can settle it, which is why it lands here rather than in a gate: the question is
+whether the *previous release's* code still needs the old shape, and that code is not in the
+migration file. So the remedy is **widen now, narrow in a later change**, and a narrowing that is
+genuinely due says so in the pull request body
+([`docs/agents/workflow.md`](docs/agents/workflow.md) → *What a merge carries*).
+
 ## Domain language
 
 Names in code, tests and issue titles use the terms in [`CONTEXT.md`](CONTEXT.md). Using an
