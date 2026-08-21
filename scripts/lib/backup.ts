@@ -280,3 +280,47 @@ export function rowCountDisagreements(before: Map<string, number>, after: Map<st
     .filter((table) => before.get(table) !== after.get(table))
     .map((table) => `${table}: ${before.get(table) ?? "absent"} -> ${after.get(table) ?? "absent"}`);
 }
+
+/**
+ * libpq's own environment variables, from a connection string.
+ *
+ * **Composed rather than passed through, so the password never reaches argv**, which `ps` can read —
+ * the same reasoning, and the same refusal to do string surgery on a URL, as
+ * `scripts/apply-migrations-ahead-of-merge.sh`. The SSL parameters are carried across rather than
+ * dropped: production's string asks for `sslmode=verify-full`, and a backup taken over a connection
+ * that verified nothing is a backup of a database nobody proved they were talking to.
+ *
+ * **`sslrootcert` defaults to `system` under `verify-full`, and that is not a weakening.** `pg` and
+ * libpq disagree about what `verify-full` needs: drizzle's `pg` verifies against Node's bundled
+ * roots and needs nothing else, while libpq wants a `root.crt` on disk and refuses without one.
+ * `sslrootcert=system` is libpq's own way of saying "use the trust store", and it keeps
+ * `verify-full` rather than dropping to `require`. `apply-migrations-ahead-of-merge.sh` records the
+ * same rule and the day it was observed; this project's `MIGRATION_DATABASE_URL` does not carry the
+ * parameter, because until now nothing that read it used libpq — which is what run
+ * 32511616263 failed on, `root certificate file "/home/runner/.postgresql/root.crt" does not exist`.
+ *
+ * Applied only when the string does not name one, so a connection string carrying its own is left
+ * alone.
+ */
+export function libpqEnvironment(connectionString: string): Record<string, string> {
+  const url = new URL(connectionString);
+  const environment: Record<string, string> = {
+    PGHOST: url.hostname,
+    PGUSER: decodeURIComponent(url.username),
+    PGPASSWORD: decodeURIComponent(url.password),
+    PGDATABASE: decodeURIComponent(url.pathname.replace(/^\//, "")),
+  };
+  if (url.port) environment.PGPORT = url.port;
+  for (const [parameter, variable] of Object.entries({
+    sslmode: "PGSSLMODE",
+    sslrootcert: "PGSSLROOTCERT",
+    channel_binding: "PGCHANNELBINDING",
+    options: "PGOPTIONS",
+  })) {
+    const value = url.searchParams.get(parameter);
+    if (value) environment[variable] = value;
+  }
+  if (/^verify-/.test(environment.PGSSLMODE ?? "") && !environment.PGSSLROOTCERT)
+    environment.PGSSLROOTCERT = "system";
+  return environment;
+}

@@ -34,6 +34,7 @@ import { del, head, list, put } from "@vercel/blob";
 import {
   BACKUP_PREFIX,
   EVERY_TABLE_WITH_ROW_COUNT,
+  libpqEnvironment,
   RETENTION_DAYS,
   backupPathname,
   expiredBackups,
@@ -60,37 +61,6 @@ function required(name: string): string {
         `credentials lives and how to reissue one.`,
     );
   return value;
-}
-
-/**
- * libpq's own environment variables, from a connection string.
- *
- * **Composed rather than passed through, so the password never reaches argv**, which `ps` can read
- * on a shared machine — the same reasoning, and the same refusal to do string surgery on a URL, as
- * scripts/apply-migrations-ahead-of-merge.sh. The SSL parameters are carried across rather than
- * dropped: production's string asks for `sslmode=verify-full`, and a backup taken over a connection
- * that verified nothing is a backup of a database nobody proved they were talking to.
- */
-export function libpqEnvironment(connectionString: string): Record<string, string> {
-  const url = new URL(connectionString);
-  const environment: Record<string, string> = {
-    PGHOST: url.hostname,
-    PGUSER: decodeURIComponent(url.username),
-    PGPASSWORD: decodeURIComponent(url.password),
-    PGDATABASE: decodeURIComponent(url.pathname.replace(/^\//, "")),
-  };
-  if (url.port) environment.PGPORT = url.port;
-  const carried: Record<string, string> = {
-    sslmode: "PGSSLMODE",
-    sslrootcert: "PGSSLROOTCERT",
-    channel_binding: "PGCHANNELBINDING",
-    options: "PGOPTIONS",
-  };
-  for (const [parameter, variable] of Object.entries(carried)) {
-    const value = url.searchParams.get(parameter);
-    if (value) environment[variable] = value;
-  }
-  return environment;
 }
 
 /**

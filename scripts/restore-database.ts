@@ -30,6 +30,7 @@ import {
   BACKUP_PREFIX,
   EVERY_TABLE_WITH_GUARDS,
   EVERY_TABLE_WITH_ROW_COUNT,
+  libpqEnvironment,
   backupTakenAt,
   computeOf,
   restoreList,
@@ -71,27 +72,6 @@ function postgres(program: string, args: string[], environment: Record<string, s
     const said = failure.stderr?.trim();
     throw new Error(`${program} exited ${failure.status ?? "abnormally"}${said ? `: ${said}` : ""}`);
   }
-}
-
-/** libpq's own variables, so the password never reaches argv. Twin of the one in backup-database.ts. */
-function libpqEnvironment(connectionString: string): Record<string, string> {
-  const url = new URL(connectionString);
-  const environment: Record<string, string> = {
-    PGHOST: url.hostname,
-    PGUSER: decodeURIComponent(url.username),
-    PGPASSWORD: decodeURIComponent(url.password),
-    PGDATABASE: decodeURIComponent(url.pathname.replace(/^\//, "")),
-  };
-  if (url.port) environment.PGPORT = url.port;
-  for (const [parameter, variable] of Object.entries({
-    sslmode: "PGSSLMODE",
-    sslrootcert: "PGSSLROOTCERT",
-    channel_binding: "PGCHANNELBINDING",
-  })) {
-    const value = url.searchParams.get(parameter);
-    if (value) environment[variable] = value;
-  }
-  return environment;
 }
 
 /**

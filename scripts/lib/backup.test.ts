@@ -9,6 +9,7 @@ import {
   dumpedTables,
   expiredBackups,
   freshness,
+  libpqEnvironment,
   restoreList,
   rowCountDisagreements,
   rowCounts,
@@ -278,4 +279,38 @@ test("the pooled and unpooled names of one compute are one compute", () => {
     computeOf("ep-cool-boat-12345678.eu-west-2.aws.neon.tech"),
     computeOf("ep-other-boat-87654321.eu-west-2.aws.neon.tech"),
   );
+});
+
+test("a connection string becomes libpq's variables, with nothing on argv", () => {
+  const environment = libpqEnvironment(
+    "postgresql://canoncore_migrator:p%40ss%3Aword@ep-x-pooler.eu-west-2.aws.neon.tech/neondb?sslmode=verify-full",
+  );
+  assert.equal(environment.PGHOST, "ep-x-pooler.eu-west-2.aws.neon.tech");
+  assert.equal(environment.PGUSER, "canoncore_migrator");
+  // A password carrying `@` and `:` survives, which is what composing rather than splitting buys.
+  assert.equal(environment.PGPASSWORD, "p@ss:word");
+  assert.equal(environment.PGDATABASE, "neondb");
+  assert.equal(environment.PGSSLMODE, "verify-full");
+});
+
+test("verify-full without a named root certificate asks for the system trust store", () => {
+  // Run 32511616263's actual failure: libpq wants `~/.postgresql/root.crt` and a runner has none,
+  // so `verify-full` refused to connect at all. `system` keeps verification rather than dropping it.
+  const environment = libpqEnvironment("postgresql://u:p@host/db?sslmode=verify-full");
+  assert.equal(environment.PGSSLROOTCERT, "system");
+  assert.equal(environment.PGSSLMODE, "verify-full");
+});
+
+test("a string that names its own root certificate is left alone", () => {
+  const environment = libpqEnvironment("postgresql://u:p@host/db?sslmode=verify-full&sslrootcert=/etc/ca.crt");
+  assert.equal(environment.PGSSLROOTCERT, "/etc/ca.crt");
+});
+
+test("a mode that verifies nothing is not given a certificate it did not ask for", () => {
+  assert.equal(libpqEnvironment("postgresql://u:p@host/db?sslmode=require").PGSSLROOTCERT, undefined);
+  assert.equal(libpqEnvironment("postgresql://u:p@host/db").PGSSLROOTCERT, undefined);
+});
+
+test("verify-ca gets the same default as verify-full, since libpq wants a root for both", () => {
+  assert.equal(libpqEnvironment("postgresql://u:p@host/db?sslmode=verify-ca").PGSSLROOTCERT, "system");
 });
