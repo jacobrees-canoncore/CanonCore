@@ -43,8 +43,9 @@ const statuses: Record<Health, number> = {
  * the other; what the second one buys is the *triage*, at the only moment the evidence is free.
  * A `503` says the application ran and PostgreSQL did not answer it three times; a `500` says
  * PostgreSQL answered and the Story did not come back, which is a policy or a migration rather
- * than an outage. They are different entries in docs/runbook.md, and telling them apart from the
- * alert alone costs nothing here and one `curl` at three in the morning otherwise.
+ * than an outage. **The push itself is still one bit** — what reads the code is the first request
+ * of docs/runbook.md -> Triage: two requests, and having it route to one of two entries there is
+ * a request somebody woken at three in the morning does not have to think of.
  *
  * **No body, in any of the three answers.** A monitor sending `HEAD` would never read one, and a
  * health route with somewhere to put detail is a health route that accumulates it: the version,

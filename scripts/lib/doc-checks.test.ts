@@ -1281,7 +1281,7 @@ const MIGRATION = [
 
 const HEALTH = [
   '/** The Story the check reads. */',
-  'export const foundingStory = "00000000-0000-4000-8000-000000000001";',
+  'const foundingStoryId = "00000000-0000-4000-8000-000000000001";',
 ].join('\n')
 
 const REGISTER = [

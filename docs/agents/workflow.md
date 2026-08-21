@@ -599,8 +599,8 @@ too little — a required context that never reports blocks every merge for ever
 token's expiry, the repository's security settings, the Provider baseline's composed context,
 every cross-document pointer, `CLAUDE.md` against its own line target, every tracked document
 against the glossary's own `_Avoid_` lists, the nightly backup's schedule and retention, what the
-backup store actually holds, and Neon's history window. **Not all of it reaches CI, and the
-difference is not an oversight:**
+backup store actually holds, Neon's history window, and the id of the Story `/api/health` reads.
+**Not all of it reaches CI, and the difference is not an oversight:**
 
 | Check | Where it gates | Why |
 | --- | --- | --- |
@@ -615,6 +615,7 @@ difference is not an oversight:**
 | The backup's schedule and retention vs the register | CI and locally | Local files throughout — the register's promise against the workflow's `cron` and the retention the pruning code enforces — so it can never skip. It is the cheap half of the pair below: a register that describes a schedule nothing runs is the failure a backup is most believed through |
 | The backup store's newest file vs the register | CI and locally | The one check here that reports on something **not happening**. It needs `BLOB_READ_WRITE_TOKEN` and reports SKIP without it, and the runner is given one on purpose: a nightly job that fails sends mail, and one that never runs sends nothing — GitHub disables a schedule after 60 days of repository inactivity, and a schedule runs only from the default branch. **That the token can also delete backups is argued rather than waved through** in [`../adr/0028-a-nightly-encrypted-backup-off-neon.md`](../adr/0028-a-nightly-encrypted-backup-off-neon.md): this job already holds `MIGRATION_DATABASE_URL`. **It gates on a push rather than on a clock**, so a week with no push is a week nothing asks |
 | `CLAUDE.md`'s loaded lines vs its own stated target | CI and locally | The only source that is the file being gated, so it can never skip. The number is read from that file's own maintainer comment rather than written into the script, and the count excludes the block comment because that is stripped before the content is loaded |
+| The founding Story's id, across the three files that name it | CI and locally | Local files throughout, so it can never skip. Added by **CAN-151 Watch the Story route, where a broken policy serves 200 with nothing in it**, which made a production alert depend on one row that no code creates. Two of the three copies are code and `apps/web/src/db/health.test.ts` already compares them; **what only this can catch is the record being tidied away** — [`../infrastructure.md`](../infrastructure.md) → *The Story the health check reads*, after which the alert still fires and nobody can say what it means |
 | Release token's expiry vs `vercel tokens ls` | CI and locally | The same `VERCEL_TOKEN` as the variable roster. Listing an account's tokens is a user-level call rather than a project one, so this was recorded as unknown until a runner answered it: run `31964525778` on `6b03296` reported PASS, naming the expiry and the scope. A refused listing exits non-zero, which is a SKIP carrying whatever the CLI said rather than a failed build — reproduced on 16 August 2026 with an invalid token, `Error: Not authorized`, which is the nearest case available: the project-scoped token that would have been the real test is revoked |
 
 A check whose source is unreachable reports **SKIP with the reason** and does not fail the build: a

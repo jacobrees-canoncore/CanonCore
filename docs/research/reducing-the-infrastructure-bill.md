@@ -192,7 +192,7 @@ Two further Free-plan facts that bear on the design, both from primary sources:
 
 - **Threshold and recurrence stay unavailable.** *"As the threshold and recurrence is only
   available in the paid plans, they are always 0 in the Free Plan"* (API v2, and the same sentence
-  appears against `assignedAlertContacts` in the v3 OpenAPI). This is why `databaseAnswers` asks
+  appears against `assignedAlertContacts` in the v3 OpenAPI). This is why `checkHealth` asks
   three times, and lengthening the interval does not disturb that.
 - **A long outage is re-checked more slowly than the configured interval.** *"If a monitor stays
   down for an extended period, UptimeRobot gradually spaces out the re-checks"*

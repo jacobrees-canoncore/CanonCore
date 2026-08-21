@@ -218,7 +218,7 @@ function fixture({
   );
   write(
     "apps/web/src/db/health.ts",
-    [`export const foundingStory = "${checkedStory}";`].join("\n"),
+    [`const foundingStoryId = "${checkedStory}";`].join("\n"),
   );
   write(
     "docs/agents/triage-labels.md",

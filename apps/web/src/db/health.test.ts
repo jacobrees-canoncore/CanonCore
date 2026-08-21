@@ -5,12 +5,13 @@
 // every branch that matters is reachable without PostgreSQL — the real ask needs one and is
 // exercised from `rls.test.ts` alongside everything else that does.
 //
-// The last test is the one with no counterpart there: it ties the id this module asks for to the
-// migration that inserts it, which is a text comparison rather than a query.
-import { readFileSync } from "node:fs";
-import { fileURLToPath } from "node:url";
+// **Which Story it asks for is not asserted here**, though it is the one thing this module depends
+// on that no code creates. It is a text comparison across three files rather than a behaviour, and
+// `scripts/check-docs.ts` owns it — the third of those files is a document, which is the copy a
+// test beside this one could not have reached.
+import type { StoryDetail } from "./stories";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
-import { checkHealth, foundingStory } from "./health";
+import { checkHealth } from "./health";
 
 // Fake, because the pauses between asks are real waits the check has to make and no test should.
 beforeEach(() => vi.useFakeTimers());
@@ -20,7 +21,13 @@ afterEach(() => vi.useRealTimers());
 const pastEveryPause = 60_000;
 
 /** A Story coming back. What it holds is the page's business, not this check's. */
-const aStory = { id: foundingStory, title: "Rose" };
+const aStory: StoryDetail = {
+  id: "00000000-0000-4000-8000-000000000001",
+  title: "Rose",
+  runtimeSeconds: 2700,
+  versions: [],
+  partOf: [],
+};
 
 test("a Story that comes back is a healthy site", async () => {
   const ask = vi.fn().mockResolvedValue(aStory);
@@ -87,7 +94,7 @@ test("a database that never answers is a different failure from a Story that doe
 // A check that gave up on the first slow ask would report an outage every time Neon reactivates a
 // suspended compute, which it does on the next query rather than on a schedule.
 test("waits for an ask rather than abandoning it", async () => {
-  let answer: (story: unknown) => void = () => {};
+  let answer: (story: StoryDetail) => void = () => {};
   const ask = vi.fn().mockReturnValue(new Promise((resolve) => (answer = resolve)));
 
   const found = checkHealth(ask);
@@ -96,25 +103,4 @@ test("waits for an ask rather than abandoning it", async () => {
 
   expect(await found).toBe("healthy");
   expect(ask).toHaveBeenCalledTimes(1);
-});
-
-/**
- * The one thing this check depends on that is not in this repository's control flow: a row.
- *
- * **A mistyped id would be silent in the worst possible way.** `readStory` answers `undefined` for
- * anything that is not a uuid without opening a transaction, so a typo here would report
- * `story-unreadable` for ever, page the phone hourly, and never once ask the database — the
- * check's own database-silent branch would become unreachable.
- *
- * The migration is the source and this file is the copy, so the comparison runs that way round.
- * `docs/infrastructure.md` -> The Story the health check reads is the third place it is written
- * and `scripts/check-docs.ts` is what ties that one to these two.
- */
-test("asks for the Story migration 0002 inserts", () => {
-  const migration = readFileSync(
-    fileURLToPath(new URL("../../drizzle/0002_the_founding_story.sql", import.meta.url)),
-    "utf8",
-  );
-
-  expect(migration).toContain(`'${foundingStory}'`);
 });

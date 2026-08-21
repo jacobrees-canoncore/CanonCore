@@ -1,19 +1,28 @@
 import { anonymous } from "./session";
-import { readStory } from "./stories";
+import { readStory, type StoryDetail } from "./stories";
 
 /**
  * The Story the check reads, and the one thing it depends on that no code in this repository
  * creates: a row, inserted by migration 0002 and given the rest of its shape by migration 0012.
  *
- * **It is written down in three places and they are compared.** Here, in that migration, and in
- * `docs/infrastructure.md` -> The Story the health check reads. `health.test.ts` ties this copy to
- * the migration and `scripts/check-docs.ts` ties both to the register, so removing the record
- * reddens a build rather than leaving a check nobody can explain.
+ * **It is written down in three places and `scripts/check-docs.ts` compares them.** Here, in that
+ * migration, and in `docs/infrastructure.md` -> The Story the health check reads. Removing the
+ * record reddens a build rather than leaving a check nobody can explain, and a copy that drifts
+ * from the migration is caught before it can reach production — where it would be silent in the
+ * worst way available: `readStory` answers `undefined` for anything that is not a uuid without
+ * opening a transaction, so a typo here would report `story-unreadable` for ever, page the phone
+ * hourly, and never once ask the database.
  */
-export const foundingStory = "00000000-0000-4000-8000-000000000001";
+const foundingStoryId = "00000000-0000-4000-8000-000000000001";
 
-/** One read of that Story: it comes back, it comes back as nothing, or it throws. */
-type Ask = () => Promise<unknown>;
+/**
+ * One read of that Story: it comes back, it comes back as nothing, or it throws.
+ *
+ * **Typed as the read rather than as `unknown`**, because `undefined` is no longer a value this
+ * discards — it is one of the three answers. An ask that resolved to `null` for the same meaning
+ * would read as a healthy site, and this is what stops one being substituted.
+ */
+type Ask = () => Promise<StoryDetail | undefined>;
 
 /** Three asks, a quarter-second apart. Both numbers are small against the monitor's 30 seconds. */
 const asks = 3;
@@ -34,7 +43,7 @@ const pause = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
  * what comes back from the value set inside the transaction (`session.ts`), so this asks the one
  * question a stranger's request asks: is the public Story still public to somebody with no account.
  */
-const askForTheFoundingStory: Ask = () => readStory(anonymous, foundingStory);
+const askForTheFoundingStory: Ask = () => readStory(anonymous, foundingStoryId);
 
 /**
  * What the check found. Three answers rather than two, because the two failures have different

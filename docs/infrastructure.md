@@ -2684,6 +2684,13 @@ CAN-56 Find out the site is down without waiting to be told needs. Do it **after
 live in production, because pointing a monitor at a 404 pages the phone — within an hour now,
 and within five minutes again if the second monitor below is added.
 
+**Two things ride on it now rather than one.** Since **CAN-151 Watch the Story route, where a broken
+policy serves 200 with nothing in it** that route answers a second failing code, `500`, meaning the
+database answered and the founding Story did not come back — *The Story the health check reads*
+below, and [`runbook.md`](runbook.md) → *The Story cannot be read* for what to do about it. **The
+URL and every other setting are unchanged**, so the steps are the same ones; what changed is what a
+red monitor can mean.
+
 1. UptimeRobot → monitor `803731762` → **Edit** → URL to `https://www.canoncore.com/api/health`.
    **Edit this monitor rather than adding a second one**, so its uptime history stays continuous.
    **This step is now half of a pair.** [ADR-0026](adr/0026-the-database-bill-is-watched-rather-than-capped.md)
@@ -2732,15 +2739,17 @@ the record. [`health.test.ts`](../apps/web/src/db/health.test.ts) ties the first
 `scripts/check-docs.ts` ties both to this one, so deleting this paragraph reddens a build. Added by
 **CAN-151 Watch the Story route, where a broken policy serves 200 with nothing in it**.
 
-**What happens if the row itself goes.** `/api/health` answers `500` and the phone rings within the
-hour, for ever, until somebody decides what the check should read instead. That is the intended
-failure and not a defect: a check whose subject can be removed without anybody noticing is the
-condition this ticket existed to end. [`runbook.md`](runbook.md) → *The Story cannot be read* is
-what to do about it, and it covers the deliberate case as well as the accidental one.
-
 **Nothing polls it yet, for the same reason nothing polls the route at all**: monitor `803731762`
 still points at the front page, and *The repoint, and why it is a human step* above is the
-outstanding step. Until that is done this is a check the repository makes and nobody outside runs.
+outstanding step. Until that is done this is a check the deployment makes and nobody outside reads,
+so everything below describes what happens **once the repoint is done**.
+
+**What happens if the row itself goes.** `/api/health` answers `500` from then on, and once the
+monitor is pointed at it the phone rings within the hour, for ever, until somebody decides what the
+check should read instead. That is the intended failure and not a defect: a check whose subject can
+be removed without anybody noticing is the condition this ticket existed to end.
+[`runbook.md`](runbook.md) → *The Story cannot be read* is what to do about it, and it covers the
+deliberate case as well as the accidental one.
 
 **This check costs no monitor of its own, and that is what makes it affordable.** It is not a second
 thing to poll; it is a different question asked by the check that already runs. A monitor of its own
@@ -2936,13 +2945,18 @@ which is why that half is a client component.
 one* rests on: nothing in the product creates a record, so an account holds nothing its holder
 authored.
 
-**One route is served that is not a page at all.** `/api/health` answers **200 with an empty body** while
-PostgreSQL answers it, and **503** when three asks in a row do not; `HEAD` gets the same, from the
-same handler. It is the uptime monitor's target rather than anything a visitor is meant to find,
-and it is deliberately not a debugging surface — no version, no host, no error, nothing about the
-database beyond whether it replied. Added by **CAN-56 Find out the site is down without waiting to
-be told**; *Uptime monitoring: UptimeRobot* above is what will poll it once the repoint recorded
-there is done, and [`runbook.md`](runbook.md) is what to do when it fails.
+**One route is served that is not a page at all.** `/api/health` answers **200 with an empty body**
+while it can still serve the founding Story to a reader with no account, **500** when PostgreSQL
+answers and that Story does not come back, and **503** when three asks in a row do not answer at
+all; `HEAD` gets the same, from the same handler. It is the uptime monitor's target rather than
+anything a visitor is meant to find, and it is deliberately not a debugging surface — no version,
+no host, no error, no field of the row it read. **The most those three codes tell a stranger is
+whether one public Story is currently readable by strangers**, which its own public address answers
+to anybody who asks. Added by **CAN-56 Find out the site is down without waiting to be told** and
+given the Story to read by **CAN-151 Watch the Story route, where a broken policy serves 200 with
+nothing in it** — *The Story the health check reads* above is which row and why it is recorded.
+*Uptime monitoring: UptimeRobot* above is what will poll it once the repoint recorded there is
+done, and [`runbook.md`](runbook.md) is what to do when it fails.
 
 The **Hosting** settings above are what protects against how that page was first deployed
 ([incident](incidents.md#the-holding-page-was-first-deployed-straight-to-production)).

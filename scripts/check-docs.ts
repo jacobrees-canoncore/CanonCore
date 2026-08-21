@@ -96,6 +96,8 @@ import {
   parseDocumentedVariables,
   parseGlossary,
   readFoundingStory,
+  wasFound,
+  wasNotFound,
   findAvoidedWords,
   parseLinearLabels,
   parseSecretNames,
@@ -955,23 +957,24 @@ check("the Story the health check reads has one agreed id", () => {
     "the health check that reads it": read(HEALTH_CHECK),
     "the register that records it": read(CONTEXT_HOME),
   });
-  const lost = copies.filter((c) => "missing" in c);
+  const lost = copies.filter(wasNotFound);
   if (lost.length)
     fail(
       `the founding Story's id is no longer written where this check reads it:\n    - ` +
-        lost.map((c) => `${c.what}: ${"missing" in c ? c.missing : ""}`).join("\n    - ") +
+        lost.map((c) => `${c.what}: ${c.missing}`).join("\n    - ") +
         `\n    The check in ${HEALTH_CHECK} depends on that row, so its id needs a record ` +
         `somebody would meet before deleting it.`,
     );
-  const ids = new Set(copies.map((c) => ("id" in c ? c.id : "")));
+  const found = copies.filter(wasFound);
+  const ids = new Set(found.map((c) => c.id));
   if (ids.size !== 1)
     fail(
       `three files name the founding Story and they disagree:\n    - ` +
-        copies.map((c) => `${c.what}: \`${"id" in c ? c.id : ""}\``).join("\n    - ") +
+        found.map((c) => `${c.what}: \`${c.id}\``).join("\n    - ") +
         `\n    The migration is the source. A check asking for a row that is not there answers ` +
         `500 and pages the phone every hour.`,
     );
-  return `\`${[...ids][0]}\` in ${copies.length} files`;
+  return `\`${[...ids][0]}\` in ${found.length} files`;
 });
 
 const width = Math.max(...results.map((r) => r.name.length));

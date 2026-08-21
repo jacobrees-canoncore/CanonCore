@@ -1086,8 +1086,8 @@ const foundingStoryCopies = {
     absent: 'no `INSERT INTO "story"` naming a uuid was found',
   },
   "the health check that reads it": {
-    pattern: new RegExp(`foundingStory\\s*=\\s*"(${UUID})"`),
-    absent: 'no `foundingStory = "…"` was found',
+    pattern: new RegExp(`foundingStoryId\\s*=\\s*"(${UUID})"`),
+    absent: 'no `foundingStoryId = "…"` was found',
   },
   "the register that records it": {
     pattern: new RegExp(`\\*\\*The health check reads the Story \`(${UUID})\`\\*\\*`),
@@ -1102,6 +1102,22 @@ export type FoundingStoryCopy = keyof typeof foundingStoryCopies;
 export type FoundingStoryReading =
   | { what: FoundingStoryCopy; id: string }
   | { what: FoundingStoryCopy; missing: string };
+
+/**
+ * Which of the two a reading is, as a pair of predicates rather than an `in` test at each use, so
+ * that the caller separating them once has no branch left for the case it has already excluded.
+ *
+ * **Two of them rather than one and a negation**, because a negated predicate narrows nothing: a
+ * `filter(r => !wasFound(r))` hands back the whole union and every use of `missing` after it needs
+ * a fallback that can never run.
+ */
+export const wasFound = (
+  reading: FoundingStoryReading,
+): reading is { what: FoundingStoryCopy; id: string } => "id" in reading;
+
+export const wasNotFound = (
+  reading: FoundingStoryReading,
+): reading is { what: FoundingStoryCopy; missing: string } => "missing" in reading;
 
 /**
  * Read each copy out of the file it lives in.
