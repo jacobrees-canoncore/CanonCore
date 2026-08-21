@@ -185,7 +185,17 @@ compares compute ids rather than whole hostnames.
   fallback, because the variable still overrides it — and it can fire under a lane that is open.
 
 The sweeper takes both halves together and is **dry by default**; `--apply` is the difference
-between reading a plan and destroying one. It sweeps two classes, established differently: a git
+between reading a plan and destroying one.
+
+**The Vercel variable goes first and the Neon branch second, and that order is the safety property
+rather than a preference.** Interrupted the other way round, the variable is left overriding the
+fallback with a host that no longer answers — which is the state this section refuses `expires_at`
+for, reached by the tool meant to prevent it. Interrupted this way round, the branch is orphaned and
+the preview falls back to the shared `preview` branch; the next run finishes the job, because the
+plan is computed from `origin` rather than from what an earlier run managed. **The one residue is a
+git ref**: it is removed last, and a run killed before that step strands an empty branch on GitHub
+that no later run will match, since its database is already gone. It carries no commit, so this is
+untidiness and not loss. It sweeps two classes, established differently: a git
 branch **gone from origin**, which is finished work, and a branch **still on origin carrying no
 commit `main` lacks**, which is an abandoned lane — the second also removing the ref, since it
 carries nothing to lose.

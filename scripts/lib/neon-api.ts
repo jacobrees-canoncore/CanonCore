@@ -49,7 +49,16 @@ function neonKey(): string {
   );
 }
 
-/** One request against the project, as parsed JSON. Throws `NeonUnavailable` for anything else. */
+/**
+ * One request against the project, as parsed JSON.
+ *
+ * **`NeonUnavailable` covers being unable to ask and being refused; it does not cover a 200 that is
+ * not JSON.** Reading and parsing the body sit outside the `try` deliberately — a truncated or
+ * non-JSON success is a broken response rather than an unavailable service, and it escapes as the
+ * `SyntaxError` it is. Both callers funnel anything unrecognised through `String(error)`, so the
+ * behaviour is right either way; the distinction is here so the type is not read as a promise it
+ * does not make.
+ */
 export async function neonRequest(path: string, init: RequestInit = {}): Promise<unknown> {
   let response: Response;
   try {

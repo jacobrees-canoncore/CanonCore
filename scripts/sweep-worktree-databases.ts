@@ -235,9 +235,7 @@ for (const row of goingVariables)
 // `main` is excluded here as well as by every test upstream. It cannot reach this list — nothing
 // names a Neon branch `wt/main` (`neonBranchName` refuses it) and `emptyRemoteBranches` skips it —
 // so this guards against a future edit rather than against today's inputs, which is the point of it.
-const goingRefs = plan.sweep
-  .map((s) => gitBranchOf(s.neonBranch.name)!)
-  .filter((b) => b !== "main" && onOrigin.has(b));
+const goingRefs = sweptBranches.filter((b) => b !== "main" && onOrigin.has(b));
 for (const branch of goingRefs) console.log(`  DELETE  refs/heads/${branch} on GitHub (carries nothing)`);
 
 const total = plan.sweep.length + goingVariables.length + goingRefs.length;
