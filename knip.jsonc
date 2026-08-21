@@ -7,8 +7,8 @@
 //
 // The baseline was made clean rather than ignored — CAN-61 Keep the codebase and its dependencies
 // from silting up requires that, on the reasoning that a report nobody expects to be empty is a
-// report nobody reads. The single override below is the one thing that could not be fixed at the
-// source, and it says why. Where this runs in CI, and why it runs where it does:
+// report nobody reads. Every override below is something that could not be fixed at the source, and
+// each says why. Where this runs in CI, and why it runs where it does:
 // docs/agents/workflow.md -> The gates.
 {
   // `schema-jsonc.json` rather than `schema.json`: knip ships both, and the JSONC one is the schema
@@ -16,16 +16,32 @@
   "$schema": "https://unpkg.com/knip@6/schema-jsonc.json",
   "workspaces": {
     "scripts": {
-      // One entry point knip cannot find for itself. It resolves `check-docs.ts` through its
+      // Two entry points knip cannot find for itself. It resolves `check-docs.ts` through its
       // GitHub Actions plugin, which reads `.github/workflows/ci.yml` and sees a step run it — and
-      // naming that one here as well is reported as redundant. Nothing runs
-      // `provision-provider-repository.ts`: a person runs it by hand, once per Provider repository
-      // (docs/infrastructure.md -> The Provider repository baseline), so no workflow and no script
-      // reaches it and knip reads it as a file nothing uses.
+      // naming that one here as well is reported as redundant. The two named here run by hand and
+      // no workflow reaches them, so knip reads each as a file nothing uses:
+      // `provision-provider-repository.ts`, run once per Provider repository
+      // (docs/infrastructure.md -> The Provider repository baseline), and
+      // `check-linear-bodies.ts`, run either side of a Linear body write
+      // (docs/agents/issue-tracker.md -> Keep an emphasis run on one line, and check the stored
+      // body). Neither can be a CI gate: `orca` is a local desktop CLI.
       //
-      // This declares an entry point rather than suppressing a report. A genuinely dead file added
+      // This declares entry points rather than suppressing a report. A genuinely dead file added
       // to this workspace later is still reported, which an `ignore` entry would have stopped.
-      "entry": ["provision-provider-repository.ts"]
+      "entry": ["provision-provider-repository.ts", "check-linear-bodies.ts"],
+
+      // The first entry in this file's only ignore list, and docs/agents/workflow.md -> The gates
+      // records why the list now exists at all. `orca` is the Orca desktop app's own CLI, installed
+      // with the app and not by any package manager, so there is no dependency for knip to resolve
+      // it against and no version this repository could pin: the report is true and unfixable at the
+      // source, which is what separates it from the `pnpm -r typecheck` case that workflow.md
+      // rejected an entry for.
+      //
+      // Declared rather than worked around. `check-docs.ts` calls the same binary and escapes the
+      // check only because the name reaches `execFileSync` through a helper's parameter instead of
+      // as a literal — an accident of shape, not a statement about the binary, and not a pattern to
+      // copy in order to stay quiet.
+      "ignoreBinaries": ["orca"]
     },
     "apps/web": {
       // The drizzle plugin's whole job is to load `drizzle.config.ts` and read the `schema` and

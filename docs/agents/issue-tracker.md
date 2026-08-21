@@ -164,14 +164,30 @@ has the evidence for each:
   from damage while reading as untouched. What decides which bare identifiers decay was never isolated,
   and the rate is not small but the norm: 26 of the 31 in one repair pass, 84%.
 - **Any `save-issue` re-exposes the whole body**, because the description is replaced whole. A write
-  that toggles one checkbox re-offers every bare identifier elsewhere in the body.
+  that toggles one checkbox re-offers every bare identifier elsewhere in the body. Measured on
+  21 August 2026 over the 24 description writes of CAN-135 Repair the 25 bodies Linear's emphasis
+  mangling has corrupted, and fix the check that misses half of them: two bodies still carried a bare
+  identifier, **both linkified**, at all four sites, and each one broke the emphasis run it sat in —
+  including one on a line the repair had not touched. The other 22 came back with no bare form left
+  to convert. **A scan of all 142 bodies afterwards found 22 still carrying one, and all 22 were
+  repaired**, so the tracker starts from zero and `node scripts/check-linear-bodies.ts` fails on the
+  first one to come back. Its `--guard` refuses one in text you are about to send, which is the check
+  that would have caught this.
 
-**So grep the body before the save as well as after**, for `CanonCore#` and for any surviving bare
-form. Both directions matter: after, to catch what the round trip did; before, because the body you
-are about to write may already carry a linkified `[CAN-n](<url>)` that this save would convert.
+**So check the body before the save as well as after**, which is what
+`node scripts/check-linear-bodies.ts --guard` does — it reads every reference a save can convert and
+refuses the two forms below. Both directions matter: after, to catch what the round trip did; before,
+because the body you are about to write may already carry a linkified `[CAN-n](<url>)` that this save
+would convert.
 
 **Only two forms are immune**: the title inside the link text, and anything inside a code span or a
-fence. **Never write a bare `#N` in a Linear body at all** — not for a pull request, not for a list
+fence — with one exception, measured on 21 August 2026 and the reason this list is not simply "use a
+code span". **An emphasis run wrapping nothing but a code span loses the code mark**, and the
+reference inside it is then bare and linkifies: `**`CAN-69`**'s` was sent and `[CAN-69](url)'s` came
+back. The same run carrying any other text keeps it — `**`CAN-88`'s body needs…**` came back
+restructured as `` `CAN-88`**'s body needs…** ``, code mark intact — so it is the emptiness of the run
+that does it, not the code span. Nineteen plain code spans in the same pass survived untouched.
+`--guard` reports this shape as its own form. **Never write a bare `#N` in a Linear body at all** — not for a pull request, not for a list
 item — because it is linkified to whatever the other system numbers that way. Write "pull request 148"
 or "item 1", or put the number inside a link whose text is more than the number.
 
@@ -240,10 +256,11 @@ feature requests in the triage queue; `/triage` reads this flag.)_
 - **Attach a PR link**: `orca linear attach CAN-123 --url <pr-url> --title "PR/MR link" --json`.
 - **Close**: there is no close command. Move to a completed state with `status set --to Done`.
 
-Every write that carries prose is subject to *Keep an emphasis run on one line, and grep the stored
-body*, below: `create` and `comment add` here, and the `save-issue` description write.
+Every write that carries prose is subject to
+*Keep an emphasis run on one line, and check the stored body*, below: `create` and `comment add`
+here, and the `save-issue` description write.
 
-### Keep an emphasis run on one line, and grep the stored body
+### Keep an emphasis run on one line, and check the stored body
 
 **An emphasis run must never cross a newline in the text you send** — bold and italic alike. Linear
 stores rich text, not your markdown, so a newline inside the run becomes a hard break *inside* the
@@ -252,56 +269,146 @@ library behind Linear's editor: its changelog fixed "Hard breaks at the end of a
 mark are no longer serialized to invalid Markdown text" in 1.2.2 and has repaired the same area since
 (https://github.com/ProseMirror/prosemirror-markdown/blob/master/CHANGELOG.md). The library is named
 because it explains the shape; what is recorded here is the tracker's own behaviour, observed. What
-comes back is the run closed and reopened around the break, leaving a stray `****` at each end. Read
-back verbatim on 17 August 2026 from CAN-83 The variable roster check has never gated in CI, though
-the docs say it does:
+comes back is the run closed and reopened around the break, leaving stray asterisks at each end.
+
+**Bold and italic leave different signatures, which is why one grep could never find both.** Two
+read-backs, verbatim, on 17 August 2026. Both bodies were repaired on 21 August 2026 by CAN-135
+Repair the 25 bodies Linear's emphasis mangling has corrupted, and fix the check that misses half of
+them, so these are the record rather than something to go and re-read. A bold run, from CAN-83 The
+variable roster check has never gated in CI, though the docs say it does:
 
 ```text
 (31722153282), which skips identically. Found while landing **CAN-23 One Story from Neon, behind****
 ****row-level security**, whose PR added a `DATABASE_PRODUCTION_HOST` row to that very roster — so the
 ```
 
-A bold run wrapped at the margin is the shape that produces it, but that direction is inference: the
-authored markdown is not recoverable from here, and `orca linear issue CAN-83 --activity` returns only
-relation, assignee and state changes for it (read 17 August 2026). The read-back is the evidence.
+An italic run, from CAN-132 The documented worktree command cannot run from inside a worktree:
+
+```text
+whose document is `docs/research/orca-gaps-and-the-worktree-workflow.md` → *Question two: should**
+**worktree-off-main be the documented default?*. The `fatal:` above was reproduced there, not inferred.
+```
+
+Bold leaves the inserted markers hard against the original pair, so a four-asterisk run appears.
+Italic leaves `**` at the end of one line and `**` at the start of the next, which is
+indistinguishable *by shape* from two whole bold runs on consecutive lines. So the `grep -F '****'`
+this section shipped with saw the first and never the second. Measured 21 August 2026 across all 141
+team `CAN` bodies then on the team — a total that needs `--include-archived`, per *A listing is
+bounded, and only half of that is signalled* below — it found 11 bodies where parsing found 24,
+holding 96 stray asterisks between them. Every one of its 11 was real; it simply missed 13.
+
+**A re-run today reads 142, and the extra one is drift rather than a discrepancy.** CAN-142 Four
+abandoned Vercel projects still hold readable Postgres credentials was created during the repair
+pass. Any count here is the count on the day, which is the reason the sweep
+prints the span it covered — `CAN-1 to CAN-142, unbroken` — instead of a bare total that a reader
+cannot check.
+
+**The authored markdown is not recoverable, so a repair is a reconstruction.** `orca linear issue
+CAN-83 --activity` returns only relation, assignee and state changes (read 17 August 2026), and the
+GitHub mirror is no help either: it holds the same mangled text with `<br>` in place of each hard
+break (read 21 August 2026 from the mirror of CAN-86 Record VERCEL_TOKEN in the credential roster,
+and revisit whether the release can use a project-scoped one). So the repair rejoined each run onto
+one line and dropped the markers Linear inserted, which restores the words exactly — verified word
+for word across all 24 — and the emphasis by inference. Where a marker's identity was ambiguous it
+was dropped rather than guessed at.
+
+**Two checks, and neither does the other's job.** Both are `node scripts/check-linear-bodies.ts`;
+what a finding *is* lives in `scripts/lib/linear-bodies.ts`, beside its tests. Neither is a CI gate
+— `orca` is a local desktop CLI, and a ticket body is not a tracked file.
+
+- **Before you send it** — the guard, on the markdown you authored. It refuses any emphasis run whose
+  opening and closing markers sit on different lines, which is this rule stated as a parse rather
+  than guessed at by a grep, and so covers italic as well as bold.
+
+  ```bash
+  node scripts/check-linear-bodies.ts --guard body.md   # or - for stdin
+  ```
+
+- **After the write lands** — the detector, on what Linear stored. It parses the body and reports
+  every unescaped `*` left inside rendered text, which is the symptom itself rather than a guess at
+  how the symptom is spelled.
+
+  ```bash
+  node scripts/check-linear-bodies.ts CAN-<n>   # one body
+  node scripts/check-linear-bodies.ts           # every body, archived included
+  ```
+
+**The guard is unsound as a detector, and that is the point rather than a gap to close.** Once Linear
+has split a run, every fragment is a whole run sitting on one line, so nothing crosses a newline any
+more and the guard reads a mangled body as clean. Measured over the 24 bodies repaired on 21 August
+2026: the detector found 96 stray asterisks in them and the guard found nothing at all. It is
+asserted as a test too, so the distinction cannot quietly rot into "run either one".
+
+**Two cheaper detectors were tried and both are unsound — do not re-derive them.** A line ending in
+`**` followed by a line starting with `**` reads two whole bold runs on consecutive lines as damage;
+the shape is live in CAN-17 v1: the walking skeleton in production, then the founding case, whose
+"**Refresh and liveness transitions.**" is followed on the next line by a second run of its own.
+Splitting the text on `**` and testing the odd-index parts for a newline is the guard's job done by
+hand: it cannot see an italic run at all, and its parity slips wherever markup already sits between
+the markers.
+
+**Parsing is also what makes the check runnable, which a grep was not.** A body may quote `****` as
+the very thing to look for, and a grep then reports the ticket documenting the check as failing it —
+which is how a check stops being run. Code spans and fences are their own node types carrying their
+own values, so parsing excludes them by construction rather than by a strip that has to be
+maintained: on the same sweep a naive grep flagged 12 bodies and a strip-then-grep 11, the difference
+being the body of CAN-127 Move Linear's emphasis mangling out of the research archive into the
+tracker procedure. An escaped `\*` is excluded the same way and for the same reason — the triage
+comment on this section's own repair ticket writes `\*\*` to quote what was typed, and counting the
+parsed *value* of a text
+node rather than its source reports that comment as four stray asterisks.
+
+**What the detector finds is not always Linear's doing.** A bare `*` an author wrote in prose lands
+there too, correctly: it renders as an asterisk and reads as damage. Both have the same two fixes —
+put the asterisk in a code span, or close the run on the line it opened.
+
+**Line length is irrelevant, and a long line is a legitimate fix.** Linear does not rewrap what you
+send. Measured 17 August 2026 across all 134 team `CAN` bodies — all 29 mangled occurrences sat at a
+line boundary and **none mid-line**, while every emphasis run lying wholly inside a single stored line
+survived, upwards of 1,600 of them, the longest on a line of 5,564 columns. A line that long coming
+back whole is what rules rewrapping out. So the wrap this repository uses for prose is what puts the
+break there: either keep the run short enough to fit the line, or let that one line run past the
+margin. Both work, and nothing else does.
 
 The reformatting was first recorded as a hazard to verification probes, and that evidence stays where
 it is rather than being repeated here:
 `docs/research/verification-sweep-16-august.md` → *Method notes, for the next sweep*. Its probe advice
-holds. Its "rewrapped lines", read as the cause of this effect, does not, and the measurement below is
+holds. Its "rewrapped lines", read as the cause of this effect, does not, and the measurement above is
 what supersedes it — the archive is a dated record and is deliberately left standing.
 
-**Line length is irrelevant, and a long line is a legitimate fix.** Linear does not rewrap what you
-send. Measured 17 August 2026 across all 134 team `CAN` bodies — a total that needs
-`--include-archived`, per *A listing is bounded, and only half of that is signalled* below — all 29
-mangled occurrences sat at a line boundary and **none mid-line**, while every emphasis run lying
-wholly inside a single stored line survived, upwards of 1,600 of them, the longest on a line of 5,564
-columns. A line that long coming back whole is what rules rewrapping out. So the wrap this repository
-uses for prose is what puts the break there: either keep the run short enough to fit the line, or let
-that one line run past the margin. Both work, and nothing else does.
+**Run the detector after the write, not instead of the wait.** Pair it with *A description write must
+not be bundled with anything else* above, which is a separate failure and the reason a re-read can be
+inconclusive.
 
-**After any body write, re-read the stored body and grep it — stripping code spans first.**
+**A clean detector run does not mean the save was clean.** If the body carried a bare identifier, the
+save linkifies it and pulls it out of the run it sat in — which *removes* those asterisks rather than
+stranding any, so the detector reports zero over a body whose emphasis has just been broken a second
+way. It happened on this pass, on two of the 24. **So the check covers both rules** — the split run
+and the bare reference, the second from *A bare identifier does not survive the sync* above — and
+fails on either, in both directions.
 
-```bash
-orca linear issue CAN-<n> --workspace ad2669ec-93a5-4ce1-97fa-c7d9247a1452 --json \
-  | jq -r '.result.issue.description' \
-  | perl -0pe 's/\x60{3}.*?\x60{3}//gs; s/`[^`\n]*`//g' \
-  | grep -n -F '****'
-```
+**That is affordable only because the baseline was made clean.** 22 bodies carried a bare reference
+when the check was written, and all 22 were repaired rather than counted: leaving them would have
+shipped a check that was permanently red for something its runner had not written, which is how a
+check stops being run. It is the same standing requirement knip is held to, and for the same reason —
+`docs/agents/workflow.md` → *The gates*.
 
-**The strip is what makes the check runnable.** A body may quote `****` deliberately as the very
-thing to look for, and a plain grep then reports the ticket documenting the check as failing it —
-which is how a check stops being run. On the same sweep a naive grep flagged 13 bodies and the
-stripped grep 12; the one it removed was this rule's own ticket. No output means clean. Pair this
-with the waits in *A description write must not be bundled with anything else* above, which is a
-separate failure and the reason a re-read can be inconclusive.
+**A run split around inline code is usually harmless, and once was not.** Emphasis wrapping a code
+span can come back as three fragments with the code outside the marks, as `**Do not** ` +
+`` `await` `` + ` **the send.**`. That much is not corrupted, renders the same, and the detector does
+not report it. Nothing downstream minds either: `node scripts/check-docs.ts` reads tracked markdown
+and never a ticket body, and its pointer comparison strips backticks and asterisks and accepts a
+title prefix, so even a pointer copied out of a ticket in this shape still resolves.
 
-**A run split around inline code is a different effect, and not one to repair.** Emphasis wrapping a
-code span can come back as three fragments with the code outside the marks, as `**Do not** ` +
-`` `await` `` + ` **the send.**`. Nothing is corrupted, it renders the same, and the grep above will
-not see it. Nothing downstream minds either: `node scripts/check-docs.ts` reads tracked markdown and
-never a ticket body, and its pointer comparison strips backticks and asterisks and accepts a title
-prefix, so even a pointer copied out of a ticket in this shape still resolves.
+**The exception is the run that wraps the code span and nothing else, and it took two readings to
+establish.** A counter-example was filed against the harmless reading and, checked on 21 August 2026,
+did not reproduce: the comment named, on CAN-8 Provider: tardis.wiki chronologies, stores
+`` **`use=reference`** `` whole, with `updatedAt` matching `createdAt`, so it was never edited into
+that state. **That check was sound and the conclusion drawn from it was too narrow.** Later the same
+day a description write reproduced the mechanism exactly — `**`CAN-69`**` came back with the code mark
+gone — so the shape does restructure, a comment simply is not where it showed. Where the code span
+holds a ticket reference the consequence is not cosmetic, which is what *A bare identifier does not
+survive the sync* above now records.
 
 ### A listing is bounded, and only half of that is signalled
 
