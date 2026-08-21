@@ -24,7 +24,7 @@
  * ([DTCG 2025.10](https://www.designtokens.org/tr/2025.10/format/)).
  *
  * Every choice below is argued in
- * [ADR-0028](../../../docs/adr/0028-the-visual-identity.md), including the ones that are house
+ * [ADR-0029](../../../docs/adr/0029-the-visual-identity.md), including the ones that are house
  * decisions rather than findings.
  */
 
@@ -127,7 +127,7 @@ export const spacing = {
  * Interface Guidelines publish no line-length guidance, Material 3 publishes no characters-per-line
  * figure, and the one study reached in full text found the *longest* line fastest (Shaikh &
  * Chaparro 2005, [doi:10.1177/154193120504900514](https://doi.org/10.1177/154193120504900514)).
- * ADR-0028 → *The measure is a preference* is the reasoning; `docs/research/frontend-design-scope.md`
+ * ADR-0029 → *The measure is a preference* is the reasoning; `docs/research/frontend-design-scope.md`
  * → *Reading is the surface* holds the evidence.
  */
 export const measure = 34;

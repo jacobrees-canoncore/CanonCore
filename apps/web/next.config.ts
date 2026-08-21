@@ -34,7 +34,7 @@ const nextConfig: NextConfig = {
     // this**, which is the whole of what it switches on: the two functions, and the
     // `forbidden.tsx` / `unauthorized.tsx` files that render for them. Next's own reference for
     // both says so in terms. Why it is on before anything calls either, and what would turn it off
-    // again: `docs/adr/0028-the-visual-identity.md` -> *The two states nothing calls yet*.
+    // again: `docs/adr/0029-the-visual-identity.md` -> *The two states nothing calls yet*.
     authInterrupts: true,
   },
 };
