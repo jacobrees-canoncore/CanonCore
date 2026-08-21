@@ -125,8 +125,9 @@ the shape is still foggy — it resolves unknown *decisions* one at a time, wher
 you know what you are building and are slicing *how*.
 
 `/implement` runs `/code-review` itself and that is the review. The argument, what makes a review
-count, and the three cases where one still has to run are owned by `docs/agents/workflow.md` → *The
-review runs once, and `/implement` is normally where*. It is not restated here.
+count, the three cases where one still has to run, and where the loop ends are owned by
+`docs/agents/workflow.md` → *The review runs once, and `/implement` is normally where*. It is not
+restated here.
 
 ## Run the grill and the implementation in separate sessions
 

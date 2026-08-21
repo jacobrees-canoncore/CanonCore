@@ -59,7 +59,7 @@ green and it works". Nobody is being signalled — the states are for you.
 
 ## The review runs once, and `/implement` is normally where
 
-**Do not ask for a second review of a change `/implement` has already reviewed.** That overrides the
+**Do not ask for a second review over a range `/implement` has already reviewed.** That overrides the
 reflex, which is to treat the review as a step in the landing sequence and run it again now that the
 branch is pushed.
 
@@ -85,16 +85,100 @@ which is why the claim to make is *"a review ran against this range"* and never 
 **So the review has not happened** in three cases: `/implement` did not run; the diff it read was
 empty or partial; or the branch has since gained commits it never saw. A rebase or a review-driven
 edit after the fact puts you in the third. In each, run
-`/mattpocock-skills:code-review <branch-point>` against the pushed branch.
+`/mattpocock-skills:code-review <branch-point>` against the pushed branch. **A review-driven edit
+into the third case has an end**, below. A rebase into it does not, and neither do the first two.
 
 The middle case is the quiet one: a review of an empty range **reports no findings**, which reads
 exactly like a clean review.
+
+**The third case is the one that recurs.** Every round that finds something produces a commit the
+round never saw, so read alone the list always answers *run another*, and the last fix on every
+branch is unreviewed anyway. The list is not wrong — that commit *is* unreviewed. What it does not
+carry is when to answer that with a round and when to answer it by declaring it. The three sections
+below are the missing half, and they follow from what the list is already doing: **a review is owed
+to a range, not to a stage of the process.** Running one again over a range that has not changed is
+the repeat this section opens by refusing; a range that has grown by a fix commit is a different
+range, which is the whole of why the third case is on the list at all.
 
 Two different things answer to the name *code review*. `mattpocock-skills:code-review` is the
 two-axis Standards/Spec review that takes a fixed point; Claude Code's bundled `/code-review` is a
 bug hunt that takes an effort level. **In this repository the bare name reaches the first one** —
 `.claude/skills/code-review/` owns it and forwards, which leaves the bundled one unreachable here;
 its `references/rationale.md` says why.
+
+### Two rounds, and the second is the last
+
+**Round one is `/implement`'s own. Run a second whenever round one produced a commit. Then stop
+reviewing and disclose what round two's commit is.** There is no third round.
+
+**The count is the rule because the count is the only part of this a session can apply to its own
+work without grading it.** Every alternative hands that judgement straight back: *review until a
+round comes back clean* makes the author of the fixes decide which findings are real, *stop when
+what is left is minor* makes it decide when its own defects do not matter. That is what happened on
+**CAN-54 Fail a push that adds a known-vulnerable dependency**: the rule asked for another round and
+the branch merged anyway, on the session's own reckoning that each fix had been checked another way
+(`docs/incidents.md` → *A round of fixes failed the standard its own findings had named*). A rule
+that hands the same reckoning back under a new name has fixed nothing.
+
+**Round two is not a formality.** Its range is the implementation *plus* round one's fixes, and that
+is where the defects turned up on CAN-54: some of round two's findings were in sentences round one
+had just written (`docs/incidents.md` → *A round of fixes failed the standard its own findings had
+named*).
+
+**Stopping at two is a decision, not a finding.** No third round has run here, so nothing says what
+one would have caught. The case for the number is that a loop needs an end that is not a judgement
+call, and two is the smallest end that still reads the corrections. The risk left over is answered
+by the two sections below, not by a claim that the branch is clean.
+
+### A correction and a change carry different risk
+
+Where the loop stops, what stops it has to be one kind of commit.
+
+**A correction applies findings the round itself raised, and nothing else.** Every hunk traces to a
+named finding, and the commit's own message enumerates those findings, so the correspondence is
+written down rather than held in the session's head. A correction may land unreviewed, provided the
+pull request discloses it.
+
+**A finding that asks for a behaviour change is still a correction**, and the fix for a real defect
+nearly always is one. What decides is not the size or the kind of the change but the correspondence:
+findings beside the diff, each hunk either naming a finding or not. Same shape as *which diff command
+did it run* — a question with an answer, rather than one that asks you to trust yourself.
+
+**Anything the findings did not name is not a correction**, whatever prompted it — a better idea the
+review reminded you of, a neighbouring defect noticed while fixing, a refactor that would make the
+fix cleaner. Nobody has reviewed the need for it or the answer to it, which is the risk a correction
+does not carry. **It comes off the branch and becomes a ticket.** It does not become round three,
+and it does not become round one of a fresh loop: the two rounds belong to the branch, and a count
+that can be restarted by renaming what sits on it is not a count. **The session never resets it.**
+
+That holds even when a round rejects the implementation outright. The rewrite still traces to the
+finding that asked for it, so it is a correction by the test above and lands like one — disclosed,
+in front of the person `/review-pr` asks before merging. Whether a rewrite that size should land on
+one round of review is their call, and putting it to them is the point of the disclosure. It is not
+a call the session makes by declaring itself back at round one.
+
+### What the pull request must disclose
+
+The session that made an unreviewed commit is the only thing that knows it is unreviewed, and it
+stops existing at the merge. So the body carries a `## Review` section — **always, whether or not
+anything is unreviewed**, because a disclosure that shows up only when something is wrong cannot be
+told apart from one that was forgotten. It says:
+
+- **How many rounds ran, and against what range.** *"Both axes, twice, against `main`."* Never
+  *"reviewed"* — the claim is *"a review ran against this range"*, for the reason above.
+- **Which commit is unreviewed, by SHA**, and that it is the response to the last round. Say *none*
+  when round two found nothing: that is this line's other answer, not a line to drop.
+- **That every hunk in it traces to a finding of that round, and where those findings are written
+  down** — the commit's own message, normally. It is the licence the commit lands under, so it is
+  asserted and left readable rather than assumed. **The enumeration is the session's own**, so this
+  narrows the residual rather than closing it: it is the same residual as the range, above, and the
+  merge question is where a person can act on it.
+- **What stood in for the review** — what each fix was checked against, named. On CAN-54 that was a
+  primary source apiece: GitHub's OpenAPI description, a fetch of `pnpm.io/cli/audit`, `ci.yml`'s
+  own `if:` conditions, and `git show 19223b0` for the step count.
+
+`/draft-pr` writes it, and `/review-pr` repeats it in the question it asks before merging, because
+the merge is the moment the disclosure is for.
 
 ## Branches
 
@@ -289,13 +373,13 @@ is that a loaded skill echoes its own instructions.
 
 ```bash
 # create the branch first — Branches, above
-# ...work, via /implement, which runs the review...
+# ...work, via /implement, which runs the review and the second round if there is one...
 /draft-pr                                     # push, open the draft, link Linear
 /review-pr                                    # gates, ready, squash-merge, close out Linear
 ```
 
 **No review step sits between those two.** `/implement` already ran it; reach for a review only in
-the three cases named above.
+the three cases named above, and the third of those ends after round two.
 
 - **Squash-merge only.** One ticket, one branch, one commit on `main`. Since
   **CAN-40 Give main a ruleset that refuses an unchecked merge**, the repository offers no other

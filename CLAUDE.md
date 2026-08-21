@@ -202,9 +202,9 @@ Features run through the engineering skills in a fixed order. All are `disable-m
 whatever branch is current, so on `main` it commits to `main`, and pushing `main` migrates the
 production database and releases. `docs/agents/workflow.md` has the command and the recovery.
 
-**`/implement` runs `/code-review` itself, and that is the review — do not ask for a second one.**
-It counts only when the review read the *committed* change; staging alone does not achieve that.
-`docs/agents/workflow.md` → *The review runs once* has the argument and the three exceptions.
+**`/implement` runs `/code-review` itself, and that is the review — never a repeat over one range.**
+It counts only when the review read the *committed* change, not the staged one. A second round follows
+any commit the first produced, then the PR discloses. `docs/agents/workflow.md` → *The review runs once*.
 
 `/draft-pr` and `/review-pr` are in `.claude/skills/`; run either from its own body. Policy: `docs/agents/workflow.md`.
 
