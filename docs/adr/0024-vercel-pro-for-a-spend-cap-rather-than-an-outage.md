@@ -9,14 +9,7 @@ the same action.** Not because Hobby's included usage is too small — at the ti
 untested and almost certainly ample — but because **Hobby's failure mode is an outage nobody can see
 coming, and Pro's is a threshold we choose.**
 
-**Applied on 21 August 2026**, both halves in one session, which is what the section below asks for:
-the plan is Pro and Spend Management is set with a pause.
-[`docs/infrastructure.md`](../infrastructure.md) → *Hosting* is the register and carries the figures,
-read back there because no API can state them
-([incident](../incidents.md#spend-management-saves-in-two-steps-and-abandoning-the-second-discards-it)).
-This file is the reasoning and is not a claim about today's settings.
-
-Decided on 20 August 2026 by
+Decided on 20 August 2026 and applied on 21 August 2026 by
 [CAN-59 Decide whether the Hobby plan can carry a public service](https://linear.app/jacobrees-canoncore/issue/CAN-59).
 The plan, the seat count, the budget figure and the pause threshold are
 [`docs/infrastructure.md`](../infrastructure.md) → *Hosting*; this file holds why.

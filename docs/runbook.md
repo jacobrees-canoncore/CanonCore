@@ -82,11 +82,9 @@ being refused, so nothing answered before Vercel gave up on the function.
 
 1. **Vercel runtime logs**, which are kept for **one day** on Pro
    ([runtime logs](https://vercel.com/docs/logs/runtime), read 21 August 2026) and are therefore the
-   only evidence with a deadline. It was one hour until the upgrade of 21 August 2026, so an outage
-   found the morning after is now recoverable where it was not. Two lines this application writes
-   are worth finding: `[canoncore] database host …`, which says which host the deployment actually
-   reached, and `[canoncore] an idle database connection was dropped: …`, which says the far side
-   closed a pooled connection.
+   only evidence with a deadline. Two lines this application writes are worth finding: `[canoncore]
+   database host …`, which says which host the deployment actually reached, and `[canoncore] an idle
+   database connection was dropped: …`, which says the far side closed a pooled connection.
 2. **The Neon branch's compute.** Project `steep-wave-52467839`, branch `main` — the `neon` MCP's
    `describe_branch`, or the console. `idle` is normal and means the compute scales to zero after
    inactivity and reactivates on the next query
@@ -132,19 +130,24 @@ are all usage-based, and the deployment cap is 6,000 a day rather than 100
 ([`infrastructure.md`](infrastructure.md) → *Hosting*).
 [ADR-0024](adr/0024-vercel-pro-for-a-spend-cap-rather-than-an-outage.md) is why that trade was made.
 
-**Check: the team's Activity log, not the Usage page.** Spend Management writes every pause and
-unpause to **Activity** in the team dashboard, so that is the one place that says whether this is what
-happened; **Usage** says only how much was spent. Neither has a CLI or an API this repository can
-call. **If Activity shows no pause, this is not the entry** — a `503 DEPLOYMENT_PAUSED` also covers a
-failed payment or a policy action, which the billing page will say instead.
+**Check: the team's Activity log, not the Usage page.** Vercel *"displays all spend management
+activity in the Activity section in your team dashboard sidebar… including spend amount creation and
+updates, and project pausing and unpausing"*
+([Spend Management](https://vercel.com/docs/spend-management), read 21 August 2026), so that is the one
+place that says whether this is what happened; **Usage** says only how much was spent. Neither has a
+CLI or an API this repository can call. **If Activity shows no pause, this is not the entry** — a
+`503 DEPLOYMENT_PAUSED` also covers a failed payment or a policy action
+([Vercel KB](https://vercel.com/kb/guide/why-is-my-account-deployment-blocked), read 16 August 2026),
+which the billing page will say instead.
 
 **Fix, two actions and the order matters.**
 
 1. **Resume the project by hand.** *"Projects need to be resumed on an individual basis"*, and
    *"Projects won't automatically unpause if you increase the spend amount, you must resume each
    project manually"* ([Spend Management](https://vercel.com/docs/spend-management), read 21 August
-   2026). One project here, `canoncore`, from the dashboard or the REST API's unpause route. **Raising
-   the budget alone brings nothing back.**
+   2026). One project here, `canoncore`, from the dashboard or the REST API's
+   [unpause route](https://vercel.com/docs/rest-api/projects/unpause-a-project). **Raising the budget
+   alone brings nothing back.**
 2. **Then decide the budget.** The pause fired because on-demand spend reached $40 in this billing
    cycle, which is a spending decision rather than a runbook one. Resuming without changing it means
    the next check pauses again — and the checks run *"every few minutes"* (same page).
@@ -348,35 +351,32 @@ that reached *you* rather than an inbox. Spend Management now does that job:
 
 | Threshold | Reaches | Of what |
 | --- | --- | --- |
-| 50%, 75%, 100% | Web, e-mail and **push** | The **$40 on-demand budget** |
+| 50%, 75%, 100% | Web, e-mail and push | The **$40 on-demand budget** |
+| 100% | **SMS, to the phone** | The same $40 budget |
 | 100% | Pauses the production deployment | The same $40 budget |
-| 100% | SMS — **available and off**, see below | The same $40 budget |
 | 75% | Web, e-mail and push | The **$20 monthly usage credit**, spent before on-demand billing starts |
-| End of cycle | E-mail and push, as an on-demand usage summary | The cycle's total |
+| Past the credit | Daily and weekly summary e-mails | On-demand usage, once the credit is gone |
 
 **Where each of those comes from.** The settings and figures are
 [`infrastructure.md`](infrastructure.md) → *Hosting*; the thresholds and the behaviour are
 [Spend Management](https://vercel.com/docs/spend-management) and
-[Pro plan](https://vercel.com/docs/plans/pro-plan), both read 21 August 2026.
+[Pro plan](https://vercel.com/docs/plans/pro-plan), both read 21 August 2026. **The channel columns are
+not from either** — they are the per-type toggles, read off *My Notifications* on 21 August 2026.
 
-**Why the weekly check was retired rather than shrunk.** A human opening a usage page on a schedule
-is the mechanism [ADR-0018](adr/0018-observability-sentry-and-an-uptime-monitor-outside-it.md)
-already refuses for uptime, and
-[ADR-0024](adr/0024-vercel-pro-for-a-spend-cap-rather-than-an-outage.md)'s central argument was that
-**Hobby withheld the instrumentation** that would make the habit unnecessary. Buying the
-instrumentation and keeping the habit would have been paying for it twice. This file's own rule says
-an entry that stops being actionable is deleted rather than qualified.
+**Do not reinstate the weekly reading.** It was deleted rather than shrunk, and why a habit is the
+wrong answer once the instrumentation exists is
+[ADR-0018](adr/0018-observability-sentry-and-an-uptime-monitor-outside-it.md) and
+[ADR-0024](adr/0024-vercel-pro-for-a-spend-cap-rather-than-an-outage.md).
 
-**Push is on and cannot be turned off**, which is the row that decides whether any of this reaches
-you rather than an inbox — its checkbox is rendered disabled and ticked for every Spend Management
-and usage threshold above. **What is not established here is whether push has anywhere to land**: it
-needs the Vercel mobile app installed and signed in, and nothing in this repository records that it
-is. Until someone confirms it, read the table above as e-mail and web only.
+**SMS is the row that answers "does this reach me", and it is on.** Enabled 21 August 2026 against a
+verified number. It fires at **100% only**, so it is the last warning rather than the first — but it
+is the one that reaches a phone without depending on anything being installed, and **enabling it
+proved the channel**, because the verification code arrived by SMS to that number.
 
-**SMS is the one that would definitely reach the phone, and it is off.** Not by preference — the
-account has **no phone number** on it, so the SMS toggle cannot be turned on until a number is
-entered and verified by code. It fires only at 100%, so it would be the last warning rather than the
-first. Turning it on is two minutes and a phone.
+**Push is on for every threshold above, and unproven.** It is **browser push, not an app**, and
+*"opt-in per device"* ([notifications](https://vercel.com/docs/notifications), read 21 August 2026) —
+so the ticked box only says you want the type, and no record exists of any device having accepted the
+prompt. Until one has, read the 50% and 75% rows as e-mail and web only.
 
 **The one thing a threshold cannot tell you.** It fires on *spend*, so it says nothing until money is
 moving. The first sign of a bad deployment loop or a crawler is the 50% notification, which on a $40

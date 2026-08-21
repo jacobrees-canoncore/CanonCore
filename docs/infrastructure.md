@@ -137,8 +137,8 @@ that is v1's scope rather than a condition here, and this gate would open withou
 | Plan | **Pro**, since **21 August 2026** — [ADR-0024](adr/0024-vercel-pro-for-a-spend-cap-rather-than-an-outage.md) |
 | Seats | **One deploying seat**, the one the platform fee includes. No additional paid seats and no Viewer seats |
 | What it costs | **$24 a month.** The $20 platform fee, plus $4 of tax itemised against the UK billing address at checkout. The fee carries **$20 of monthly usage credit**, and 1 TB Fast Data Transfer and 10M Edge Requests are included on top without spending it ([Pro plan](https://vercel.com/docs/plans/pro-plan), read 21 August 2026) |
-| Spend Management | **On. On-demand budget $40, pausing production deployments at 100%.** Read back as `$0 / $40 (0%)`, `Notifications: On`, `Pause Projects: On`. **No webhook.** So a worst month is $24 plus at most $40 of on-demand usage, plus what the pause overshoots |
-| Spend Management notifications | **Web, e-mail and push at 50%, 75% and 100%**; push is ticked and disabled, so it cannot be turned off. **SMS is off and cannot be turned on**: the account carries **no phone number**, and the toggle needs one entered and verified first. SMS is the only channel that would reach a phone without the Vercel mobile app, and it fires only at 100% |
+| Spend Management | **On. On-demand budget $40, pausing production deployments at 100%.** Read back as `$0 / $40 (0%)`, `Notifications: On`, `Pause Projects: On`. **No webhook.** So Vercel's own metered usage is bounded at $24 plus at most $40, plus what the pause overshoots — but that is not the whole bill, as the next row says |
+| Spend Management notifications | **All four channels on: web, e-mail, push and SMS.** Web, e-mail and push fire at 50%, 75% and 100%; **SMS fires at 100% only** ([Spend Management](https://vercel.com/docs/spend-management), read 21 August 2026). A phone number was saved and verified on 21 August 2026, which is what the SMS toggle requires. **None of the four is forced** — all are switchable |
 | What the $40 does not bound | **Seats, add-ons and Marketplace integrations**, which Vercel bills monthly and which the spend amount *"does not include"* ([Spend Management](https://vercel.com/docs/spend-management), read 21 August 2026). **Neon is a Marketplace integration billed through Vercel**, so this cap does not bound the database bill at all — *Database* below |
 | Project | `canoncore`, `prj_BMzP9Dq7Qx3Eev8WwsvVoH5khnaU` |
 | Repository | `jacobrees-canoncore/CanonCore`, production branch `main` |
@@ -162,12 +162,14 @@ dashboard on 21 August 2026 after a full reload, which is the only way to see it
 Both Spend Management rows were read there again on 21 August 2026 from a second session, off a cold
 navigation rather than the one that set them.*
 
-> **Unverified, and it decides whether any of this reaches a human.** Push notification is forced on
-> for every Spend Management and usage threshold, but **push needs the Vercel mobile app installed
-> and signed in on a device**, and nobody has checked that it is. If it is not, the notifications are
-> e-mail and web only and no alert reaches a phone before the pause — SMS being off is then the whole
-> of the gap rather than a redundancy. [`docs/runbook.md`](runbook.md) → *What warns you before a
-> pause* carries the same caveat where it would be acted on.
+> **Push is enabled and unproven; SMS is enabled and proven.** Push here is **browser push**, not an
+> app: *"Push notifications are opt-in per device and are available on desktop and mobile web"*
+> ([notifications](https://vercel.com/docs/notifications), read 21 August 2026). **So the ticked box
+> is a type preference, and the opt-in is a separate per-device act that nobody has recorded doing** —
+> push is enabled without it being established that any device would receive it. **SMS is different in
+> kind**: turning it on required a verification code delivered to the number, so the act of enabling it
+> exercised the channel end to end on 21 August 2026. [`docs/runbook.md`](runbook.md) → *What warns you
+> before a pause* carries the same distinction where it would be acted on.
 
 **The last five rows exist nowhere but here.** They are project settings, so no file in this
 repository can assert them, and `vercel.json` cannot set any of them either. Without the first two
@@ -188,8 +190,8 @@ again, the ruleset goes and every merge gate with it.
 only" ([Vercel Hobby plan](https://vercel.com/docs/plans/hobby), citing the
 [fair use guidelines](https://vercel.com/docs/limits/fair-use-guidelines#commercial-usage)), which
 made a donate link a licence breach rather than a product decision. **It stopped applying on
-21 August 2026 with the upgrade** — [ADR-0024](adr/0024-vercel-pro-for-a-spend-cap-rather-than-an-outage.md). Recorded rather than
-deleted, because documents written before that date cite it as live.
+21 August 2026 with the upgrade** — [ADR-0024](adr/0024-vercel-pro-for-a-spend-cap-rather-than-an-outage.md).
+Recorded rather than deleted, because earlier documents cite it as live.
 
 The Vercel GitHub App is installed on `jacobrees-canoncore`, scoped to this one repository, and
 installing it displaced nothing
@@ -1482,11 +1484,8 @@ untouched and the session cookie stays host-only.
 
 **The Vercel Marketplace integration was declined on purpose.** Resend is the only email provider on
 it, but it takes ownership of the environment variable — the same failure mode the `NEON_` prefix
-exists to avoid — and it provisions a billable resource. **The billing half of that reason changed
-shape on 21 August 2026 rather than lapsing**: the account is no longer Hobby, so "billable on a
-Hobby account" no longer applies, but a Marketplace resource is one of the things the $40 Spend
-Management budget explicitly does not bound (*Hosting* above). The reason for declining is narrower
-and harder, not weaker.
+exists to avoid — and it provisions a billable resource that the **$40 Spend Management budget does
+not bound**, Marketplace being one of that budget's exclusions (*Hosting* above).
 
 ### The keys
 
@@ -2042,15 +2041,11 @@ holds no key of its own, so it is outside *The keys* above rather than a third e
 
 ## Firewall
 
-**One custom rule, which is no longer the whole allowance.** It was, and that is what the rule below was
-written against: Hobby permits **1 rate-limit rule per project**. **Pro permits 40 per project**
-([Vercel, WAF rate limiting](https://vercel.com/docs/vercel-firewall/vercel-waf/rate-limiting), read
-21 August 2026), so since the upgrade of 21 August 2026 the count of one is a choice rather than a ceiling.
-**What the upgrade did not change** is everything the rule's shape depends on: fixed window is still the
-only algorithm below Enterprise, the keys are still IP and JA4 digest, the window is still 10s to 10min, and
-counters are still *"tracked on a per-region basis"* — so the effective limit is the figure below times the
-number of regions a caller reaches, which is a ceiling rather than a guarantee. DDoS mitigation is on by
-default and is not this rule.
+**One custom rule, of the forty this plan allows.** Pro permits **40 rate-limit rules per project**, fixed
+window, keyed on IP or JA4 digest, window 10s to 10min, and its counters are *"tracked on a per-region
+basis"* ([Vercel, WAF rate limiting](https://vercel.com/docs/vercel-firewall/vercel-waf/rate-limiting), read
+21 August 2026) — so the effective limit is the figure below times the number of regions a caller reaches,
+which is a ceiling rather than a guarantee. DDoS mitigation is on by default and is not this rule.
 
 | | |
 | --- | --- |
@@ -2086,9 +2081,8 @@ guessing, and it is the one `apps/web/src/db/rls.test.ts` asserts.
 
 **Changing it is a two-step, on purpose.** `vercel firewall rules edit` stages a draft and
 `vercel firewall publish` makes it live, with `vercel firewall diff` in between; `vercel firewall discard`
-throws a draft away. **Adding a second rule is now a choice rather than a trade.** Until 21 August 2026
-spending this rule on anything else meant taking it off `/api/auth/*`, because there was only one; on Pro
-there are 40. Nothing here needs a second, and one is still the count.
+throws a draft away. **There is room for 39 more rules and nothing here needs one**, so this rule keeps
+`/api/auth/*` to itself.
 
 ## The served surface
 

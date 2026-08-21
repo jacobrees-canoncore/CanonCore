@@ -689,6 +689,11 @@ account administering several orgs is enough.
 
 ## Vercel Hobby refuses a private organisation-owned repo
 
+> *Follow-up, 21 August 2026: this entry's **Vercel** half no longer binds — the account is on Pro, and
+> only its GitHub half still requires this repository to be public. See
+> [the follow-up entry](#the-hobby-private-repo-refusal-stopped-binding-on-the-pro-upgrade) below. The
+> observation itself is left exactly as it was written.*
+
 **10 August 2026, CAN-18.** Creating the Vercel project against the private repository failed with
 `repo_owned_by_org`: *"The repository CanonCore is private and owned by an organisation, which is
 not supported on the Hobby plan."*
@@ -704,7 +709,7 @@ Going private would take the deployment *and* the ruleset.
 
 ## The Hobby private-repo refusal stopped binding on the Pro upgrade
 
-**21 August 2026, CAN-59.** A follow-up to
+**21 August 2026, CAN-59 Decide whether the Hobby plan can carry a public service.** A follow-up to
 [Vercel Hobby refuses a private organisation-owned repo](#vercel-hobby-refuses-a-private-organisation-owned-repo)
 above, which is left as written.
 
@@ -715,8 +720,9 @@ repository has to be public.
 
 **Its second half is untouched, and is now the whole of the constraint.** Rulesets and required status
 checks are free on **public** repositories under GitHub Free, and that is what pays for the ruleset
-`main` has carried since CAN-40. Going private would still take the ruleset and every merge gate with
-it, and that has nothing to do with Vercel's plan.
+`main` has carried since **CAN-40 Give main a ruleset that refuses an unchecked merge**. Going private
+would still take the ruleset and every merge gate with it, and that has nothing to do with Vercel's
+plan.
 
 **The observation itself stands.** `repo_owned_by_org` was a real API response on 10 August 2026 on a
 Hobby account, and nothing here re-tested it — the entry stopped being load-bearing rather than
@@ -724,7 +730,8 @@ stopped being true.
 
 ## Spend Management saves in two steps, and abandoning the second discards it
 
-**21 August 2026, CAN-59.** Setting the on-demand budget and the pause on the newly-upgraded Pro team,
+**21 August 2026, CAN-59 Decide whether the Hobby plan can carry a public service.** Setting the
+on-demand budget and the pause on the newly-upgraded Pro team,
 observed in the dashboard because there is nowhere else to observe it.
 
 **Three things, in order of how much they cost.**
