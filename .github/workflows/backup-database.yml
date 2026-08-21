@@ -67,9 +67,19 @@ jobs:
       # *"pg_dump cannot dump from PostgreSQL servers newer than its own major version; it will
       # refuse to even try, rather than risk making an invalid dump"*
       # (https://www.postgresql.org/docs/17/app-pgdump.html, read 21 August 2026). So the client
-      # comes from PostgreSQL's own apt repository rather than from the image, and the version is
-      # printed rather than assumed — a silent downgrade of the image would otherwise show up as a
-      # failed dump with nothing in the log saying why.
+      # comes from PostgreSQL's own apt repository rather than from the image.
+      #
+      # **Installing it is not enough, and `pg_dump --version` does not tell you so.** On Debian and
+      # Ubuntu these names are `pg_wrapper`, which picks a real binary per invocation rather than
+      # being one (https://manpages.debian.org/testing/postgresql-client-common/pg_wrapper.1.en.html).
+      # Run 32511782776 measured what that costs: after installing 17.11, `pg_dump --version`
+      # printed **16.15**, the dump it then took against the 17.10 server was written by 17 anyway,
+      # and `pg_restore --list` — which is given a file and no connection, so it has no server to
+      # take a version from — refused it with `unsupported version (1.16) in file header`. A
+      # version printed by a wrapper is not the version that ran.
+      #
+      # So the directory goes on PATH and all three are printed. Three, because the failure above
+      # was one of them disagreeing with the other two.
       - name: Install the PostgreSQL 17 client
         run: |
           curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc \
@@ -78,7 +88,10 @@ jobs:
             | sudo tee /etc/apt/sources.list.d/pgdg.list > /dev/null
           sudo apt-get update
           sudo apt-get install -y postgresql-client-17
-          pg_dump --version
+          echo /usr/lib/postgresql/17/bin >> "$GITHUB_PATH"
+
+      - name: Say which client will actually run
+        run: pg_dump --version && pg_restore --version && psql --version
 
       # `MIGRATION_DATABASE_URL` is `canoncore_migrator`, which owns every table — and an owner
       # bypasses row security, which is what makes a complete dump possible at all. A role holding
