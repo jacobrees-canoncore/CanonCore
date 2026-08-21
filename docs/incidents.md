@@ -67,6 +67,8 @@ is what the rule was built on.
 - [Drizzle's migrator needs `CREATE` on the database before it reads anything](#drizzles-migrator-needs-create-on-the-database-before-it-reads-anything)
 - [A `SET LOCAL` custom setting reverts to the empty string, not to NULL](#a-set-local-custom-setting-reverts-to-the-empty-string-not-to-null)
 - [The Neon owner cannot `SET ROLE` to either application role without granting itself the option](#the-neon-owner-cannot-set-role-to-either-application-role-without-granting-itself-the-option)
+- [The backup job took three runs on a runner, and two of them were the client](#the-backup-job-took-three-runs-on-a-runner-and-two-of-them-were-the-client)
+- [`canoncore_migrator` has `CREATE` on the database on `main` alone](#canoncore_migrator-has-create-on-the-database-on-main-alone)
 
 **Credentials**
 - [Regenerating a TMDB key does not revoke the old one promptly](#regenerating-a-tmdb-key-does-not-revoke-the-old-one-promptly)
@@ -1232,6 +1234,62 @@ original state.
 The same restriction governs `ALTER TABLE … OWNER TO`, so there is no way round it by creating the
 objects as `neondb_owner` and reassigning them: that also requires being able to `SET ROLE` to the
 new owner.
+
+## The backup job took three runs on a runner, and two of them were the client
+
+**21 August 2026, CAN-55 Keep a backup that reaches past Neon's 24-hour history window.** The
+nightly backup was pushed to its branch under a temporary `push:` trigger, because **a workflow that
+is not on the default branch can be neither scheduled nor dispatched**: `gh workflow run
+backup-database.yml --ref jacobdrees/can-55` answers `HTTP 404: workflow backup-database.yml not
+found on the default branch`. The trigger was removed in the commit after the last run and the
+removal pushed in the same session — `docs/agents/workflow.md` → *When `/implement` may push*.
+
+**What the push proves is that the job works on a runner**, which is run
+[`32511957464`](https://github.com/jacobrees-canoncore/CanonCore/actions/runs/32511957464) on
+`ca8b2bc`: **success**, three clients all reporting `17.11`, and a real production backup written to
+the store at `postgres/2026-08-21T18-10-59Z.dump.age`. It proves nothing about the schedule, which
+cannot run until the workflow is on `main`.
+
+**Neither failure before it was reproducible locally, and both were about the client rather than the
+job.**
+
+| Run | Commit | What it found |
+| --- | --- | --- |
+| [`32511616263`](https://github.com/jacobrees-canoncore/CanonCore/actions/runs/32511616263) | `5f9cf40` | `root certificate file "/home/runner/.postgresql/root.crt" does not exist`. `MIGRATION_DATABASE_URL` asks for `sslmode=verify-full`, and **libpq wants a certificate file where `pg` is content with Node's bundled roots** — the same disagreement `scripts/apply-migrations-ahead-of-merge.sh` already carried, met again by the first thing to read that secret with libpq. Fixed by defaulting `PGSSLROOTCERT` to `system`, which keeps `verify-full` rather than weakening it |
+| [`32511782776`](https://github.com/jacobrees-canoncore/CanonCore/actions/runs/32511782776) | `05e0a94` | `pg_restore: error: unsupported version (1.16) in file header`, **after `pg_dump --version` had printed `16.15` and the dump it took had been written by 17 anyway.** On Debian and Ubuntu these names are `pg_wrapper`, which resolves a real binary per invocation; `pg_dump` given a 17.10 server used 17, and `pg_restore --list` — given a file and no connection, so with no server to take a version from — used 16. Fixed by putting `/usr/lib/postgresql/17/bin` on `PATH` |
+
+**The second one is the one worth carrying forward: a version printed by a wrapper is not the
+version that ran.** The workflow had already been written to print `pg_dump --version` rather than
+assume it, and printing it is what produced the misleading number. It now prints all three, because
+the failure was one of them disagreeing with the other two.
+
+## `canoncore_migrator` has `CREATE` on the database on `main` alone
+
+**21 August 2026, CAN-55 Keep a backup that reaches past Neon's 24-hour history window**, found
+while restoring a backup into a scratch branch. Read live from every branch that day, with
+`has_database_privilege('canoncore_migrator', 'neondb', 'CREATE')`:
+
+| Branch | `CREATE` on `neondb` |
+| --- | --- |
+| `main` | **true** — `datacl` reads `canoncore_migrator=Cc/neondb_owner` |
+| `preview` | **false** |
+| every `wt/…` worktree branch | **false** |
+
+The grant was made on `main` on 14 August 2026 and the schema-only `preview` branch was created from
+it on 17 August, so **a Neon branch does not appear to carry the parent's database-level grants** —
+an inference from those two dates rather than something watched happening.
+
+**What it cost this ticket was one failed restore**, `permission denied for database neondb` on
+`CREATE SCHEMA drizzle`, and the fix is one `GRANT` on the scratch branch — `docs/runbook.md` → *The
+database has to be restored from a backup* carries it as a step.
+
+**What it may cost elsewhere has not been tested.**
+[Drizzle's migrator needs `CREATE` on the database before it reads
+anything](#drizzles-migrator-needs-create-on-the-database-before-it-reads-anything), and
+`scripts/apply-migrations-ahead-of-merge.sh` runs that migrator against exactly these branches. That
+suggests applying a migration ahead of merge would fail the same way, and **it was not tried**:
+finding out means running a migration against a preview database from inside an unrelated ticket.
+Recorded here rather than acted on.
 
 ## A `SET LOCAL` custom setting reverts to the empty string, not to NULL
 
