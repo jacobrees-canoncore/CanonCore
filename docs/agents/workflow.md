@@ -35,6 +35,7 @@ to remove — a retold incident is.
 - [Branches](#branches)
 - [The `gh` account, and the two ways `gh` fails](#the-gh-account-and-the-two-ways-gh-fails)
 - [The loop](#the-loop)
+- [When `/implement` may push, and what it must never leave behind](#when-implement-may-push-and-what-it-must-never-leave-behind)
 - [The gates](#the-gates)
 - [What `main` refuses](#what-main-refuses)
 - [What a merge carries](#what-a-merge-carries)
@@ -390,6 +391,92 @@ the three cases named above, and the third of those ends after round two.
   commit title, so the PR title should match it.
 - **Urgent fixes take the same path.** There is no hotfix lane. The gate is worth more when you are
   in a hurry, not less.
+
+## When `/implement` may push, and what it must never leave behind
+
+The loop above gives the push to `/draft-pr`, and `/implement` stops at the commit. **One thing
+overrides that, and only one: a fact the acceptance criteria ask for that nothing but a run on
+GitHub can produce.**
+
+Such facts exist because **the gate is GitHub's copy of those checks, not yours** — *The gates*,
+below, for the general form of that, and `docs/incidents.md` → *The audit gate was proved by a
+critical advisory, then reverted* for the sharper one this exception turns on, which is what a local
+exit code cannot show about a step's position in the job. What follows is this: a criterion phrased
+as *fails the job* is asking for a run id, and no amount of local work satisfies it. **CAN-54 Fail a
+push that adds a known-vulnerable dependency** was exactly that criterion, and that entry is what
+its push produced.
+
+**Name the fact and where it will be read, before pushing.** A run id and the statuses of the steps
+in it is the shape it has taken so far, and a check-run's own record is the other thing this
+repository has had to read off GitHub (`docs/incidents.md` → *A check-run finished and its record
+never closed*). *So the work is not lost*, *so the branch exists* and *so the gates get a head
+start* are not facts of that kind. They are conveniences, and `/draft-pr` delivers all three
+shortly afterwards at no cost. If the answer to *what will this push return* is not a thing you
+could quote back, the push was `/draft-pr`'s.
+
+**It is the ticket's branch, and never `main`.** Everything in *Why a PR at all, for one developer*
+applies unchanged: a push to `main` runs the gates on a commit that is already there and then
+releases whatever passed. An experiment is the last thing to do that with.
+
+### A commit broken on purpose is never the head of a pushed branch
+
+Evidence of this kind usually needs a commit that is broken deliberately — a dependency carrying a
+live advisory, or a step removed to prove that what follows it depends on it. The run reports on
+whatever the branch's head is, so that commit has to be pushed, and when the run finishes the branch
+is still sitting on it.
+
+**On CAN-54 Fail a push that adds a known-vulnerable dependency the branch sat there for ten hours,
+across the end of a session** (`docs/incidents.md` → *The audit gate was proved by a critical
+advisory, then reverted*). Nothing in the loop is scheduled to move such a commit on, which is the
+general point: the next push after it is `/draft-pr`'s, nothing says when that runs, and a session
+that has ended runs nothing at all.
+
+**What that costs is not the merge.** `main`'s ruleset refuses a branch whose checks are red
+whatever made them red, so nothing bad can land. It is that the branch stops being readable: a red
+run on a pushed branch is how a genuine failure looks too, and nobody arriving at it can tell the
+two apart without reading a commit message they have no reason to open. Anyone who checks that
+branch out and installs gets the advisory with it, and anything the branch deploys — a preview, for
+as long as the head is that commit — deploys the broken state.
+
+So, in this order and in the same session:
+
+- **Read the run and write the evidence down**, before touching the branch. That is the only thing
+  the push was for, and it is the step a session with the fix in mind skips.
+- **Commit the undo, and prove it before pushing it rather than after.** `git diff <the commit
+  before the experiment> HEAD -- <the files it touched>` returns nothing when the reversal is
+  complete. That commit is the base, not `origin/main`: a ticket that legitimately changes one of
+  the same files would read as a failed undo against `main` while being perfectly undone. The two
+  coincided on CAN-54 Fail a push that adds a known-vulnerable dependency, which is why that entry
+  can say *"byte-identical to `main` again"*. A dependency experiment touches a manifest and a
+  lockfile, and the lockfile is the half that gets forgotten — pushed unproved, an incomplete undo
+  is discovered as the remote head, which is the state this whole section exists to prevent.
+- **Then push it.** The undo push needs no justification of its own; it is the second half of the
+  push the exception already allowed, and it is not `/draft-pr`'s to make.
+- **If the run cannot be read before the session ends, the branch still does not stay there.** Put
+  it back on the last good commit and force it, then run the experiment again next session. It costs
+  minutes to repeat; a branch nobody can read costs whoever finds it next, and that is usually a
+  session with none of this context.
+
+  ```bash
+  git reset --hard <last good commit> && git push --force-with-lease
+  ```
+
+### The run id and the commit go into the record, before the merge
+
+**Evidence is the entire return on the push, so a run nobody wrote down makes the push pointless.**
+The record is an entry in [`docs/incidents.md`](../incidents.md) — that is where an observation
+lives once, and the pull request cites it rather than retelling it. What the entry owes is the run
+id, the commit as a SHA, and **which of the run's outcomes the push actually proves**. Not
+everything that changed behind a deliberate failure changed because of it: on CAN-54 Fail a push
+that adds a known-vulnerable dependency two of the four steps that skipped after the failing one
+would have skipped whatever the audit did, and that entry says which two and why. An entry claiming
+the skip list whole would be claiming a run that never happened.
+
+**Write it before the merge, because the merge takes both away.** The squash-merge puts a single
+commit on `main` and the branch deletes itself, so afterwards the experiment's commit is on no
+branch of this repository and its run is reachable only by the id you kept. What still serves the
+commit is GitHub's retention of a pull request's own refs, which that entry records as observed on
+one day rather than as a guarantee to lean on.
 
 ## The gates
 

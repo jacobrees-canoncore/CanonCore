@@ -193,14 +193,14 @@ Features run through the engineering skills in a fixed order. All are `disable-m
 /grill-with-docs   interview to shared understanding; writes CONTEXT.md + ADRs
 /to-spec           the conversation, synthesised into a spec on Linear
 /to-tickets        spec sliced into vertical tracer-bullet tickets
-/implement         one ticket, TDD at the agreed seams; stops at the commit
+/implement         one ticket, TDD at the agreed seams; commits, pushes only for evidence
 /draft-pr          push the branch, open the draft PR, link the ticket
 /review-pr         gates, ready, squash-merge, close out Linear
 ```
 
-**Branch off `main` before `/implement`** — nothing does it for you. `/implement` commits to
-whatever branch is current, so on `main` it commits to `main`, and pushing `main` migrates the
-production database and releases. `docs/agents/workflow.md` has the command and the recovery.
+**Branch off `main` before `/implement`** — nothing does it for you. `/implement` commits to whatever
+branch is current, so on `main` it commits to `main`, and pushing `main` migrates the production
+database and releases. That, the recovery, and the one push it may make: `docs/agents/workflow.md`.
 
 **`/implement` runs `/code-review` itself, and that is the review — never a repeat over one range.**
 It counts only when the review read the *committed* change, not the staged one. A second round follows
