@@ -1,12 +1,19 @@
+import { reportingAddress } from "@canoncore/config";
 import { render, screen } from "@testing-library/react";
 import { expect, test } from "vitest";
+import PageError from "./error";
+import Forbidden from "./forbidden";
 import { ForgotPasswordPage } from "./forgot-password/forgot-password-page";
 import { FrontPage } from "./front-page";
+import Loading from "./story/[id]/loading";
+import NotFound from "./not-found";
 import CountingVisits from "./privacy/analytics/page";
 import { ResetPasswordPage } from "./reset-password/reset-password-page";
 import { SignInPage } from "./sign-in/sign-in-page";
 import { SignUpPage } from "./sign-up/sign-up-page";
+import { SiteShell } from "./site-shell";
 import { StoryPage } from "./story/story-page";
+import Unauthorized from "./unauthorized";
 
 /**
  * **The rendered half of the non-linkification control.** Why the control exists and what the two
@@ -39,21 +46,24 @@ import { StoryPage } from "./story/story-page";
  * reassessment: [`illegal-content-risk-assessment.md`](../../../../docs/compliance/illegal-content-risk-assessment.md)
  * → *Existing controls relied on* and *Step 4*.
  *
- * **Every surface that renders text belongs in this file**, and seven exist today — the two account
- * recovery pages joined with **CAN-31 Email verification and password reset**, the counting-visits
- * page with **CAN-60 Gate the front end on bytes, budgets and React lint**, and the Story page
- * with **CAN-25 The catalogue: Version, part of, Anchor, canonical version**, which is earlier than
- * the assessment expected it: that record has the Story page arriving with CAN-27 Orderings and
- * Placements, and the imported broadcast Ordering, which now brings the Ordering page alone. CAN-26
- * Import a series from TMDB, with the overlay behind it brings a Listed Provider's prose, and
- * CAN-113 Add a Provider by pasting its URL brings a stranger's. Finding 2c of the illegal content
- * assessment names all three, so a surface landing without its case here makes that record false.
+ * **Every surface that renders text belongs in this file**, and thirteen exist today — the two
+ * account recovery pages joined with **CAN-31 Email verification and password reset**, the
+ * counting-visits page with **CAN-60 Gate the front end on bytes, budgets and React lint**, the
+ * Story page with **CAN-25 The catalogue: Version, part of, Anchor, canonical version**, which is
+ * earlier than the assessment expected it (that record has the Story page arriving with CAN-27
+ * Orderings and Placements, and the imported broadcast Ordering, which now brings the Ordering page
+ * alone), and the shell plus the five interrupted pages with **CAN-89 Give the product a visual
+ * identity and a reading surface**. CAN-26 Import a series from TMDB, with the overlay behind it
+ * brings a Listed Provider's prose, and CAN-113 Add a Provider by pasting its URL brings a
+ * stranger's. Finding 2c of the illegal content assessment names all three, so a surface landing
+ * without its case here makes that record false.
  *
  * **The Story page is the first surface whose every line is a value from outside** — a title, the
- * title of what it is part of, a Medium and a runtime — and it is also the first to link anywhere
- * but an account page. What it links to is `/`, a literal in the page and in the list below, which
- * is the move Step 4 of the assessment says in terms is *not* the one to watch for. The one that is
- * — an `href` derived from a value — this file fails whether or not it looks like a link.
+ * title of what it is part of, a Medium and a runtime. It draws no anchor at all since CAN-89 Give
+ * the product a visual identity and a reading surface gave the product a masthead; what it used to draw was `/`, a literal in the page and in the list
+ * below, which is the move Step 4 of the assessment says in terms is *not* the one to watch for.
+ * The one that is — an `href` derived from a value — this file fails whether or not it looks like a
+ * link.
  *
  * **CAN-31 Email verification and password reset also adds the one `href` on any of these pages that
  * is not a bare literal**, and it is the case this file exists to catch: `/reset-password`'s form
@@ -71,7 +81,22 @@ const hostile = "https://example.invalid/looks-like-a-link";
  * can be a value a Source supplied, a Provider returned or a person typed, which is exactly the
  * property the finding rests on. A page that wants a new one adds it here first.
  */
-const ownRoutes = ["/", "/sign-in", "/sign-up", "/forgot-password", "/privacy/analytics"];
+const ownRoutes = [
+  "/",
+  "/sign-in",
+  "/sign-up",
+  "/forgot-password",
+  "/privacy/analytics",
+  // The skip link's target. A fragment on the page you are already on, so it is an address only in
+  // the sense that `href` takes one — it names an element in this document and cannot leave it.
+  "#content",
+  // **The reporting route, and the only member of this set that is not a path.** It is composed
+  // from a constant in `packages/config` rather than spelled out, which is the same property every
+  // other entry has: a value that cannot have come from a Source, a Provider or a person. The
+  // footer's own comment argues why composing it is not the change Step 4 of the illegal-content
+  // assessment watches for, and this line is what pins it rather than arguing it.
+  `mailto:${reportingAddress}`,
+];
 
 /** Every `href` the rendered result carries, in the order they appear. */
 function renderedLinks() {
@@ -92,6 +117,28 @@ function linksWithinOwnRoutes() {
   return links;
 }
 
+/**
+ * **The shell, which is every page's anchors before a page draws one of its own.**
+ *
+ * It is a surface in its own right since CAN-89 Give the product a visual identity and a reading
+ * surface: the masthead and the footer render on every route, so their three anchors are the ones
+ * this file would otherwise be pinning six times over and missing on the seventh. Every case below
+ * renders a page component alone, which is why none of them lists these three.
+ *
+ * The footer's reporting route is the reason this cannot be left implicit — it is the anchor a
+ * statutory record turns on, and it is on more pages than any other.
+ */
+test("the shell links only to this application's own routes and its own reporting address", () => {
+  render(<SiteShell>A page.</SiteShell>);
+
+  expect(linksWithinOwnRoutes()).toEqual([
+    "#content",
+    "/",
+    `mailto:${reportingAddress}`,
+    "/privacy/analytics",
+  ]);
+});
+
 // `toEqual` on the whole list rather than `every(...)`, which an earlier version used: `every` is
 // vacuously true on an empty array, so it would have passed while pinning nothing — and the compliance
 // record rests on this file pinning the *exact* set. The signed-out front page draws both account links.
@@ -99,7 +146,7 @@ test("the front page renders a URL as text, and links only to its own routes", (
   render(<FrontPage stories={[{ id: "00000000-0000-4000-8000-000000000001", title: hostile }]} />);
 
   expect(screen.getByRole("listitem").textContent).toBe(hostile);
-  expect(linksWithinOwnRoutes()).toEqual(["/sign-in", "/sign-up", "/privacy/analytics"]);
+  expect(linksWithinOwnRoutes()).toEqual(["/sign-in", "/sign-up"]);
 });
 
 // The signed-in front page, which is a different render: it draws a sign-out form and an email
@@ -114,7 +161,7 @@ test("a signed-in reader's own email address is not linkified either", () => {
   );
 
   expect(screen.getByText("someone@example.invalid")).toBeDefined();
-  expect(linksWithinOwnRoutes()).toEqual(["/privacy/analytics"]);
+  expect(linksWithinOwnRoutes()).toEqual([]);
 });
 
 /**
@@ -131,21 +178,21 @@ const hostileStory = {
   partOf: [{ id: "00000000-0000-4000-8000-000000000002", title: hostile }],
 };
 
-test("the Story page renders every title as text, and links only to the front page", () => {
+test("the Story page renders every title as text, and adds no anchor at all", () => {
   render(<StoryPage story={hostileStory} />);
 
   // Twice: the heading, and the line naming what this Story is part of. Both are strings that
   // arrived from outside, and neither is followable.
   expect(screen.getAllByText(hostile)).toHaveLength(2);
-  expect(linksWithinOwnRoutes()).toEqual(["/"]);
+  expect(linksWithinOwnRoutes()).toEqual([]);
 });
 
 // The same page with nothing on it, which is the render row-level security produces when a policy
 // is wrong: the empty states are prose this repository wrote, so they add no anchor either.
-test("a Story with no Versions and nothing to be part of adds no anchor", () => {
+test("a Story with no Versions and nothing to be part of adds no anchor either", () => {
   render(<StoryPage story={{ ...hostileStory, runtimeSeconds: null, versions: [], partOf: [] }} />);
 
-  expect(linksWithinOwnRoutes()).toEqual(["/"]);
+  expect(linksWithinOwnRoutes()).toEqual([]);
 });
 
 /**
@@ -234,10 +281,10 @@ test.each(surfaces.map((surface) => [surface.name, surface] as const))(
  * compliance finding rests on and it is asserted over every surface rather than over the risky
  * ones.
  */
-test("the counting-visits page links only to the front page", () => {
+test("the counting-visits page adds no anchor of its own", () => {
   render(<CountingVisits />);
 
-  expect(linksWithinOwnRoutes()).toEqual(["/"]);
+  expect(linksWithinOwnRoutes()).toEqual([]);
 });
 
 /**
@@ -261,4 +308,39 @@ test.each([
   const signIn = surfaces.find((surface) => surface.name === "the sign-in page")!;
   expect(screen.getByRole("status").textContent).not.toContain(hostile);
   expect(linksWithinOwnRoutes()).toEqual(signIn.links);
+});
+
+/**
+ * The five surfaces a page becomes when it cannot be the page: the Next.js file conventions
+ * CAN-89 Give the product a visual identity and a reading surface designed and built.
+ *
+ * **They belong here for the reason every surface does, and one of them is more than a formality.**
+ * `error.tsx` renders `error.digest`, which is a value that arrives at render time — the only one
+ * on any of the five — so it is exactly the shape this file exists to catch. The rest draw prose
+ * this repository wrote, and are pinned so that a later edit adding a "go back" link is a decision
+ * rather than an accident.
+ *
+ * `global-error.tsx` is absent for a mechanical reason rather than an exemption: it renders its own
+ * `<html>` and `<body>`, which is not something `render` can put inside a `<div>`. It does carry an
+ * anchor — the reporting route, because it is the one page the footer cannot reach — and
+ * [`global-error.test.tsx`](global-error.test.tsx) pins its exact set over the rendered markup.
+ */
+test.each([
+  ["the not-found page", <NotFound key="not-found" />, []],
+  ["the forbidden page", <Forbidden key="forbidden" />, []],
+  ["the unauthorized page", <Unauthorized key="unauthorized" />, ["/sign-in"]],
+  ["the loading state", <Loading key="loading" />, []],
+  [
+    "the error page, digest and all",
+    <PageError
+      key="error"
+      error={Object.assign(new Error(hostile), { digest: hostile })}
+      retry={() => {}}
+    />,
+    [],
+  ],
+] as const)("%s adds no anchor beyond its own", (_name, page, links) => {
+  render(page);
+
+  expect(linksWithinOwnRoutes()).toEqual(links);
 });

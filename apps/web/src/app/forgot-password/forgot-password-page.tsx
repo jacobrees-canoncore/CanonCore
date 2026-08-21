@@ -14,7 +14,7 @@ import { howLongItWorks, resetLifetime } from "@/mail/messages";
  */
 export function ForgotPasswordPage({ problem, sent }: { problem?: string; sent?: boolean }) {
   return (
-    <main>
+    <>
       <h1>Reset your password</h1>
       <p className="lead">
         Give the email address on the account and we will send a link for choosing a new password.
@@ -47,6 +47,6 @@ export function ForgotPasswordPage({ problem, sent }: { problem?: string; sent?:
       <p>
         Remembered it? <a href="/sign-in">Sign in</a>.
       </p>
-    </main>
+    </>
   );
 }

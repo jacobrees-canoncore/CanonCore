@@ -163,9 +163,12 @@ in flight now and would otherwise have to be revisited.
   is not optional prose: it is one of the two conditions the exception rests on.
 - **An opt-out has to exist before analytics do**, so whichever ticket adopts analytics builds the
   objection route in the same change. **That ticket was CAN-60 Gate the front end on bytes, budgets
-  and React lint**, on 21 August 2026, and the route is `/privacy/analytics` — reachable from the
-  front page rather than merely addressable, because an address somebody has to be told is not "an
-  easy way to object". Its three parts are
+  and React lint**, on 21 August 2026, and the route is `/privacy/analytics` — reachable rather than
+  merely addressable, because an address somebody has to be told is not "an easy way to object". It
+  was linked from the front page alone until
+  [CAN-89 Give the product a visual identity and a reading surface](https://linear.app/jacobrees-canoncore/issue/CAN-89)
+  gave the application a footer, and **it is now in that footer on every page**, which is what the
+  condition wanted and what one page could only approximate. Its three parts are
   [`apps/web/src/analytics/opt-out.ts`](../../apps/web/src/analytics/opt-out.ts), which holds the
   objection on the device and never sends it anywhere,
   [`apps/web/src/analytics/redaction.ts`](../../apps/web/src/analytics/redaction.ts), which is the

@@ -4,8 +4,10 @@
 and reachable from the footer of every page and from the public Ordering page, without signing in, which is
 built by
 [CAN-32 Roles, takedown, and the Online Safety Act surfaces](https://linear.app/jacobrees-canoncore/issue/CAN-32).
-`main` serves a holding page and has no footer and no `/legal` route, so nothing below is reachable by a
-member of the public yet. A per-item report control on every record is not shipped at launch either; that
+`main` has carried a footer since 21 August 2026, and **the address below is in it on every page**
+([CAN-89 Give the product a visual identity and a reading surface](https://linear.app/jacobrees-canoncore/issue/CAN-89)),
+so a reporter can already reach us. What is not reachable is this document: there is still no `/legal`
+route, so nothing below has been read by anybody who has not been told it. A per-item report control on every record is not shipped at launch either; that
 is recorded as an alternative measure in `docs/compliance/alternative-measures-record.md`.
 
 Last updated: 14 August 2026

@@ -15,7 +15,7 @@ import { siteName } from "@canoncore/config";
  */
 export function SignUpPage({ problem }: { problem?: string }) {
   return (
-    <main>
+    <>
       <h1>Create an account</h1>
       <p className="lead">One account, holding one catalogue. {siteName} is being rebuilt.</p>
       <hr />
@@ -49,6 +49,6 @@ export function SignUpPage({ problem }: { problem?: string }) {
       <p>
         Already have an account? <a href="/sign-in">Sign in</a>.
       </p>
-    </main>
+    </>
   );
 }

@@ -12,7 +12,7 @@
 export function Notice({ children }: { children: string | undefined }) {
   if (!children) return null;
   return (
-    <p className="lead" role="status">
+    <p className="notice" role="status">
       {children}
     </p>
   );

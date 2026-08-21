@@ -3,8 +3,10 @@
 **PUBLIC DOCUMENT**, and not yet published. When it is published it will be rendered by the application
 and reachable from the footer of every page, without signing in, which is built by
 [CAN-32 Roles, takedown, and the Online Safety Act surfaces](https://linear.app/jacobrees-canoncore/issue/CAN-32).
-`main` serves a holding page and has no footer and no `/legal` route, so this document is written and not
-yet reachable. Which Code measures that leaves not in effect is recorded in
+`main` has carried a footer since 21 August 2026
+([CAN-89 Give the product a visual identity and a reading surface](https://linear.app/jacobrees-canoncore/issue/CAN-89)),
+and it links the reporting address rather than this document — there is still no `/legal` route, so this
+document is written and not yet reachable. Which Code measures that leaves not in effect is recorded in
 `docs/compliance/code-measures-register.md`.
 
 > **One item is outstanding**, marked `[ ]` below: the privacy notice link, owned by

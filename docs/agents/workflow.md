@@ -689,7 +689,9 @@ npx @lhci/cli@0.15.1 autorun
 
 Its numbers move with the machine, so a budget is moved deliberately and the table in
 `lighthouserc.cjs` is re-measured with it. **CAN-89 Give the product a visual identity and a reading
-surface is the change most likely to need that**, because it changes what these pages are.
+surface did that on 21 August 2026**, over five collections, and moved the byte budget *down* —
+which is the case worth knowing about, because a budget left high after the pages beneath it got
+lighter has silently gained slack.
 
 **Cancellation is scoped to branches other than `main`.** Superseding a run is only safe where a
 later commit replaces the earlier one as the thing being judged, which is true on a branch and false

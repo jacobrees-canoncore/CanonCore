@@ -2484,10 +2484,14 @@ the better answer anyway — **there is no forwarding hop to fail silently**, wh
 published document's promise could not survive. It is read in Mail.app alongside Jacob's other
 accounts, which is what makes "monitored by a human" true rather than aspirational.
 
-**One thing is still outstanding**, and
-[CAN-32 Roles, takedown, and the Online Safety Act surfaces](https://linear.app/jacobrees-canoncore/issue/CAN-32)
-owns it: making the address available to the application as configuration rather than hard-coded, so
-that the two public documents and the reporting route cannot drift apart.
+**The address is configuration now**, exported from `packages/config` as `reportingAddress` by
+[CAN-89 Give the product a visual identity and a reading surface](https://linear.app/jacobrees-canoncore/issue/CAN-89) on
+21 August 2026, which is what the footer link on every page composes its `mailto:` from. That was
+listed here as outstanding and owned by
+[CAN-32 Roles, takedown, and the Online Safety Act surfaces](https://linear.app/jacobrees-canoncore/issue/CAN-32);
+what remains of it for that ticket is the two public documents, which still spell the address in
+their own prose and will keep doing so until they are rendered by something that can read the
+constant.
 
 **The URL is still not shared**, because those surfaces have not shipped — see
 [The URL-sharing gate](#the-url-sharing-gate). The half of *gate one* this address answers for is met:
@@ -2945,11 +2949,24 @@ its canonical Version. **Nothing links to it**, and that is deliberate rather th
 **CAN-60 Gate the front end on bytes, budgets and React lint**. It says what the two measurement
 scripts collect and carries a working switch for turning them off, which are the two conditions
 [ADR-0020](adr/0020-no-cookie-consent-banner.md) attaches to measuring anything without a consent
-banner. **It is the first route linked from the front page since the account pages**, and it is
-linked rather than merely addressable because "an easy way to object" is not satisfied by an address
-somebody would have to be told. It is also the only route in the application that is prerendered
-static, because nothing on it depends on the request; the switch it carries reads the *device*,
-which is why that half is a client component.
+banner. It is linked rather than merely addressable because "an easy way to object" is not satisfied
+by an address somebody would have to be told, and **since 21 August 2026 it is linked from the footer
+of every page** rather than from the front page alone. It is also the only route in the application
+that is prerendered static, because nothing on it depends on the request; the switch it carries reads
+the *device*, which is why that half is a client component.
+
+**Every one of those pages is now drawn inside a shell**, with [CAN-89 Give the product a visual identity and a reading surface](https://linear.app/jacobrees-canoncore/issue/CAN-89): a skip link, a masthead
+whose wordmark is the way back to the front page, one `<main>`, and a footer. **The footer carries
+the reporting address on every page**, which is the first clause of ICU D2 and the thing
+[`compliance/code-measures-register.md`](compliance/code-measures-register.md) recorded as satisfied
+by nothing; that file's note is where what it did and did not move is worked through. The same
+change added the states a route can be in and had none of — `loading`, `error`, `global-error`,
+`not-found`, `forbidden` and `unauthorized` — and the application's first favicon, `icon.svg`.
+**`forbidden` and `unauthorized` are experimental at Next 16.3.0** and need the
+`experimental.authInterrupts` opt-in that `next.config.ts` now carries; nothing calls either
+function yet, so what exists is the design rather than a reachable page —
+[ADR-0030](adr/0030-the-visual-identity.md) → *The two states nothing calls yet* is why it is on
+before anything reaches it. The values the shell is drawn in are that same ADR.
 
 **There is still no way for anyone but the operator to put a row here**, which is the sentence *Gate
 one* rests on: nothing in the product creates a record, so an account holds nothing its holder

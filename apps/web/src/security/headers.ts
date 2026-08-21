@@ -116,10 +116,29 @@ const collector = "/api/csp-report";
  * it are the deviations, and the last three have no `default-src` fallback at all.
  *
  * `script-src` is where `'unsafe-inline'` is spent and the header above says why. **Nothing else
- * gets it, including `style-src`** — which is a departure from Next's own recipe, and is measured:
+ * gets it, including `style-src`** — which is a departure from Next's own recipe, and was measured:
  * five pages of this application loaded under exactly this policy on 21 August 2026 raised no
  * violation of any directive, and the served HTML carried no inline `<style>` at all. The
  * report-only phase is what keeps that checked rather than assumed.
+ *
+ * **One page has served an inline `<style>` since CAN-89 Give the product a visual identity and a
+ * reading surface, and it is the one page that cannot avoid it.** `app/global-error.tsx` replaces
+ * the root layout when that layout is what threw, and Next.js states that it and the built-in 500
+ * page "render their own document and do **not** include your global styles"
+ * (`next@16.3.0`, `dist/docs/01-app/03-api-reference/03-file-conventions/error.md`), so the sheet
+ * this application loads everywhere else does not reach it. It carries its own, built from the
+ * values in `@canoncore/config`, and the one thing it must get right — the reader's colour scheme —
+ * needs a media query, which an inline `style` attribute cannot express.
+ *
+ * **Nothing is blocked today**, because {@link enforcedToday} enforces `frame-ancestors` alone and
+ * a style falls back to `default-src`, which is report-only. So the expected shape of the report
+ * feed is now: nothing from the five pages above, and a `default-src` violation from that page
+ * whenever anybody reaches it — which is a page nobody reaches unless something is already wrong.
+ * **Ending the report-only phase is where this has to be decided**, and it is a real decision
+ * rather than a formality: `style-src 'self' 'unsafe-inline'` spends the thing this policy
+ * deliberately withheld, and a hash of that sheet is exact but changes whenever a token does. The
+ * third option is to stop serving it, which means finding out whether `global-error.tsx` can import
+ * the sheet directly — untested here, and worth testing before either of the other two is taken.
  *
  * **`'report-sample'` allows nothing and is not decoration.** A violation's sample "will be
  * populated with the first 40 characters of an inline script, event handler, or style that caused a

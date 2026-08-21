@@ -1,6 +1,5 @@
 import { siteName } from "@canoncore/config";
 import type { Metadata } from "next";
-import Link from "next/link";
 import { objectionKey } from "@/analytics/opt-out";
 import { ObjectionControl } from "./objection-control";
 
@@ -29,10 +28,7 @@ export const metadata: Metadata = { title: `Counting visits — ${siteName}` };
  */
 export default function CountingVisits() {
   return (
-    <main>
-      <p className="site">
-        <Link href="/">{siteName}</Link>
-      </p>
+    <>
       <h1>Counting visits</h1>
       <p className="lead">
         This site counts visits to work out which pages are used and how quickly they load. That is
@@ -101,6 +97,6 @@ export default function CountingVisits() {
         from that, the only thing this site stores on your device is the cookie that keeps you
         signed in, and that is set only if you sign in.
       </p>
-    </main>
+    </>
   );
 }

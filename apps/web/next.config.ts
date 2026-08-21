@@ -28,6 +28,15 @@ const nextConfig: NextConfig = {
   headers() {
     return [{ source: "/(.*)", headers: securityHeaders }];
   },
+
+  experimental: {
+    // **`forbidden()` and `unauthorized()` are experimental at 16.3.0 and refuse to work without
+    // this**, which is the whole of what it switches on: the two functions, and the
+    // `forbidden.tsx` / `unauthorized.tsx` files that render for them. Next's own reference for
+    // both says so in terms. Why it is on before anything calls either, and what would turn it off
+    // again: `docs/adr/0030-the-visual-identity.md` -> *The two states nothing calls yet*.
+    authInterrupts: true,
+  },
 };
 
 export default nextConfig;
