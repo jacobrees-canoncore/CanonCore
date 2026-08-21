@@ -252,7 +252,9 @@ every lane in one call with its agent's `state`, `prompt`, `lastAssistantMessage
 `toolName`, and `orca worktree set --comment` is where to record why one is stuck — with several
 running, the only cheap way to tell them apart
 ([`../research/orca-gaps-and-the-worktree-workflow.md`](../research/orca-gaps-and-the-worktree-workflow.md)
-→ *Every Orca surface, with a verdict*).
+→ *Every Orca surface, with a verdict*). What closes a lane at the other end is
+[The lane is closed out, and the checkout is left for a person](#the-lane-is-closed-out-and-the-checkout-is-left-for-a-person),
+which `/review-pr` does once the merge lands.
 
 **A lane starts with no `node_modules`.** A worktree is a fresh checkout, so nothing carries over,
 and [`orca.yaml`](../../orca.yaml) at the repository root is what pays for it: `scripts.setup` runs
@@ -376,7 +378,7 @@ is that a loaded skill echoes its own instructions.
 # create the branch first — Branches, above
 # ...work, via /implement, which runs the review and the second round if there is one...
 /draft-pr                                     # push, open the draft, link Linear
-/review-pr                                    # gates, ready, squash-merge, close out Linear
+/review-pr                                    # gates, ready, squash-merge, close out Linear + lane
 ```
 
 **No review step sits between those two.** `/implement` already ran it; reach for a review only in
@@ -957,3 +959,37 @@ order ships a consumer calling something that does not exist.
   `triage-labels.md` has the reasoning.
 - **Anything found on the way** becomes its own Linear issue, not a late commit on a branch that is
   about to merge.
+
+### The lane is closed out, and the checkout is left for a person
+
+A merge ends the ticket; it does not end the lane. The worktree stays on disk, its terminals stay
+live, and its board card keeps whatever status it had when the work started — three things that
+outlive the merge and are nobody's job until somebody notices
+([incident](../incidents.md#five-merged-lanes-were-closed-out-by-hand)).
+
+**So `/review-pr` closes the lane out itself, and closing out is two things rather than three**: the
+board card is set to `completed`, and the lane's terminals are stopped. **The checkout is left**,
+and that is the decision rather than the part nobody got round to.
+
+- **Rejected: removing the worktree.** It is what was done by hand every time, and it is safe —
+  `orca worktree rm` deletes an already-merged branch and preserves an unmerged one, so the older
+  worry about force-deleted commits is spent
+  ([`../research/orca-gaps-and-the-worktree-workflow.md`](../research/orca-gaps-and-the-worktree-workflow.md)
+  → *Known negatives, recorded so they are not re-investigated*). It is rejected on other grounds: a
+  checkout is cheap to keep, and discarding the work is a call for a person rather than one to take
+  from a skill's own reading of a merge. The skill offers the line and a person runs it.
+- **`completed` is the value, and it is written down here because nothing checks it.** An unknown
+  status id is accepted and becomes the card's status
+  ([incident](../incidents.md#an-unknown-board-status-id-is-accepted-and-becomes-the-cards-status)),
+  so a misspelling buys a column nobody looks at rather than an error.
+- **The close-out acts only on a proven merge** — the evidence the report already quotes: `state`,
+  `mergedAt`, and the lane's head still matching the merged `headRefOid`. Nothing is destroyed when
+  it acts wrongly, because nothing is removed; what goes wrong is quieter than that. An unfinished
+  lane goes dark with its card reading done, and the work in it is forgotten rather than lost.
+- **From a plain clone it is a no-op, announced rather than skipped silently.** A branch made with
+  `git switch -c` has no Orca worktree behind it, and the loop has to keep working there.
+
+**Stopping the terminals is the last act of all, and the report comes before it.** That ordering is
+forced rather than chosen, and the measurement that forces it is the one entry to read before
+changing this section
+([incident](../incidents.md#a-terminal-that-stops-its-own-worktree-prints-the-result-and-then-dies)).

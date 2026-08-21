@@ -1,6 +1,6 @@
 ---
 name: review-pr
-description: Land a reviewed draft PR — run the gates, mark it ready, squash-merge, and close out Linear.
+description: Land a reviewed draft PR — run the gates, mark it ready, squash-merge, and close out Linear and the lane.
 disable-model-invocation: true
 argument-hint: 'PR number or URL (optional; defaults to the PR for the current branch)'
 ---
@@ -367,8 +367,85 @@ request must disclose*).
    re-read the issue instead of retrying blind. `save-issue` is never retried blind — step 7 has its
    repair path.
 
-9. **Report** the merged PR, the Linear state, and what you verified — including, explicitly,
-   anything you could not. Quote step 6's `state` and `mergedAt` as the evidence that it landed;
-   "the merge command exited zero" is not that evidence, and neither is its failing. Name the
-   acceptance criteria you left unticked, and why. If the description had to be rewritten after a
-   sync reverted it, say that too.
+9. **Close out the lane.** The worktree the work was done in outlives the merge: checkout on disk,
+   terminals live, board card still reading what it read when the work started. This step moves the
+   card, step 11 stops the terminals, and **neither removes the checkout** — that decision, and the
+   removal it rejects, are `docs/agents/workflow.md` → *The lane is closed out, and the checkout is
+   left for a person*.
+
+   **Three things have to agree before anything is touched**: step 6's `state` reads `MERGED`, its
+   `mergedAt` is non-null, and the lane's head is still `headRefOid` — the SHA step 2 ended on and
+   step 6 merged with `--match-head-commit`. **Not the squash commit.** That is a new SHA on `main`
+   and can never equal a lane head, so comparing against it would skip the close-out every time.
+
+   One line decides it, so the comparison happens rather than being eyeballed:
+
+   ```bash
+   gh pr view <n> --json state,mergedAt --jq '"\(.state) \(.mergedAt)"'   # MERGED, and a timestamp
+   OID=$(gh pr view <n> --json headRefOid --jq .headRefOid)
+   if command -v orca >/dev/null; then
+     orca worktree show --worktree branch:<branch> --json 2>&1 | jq -r --arg oid "$OID" '
+       if .ok != true then "no lane: \(.error.code // "unreadable") — steps 9 and 11 are a no-op"
+       elif .result.worktree.head == $oid then "lane head matches \($oid) — close out"
+       else "lane head \(.result.worktree.head) is not \($oid) — leave the lane open"
+       end' 2>/dev/null || echo "orca did not answer — steps 9 and 11 are a no-op"
+   else
+     echo "no orca on this machine — steps 9 and 11 are a no-op"
+   fi
+   ```
+
+   **Every way this can go wrong ends in an announced no-op rather than a stack trace**, which is
+   what the last two branches are for: a plain clone has no `orca`, and Orca installed with its
+   application not running answers nothing parseable, so `jq`'s own failure is caught rather than
+   read as an absent lane. A branch made with `git switch -c` has no Orca worktree behind it and
+   returns `selector_not_found`. In all three, skip this step and step 11 and say so in step 10.
+
+   **`branch:<branch>`, never `current`.** `current` is *"the enclosing Orca-managed worktree from
+   the shell cwd"* (`orca skills get orca-cli --full`), which is the lane only when this skill is
+   running inside it. Run from the main checkout — where a PR given by number is most likely to be
+   landed from — `current` is the **main** worktree, so the close-out would mark its card completed
+   and step 11 would stop the session you are sitting in.
+
+   Then move the card, and read the new value back from the call's own
+   `.result.worktree.workspaceStatus`:
+
+   ```bash
+   orca worktree set --worktree branch:<branch> --workspace-status completed --json
+   ```
+
+   **`completed`, spelled exactly** — nothing validates it (`docs/incidents.md` → *An unknown board
+   status id is accepted and becomes the card's status*).
+
+   **Removal is not this skill's to do.** `orca worktree rm --worktree branch:<branch>` is the line;
+   offer it in step 10 and do not run it. Why it is offered rather than run is the pointer above.
+
+10. **Report** the merged PR, the Linear state, and what you verified — including, explicitly,
+    anything you could not. Quote step 6's `state` and `mergedAt` as the evidence that it landed;
+    "the merge command exited zero" is not that evidence, and neither is its failing. Name the
+    acceptance criteria you left unticked, and why. If the description had to be rewritten after a
+    sync reverted it, say that too.
+
+    **Say what happened to the lane**, because after step 11 nobody can ask: the card's new status,
+    that its terminals are about to be stopped, that the checkout is being left on disk, and the
+    `orca worktree rm` line for whoever wants the disk back. If step 9 was a no-op, say that instead
+    and give the reason it returned.
+
+11. **Stop the lane's terminals. Last, because the lane does not survive it.**
+
+    ```bash
+    orca terminal stop --worktree branch:<branch> --json
+    ```
+
+    The command takes a **worktree**, not a terminal, and stops every live pty under it — including
+    the one running this skill, when it is running in the lane. The response is printed and the
+    shell it printed into is then gone, so nothing after this line runs and nothing after it is said
+    (`docs/incidents.md` → *A terminal that stops its own worktree prints the result and then
+    dies*). That is this step succeeding, and it is why the report is step 10.
+
+    Run from outside the lane, the shell survives: read `.result.stopped` and add the count to what
+    you have already reported — or, on an `ok: false`, say that the card moved and the terminals did
+    not. Either way the worktree itself is untouched — still listed, still on disk, and a person can
+    open a terminal in it again.
+
+    Skip it on the same two conditions as step 9, an unproven merge or no Orca worktree behind the
+    branch, and say so there.
