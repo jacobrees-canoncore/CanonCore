@@ -372,7 +372,7 @@ describe.skipIf(noDatabase)("the schema, against a real PostgreSQL", () => {
   let anonymous: typeof import("./session").anonymous;
   let readVisibleStories: typeof import("./stories").readVisibleStories;
   let readStory: typeof import("./stories").readStory;
-  let databaseAnswers: typeof import("./health").databaseAnswers;
+  let checkHealth: typeof import("./health").checkHealth;
   let auth: typeof import("../auth/auth").auth;
   /** The route the browser posts to, so the redirect is exercised as well as the endpoint. */
   let authPost: typeof import("../app/api/auth/[...all]/route").POST;
@@ -501,7 +501,7 @@ describe.skipIf(noDatabase)("the schema, against a real PostgreSQL", () => {
     vi.resetModules();
     ({ withSession, anonymous } = await import("./session"));
     ({ readVisibleStories, readStory } = await import("./stories"));
-    ({ databaseAnswers } = await import("./health"));
+    ({ checkHealth } = await import("./health"));
     ({ auth } = await import("../auth/auth"));
     ({ POST: authPost, GET: authGet } = await import("../app/api/auth/[...all]/route"));
   });
@@ -2378,13 +2378,37 @@ describe.skipIf(noDatabase)("the schema, against a real PostgreSQL", () => {
     });
   });
 
-  // The half of `/api/health` that a fake ask cannot reach. `health.test.ts` proves what the
-  // check does with an ask that fails; this proves the real ask succeeds against a database that
-  // is up, through the application role, which is the answer the monitor reads as "the site is
-  // fine" every five minutes.
+  /**
+   * The half of `/api/health` that a fake ask cannot reach, and since CAN-151 Watch the Story
+   * route, where a broken policy serves 200 with nothing in it it is the more important half.
+   * `health.test.ts` proves what the check does with an ask that fails or comes back empty; only a
+   * real PostgreSQL can prove that the policy is what decides which of those it gets.
+   *
+   * **The second test is the ticket.** Every other cross-tenant test in this file asserts that a
+   * reader sees no more than they should; this one asserts that the *monitor* notices when a reader
+   * sees less. A policy that stopped letting a stranger through returns no rows rather than an
+   * error, so before this the site answered `200` from every check that existed while serving a
+   * front page with nothing on it.
+   */
   describe("the health check, against a database that is up", () => {
-    test("answers", async () => {
-      await expect(databaseAnswers()).resolves.toBe(true);
+    test("a readable founding Story is a healthy site", async () => {
+      await expect(checkHealth()).resolves.toBe("healthy");
+    });
+
+    // The Visibility is flipped rather than the row deleted, because that is the failure being
+    // reproduced: the row is there, the database is answering, and the policy is what withholds
+    // it. Restored in a `finally` — every other test in this file reads this Story.
+    test("a founding Story the anonymous reader cannot see is not", async () => {
+      await migrator.query("update story set visibility = 'private' where id = $1", [
+        foundingStory.id,
+      ]);
+      try {
+        await expect(checkHealth()).resolves.toBe("story-unreadable");
+      } finally {
+        await migrator.query("update story set visibility = 'public' where id = $1", [
+          foundingStory.id,
+        ]);
+      }
     });
   });
 });

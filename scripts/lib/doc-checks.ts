@@ -1060,6 +1060,94 @@ export function parseDocumentedLineTarget(body: string): number {
   return Number(found[1]);
 }
 
+// --- The Story the health check reads -----------------------------------------------------------
+
+/**
+ * A uuid as all four of the places that name the founding Story write it, which is the whole of
+ * what makes them comparable: the migration quotes it in SQL, the application assigns it to a
+ * `const`, the register writes it in a code span and the runbook puts it in a URL.
+ */
+const UUID = "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}";
+
+/**
+ * How each copy is recognised, and what to say when the file no longer carries one.
+ *
+ * **Named patterns rather than "the first uuid in the file"**, because these files carry several
+ * apiece: migration 0012 alone writes four, and `docs/infrastructure.md` records this same
+ * identifier again in a measurement that has nothing to do with the check. Taking whichever came
+ * first would compare the wrong ones and pass.
+ *
+ * **The register's marker is a whole sentence on purpose.** It is the copy a person would delete —
+ * the code copies are ones somebody is editing for a reason — so what has to survive is not the id
+ * but the paragraph saying why the id is written down at all.
+ *
+ * **The runbook's is the copy that would drift in silence.** The other three are read by somebody
+ * every time the code or the register moves; a `curl` inside a procedure is read by nobody until
+ * somebody is following it at three in the morning. A stale one there does worse than fail: the
+ * entry's own table reads that `404` as the row having been removed, and sends the reader after a
+ * Story that was retired on purpose.
+ */
+const foundingStoryCopies = {
+  "the migration that inserts it": {
+    pattern: new RegExp(`INSERT INTO "story"[\\s\\S]*?'(${UUID})'`),
+    absent: 'no `INSERT INTO "story"` naming a uuid was found',
+  },
+  "the health check that reads it": {
+    pattern: new RegExp(`foundingStoryId\\s*=\\s*"(${UUID})"`),
+    absent: 'no `foundingStoryId = "…"` was found',
+  },
+  "the register that records it": {
+    pattern: new RegExp(`\\*\\*The health check reads the Story \`(${UUID})\`\\*\\*`),
+    absent: "no line reading **The health check reads the Story `…`** was found",
+  },
+  "the runbook request that diagnoses it": {
+    pattern: new RegExp(`canoncore\\.com/story/(${UUID})`),
+    absent: "no request to `canoncore.com/story/…` was found",
+  },
+} as const;
+
+/** Which copy is being read, named as the report names it. */
+export type FoundingStoryCopy = keyof typeof foundingStoryCopies;
+
+/** One copy: the id that file carries, or why it carries none. */
+export type FoundingStoryReading =
+  | { what: FoundingStoryCopy; id: string }
+  | { what: FoundingStoryCopy; missing: string };
+
+/**
+ * Which of the two a reading is, as a pair of predicates rather than an `in` test at each use, so
+ * that the caller separating them once has no branch left for the case it has already excluded.
+ *
+ * **Two of them rather than one and a negation**, because a negated predicate narrows nothing: a
+ * `filter(r => !foundingStoryWasFound(r))` hands back the whole union, and every use of `missing`
+ * after it needs a fallback that can never run.
+ */
+export const foundingStoryWasFound = (
+  reading: FoundingStoryReading,
+): reading is { what: FoundingStoryCopy; id: string } => "id" in reading;
+
+export const foundingStoryWasNotFound = (
+  reading: FoundingStoryReading,
+): reading is { what: FoundingStoryCopy; missing: string } => "missing" in reading;
+
+/**
+ * Read each copy out of the file it lives in.
+ *
+ * It reports what it found rather than deciding, so the caller can say *which* file has drifted
+ * and *which* has lost the record entirely. Those are two different repairs — retype an id, or
+ * restore a paragraph and its argument — and a boolean would report them as the same thing.
+ */
+export function readFoundingStory(
+  bodies: Record<FoundingStoryCopy, string>,
+): FoundingStoryReading[] {
+  return Object.entries(foundingStoryCopies).map(([what, { pattern, absent }]) => {
+    const found = bodies[what as FoundingStoryCopy].match(pattern);
+    return found
+      ? { what: what as FoundingStoryCopy, id: found[1] }
+      : { what: what as FoundingStoryCopy, missing: absent };
+  });
+}
+
 /** A pointer may shorten a long heading, so a title prefix counts as a resolution. */
 export const pointerResolves = (section: string, titles: string[]) =>
   titles.some((t) => t === section || t.startsWith(section));

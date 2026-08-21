@@ -20,11 +20,19 @@ place that says; the URL everything below assumes is
 most of this file is. The exception is *A Source's licence terminates*, which no monitor can see and
 which starts by saying so.
 
+**What that one bit now means is stronger than it was.** Since **CAN-151 Watch the Story route,
+where a broken policy serves 200 with nothing in it** the check does not ask whether the database
+answers; it reads the founding Story the way the public page reads it, so it fails when the site is
+up, the database is up, and a stranger would be served a page with nothing on it. That failure used
+to be invisible to everything. **The push is still one bit** — the second bit is the status code,
+and the first request below is what reads it.
+
 ## Contents
 
 - [The alert, and what it cannot tell you](#the-alert-and-what-it-cannot-tell-you)
 - [Triage: two requests](#triage-two-requests)
 - [A release is bad](#a-release-is-bad)
+- [The Story cannot be read](#the-story-cannot-be-read)
 - [The database does not answer](#the-database-does-not-answer)
 - [The database has to be restored from a backup](#the-database-has-to-be-restored-from-a-backup)
 - [Spend Management paused the production deployment](#spend-management-paused-the-production-deployment)
@@ -66,7 +74,9 @@ curl -s -o /dev/null -w '%{http_code}\n' https://www.canoncore.com/
 | --- | --- | --- |
 | `200`, 0 bytes | The application ran and PostgreSQL answered it. Whatever the monitor saw is not reproducing from here | Nothing to fix. Check the monitor is pointed at this URL |
 | `503`, 0 bytes | **Our own answer.** The application is running and three consecutive asks to PostgreSQL failed | [The database does not answer](#the-database-does-not-answer) |
+| `500`, 0 bytes | **Our own answer, and the newer one.** PostgreSQL answered, and the founding Story did not come back to a reader with no account. Nothing is unreachable; something has stopped the page being servable | [The Story cannot be read](#the-story-cannot-be-read) |
 | `503` with a body | **Vercel's answer, not ours** — this route never sends one. A paused deployment serves `503 DEPLOYMENT_PAUSED` ([Vercel KB](https://vercel.com/kb/guide/why-is-my-account-deployment-blocked), read 16 August 2026) | [Spend Management paused the production deployment](#spend-management-paused-the-production-deployment) |
+| `500` **with a body** | **Vercel's answer, not ours** — the row above is ours and sends none. `500 INTERNAL_FUNCTION_INVOCATION_FAILED` *"occurs when a function invocation fails … due to an error within the function itself, or an issue with the environment in which the function is running"* ([Vercel](https://vercel.com/docs/errors/INTERNAL_FUNCTION_INVOCATION_FAILED), read 21 August 2026) | [A release is bad](#a-release-is-bad) |
 | `504`, or any other 5xx with a body | **Vercel's answer again.** `504 FUNCTION_INVOCATION_TIMEOUT` is *"a function invocation [that] takes longer than the allowed execution time"* ([Vercel](https://vercel.com/docs/errors/FUNCTION_INVOCATION_TIMEOUT), read 16 August 2026) — for this route, a connection attempt that neither failed nor succeeded. Treat it as the database entry below | [The database does not answer](#the-database-does-not-answer) |
 | `404` | The deployment in production does not carry this route, so the release did not land | [A release is bad](#a-release-is-bad) |
 | Nothing, or a DNS failure | Neither the application nor Vercel answered | [Vercel's status page](https://www.vercel-status.com/), then the DNS records in [`infrastructure.md`](infrastructure.md) → *Domains* |
@@ -75,6 +85,10 @@ The second request is the disambiguator when the first is ambiguous: `/` reads a
 same connection pool, so a database outage takes it to a 500 as well. **`/` at 200 while
 `/api/health` is at 503 means the page has stopped depending on the database** — which is fine for
 the page and fatal for the check, because from then on only this route can see the outage.
+
+**`/` at 200 while `/api/health` is at 500 means the opposite, and is the ordinary reading of that
+row**: both still depend on the database, and the front page answering `200` with nothing on it is
+the failure the `500` exists to report rather than a second problem.
 
 ## A release is bad
 
@@ -85,8 +99,11 @@ the page and fatal for the check, because from then on only this route can see t
   verification"* ([`infrastructure.md`](infrastructure.md) → *Uptime monitoring: UptimeRobot*). The
   interval is an hour, so that is the latency.
 - **A route 404s that used to answer.** The release did not land, or landed without it.
-- **The site answers `200` and is wrong.** **Nothing pages you at all**, and no check proposed here
-  would: detection is one bit wide. This entry is reached by someone looking, not by an alert.
+- **The site answers `200` and is wrong.** **Mostly nothing pages you**, and this is reached by
+  someone looking rather than by an alert. **One shape of it now has a check**: a release that
+  leaves the founding Story unreadable answers `500` on `/api/health` —
+  [The Story cannot be read](#the-story-cannot-be-read). Everything else that is wrong while
+  answering `200` is still invisible.
 
 **Check. Three questions, and the third decides whether the fix below is safe.**
 
@@ -207,6 +224,87 @@ vercel promote <good-deployment-url> --yes
   its "safe by construction" row is the invariant, and the invariant reaches exactly one release. Two
   or more back, there is no rule doing the work for you: read every migration across the span against
   the code you are going back to, or roll back one release at a time.
+
+## The Story cannot be read
+
+**Symptom.** `/api/health` answers `500` with an **empty body**, which is ours and not Vercel's —
+*Triage* above is what tells the two apart. The site is up and PostgreSQL is answering it; what
+failed is the read the public page makes. **One other entry has this shape** — *The database has to
+be restored from a backup*, where everything answers and the rows are wrong — and the two are told
+apart by which request is unhappy: this one is reached because `/api/health` went red on its own.
+
+**What the alert means.** The check asks for one public Story as a reader with no account, through
+row-level security, exactly as the page does
+([`infrastructure.md`](infrastructure.md) → *The Story the health check reads*). A `500` means that
+read came back with nothing. **That is the failure this check was built for**: a policy that has
+stopped letting a stranger through returns no rows rather than an error, so before **CAN-151 Watch
+the Story route, where a broken policy serves 200 with nothing in it** the site answered every check
+that existed while serving a stranger a page with nothing on it.
+
+**What it cannot tell you, and one thing nobody should read into it.**
+
+- **It says nothing about whether one reader can see another's rows.** A green check means a public
+  Story is readable by a stranger. It would be just as green if every private Story were readable by
+  everybody, which is the opposite failure and the worse one. **Nothing outside this deployment
+  watches for that, and nothing is meant to**: it is asserted before the code lands, by the
+  cross-tenant tests in [`rls.test.ts`](../apps/web/src/db/rls.test.ts), which ADR-0005 rule 2
+  requires and [`agents/workflow.md`](agents/workflow.md) → *The gates* holds. A green monitor is
+  never evidence that isolation holds.
+- **It cannot say which of the three causes below it is**, which is what the requests do.
+- **It is not a database outage.** That answers `503`, and the two are deliberately different codes
+  so that this triage can happen from the alert.
+- **It watches the read that page makes and not the page's own rendering.** The check calls the
+  same function, so a component that threw would take `/story/…` to a `500` while this stayed
+  green. That gap is covered before a merge rather than after one, by
+  [`e2e/story-page.spec.ts`](../apps/web/e2e/story-page.spec.ts) — and nothing outside the
+  deployment watches it, which is worth knowing rather than assuming.
+
+**Check. Two requests, and the first one settles most of it.**
+
+```bash
+curl -s -o /dev/null -w '%{http_code}\n' https://www.canoncore.com/story/00000000-0000-4000-8000-000000000001
+curl -s https://www.canoncore.com/ | grep -c 'No Story is public yet'
+```
+
+The second prints `1` when the front page is empty and `0` when it has something on it — that
+sentence is the empty state, in [`front-page.tsx`](../apps/web/src/app/front-page.tsx).
+
+| What they say | What has happened |
+| --- | --- |
+| `404`, and the front page has something on it | **That one row is gone, or is no longer public.** A purge, a hand-edited row, or a migration that touched it |
+| `404`, and the front page is empty | **The policy is refusing everybody.** A migration changed the policy on `story`, or the grant under it |
+| `200` | The read this check makes and the read that page makes have come apart, which should not be possible: they are the same function. Treat it as a defect in the check itself |
+
+Then, whichever it was: **did a release run just before it started?** `gh run list --branch main
+--limit 3`, and `git diff --name-only <good-sha> <bad-sha> -- apps/web/drizzle` for what it moved.
+A policy or a grant is only ever changed by a migration.
+
+**Fix, by what the check found.**
+
+- **A migration broke the policy or the grant.** **A rollback will not undo it**, because a
+  rollback moves code alone and the schema stays where it is
+  ([ADR-0027](adr/0027-migrations-are-forward-only-and-a-rollback-moves-code-alone.md)). The fix is
+  forward: a migration that restores what the last one changed, landed through the ordinary gates.
+- **The row was removed by accident.** Same answer, for the same reason: a new migration that puts
+  it back. Migration 0002 will not do it again — it is in the journal, so the release does not run
+  it a second time. **A migration is the fix for this row alone**, because migrations 0002 and 0012
+  define it completely, so there is nothing to recover. **If whatever removed it took other rows
+  with it** — the *Check* above names a purge, and a purge is rarely one row — those are not defined
+  by any migration, and [The database has to be restored from a backup](#the-database-has-to-be-restored-from-a-backup)
+  is the entry for them.
+- **The row was removed on purpose**, because a Source's licence ended or because real rows have
+  replaced the founding fixture. **Then the alert is right and the check is what is out of date.**
+  Choose the row it should read and change it in all four places
+  ([`infrastructure.md`](infrastructure.md) → *The Story the health check reads* says which) —
+  **and the fourth is the request above on this page**, which is why the count is four rather than
+  three. Then run `node scripts/check-docs.ts`: it fails until all four agree, which is what stops
+  this entry sending the next reader after a Story somebody retired on purpose.
+
+**What not to do.** Do not answer this by making the check ask less. Pointing the monitor at
+[`/api/alive`](../apps/web/src/app/api/alive/route.ts), or putting a connection test back where the
+read is, silences the alert and restores the gap it exists to close —
+[`infrastructure.md`](infrastructure.md) → *The two routes a monitor may point at* says why that
+route can never stand in for this one.
 
 ## The database does not answer
 
