@@ -2148,23 +2148,24 @@ Then the check is live, and what to do when it fires is [`runbook.md`](runbook.m
 ## The estate
 
 **Everything the Vercel team and the two Neon organisations hold, so that the next sweep is a
-comparison rather than a discovery.** Four tickets have now found a live credential in a project nobody was using — **CAN-39
-Account for the three Resend API keys that predate CAN-20, and revoke the unused ones**, **CAN-41
-Account for the Resend key three older Vercel projects still carry, on an account we do not
-control**, **CAN-80 Revoke the orphaned Resend key on the jacobrees@me.com account** and **CAN-142
-Four abandoned Vercel projects still hold readable Postgres credentials** — and each one enumerated
-the estate from scratch before it could say what was wrong with it. This table is that enumeration,
-written down once.
+comparison rather than a discovery.** Four tickets have now found a live credential in a project
+nobody was using — **CAN-39 Account for the three Resend API keys that predate CAN-20, and revoke
+the unused ones**, **CAN-41 Account for the Resend key three older Vercel projects still carry, on
+an account we do not control**, **CAN-80 Revoke the orphaned Resend key on the jacobrees@me.com
+account** and **CAN-142 Four abandoned Vercel projects still hold readable Postgres credentials** —
+and each one enumerated the estate from scratch before it could say what was wrong with it. This
+table is that enumeration, written down once.
 
-*Read back from `vercel project ls`, `vercel integration ls --all` and the Neon API on 21 August 2026.*
+*Read back from `vercel project ls`, `vercel integration ls --all`, `vercel env ls` and the Neon API
+on 21 August 2026.*
 
-| Vercel project | Neon store bound to it | What it is |
+| Vercel project | Neon store | Readable credentials |
 | --- | --- | --- |
-| `canoncore` | `canoncore`, `store_ft1xdGxeaZQCEbN7` → Neon project `steep-wave-52467839` | This application. Its variables are the roster in *Environment variables* above; its database is *Database* above |
-| `provider-tmdb` | — | The TMDB Provider, under [ADR-0014](adr/0014-shell-providers-and-per-source-retention.md). Holds `TMDB_READ_ACCESS_TOKEN` and nothing else |
-| `portfolio` | — | Not CanonCore. Serves `www.jacobrees.co.uk` |
-| `waveger` | `waveger`, `store_xCNwLtRIQVOBig87` → Neon project `delicate-credit-61083163` | Not CanonCore |
-| `waveger-archive` | — | Not CanonCore, and deliberate rather than abandoned |
+| `canoncore` | `canoncore`, in *Database* above | **None.** Its five Non-sensitive rows are two hostnames, a database name and two role names, each argued in place in the roster in *Environment variables* above |
+| `provider-tmdb` | — | **None.** One variable, `TMDB_READ_ACCESS_TOKEN`, Sensitive. The TMDB Provider, under [ADR-0014](adr/0014-shell-providers-and-per-source-retention.md) |
+| `portfolio` | — | **None**, and no variables at all. Not CanonCore; serves `www.jacobrees.co.uk` |
+| `waveger` | `waveger`, `store_xCNwLtRIQVOBig87` → Neon project `delicate-credit-61083163` | **Sixteen, including `PGPASSWORD` and four connection strings.** Not CanonCore — **CAN-149 waveger and waveger-archive store readable credentials, including a live Postgres password** |
+| `waveger-archive` | — | **Nine, including `SENTRY_AUTH_TOKEN`.** Not CanonCore, and deliberate rather than abandoned — same ticket |
 
 **Two Neon projects exist and both are bound to a Vercel project**, which is the intended end state:
 a store bound to nothing is the shape an abandoned database takes. Both sit in the Vercel-managed
@@ -2172,31 +2173,19 @@ organisation `org-silent-cell-49503934`. The console-managed organisation `Jacob
 (`org-square-star-37689785`) **holds nothing** — it held nine dormant projects until 21 August 2026
 ([incident](incidents.md#nine-dormant-neon-projects-and-the-ninth-was-the-dangerous-one)).
 
-**No credential in any kept project is stored Non-sensitive.** The five Non-sensitive rows on
-`canoncore` are two hostnames, a database name and two role names, each argued in place in the
-roster above; every password, token and signing secret is Sensitive and cannot be read back.
-`provider-tmdb`'s single variable is Sensitive. That distinction is the whole of the CAN-142 finding
-— **`vercel env add` stores a Preview or Production value Sensitive unless `--no-sensitive` is
-passed**, so a Non-sensitive credential is something someone chose, and it is readable by anyone who
-can sign in.
+**Neither CanonCore project stores a credential Non-sensitive**, which is what the blockquote under
+*Environment variables* above is about: a Sensitive value cannot be read back and a Non-sensitive one
+can, so a readable credential is something someone chose. **The last two rows are the counter-example
+and are recorded rather than fixed here** — they are outside CanonCore, in use rather than abandoned,
+and re-storing a value that has already been readable conceals the exposure without ending it. Only
+names and sensitivity were read; no value was fetched.
 
-### Nothing sweeps this, and that is a decision
-
-**Four occurrences did not buy an automated check.** One was affordable: `vercel project ls` and
-`vercel integration ls --all` both run on the `VERCEL_TOKEN` the runner already holds, so a check in
-`scripts/check-docs.ts` comparing the tables above against them would have gated in CI at the cost
-of no new credential. It was weighed on 21 August 2026 and refused.
-
-**The reason is that detection was never the thing that failed.** Every one of the four occurrences
-was found the first time somebody looked; what cost the four tickets was that each had to rediscover
-the estate before it could judge it, and none left a list behind. A check would automate the half
-that already worked. The table above is the half that did not.
-
-**What follows is that the sweep is manual and owed a list to start from.** Run the two commands in
-the read-back line, list the Neon projects in each organisation, compare, and account for anything
-not above — a Vercel project nobody deploys, or a Neon project bound to no Vercel store. **If this goes stale, the next occurrence pays the
-rediscovery cost again**, which is the failure this section exists to prevent and the one to reopen
-the decision on.
+**Nothing sweeps this, and that is a decision rather than an omission** — an affordable check existed
+and was refused on 21 August 2026, with the reasoning and the condition that would reopen it in the
+[incident](incidents.md#nine-dormant-neon-projects-and-the-ninth-was-the-dangerous-one). **What
+follows is that the sweep is manual and owed a list to start from.** Run the commands in the
+read-back line, list the Neon projects in each organisation, compare, and account for anything not
+above — a Vercel project nobody deploys, or a Neon project bound to no Vercel store.
 
 ## Domains
 
@@ -2226,8 +2215,7 @@ renewal fails visibly and this record is the fix.
 
 **Four older Vercel projects were deleted on 13 August 2026** — `canoncore-legacy`,
 `canoncore-demo`, `canoncore-storybook` and `canoncore-v3` — and **five more on 21 August 2026**,
-which is what emptied the account of everything abandoned. What it holds now is *The estate* above,
-not the list this paragraph used to carry.
+which is what emptied the account of everything abandoned. What it holds now is *The estate* above.
 
 ## Agent tooling
 

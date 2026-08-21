@@ -1642,7 +1642,7 @@ and [RequestData](https://docs.sentry.io/platforms/javascript/guides/nextjs/conf
 
 **21 August 2026, on CAN-142 Four abandoned Vercel projects still hold readable Postgres
 credentials.** The fourth time a ticket found a live credential in a project nobody was using, after
-CAN-39, CAN-41 and CAN-80. **No project's contents, schema or connection string was read at any
+the three Resend tickets named in [`infrastructure.md`](infrastructure.md) → *The estate*. **No project's contents, schema or connection string was read at any
 point** — the names and the sensitivity flag characterise the exposure, and reading a value moves it
 into a session transcript rather than closing it.
 
@@ -1653,10 +1653,17 @@ into a session transcript rather than closing it.
 value cannot be read back by anyone; a Non-sensitive one can, so these were credentials in the
 clear rather than merely credentials that existed.
 
-**The pre-delete check ran first**: only two domains exist on the team, `canoncore.com` and
-`jacobrees.co.uk`, bound to `canoncore` and `portfolio`. Neither belonged to a project being
-removed, so nothing was taken down with them. The deletion is irreversible and a domain attached to
-a project goes with it, which is why that check preceded rather than followed.
+**The pre-delete check ran first, and covered one of the three things it should have**: only two
+domains exist on the team, `canoncore.com` and `jacobrees.co.uk`, bound to `canoncore` and
+`portfolio`. Neither belonged to a project being removed, so nothing was taken down with them. The
+deletion is irreversible and a domain attached to a project goes with it, which is why that check
+preceded rather than followed.
+
+**Webhooks and GitHub integrations were not checked**, and the criterion named them alongside
+domains. This is recorded as not checked rather than as clean: the projects are gone, so it can no
+longer be established either way, and a gap in the evidence is not the same as an absence of
+attachments. Nothing has since surfaced as broken. **The next irreversible deletion should check all
+three before it runs**, which is the only form this finding can usefully take now.
 
 **Then nine Neon projects, where the ticket had enumerated eight.** Eight sat in the console-managed
 `Jacob` organisation (`org-square-star-37689785`), which is now empty:
@@ -1686,8 +1693,7 @@ its links. Navigate by id and verify `resource_id` on the page before typing any
 **It was proved dead on three independent signals before it was touched**: no repository file
 references it, while `steep-wave-52467839` is referenced six times; `vercel integration ls --all`
 showed its store bound to **no Vercel project**, where production's store is bound to `canoncore`;
-and its storage size was effectively empty. A store bound to nothing is the shape an abandoned
-database takes.
+and its storage size was effectively empty.
 
 ### Three platform facts this cost, and the next person will hit them
 
@@ -1718,12 +1724,26 @@ and `steep-wave-52467839` reported compute activity within the same minute. Two 
 the team, `canoncore` bound to `canoncore` and `waveger` bound to `waveger`, which is the intended end
 state and is now written down in [`infrastructure.md`](infrastructure.md) → *The estate*.
 
-**What this did not buy is a check.** The affordable one was real — `vercel project ls` and
-`vercel integration ls --all` both run on the `VERCEL_TOKEN` a runner already holds — and it was
-refused on 21 August 2026 because detection is not what failed. All four occurrences were found the
-first time somebody looked; what cost four tickets was that each rediscovered the estate from
-scratch. The register is the answer, and *The estate* carries the argument and the reopening
-condition.
+### What this did not buy is a check, and that was decided rather than skipped
+
+**The affordable check was real and was costed before it was refused.** `vercel project ls` and
+`vercel integration ls --all` both run on the `VERCEL_TOKEN` a runner already holds, so a check in
+`scripts/check-docs.ts` comparing a documented roster against them would have gated in CI for no new
+credential and no new secret store — unlike the label, secret and security-settings rosters, each of
+which gates locally only because reaching it from a runner costs one.
+
+**It was refused on 21 August 2026 because detection is not what failed.** All four occurrences were
+found the first time somebody looked. What cost four tickets was that each rediscovered the estate
+from scratch and none left a list behind, so a check would have automated the half that already
+worked while the half that failed stayed manual. [`infrastructure.md`](infrastructure.md) → *The
+estate* is that list.
+
+**What would reopen it is the register going stale**, not a fifth occurrence. A fifth found by
+looking is the decision working as intended; a fifth found after the table had silently stopped
+describing the estate is the failure the check would have caught, and is the trigger to revisit
+this. **CAN-149 waveger and waveger-archive store readable credentials, including a live Postgres
+password is the fifth and does not reopen it** — it was found by the register itself, on the first
+sweep that had one.
 
 
 ---
