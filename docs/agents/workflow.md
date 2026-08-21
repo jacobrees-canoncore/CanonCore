@@ -968,10 +968,9 @@ The bullets above are what breaks. This is the order that works, and it is writt
 first Provider was built this way rather than because it was planned that way —
 **CAN-152 Implement the Provider contract in provider-tmdb, and close its endpoint**, 21 August 2026.
 
-1. **Two tickets before any code**, per the first bullet above. The Provider's ticket owns its
-   repository; the one here owns whatever this repository has to say about it — usually a roster row
-   and the documents that describe it. Relate them, and give each the branch that carries its own
-   identifier.
+1. **Two tickets before any code**, per the first bullet above. What is worth adding to it is where
+   the line falls: the Provider's ticket owns its repository, and the one here owns whatever this
+   repository has to say about it — usually a roster row and the documents that describe it.
 
 2. **Clone it beside the others and tell Orca**, or the lane has no card, no comment and no
    `--current` for the tracker CLI:
@@ -993,20 +992,21 @@ first Provider was built this way rather than because it was planned that way �
    **CAN-153 Give every Provider repository an agent baseline, as CAN-107 gave it a CI one** owns
    closing that; until it lands, working from here is what keeps the standards in reach.
 
-4. **Its gates are four scripts and an audit, and running them is on you.** `pnpm run test`,
-   `pnpm run typecheck`, `pnpm run lint`, `pnpm run build`, then `pnpm audit --audit-level=high`.
-   Together they report the one composed status check that repository's ruleset requires by name,
-   which [`../infrastructure.md`](../infrastructure.md) → *The Provider repository baseline* spells
-   out and nothing else may. There is no documents check in it, no migration step and no release, so
-   none of *The gates* above applies.
+4. **Running the gates the second bullet names is on you, before you commit.** Nothing here runs
+   them, and together they report the one composed status check that repository's ruleset requires
+   by name, so a red one is found in the pull request rather than on your machine.
 
    **`build` is not a formality there, and the first Provider proved it.** A module the deployed
    entry point imported two levels down pulled in the contract validator, so the shipped code
-   depended on `ajv` and `yaml` — devDependencies a production build does not install. Nothing else
-   would have caught it: the tests passed, because a test run installs everything.
+   depended on `ajv` and `yaml` — devDependencies a production build does not install. **The tests
+   passed throughout**, because a test run installs everything, so `build` was the only gate that
+   could see it. That Provider now carries a test pinning the case, which is the right place for it
+   — but the test exists because `build` found it first.
 
 5. **A Provider's own documents check runs on a laptop, not in its CI.** The shared baseline passes
-   no secrets by design, so anything comparing a roster against Vercel has no credential there.
+   no secrets — [`../provider-baseline/ci.yml`](../provider-baseline/ci.yml) has neither a
+   `secrets:` line nor an `env:` one — so anything comparing a roster against Vercel has no
+   credential there.
    Split it: what needs no credential goes in `pnpm run test` and gates on every push; what does is a
    command a person runs. [`../infrastructure.md`](../infrastructure.md) → *Where a Source credential
    lives* is why each Provider checks its own project rather than one checker walking an estate.
