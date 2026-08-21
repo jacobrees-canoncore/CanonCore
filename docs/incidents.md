@@ -1296,13 +1296,23 @@ history. The console creates one automatically; a raw `POST` creates one when as
 otherwise. **The observation was right and the lesson drawn from it was wrong**, which is what the
 second review round found.
 
-**What it may cost elsewhere has not been tested.**
+**What it costs elsewhere was tested, and it is a live break.**
 [Drizzle's migrator needs `CREATE` on the database before it reads
-anything](#drizzles-migrator-needs-create-on-the-database-before-it-reads-anything), and
-`scripts/apply-migrations-ahead-of-merge.sh` runs that migrator against exactly these branches. That
-suggests applying a migration ahead of merge would fail the same way, and **it was not tried**:
-finding out means running a migration against a preview database from inside an unrelated ticket.
-Recorded here rather than acted on.
+anything](#drizzles-migrator-needs-create-on-the-database-before-it-reads-anything) — it issues
+`CREATE SCHEMA IF NOT EXISTS "drizzle"` before reading its journal, and PostgreSQL checks the
+privilege before the `IF NOT EXISTS` — and `scripts/apply-migrations-ahead-of-merge.sh` runs that
+migrator against exactly these branches.
+
+**Run as `canoncore_migrator` against a worktree branch on 21 August 2026, that statement answers
+`ERROR: permission denied for database neondb`.** The statement alone was run rather than a
+migration, because the `drizzle` schema already exists there — so it proves the refusal while
+changing nothing, which is what made testing it from inside an unrelated ticket reasonable.
+
+**So applying a migration ahead of merge fails on every worktree branch and on `preview`**, and has
+done since the schema-only `preview` branch was created on 17 August 2026. Nothing in this ticket
+fixes it: the fix is a `GRANT` that has to be decided for every branch that exists and every one
+created after, which is [ADR-0025](adr/0025-a-preview-database-per-worktree.md)'s territory rather
+than a backup's. Recorded here, and owed a ticket.
 
 ## A `SET LOCAL` custom setting reverts to the empty string, not to NULL
 
