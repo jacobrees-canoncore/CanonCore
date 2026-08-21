@@ -1642,7 +1642,8 @@ and [RequestData](https://docs.sentry.io/platforms/javascript/guides/nextjs/conf
 
 **21 August 2026, on CAN-142 Four abandoned Vercel projects still hold readable Postgres
 credentials.** The fourth time a ticket found a live credential in a project nobody was using, after
-the three Resend tickets named in [`infrastructure.md`](infrastructure.md) → *The estate*. **No project's contents, schema or connection string was read at any
+[three unscoped Resend keys](#three-unscoped-resend-api-keys-were-revoked) and
+[the orphaned one](#the-orphaned-resend-key-and-how-it-stopped-being-anonymous) above. **No project's contents, schema or connection string was read at any
 point** — the names and the sensitivity flag characterise the exposure, and reading a value moves it
 into a session transcript rather than closing it.
 
@@ -1662,7 +1663,7 @@ preceded rather than followed.
 **Webhooks and GitHub integrations were not checked**, and the criterion named them alongside
 domains. This is recorded as not checked rather than as clean: the projects are gone, so it can no
 longer be established either way, and a gap in the evidence is not the same as an absence of
-attachments. Nothing has since surfaced as broken. **The next irreversible deletion should check all
+attachments. **The next irreversible deletion should check all
 three before it runs**, which is the only form this finding can usefully take now.
 
 **Then nine Neon projects, where the ticket had enumerated eight.** Eight sat in the console-managed
@@ -1720,9 +1721,8 @@ there meant *not yet ready* rather than *not permitted* — read the rendered pa
 disabled control, and never conclude from a single read taken straight after a navigation.
 
 **Verification.** Production served `HTTP 200` on three consecutive requests after the last deletion,
-and `steep-wave-52467839` reported compute activity within the same minute. Two Neon stores remain on
-the team, `canoncore` bound to `canoncore` and `waveger` bound to `waveger`, which is the intended end
-state and is now written down in [`infrastructure.md`](infrastructure.md) → *The estate*.
+and `steep-wave-52467839` reported compute activity within the same minute. What the team holds now is
+[`infrastructure.md`](infrastructure.md) → *The estate*.
 
 ### What this did not buy is a check, and that was decided rather than skipped
 
@@ -1742,9 +1742,10 @@ estate* is that list.
 looking is the decision working as intended; a fifth found after the table had silently stopped
 describing the estate is the failure the check would have caught, and is the trigger to revisit
 this. **CAN-149 waveger and waveger-archive store readable credentials, including a live Postgres
-password is the fifth and does not reopen it** — it was found by the register itself, on the first
-sweep that had one.
-
+password does not reopen it, and is not a fifth instance of this pattern** — those two projects are
+in use rather than abandoned, which is the whole of what this pattern is about. It is a readable
+credential found *by the register*, on the first sweep that had one, so it is the mechanism working
+rather than the gap the check would have filled.
 
 ---
 
