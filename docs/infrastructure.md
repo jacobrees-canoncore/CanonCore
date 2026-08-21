@@ -788,9 +788,7 @@ and the Settings page was not read. GitHub's own expectation is that the graph i
 within minutes"* of a push
 ([Configuring the dependency graph](https://docs.github.com/en/code-security/supply-chain-security/understanding-your-software-supply-chain/configuring-the-dependency-graph)),
 which is why sixty-two of them is worth writing down rather than waiting out quietly. **The next Provider
-should expect this**, and the step that reports it now says so rather than reporting a pass. **On the
-one repository that has met it, it was a wait rather than a permanent defect** — how long it lasted,
-and what bounds that reading, is the re-read below.
+should expect this**, and the step that reports it now says so rather than reporting a pass.
 
 **It is not the lockfile.** `pnpm` is its own row in
 [the supported ecosystems](https://docs.github.com/en/code-security/supply-chain-security/understanding-your-software-supply-chain/dependency-graph-supported-package-ecosystems),
@@ -833,27 +831,31 @@ than a coincidence of shape.
 
 **What the reading cannot say is when**, so what is recorded here is a window and not a duration.
 Nothing read the graph between 12:12 and 17:06, and **a second push landed inside that gap**:
-`provider-tmdb`'s own pull request `#1` merged at **16:41:40 UTC**, five hours thirty-one minutes
-after the first. What is
-indexed is that second push's tree rather than the first's — the `package.json` manifest lists
-`ajv`, `ajv-formats` and `hono`, none of which existed at the first commit. So the bounds are the
-honest form of it: the first push's manifests went **at least sixty-two minutes** unindexed and were
-**never once read as indexed** in the five and a half hours they were the tip, and the graph was
-**current within twenty-five minutes** of the push that followed. **Whether that push is what
-triggered the indexing is precisely what one observation with a push in the middle of it cannot
-settle.** It is worth trying first on the next Provider because it is cheap, not because it is
-established.
+`provider-tmdb`'s own pull request `#1` merged at **16:41:38 UTC** and registered as a push two
+seconds later, five hours thirty-one minutes after the first. What is indexed is that second push's
+tree rather than the first's — the `package.json` manifest lists `ajv`, `ajv-formats` and `hono`,
+none of which existed at the first commit. So the bounds are the honest form of it: the first push's
+manifests were **unindexed for every one of the sixty-two minutes anything looked at them**, nothing
+looked at all for the four hours fifty-four that followed, and the graph was **current within
+twenty-five minutes** of the push that came next. **Whether that push is what triggered the indexing
+is precisely what one observation with a push in the middle of it cannot settle.** It is worth trying
+first on the next Provider because it is cheap, not because it is established.
 
-**And the first commit's lockfile is parseable by GitHub**, which the paragraph above could only
-infer from a different repository. `dependency-graph/compare/008d3506...64f175eb` reports **six**
-packages added and none removed — `ajv`, `ajv-formats`, `fast-uri`, `hono`, `json-schema-traverse`
-and `require-from-string`, every one of them from `pnpm-lock.yaml` — so it read the *first* commit's
-lockfile as that comparison's base and recognised what was already in it. Had that base parsed as
-nothing, all 117 would have come back as added. **This was read after the index filled, so it proves
-the file and not the moment**: a compare parses on demand, and what it reports is what GitHub can do
-with that lockfile rather than what it had done with it at 11:12. What it removes is the last reading
-on which the empty index could have been this repository's fault. **So what was empty was the stored
-index for the default branch, never the manifest.**
+**And the first commit's lockfile parses**, which *It is not the lockfile* above could only infer
+from a different repository. `dependency-graph/compare/008d3506...64f175eb` — which *"Gets the diff
+of the dependency changes between two commits of a repository, based on the changes to the dependency
+manifests made in those commits"* ([Dependency
+review](https://docs.github.com/en/rest/dependency-graph/dependency-review), read 21 August 2026) —
+reports **six** packages added and none removed: `ajv`, `ajv-formats`, `fast-uri`, `hono`,
+`json-schema-traverse` and `require-from-string`, every one of them attributed to `pnpm-lock.yaml`.
+Had the base parsed as nothing, all **117** would have come back as added — that being
+`pnpm-lock.yaml`'s own `dependenciesCount`, and the `118` above less the repository's SPDX entry. So
+GitHub derived the first commit's dependencies from that lockfile rather than reading it as empty.
+**What that proves is the file and not the moment**: the endpoint's documentation does not say
+whether it parses on demand or reads something already stored, and this was read after the index had
+filled, so it cannot date the parse. What it removes is the last reading on which the empty index
+could have been this repository's fault. **So what was empty was the stored index for the default
+branch, never the manifest.**
 
 **No support ticket was opened and no toggle was tried**, because both were conditional on it still
 reading `1`. The dashboard step at Settings → Advanced Security → Dependency graph therefore **stays
