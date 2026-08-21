@@ -1,6 +1,6 @@
 # Triage labels
 
-The skills speak in terms of canonical triage roles. This file is the mapping from those roles to
+The skills speak in terms of standard triage roles. This file is the mapping from those roles to
 the label strings this repo's tracker actually holds, and it **owns every rule about applying them**
 — other documents point here rather than restating.
 
@@ -30,7 +30,7 @@ issues* below for the one case where none applies.
 | `ready-for-human`          | `ready-for-human`    | Requires human implementation            |
 | `wontfix`                  | `wontfix`            | Will not be actioned                     |
 
-**Unmapped:** Linear's `Improvement` has no canonical role, so `/triage` will neither apply nor
+**Unmapped:** Linear's `Improvement` maps to no role, so `/triage` will neither apply nor
 interpret it. Use it by hand if you want.
 
 The five state roles were created on 8 August 2026 as **workspace-level** labels, so any future team

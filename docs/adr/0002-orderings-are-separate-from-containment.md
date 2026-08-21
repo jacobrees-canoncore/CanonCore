@@ -24,7 +24,7 @@ MusicBrainz on a `number` attribute of the series relationship, Wikidata on `P15
 ordered lists … when the same item might be in different places in different lists."
 
 So: **no `episode_number` column on Story.** schema.org's `episodeNumber` is a bare integer that
-names no series, which is why its TVSeries→Season→Episode hierarchy hard-codes one canonical
+names no series, which is why its TVSeries→Season→Episode hierarchy hard-codes a single
 ordering and cannot express a second.
 
 Three standards separate the two mechanisms independently — LRM (`has part` vs `precedes`),
@@ -37,7 +37,7 @@ uses, position, and duration".
 - A Placement may point at a Story **or** a Version, which is how one Ordering lists a serial as a
   single entry while another lists its episodes separately.
 - A Placement may exist with no Story at all, because chronologies contain narrative bridges that
-  argue for what comes next without being a work.
+  argue for what comes next without being a Story.
 - One Story may hold several Placements in the same Ordering, because a story can genuinely occur
   at more than one point (a framing device, a split serial).
 - Completeness rolls up over containment, not over Orderings, and counts distinct Anchors rather

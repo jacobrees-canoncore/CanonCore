@@ -13,7 +13,7 @@ thing, and Placements point at Anchors rather than at anyone's rows.
 
 ## Why this shape
 
-The obvious alternative is one canonical catalogue with an edit pipeline, which is what
+The obvious alternative is one shared catalogue with an edit pipeline, which is what
 MusicBrainz runs: edits queue, trusted editors auto-apply, others stay open a week, three
 unanimous votes resolve immediately, voting unlocks after two weeks and ten accepted edits. It
 works, and it needs a community to work. A voting quorum with one user is theatre.
@@ -31,13 +31,13 @@ move in every crowd-catalogued database, and the only moment a person has the co
 Where a source has a stable identifier the match is determined; where none exists, which is
 exactly the material this product is for, it is a suggestion.
 
-**Merges are per-user and reversible.** A merge is one person's assertion that two Anchors are the
-same thing, held as an alias rather than a rewrite, undone by discarding it.
+**Merges are per-user and reversible.** A Merge is one person's assertion that two Anchors are the
+same thing, held beside them rather than as a rewrite of either, undone by discarding it.
 
 ## Consequences
 
 - Anchors are not globally unified identity. If one person merges two and another does not, they
-  see different things — and both continue to work, because the alias resolves per viewer.
+  see different things — and both continue to work, because a Merge resolves per viewer.
 - Duplicates are never cleaned up globally and the Anchor space slowly fragments. An escape exists
   if it ever matters: when enough people independently make the same merge, suggest it globally.
   Consensus-derived, still no moderators.

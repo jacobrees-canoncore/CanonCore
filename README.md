@@ -17,8 +17,9 @@ CanonCore separates the two things that hierarchy conflates:
 
 - **Story** — the thing that happened, independent of how anyone consumes it. *Blink.* *Series 1.*
   *The Day of the Doctor.* A Story may be part of several other Stories at once.
-- **Version** — one specific way that Story can be watched, read or listened to. The broadcast cut
-  and the 3D cinema release are two Versions of one Story, and they are not interchangeable.
+- **Version** — one specific way that Story can be watched, read or listened to. *The Day of the
+  Doctor* as broadcast and in 3D at the cinema are two Versions of one Story, and they are not
+  interchangeable.
 
 Containment between Stories carries no order, because imposing an order on a set that has none
 would be a lie. Ordering is a separate object, so a broadcast order and a chronological order are

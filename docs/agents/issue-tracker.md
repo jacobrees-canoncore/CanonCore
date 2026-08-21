@@ -85,7 +85,7 @@ ticket, on a census of all 119 issues rather than a sample. That census found 10
 comments, 100 of them top-level and so Linear-only. Of those, 61 are landing or closeout records
 naming their own PR and merge SHA, leaving a reader on the GitHub side one click from the evidence;
 the rest are decisions, findings and corrections. Re-posting the hundred would leave a hundred
-second copies that nothing reconciles, and Linear is canonical anyway, so a mirror that holds less
+second copies that nothing reconciles, and Linear is authoritative anyway, so a mirror that holds less
 loses nothing.
 
 **What does bite is a comment that supersedes its own issue's body**, because then the mirror shows
@@ -98,7 +98,7 @@ for the amendment on CAN-100 Restructure the tracker for the architecture change
 tickets to eleven, which had lived only in a top-level comment while the description still asked for
 thirteen; it now shows on [the closed mirror](https://github.com/jacobrees-canoncore/CanonCore/issues/146).
 
-**Linear is canonical; GitHub Issues is the mirror.** Write through `orca linear` and let the sync
+**Linear is authoritative; GitHub Issues is the mirror.** Write through `orca linear` and let the sync
 carry it across. Never create the same issue on both sides — that produces a duplicate pair nothing
 will reconcile. Updates flow both ways, so editing either copy is fine; editing both is a conflict
 waiting to happen. Prefer the Linear copy, since that is where labels and triage state live. Labels

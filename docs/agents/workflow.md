@@ -597,8 +597,9 @@ too little — a required context that never reports blocks every merge for ever
 **A seventh step checks the documents against the sources they describe**, `node scripts/check-docs.ts`
 — the required contexts, the label roster, the variable roster, the Actions secrets, the release
 token's expiry, the repository's security settings, the Provider baseline's composed context,
-every cross-document pointer, and `CLAUDE.md` against its own line target. **Not all of it reaches
-CI, and the difference is not an oversight:**
+every cross-document pointer, `CLAUDE.md` against its own line target, and every tracked document
+against the glossary's own `_Avoid_` lists. **Not all of it reaches CI, and the difference is not
+an oversight:**
 
 | Check | Where it gates | Why |
 | --- | --- | --- |
@@ -608,6 +609,7 @@ CI, and the difference is not an oversight:**
 | Secret roster vs `gh secret list` | **Locally only** | The workflow's own token cannot be granted the secrets API, and every route that reaches a runner costs a credential |
 | Label roster vs the tracker | **Locally only** | `orca` drives a desktop app on Jacob's machine and cannot run on a runner. A Linear credential to reach it from CI was weighed and refused |
 | Security-settings roster vs the repository | **Locally only** | `security_and_analysis` comes back only to a caller with admin, and `permissions:` grants no such scope — the same wall as the secret roster. It is also what makes the other two calls' `404` an answer, so a runner reads none of the seven rather than some. [`../infrastructure.md`](../infrastructure.md) → *Dependency and secret scanning* |
+| The glossary's `_Avoid_` lists vs every tracked document | CI and locally | Local files throughout, walking the same `git ls-files` listing as the links and pointers in row 1, so it skips only where they do and fails rather than passes on an empty one. Added by **CAN-129 Enforce the glossary's _Avoid_ lists with a check, instead of a reviewer's attention**, because [`CODING_STANDARDS.md`](../../CODING_STANDARDS.md) → *Domain language* made an `_Avoid_` word used for the concept it is listed against a finding and nothing but a reviewer's attention enforced it. **Two rules decide that a word is the banned sense, and each has a stated reach it does not exceed** — both live beside the code in [`../../scripts/lib/doc-checks.ts`](../../scripts/lib/doc-checks.ts), and an exception lives in [`../../CONTEXT.md`](../../CONTEXT.md) → *Language*. `docs/research/` is out of scope for the reason that file's *Using these documents* gives |
 | `CLAUDE.md`'s loaded lines vs its own stated target | CI and locally | The only source that is the file being gated, so it can never skip. The number is read from that file's own maintainer comment rather than written into the script, and the count excludes the block comment because that is stripped before the content is loaded |
 | Release token's expiry vs `vercel tokens ls` | CI and locally | The same `VERCEL_TOKEN` as the variable roster. Listing an account's tokens is a user-level call rather than a project one, so this was recorded as unknown until a runner answered it: run `31964525778` on `6b03296` reported PASS, naming the expiry and the scope. A refused listing exits non-zero, which is a SKIP carrying whatever the CLI said rather than a failed build — reproduced on 16 August 2026 with an invalid token, `Error: Not authorized`, which is the nearest case available: the project-scoped token that would have been the real test is revoked |
 
@@ -693,7 +695,7 @@ table the application can read has a test asserting that a cross-tenant read ret
 misconfigured RLS policy returns an empty result rather than an error, so it is indistinguishable from
 "no data" in the UI and cannot be caught by looking. `story`, `version`, `part_of`, `snapshot` and
 `tombstone` are those tables today, the middle two having joined with **CAN-25 The catalogue:
-Version, part of, Anchor, canonical version**, and every one of them is tested from
+Version, part of, Anchor, canonical version**. Every one of them is tested from
 [`apps/web/src/db/rls.test.ts`](../../apps/web/src/db/rls.test.ts) — one file rather than one per table,
 for the reason that file's own header gives and cites. ADR-0005 rule 2 is what requires it.
 

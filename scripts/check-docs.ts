@@ -21,6 +21,10 @@
 //   9. always-loaded size -  CLAUDE.md  vs  the target its own maintainer comment states
 //  10. Provider baseline  -  docs/infrastructure.md  vs  the two workflow files that compose the
 //                            status check context every Provider repository's ruleset requires
+//  11. domain language    -  every tracked document  vs  CONTEXT.md's own `_Avoid_` lists, which
+//                            were enforced by a reviewer's attention until CAN-129 Enforce the
+//                            glossary's _Avoid_ lists with a check, instead of a reviewer's
+//                            attention
 //
 // Run:  node scripts/check-docs.ts [--verbose]
 //
@@ -63,6 +67,8 @@ import {
   parseDocumentedReleaseTokens,
   parseDocumentedSecuritySettings,
   parseDocumentedVariables,
+  parseGlossary,
+  findAvoidedWords,
   parseLinearLabels,
   parseSecretNames,
   parseSecurityAndAnalysis,
@@ -89,6 +95,7 @@ const CI_WORKFLOW = ".github/workflows/ci.yml";
 const LABEL_HOME = "docs/agents/triage-labels.md";
 const REPOSITORY = "jacobrees-canoncore/CanonCore";
 const ALWAYS_LOADED = "CLAUDE.md";
+const GLOSSARY = "CONTEXT.md";
 const PROVIDER_CALLER = "docs/provider-baseline/ci.yml";
 const PROVIDER_WORKFLOW = ".github/workflows/provider-ci.yml";
 
@@ -646,6 +653,44 @@ check("the Provider baseline context has exactly one documented home", () => {
         `from two files and recorded in ${CONTEXT_HOME} alone; everywhere else, point there.`,
     );
   return `${searched} tracked files carry no copy`;
+});
+
+// ---------------------------------------------------------------------------
+// 11. The domain language.
+//
+// `CODING_STANDARDS.md` -> Domain language makes an `_Avoid_` word used for the concept it is
+// listed against a finding, and until this check it was a finding only where a reviewer happened
+// to notice one. It is the largest rule here that lived only in prose, which is the class this
+// file exists for.
+//
+// Local files throughout, and it walks checks 7 and 8's listing, so it skips where they do and
+// nowhere else: `git ls-files` failing to run at all. An empty listing fails there rather than
+// passing, which is what stops this reporting a clean glossary over a repository it never opened.
+// The vocabulary is read out of CONTEXT.md rather than written here, so the glossary keeps one
+// home, and so does every exception: the table in that file's *Language* section is the only
+// place one lives.
+//
+// **`docs/research/` is out of scope, and CONTEXT.md -> Using these documents is why**: it "is not
+// domain documentation ... its contents are findings, not decisions". A research document quotes
+// what an outside source called a thing, and one of them quotes these very violations back - the
+// audit that found them. Checking it would fail a run for recording the audit accurately.
+// ---------------------------------------------------------------------------
+
+check("every document uses the glossary's word for the concept", () => {
+  const glossary = parseGlossary(read(GLOSSARY));
+  const scope = [...documents()].filter(([file]) => !file.startsWith("docs/research/"));
+  const wrong: string[] = [];
+  for (const [file, { body }] of scope)
+    for (const f of findAvoidedWords(body, glossary))
+      wrong.push(`${file}:${f.line} → "${f.quote}" — \`${f.word}\` is on ${f.term}'s \`_Avoid_\` list and ${f.why}`);
+  if (wrong.length)
+    fail(
+      `${wrong.length} use${wrong.length === 1 ? "" : "s"} of a word the glossary bans for that ` +
+        `concept:\n    - ${wrong.join("\n    - ")}\n    Write the term instead, or record the ` +
+        `exception in ${GLOSSARY} → *Language* with the reason beside it.`,
+    );
+  const terms = glossary.terms.length;
+  return `${terms} term${terms === 1 ? "" : "s"} across ${scope.length} document${scope.length === 1 ? "" : "s"}`;
 });
 
 const width = Math.max(...results.map((r) => r.name.length));

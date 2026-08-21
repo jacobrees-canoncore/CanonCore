@@ -55,6 +55,10 @@ function fixture({
   providerCallerJob = "baseline",
   providerCalledJob = "gates",
   documentedProviderContext = "baseline / gates",
+  // The glossary, for the same reason: one term, one `_Avoid_` list and one exemption is the
+  // smallest thing check 11 can read. A case that wants a violation writes the document that
+  // carries it rather than rewriting this.
+  glossaryTerms = ["**Merge**:", "One person's assertion that two Anchors are the same thing.", "_Avoid_: Deduplicate, alias, combine"],
 }: {
   jobName: string;
   documentedContext: string;
@@ -65,6 +69,7 @@ function fixture({
   providerCallerJob?: string;
   providerCalledJob?: string;
   documentedProviderContext?: string;
+  glossaryTerms?: string[];
 }): Fixture {
   const dir = mkdtempSync(join(tmpdir(), "check-docs-"));
   const write = (rel: string, body: string) => {
@@ -163,6 +168,22 @@ function fixture({
     "CLAUDE.md",
     ["# CanonCore", "<!--", "Target: under 20 lines. Stripped before loading.", "-->", "", "One rule."].join("\n"),
   );
+  write(
+    "CONTEXT.md",
+    [
+      "# CanonCore",
+      "",
+      "## Language",
+      "",
+      "**A proper name is exempt.**",
+      "",
+      "| Phrase | Why the word is not the banned one |",
+      "| --- | --- |",
+      "| `alias record` | DNS's own word, not this glossary's |",
+      "",
+      ...glossaryTerms,
+    ].join("\n"),
+  );
   for (const [rel, body] of Object.entries(documents)) write(rel, body);
 
   cpSync(HERE, join(dir, "scripts"), { recursive: true });
@@ -253,7 +274,7 @@ test("a register that agrees with the workflow passes, and unreachable sources o
   // What the two document checks actually walked, asserted rather than assumed. A pass over an
   // empty set is what this suite reported for as long as the child inherited its directory, and
   // the count is printed only in the summary and under `--verbose`.
-  assert.match(summary, /\| PASS \| every relative link and anchor resolves \| 3 documents \|/);
+  assert.match(summary, /\| PASS \| every relative link and anchor resolves \| 4 documents \|/);
   assert.match(summary, /\| PASS \| every "file → \*Section\*" pointer resolves \| 2 pointers resolve \|/);
 });
 
@@ -317,7 +338,7 @@ test("a listing that came back empty fails rather than passing over nothing", ()
     // The Provider baseline's called workflow is hidden with them: it is a tracked `.yml` outside
     // both allowed sets, so leaving it in the index would give the two scans one file to search
     // and the vacuous-pass this case is about would no longer be vacuous.
-    untracked: ["docs/", "CLAUDE.md", ".github/workflows/provider-ci.yml"],
+    untracked: ["docs/", "CLAUDE.md", "CONTEXT.md", ".github/workflows/provider-ci.yml"],
   });
   const { code, output } = run(gitOnly);
 
@@ -325,6 +346,10 @@ test("a listing that came back empty fails rather than passing over nothing", ()
   assert.match(output, /^FAIL {2}the job name has exactly one documented home {2,}.*was left to search/m);
   assert.match(output, /^FAIL {2}every relative link and anchor resolves {2,}.*no tracked markdown/m);
   assert.match(output, /^FAIL {2}every "file → \*Section\*" pointer resolves {2,}.*no tracked markdown/m);
+  // The fourth walker of that listing, and the one that would otherwise report a clean glossary
+  // over a repository it never opened. Its own source is still on disk and still parses, which is
+  // exactly how a vacuous pass here would look like a real one.
+  assert.match(output, /^FAIL {2}every document uses the glossary's word for the concept {2,}.*no tracked markdown/m);
 });
 
 test("a register naming two live release tokens fails before it reaches Vercel", () => {
@@ -503,4 +528,52 @@ test("the composed Provider context written out a second time fails the build", 
   assert.equal(code, 1, output);
   assert.match(output, /^FAIL {2}the Provider baseline context has exactly one documented home/m);
   assert.match(output, /docs\/agents\/workflow\.md \("baseline \/ gates"\)/);
+});
+
+test("a document using an `_Avoid_` word for the concept it is listed against fails the build", () => {
+  // The rule CODING_STANDARDS.md → Domain language states, enforced by a reviewer's attention
+  // until CAN-129 Enforce the glossary's _Avoid_ lists with a check, instead of a reviewer's
+  // attention. The sentence names Merge, so `alias` here is the concept's own word being avoided
+  // rather than the word doing some other job.
+  const { run, gitOnly } = fixture({
+    jobName: "the register's context",
+    documentedContext: "the register's context",
+    documents: {
+      "docs/adr/0003-no-shared-catalogue.md": [
+        "# No shared catalogue",
+        "",
+        "A Merge is one person's assertion, held as an alias rather than a rewrite.",
+      ].join("\n"),
+    },
+  });
+  const { code, output } = run(gitOnly);
+
+  assert.equal(code, 1, output);
+  assert.match(output, /^FAIL {2}every document uses the glossary's word for the concept/m);
+  assert.match(output, /0003-no-shared-catalogue\.md:3 → "an alias"/);
+  assert.match(output, /`alias` is on Merge's `_Avoid_` list/);
+});
+
+test("the same word doing another job passes, which is what keeps the gate worth having", () => {
+  // The other half of the rule, and the half that decides whether anyone leaves the check on:
+  // `alias` is banned for Merge, not banned outright. A sentence about DNS names no concept, and
+  // the glossary's exemption table carries the phrase besides.
+  const { run, gitOnly } = fixture({
+    jobName: "the register's context",
+    documentedContext: "the register's context",
+    documents: {
+      "docs/runbook.md": [
+        "# Runbook",
+        "",
+        "The apex is held as an alias record, and a Merge is not involved.",
+      ].join("\n"),
+    },
+  });
+  const { code, output, summary } = run(gitOnly);
+
+  assert.doesNotMatch(output, /^FAIL/m, output);
+  assert.equal(code, 0, output);
+  // What it walked, asserted rather than assumed: a pass over an empty document set reads
+  // identically to a pass over the repository.
+  assert.match(summary, /\| PASS \| every document uses the glossary's word for the concept \| 1 term across 5 documents \|/);
 });

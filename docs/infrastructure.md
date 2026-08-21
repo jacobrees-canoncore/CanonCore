@@ -41,7 +41,7 @@ changes, it is evidence and does not belong here.
 
 This is the URL that **CAN-24 Sign in and sign out** (better-auth base URL and cookie domain),
 **CAN-31 Email verification and password reset** (absolute links) and **CAN-21 Write the Online Safety
-Act documents** must bake in. `www` is canonical rather than the apex so the session cookie stays
+Act documents** must bake in. `www` is the canonical host rather than the apex so the session cookie stays
 host-only; the reasoning and what will try to reopen it are
 [ADR-0010](adr/0010-canonical-host-www.md).
 

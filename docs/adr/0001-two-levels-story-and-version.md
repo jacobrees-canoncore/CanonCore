@@ -47,7 +47,7 @@ the serial, and because chronologies place prose and television as independent e
   Expression; EIDR makes `ApproximateLength` mandatory and non-inheritable on every Edit.
 - A Version carries a multi-valued *reason* (extended, shortened, omnibus, censored, restored,
   colourised, reconstruction, abridged, translated, re-narrated), following EIDR's `EditClass`,
-  because one release can be several at once. Runtime is not a reason; it is a consequence.
+  because one Version can be several at once. Runtime is not a reason; it is a consequence.
 - Ownership and location are attributes of a Version, not a level beneath it.
 - A Story may carry a nullable pointer to a canonical Version, so it can state a runtime and a
   year without adjudicating which of fifteen releases is the real one. LRM's "representative
