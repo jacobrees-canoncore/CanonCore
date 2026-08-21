@@ -252,7 +252,9 @@ every lane in one call with its agent's `state`, `prompt`, `lastAssistantMessage
 `toolName`, and `orca worktree set --comment` is where to record why one is stuck — with several
 running, the only cheap way to tell them apart
 ([`../research/orca-gaps-and-the-worktree-workflow.md`](../research/orca-gaps-and-the-worktree-workflow.md)
-→ *Every Orca surface, with a verdict*).
+→ *Every Orca surface, with a verdict*). What closes a lane at the other end is
+[The lane is closed out, and the checkout is left for a person](#the-lane-is-closed-out-and-the-checkout-is-left-for-a-person),
+which `/review-pr` does once the merge lands.
 
 **A lane starts with no `node_modules`.** A worktree is a fresh checkout, so nothing carries over,
 and [`orca.yaml`](../../orca.yaml) at the repository root is what pays for it: `scripts.setup` runs
@@ -957,3 +959,38 @@ order ships a consumer calling something that does not exist.
   `triage-labels.md` has the reasoning.
 - **Anything found on the way** becomes its own Linear issue, not a late commit on a branch that is
   about to merge.
+
+### The lane is closed out, and the checkout is left for a person
+
+A merge ends the ticket; it does not end the lane. The worktree stays on disk, its terminals stay
+live, and its board card keeps whatever status it had when the work started. That is how five lanes
+came to be tidied up by hand on 16 and 17 August 2026 — each one after re-deriving the merge
+evidence `/review-pr` was already holding, which is why the close-out belongs in the skill rather
+than in a habit.
+
+**So `/review-pr` closes the lane out itself, and closing out is two things rather than three**: the
+board card is set to `completed`, and the lane's terminals are stopped. **The checkout is left**,
+and that is the decision, not the part nobody got round to.
+
+- **Rejected: removing the worktree.** It is what was done by hand every time, and it is safe —
+  `orca worktree rm` deletes an already-merged branch and preserves an unmerged one, so the older
+  worry about force-deleted commits is spent
+  ([`../research/orca-gaps-and-the-worktree-workflow.md`](../research/orca-gaps-and-the-worktree-workflow.md)
+  → *Known negatives, recorded so they are not re-investigated*). It is rejected on other grounds: a
+  checkout is cheap to keep, and discarding the work is a call for a person rather than one to take
+  from a skill's own reading of a merge. The skill offers the line and a person runs it.
+- **`completed` is the value, and it is written down here because nothing checks it.**
+  `--workspace-status` takes any string — an unknown id is accepted and becomes the card's status —
+  so a misspelling produces a column nobody looks at rather than an error. The four default board
+  ids are `todo`, `in-progress`, `in-review` and `completed`.
+- **The close-out acts only on a proven merge**, on the evidence the report already quotes: `state`,
+  `mergedAt`, and the lane's head still matching the merged `headRefOid`. Nothing is destroyed if it
+  acts wrongly; what it would waste is the work of a lane that never landed.
+- **From a plain clone it is a no-op, announced rather than skipped silently.** A branch made with
+  `git switch -c` has no Orca worktree behind it, and the loop has to keep working there.
+
+**Stopping the terminals is the last act of all, after the report, because it ends the session that
+would otherwise write it.** `orca terminal stop` takes a worktree and stops every pty under it, and
+when `/review-pr` runs inside the lane one of those is its own. So the report comes first and says
+what the close-out did and what is about to happen; then the lane goes quiet, and `orca worktree ps`
+reads `status: "inactive"` instead of a merged lane still reporting itself live.

@@ -367,8 +367,83 @@ request must disclose*).
    re-read the issue instead of retrying blind. `save-issue` is never retried blind — step 7 has its
    repair path.
 
-9. **Report** the merged PR, the Linear state, and what you verified — including, explicitly,
-   anything you could not. Quote step 6's `state` and `mergedAt` as the evidence that it landed;
-   "the merge command exited zero" is not that evidence, and neither is its failing. Name the
-   acceptance criteria you left unticked, and why. If the description had to be rewritten after a
-   sync reverted it, say that too.
+9. **Close out the lane.** The worktree the work was done in outlives the merge: the checkout is
+   still on disk, the terminals are still live, and the board card still reads whatever it read when
+   the work started. Five lanes were tidied up by hand on 16 and 17 August 2026, each after
+   re-deriving the merge evidence this skill was already holding. This step moves the card, step 11
+   stops the terminals, and **neither removes the checkout** —
+   `docs/agents/workflow.md` → *The lane is closed out, and the checkout is left for a person* has
+   that decision and what it rejected.
+
+   **Three things have to agree before anything is touched.** Step 6's `state` reads `MERGED`, its
+   `mergedAt` is non-null, and the lane's own head is the SHA that landed. The head is what ties the
+   close-out to *this* work: `state` and `mergedAt` say a merge happened, and only the head says the
+   lane in front of you is what went into it.
+
+   ```bash
+   orca worktree show --worktree branch:<branch> --json \
+     | jq -r '.ok, (.result.worktree.head // "-"), (.error.code // "-")'
+   ```
+
+   Compare that head with the SHA step 6 merged. If it has moved, something committed to the lane
+   after the merge — leave the lane open, and say so.
+
+   **`branch:<branch>`, never `current`.** `current` resolves to whichever worktree the shell is in,
+   which is the lane only when this skill is being run from inside it. Run from the main checkout —
+   where a PR given by number is most likely to be landed from — `current` is the **main** worktree,
+   so the close-out would mark its card completed and step 11 would stop the session you are sitting
+   in. `branch:` is correct from either place.
+
+   **`ok: false`, or no `orca` on the PATH at all, is a no-op to announce rather than a failure.** A
+   branch made with `git switch -c` in a plain clone has no Orca worktree behind it and the selector
+   answers `selector_not_found`. That is the right answer, not a reason to go looking for another
+   selector: skip this step and step 11, and say in step 10 that the lane was not closed out.
+
+   Then move the card:
+
+   ```bash
+   orca worktree set --worktree branch:<branch> --workspace-status completed --json
+   ```
+
+   **`completed`, spelled exactly, and read back from the call's own
+   `.result.worktree.workspaceStatus`.** It is one of the four default board ids — `todo`,
+   `in-progress`, `in-review`, `completed` — and **nothing validates the value**: `--workspace-status
+   not-a-real-status` is accepted and becomes the card's status. A typo therefore produces a column
+   nobody looks at rather than an error.
+
+   **Removal is a person's call and not this skill's.** `orca worktree rm --worktree branch:<branch>`
+   is safe — Orca deletes an already-merged branch and preserves an unmerged one
+   (`docs/research/orca-gaps-and-the-worktree-workflow.md` → *Known negatives, recorded so they are
+   not re-investigated*) — so it is left undone for a different reason: a checkout is cheap to keep,
+   and discarding the work is not a decision to take from a skill's own reading of a merge. Offer
+   the line in step 10; do not run it.
+
+10. **Report** the merged PR, the Linear state, and what you verified — including, explicitly,
+    anything you could not. Quote step 6's `state` and `mergedAt` as the evidence that it landed;
+    "the merge command exited zero" is not that evidence, and neither is its failing. Name the
+    acceptance criteria you left unticked, and why. If the description had to be rewritten after a
+    sync reverted it, say that too.
+
+    **Say what happened to the lane**, since after step 11 nobody can ask: the card's new status,
+    that its terminals are about to be stopped, that the checkout is being left on disk, and the
+    `orca worktree rm` line for whoever wants the disk back. If step 9 was a no-op, say that instead
+    and give the reason it returned.
+
+11. **Stop the lane's terminals. Last, because it ends the session running it.**
+
+    ```bash
+    orca terminal stop --worktree branch:<branch> --json          # -> {"stopped": <count>}
+    ```
+
+    The command takes a **worktree**, not a terminal, and stops every live pty under it. When this
+    skill is running inside the lane, one of those is its own: the command does not return and the
+    session ends where it stands. **That is this step succeeding**, and it is the whole reason the
+    report is step 10 — anything unsaid by this line stays unsaid.
+
+    Skip it on the same two conditions as step 9, an unproven merge or no Orca worktree behind the
+    branch, and say so there.
+
+    Run from outside the lane the call returns instead, and `orca worktree ps` then reads
+    `status: "inactive"` with `liveTerminalCount: 0` for it — the difference between a merged lane
+    and one still reporting itself live. Either way the worktree is untouched: still listed, still
+    on disk, and a person can open a terminal in it again.
