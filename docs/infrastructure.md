@@ -29,6 +29,7 @@ changes, it is evidence and does not belong here.
 - [Reporting address](#reporting-address)
 - [Error reporting: Sentry](#error-reporting-sentry)
 - [Uptime monitoring: UptimeRobot](#uptime-monitoring-uptimerobot)
+- [The estate](#the-estate)
 - [Domains](#domains)
 - [Agent tooling](#agent-tooling)
 - [Firewall](#firewall)
@@ -2144,6 +2145,44 @@ live in production, because pointing a monitor at a 404 pages the phone within f
 
 Then the check is live, and what to do when it fires is [`runbook.md`](runbook.md).
 
+## The estate
+
+**Everything the Vercel team and the two Neon organisations hold, so that the next sweep is a
+comparison rather than a discovery.** Four tickets found a live credential in an abandoned project
+before this table existed, each enumerating the estate from scratch first
+([incident](incidents.md#nine-dormant-neon-projects-and-the-ninth-was-the-dangerous-one)).
+
+*Read back from `vercel project ls`, `vercel integration ls --all`, `vercel env ls` and the Neon API
+on 21 August 2026.*
+
+| Vercel project | Neon store | Values stored Non-sensitive, and so readable |
+| --- | --- | --- |
+| `canoncore` | `canoncore`, in *Database* above | **Five, none of them a credential** — two hostnames, a database name and two role names, each argued in place in the roster in *Environment variables* above |
+| `provider-tmdb` | — | **None.** It holds one variable, `TMDB_READ_ACCESS_TOKEN`, Sensitive. The TMDB Provider, under [ADR-0014](adr/0014-shell-providers-and-per-source-retention.md) |
+| `portfolio` | — | **None**, and no variables at all. Not CanonCore; serves `www.jacobrees.co.uk` |
+| `waveger` | `waveger`, `store_xCNwLtRIQVOBig87` → Neon project `delicate-credit-61083163` | **Twenty-one, including `PGPASSWORD`, `POSTGRES_PASSWORD` and the six connection strings that embed them** — sixteen in all three environments, five more in Development only, the same five being Sensitive in Preview and Production. Not CanonCore — **CAN-149 waveger and waveger-archive store readable credentials, including a live Postgres password** |
+| `waveger-archive` | — | **Nine, including `SENTRY_AUTH_TOKEN`** — five in all three environments, four in Production only. Not CanonCore, and deliberate rather than abandoned — same ticket |
+
+**Two Neon projects exist and both are bound to a Vercel project**, which is the intended end state:
+a store bound to nothing is the shape an abandoned database takes. Both sit in the Vercel-managed
+organisation `org-silent-cell-49503934`. The console-managed organisation `Jacob`
+(`org-square-star-37689785`) **holds nothing** — it held nine dormant projects until 21 August 2026
+([incident](incidents.md#nine-dormant-neon-projects-and-the-ninth-was-the-dangerous-one)).
+
+**Neither CanonCore project stores a credential Non-sensitive** — `canoncore`'s five readable values
+are addresses rather than secrets, and the blockquote under *Environment variables* above is why that
+distinction decides anything. **The last two rows are the counter-example, and are recorded rather
+than fixed here** — they are outside CanonCore, in use rather than abandoned, and re-storing a value
+that has already been readable conceals the exposure without ending it. Only names and sensitivity
+were read; no value was fetched.
+
+**Nothing sweeps this, and that is a decision rather than an omission** — an affordable check existed
+and was refused on 21 August 2026, with the reasoning and the condition that would reopen it in the
+[incident](incidents.md#nine-dormant-neon-projects-and-the-ninth-was-the-dangerous-one). **What
+follows is that the sweep is manual and owed a list to start from.** Run the commands in the
+read-back line, list the Neon projects in each organisation, compare, and account for anything not
+above — a Vercel project nobody deploys, or a Neon project bound to no Vercel store.
+
 ## Domains
 
 `canoncore.com` is registered at Namecheap on BasicDNS. **There is no wildcard record**, so a new
@@ -2171,9 +2210,8 @@ renewal fails visibly and this record is the fix.
 ([incident](incidents.md#the-demo-cname-dangled-at-a-deleted-project)).
 
 **Four older Vercel projects were deleted on 13 August 2026** — `canoncore-legacy`,
-`canoncore-demo`, `canoncore-storybook` and `canoncore-v3`. Verified against `vercel project ls` the
-same day: the account holds `canoncore`, `canoncore-rebuild`, `canoncore-v4`, `canoncore-v5`,
-`universora`, `waveger`, `waveger-archive`, `portfolio` and `minecraft`.
+`canoncore-demo`, `canoncore-storybook` and `canoncore-v3` — and **five more on 21 August 2026**,
+which is what emptied the account of everything abandoned. What it holds now is *The estate* above.
 
 ## Agent tooling
 
