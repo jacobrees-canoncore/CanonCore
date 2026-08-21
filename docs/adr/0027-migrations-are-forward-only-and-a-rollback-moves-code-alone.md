@@ -83,8 +83,10 @@ runbook's.
 `migrate`, `introspect`, `push`, `studio`, `up`, `check`, `drop` and `export`, and none of them
 reverses an applied migration — read off `drizzle-kit --help` on 21 August 2026. `migrate` is
 forward by construction — it *"pick[s] previously unapplied migrations"* and applies them — and that
-page does not mention reversing one anywhere
-([Drizzle, migrations](https://orm.drizzle.team/docs/migrations), read 21 August 2026). **`drop` is
+page documents no command that reverses one
+([Drizzle, migrations](https://orm.drizzle.team/docs/migrations), read 21 August 2026). It does use
+the word once, of *"zero downtime deployment and rollback DDL changes if something fails"*, and that
+is a description of a deployment strategy rather than a tool Drizzle offers to carry it out. **`drop` is
 not the exception its name suggests**, and Drizzle says so by where it files it: v1 removes the
 command alongside *"removing journal.json, grouping SQL files and snapshots into separate migration
 folders"*, changes whose stated benefit is to *"eliminate potential Git conflicts with the journal
@@ -110,6 +112,17 @@ rollback.
 ## The invariant, which is the rule this repository already has
 
 **Every migration must leave the schema able to serve the previous release's code.**
+
+**"Serve" means its writes as well as its reads**, and that half is where the rule is actually broken.
+A narrowing that removes something — `DROP COLUMN`, `DROP TABLE`, `SET NOT NULL` on a populated table
+— announces itself. **A narrowing that adds something does not**: a `UNIQUE`, a `CHECK`, a foreign
+key or a `NOT NULL` with no default all read as additive in a diff, and all of them refuse writes the
+previous release makes. The test is never whether the migration added or removed, it is whether the
+schema afterwards still accepts everything the release before it does.
+
+This also separates the two windows in a way the deploy-order rule alone does not need to. During
+migrate-then-promote, old code serves for minutes and its writes are whatever arrives in them. After
+a rollback it serves indefinitely, so a constraint it violates is not a risk that expires.
 
 This is not a new tax. [`docs/agents/workflow.md`](../agents/workflow.md) → *What a merge carries*
 already requires it, for a different reason: the release migrates before it promotes, so between

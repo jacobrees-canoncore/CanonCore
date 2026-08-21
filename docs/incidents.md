@@ -1002,10 +1002,6 @@ That is GitHub retaining a pull request's history rather than this repository ho
 anyone could find by looking, which is why the id and the SHA belong in an entry like this one
 before the merge and not after it.
 
----
-
-# Database
-
 ## A rollback turns off auto-assignment of production domains
 
 **21 August 2026, CAN-148 Say how a bad release is rolled back, and decide whether the schema can
@@ -1041,6 +1037,10 @@ Project, Deployment, Status, Environment, Duration and Username — neither the 
 deployment is current, though
 [Vercel's own guide](https://vercel.com/docs/deployments/rollback-production-deployment) says it
 "shows deployment URLs, timestamps, and the git commits that triggered them".
+
+---
+
+# Database
 
 ## Preview branching was switched off, so no preview ever got a branch
 

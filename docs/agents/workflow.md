@@ -912,7 +912,8 @@ widening is not the risk, forgetting to remove it is. Purely additive changes ar
 still land in one go.
 
 **That rule has a second reason, and one name**: *every migration must leave the schema able to serve
-the previous release's code.* The deploy window above is one place old code meets the new schema; a
+the previous release's code* — its writes as well as its reads, which is why adding a `UNIQUE`, a
+`CHECK` or a `NOT NULL` counts as a narrowing however additive it reads. The deploy window above is one place old code meets the new schema; a
 **rollback** is the other, held open indefinitely rather than for minutes — so widen-then-narrow is
 also what makes a bad release recoverable, and it is the whole of what makes it recoverable, because
 the schema is never rolled back

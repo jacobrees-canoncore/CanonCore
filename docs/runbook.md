@@ -114,19 +114,22 @@ the page and fatal for the check, because from then on only this route can see t
    ```
 
    **Empty output is the green light**, and the rollback is code-only. **Non-empty is not a red
-   light** — read the migrations it names, because there are three different answers:
+   light** — read the migrations it names. The question is never "did it add or remove", it is
+   **does the schema still accept everything the release you are going back to does**, writes
+   included:
 
    | What the migration did | Rolling the code back |
    | --- | --- |
-   | Added a table, a column, an index — anything purely additive | **Safe.** Old code does not know the new shape exists |
-   | Narrowed, and conformed to the rule | **Safe by construction.** A narrowing is only allowed once the previous release's code has stopped needing the old shape, which is exactly the code you are rolling back to ([ADR-0027](adr/0027-migrations-are-forward-only-and-a-rollback-moves-code-alone.md)) |
+   | Added a table, a nullable column, an ordinary index — anything that accepts strictly more | **Safe.** Old code does not know the new shape exists, and nothing it does is refused |
+   | **Added a constraint**: `NOT NULL` with no default, a `UNIQUE` or `CHECK`, a new foreign key | **Looks additive and is not.** It creates no problem for old code's *reads* and rejects some of its *writes*. Treat it as a narrowing and use the two rows below |
+   | Narrowed, and conformed to the rule | **Safe by construction.** A narrowing is only permitted once the previous release's code has stopped needing the old shape, and that is exactly the code you are going back to ([ADR-0027](adr/0027-migrations-are-forward-only-and-a-rollback-moves-code-alone.md)) |
    | Narrowed too early, or the migration *is* the bug | **Not safe, and not what this entry fixes.** *What this cannot recover* below |
 
-   The middle row is the whole return on the rule, so **do not treat "it touched the schema" as a
-   refusal.** What you are checking is whether the narrowing was due — whether the code you are
-   rolling back to still reads the column that went.
+   The third row is the whole return on the rule, so **do not treat "it touched the schema" as a
+   refusal.** **The second row is the trap**, because "purely additive" is how a new constraint reads
+   in a diff and the rule it breaks is about writes rather than shape.
 
-**Fix. One command, and it took two seconds — but it has to be run from a linked directory.**
+**Fix. It takes seconds, and it has to be run from a linked directory.**
 
 `vercel rollback` and `vercel promote` take a deployment and **no project argument**, so `--scope`
 alone does not tell them which project they mean: from an unlinked directory the CLI searches *that
@@ -199,8 +202,10 @@ vercel promote <good-deployment-url> --yes
   ([incident](incidents.md#a-rollback-turns-off-auto-assignment-of-production-domains)). What the
   repository *guarantees* is
   one release: every migration is required to leave the schema able to serve the previous release's
-  code, and nothing promises that two releases back. Going further means running check 3 across the
-  whole span.
+  code, and nothing promises that two releases back. **Check 3's table does not extend**, either —
+  its "safe by construction" row is the invariant, and the invariant reaches exactly one release. Two
+  or more back, there is no rule doing the work for you: read every migration across the span against
+  the code you are going back to, or roll back one release at a time.
 
 ## The database does not answer
 
