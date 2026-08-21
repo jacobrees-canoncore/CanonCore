@@ -195,7 +195,7 @@ Features run through the engineering skills in a fixed order. All are `disable-m
 /to-tickets        spec sliced into vertical tracer-bullet tickets
 /implement         one ticket, TDD at the agreed seams; commits, pushes only for evidence
 /draft-pr          push the branch, open the draft PR, link the ticket
-/review-pr         gates, ready, squash-merge, close out Linear
+/review-pr         gates, ready, squash-merge, close out Linear and the lane
 ```
 
 **Branch off `main` before `/implement`** — nothing does it for you. `/implement` commits to whatever

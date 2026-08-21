@@ -378,7 +378,7 @@ is that a loaded skill echoes its own instructions.
 # create the branch first — Branches, above
 # ...work, via /implement, which runs the review and the second round if there is one...
 /draft-pr                                     # push, open the draft, link Linear
-/review-pr                                    # gates, ready, squash-merge, close out Linear
+/review-pr                                    # gates, ready, squash-merge, close out Linear + lane
 ```
 
 **No review step sits between those two.** `/implement` already ran it; reach for a review only in
@@ -989,9 +989,7 @@ and that is the decision rather than the part nobody got round to.
 - **From a plain clone it is a no-op, announced rather than skipped silently.** A branch made with
   `git switch -c` has no Orca worktree behind it, and the loop has to keep working there.
 
-**Stopping the terminals is the last act of all, and the report comes before it.** `orca terminal
-stop` takes a worktree and stops every pty under it, the caller's included, so a lane's own agent
-does not survive the call it made
+**Stopping the terminals is the last act of all, and the report comes before it.** That ordering is
+forced rather than chosen, and the measurement that forces it is the one entry to read before
+changing this section
 ([incident](../incidents.md#a-terminal-that-stops-its-own-worktree-prints-the-result-and-then-dies)).
-The ordering is forced rather than chosen: a close-out that stopped the terminals first would
-produce no report at all.

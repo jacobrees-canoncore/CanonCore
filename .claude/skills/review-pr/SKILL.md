@@ -378,23 +378,33 @@ request must disclose*).
    step 6 merged with `--match-head-commit`. **Not the squash commit.** That is a new SHA on `main`
    and can never equal a lane head, so comparing against it would skip the close-out every time.
 
+   One line decides it, so the comparison happens rather than being eyeballed:
+
    ```bash
+   gh pr view <n> --json state,mergedAt --jq '"\(.state) \(.mergedAt)"'   # MERGED, and a timestamp
+   OID=$(gh pr view <n> --json headRefOid --jq .headRefOid)
    if command -v orca >/dev/null; then
-     orca worktree show --worktree branch:<branch> --json \
-       | jq -r '.ok, (.result.worktree.head // "-"), (.error.code // "-")'
+     orca worktree show --worktree branch:<branch> --json 2>&1 | jq -r --arg oid "$OID" '
+       if .ok != true then "no lane: \(.error.code // "unreadable") — steps 9 and 11 are a no-op"
+       elif .result.worktree.head == $oid then "lane head matches \($oid) — close out"
+       else "lane head \(.result.worktree.head) is not \($oid) — leave the lane open"
+       end' 2>/dev/null || echo "orca did not answer — steps 9 and 11 are a no-op"
    else
-     echo "no orca on this machine: steps 9 and 11 are a no-op"
+     echo "no orca on this machine — steps 9 and 11 are a no-op"
    fi
    ```
 
-   **`branch:<branch>`, never `current`.** `current` is whichever worktree the shell is in, which is
-   the lane only when this skill is running inside it. Run from the main checkout — where a PR given
-   by number is most likely to be landed from — `current` is the **main** worktree, so the close-out
-   would mark its card completed and step 11 would stop the session you are sitting in.
+   **Every way this can go wrong ends in an announced no-op rather than a stack trace**, which is
+   what the last two branches are for: a plain clone has no `orca`, and Orca installed with its
+   application not running answers nothing parseable, so `jq`'s own failure is caught rather than
+   read as an absent lane. A branch made with `git switch -c` has no Orca worktree behind it and
+   returns `selector_not_found`. In all three, skip this step and step 11 and say so in step 10.
 
-   **`ok: false`, or no `orca` at all, is a no-op to announce rather than a failure.** A branch made
-   with `git switch -c` in a plain clone has no Orca worktree behind it, and the selector answers
-   `selector_not_found`. Skip this step and step 11, and say so in step 10.
+   **`branch:<branch>`, never `current`.** `current` is *"the enclosing Orca-managed worktree from
+   the shell cwd"* (`orca skills get orca-cli --full`), which is the lane only when this skill is
+   running inside it. Run from the main checkout — where a PR given by number is most likely to be
+   landed from — `current` is the **main** worktree, so the close-out would mark its card completed
+   and step 11 would stop the session you are sitting in.
 
    Then move the card, and read the new value back from the call's own
    `.result.worktree.workspaceStatus`:
@@ -403,9 +413,8 @@ request must disclose*).
    orca worktree set --worktree branch:<branch> --workspace-status completed --json
    ```
 
-   **`completed`, spelled exactly.** Nothing validates it, so a typo becomes the card's status
-   rather than an error (`docs/incidents.md` → *An unknown board status id is accepted and becomes
-   the card's status*).
+   **`completed`, spelled exactly** — nothing validates it (`docs/incidents.md` → *An unknown board
+   status id is accepted and becomes the card's status*).
 
    **Removal is not this skill's to do.** `orca worktree rm --worktree branch:<branch>` is the line;
    offer it in step 10 and do not run it. Why it is offered rather than run is the pointer above.
@@ -434,8 +443,9 @@ request must disclose*).
     dies*). That is this step succeeding, and it is why the report is step 10.
 
     Run from outside the lane, the shell survives: read `.result.stopped` and add the count to what
-    you have already reported. Either way the worktree itself is untouched — still listed, still on
-    disk, and a person can open a terminal in it again.
+    you have already reported — or, on an `ok: false`, say that the card moved and the terminals did
+    not. Either way the worktree itself is untouched — still listed, still on disk, and a person can
+    open a terminal in it again.
 
     Skip it on the same two conditions as step 9, an unproven merge or no Orca worktree behind the
     branch, and say so there.

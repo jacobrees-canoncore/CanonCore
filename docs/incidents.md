@@ -472,9 +472,16 @@ capability. Sign-in state is per session and belongs in no document as standing 
 ## Five merged lanes were closed out by hand
 
 **16 and 17 August 2026**, recorded on CAN-128 Close out the worktree when /review-pr lands a merge.
-Five worktrees — `can-86`, `can-102`, `can-123`, `can-56`, `can-54` — were removed by hand after
-their pull requests had merged, each one after checking by hand that the branch had genuinely
-landed. The lanes themselves left no trace behind them, so the removals cannot be re-run from git
+Five worktrees were removed by hand after their pull requests had merged, each one after checking by
+hand that the branch had genuinely landed: `can-102` ([#181](https://github.com/jacobrees-canoncore/CanonCore/pull/181),
+merged 18:38:53Z), `can-86` ([#183](https://github.com/jacobrees-canoncore/CanonCore/pull/183), 18:35:52Z),
+`can-123` ([#185](https://github.com/jacobrees-canoncore/CanonCore/pull/185), 20:38:43Z) and
+`can-56` ([#186](https://github.com/jacobrees-canoncore/CanonCore/pull/186), 20:44:21Z) on the 16th,
+`can-54` ([#191](https://github.com/jacobrees-canoncore/CanonCore/pull/191), 09:07:00Z) on the 17th.
+
+**The removals themselves cannot be re-run**, and only the merges above anchor them: a lane exists
+from `worktree create` to `worktree rm`, neither of which leaves a trace, and Orca keeps `createdAt`
+for live worktrees only
 ([`research/orca-gaps-and-the-worktree-workflow.md`](research/orca-gaps-and-the-worktree-workflow.md)
 → *The lane era is datable, and "thirteen" is exactly right*).
 
@@ -495,7 +502,9 @@ while the worktree stayed listed and on disk until it was removed.
 
 **Why.** The CLI passes the selector straight through: `terminal.stop` resolves to
 `runtime.stopTerminalsForWorktree(worktree)` in the bundled runtime, with no exclusion for the
-caller. It is the call the desktop application's *Sleep* makes.
+caller. The gentler teardown is a **different** method — `terminal.sleep`, onto
+`runtime.sleepTerminalsForWorktree` — and `orca terminal` exposes no `sleep` subcommand, so `stop`
+is the only teardown a skill can reach.
 
 **What it proves.** The response comes back and the shell that asked for it does not survive to use
 it. So a step that runs this can only be the last step there is: an agent inside the lane cannot act

@@ -676,9 +676,11 @@ scope by nature, spanning every project on the machine), and
 **CAN-128 Close out the worktree when /review-pr lands a merge** is held at `needs-info` pending this
 research. It should be **amended and restored, not cancelled** — the gap it names is real:
 `.claude/skills/review-pr/SKILL.md` runs to nine steps, the last three all Linear-side, and none of
-them touches the worktree. Five worktrees were removed by hand on 16 and 17 August. (*Closed
-21 August 2026: the skill runs to eleven steps now, and the last three are the close-out. The
-recommendation below survived unchanged, on the footing this document gave it.*)
+them touches the worktree. Five worktrees were removed by hand on 16 and 17 August. (*Dated
+21 August 2026: the label came off on the 17th with the amendment, the ticket landed on the 21st,
+and the skill runs to eleven steps whose last three are the close-out. The recommendation below
+survived unchanged, on the footing this document gave it, and the five removals now sit in the
+incident record with the pull requests that anchor them.*)
 
 Three amendments follow from the findings above.
 
