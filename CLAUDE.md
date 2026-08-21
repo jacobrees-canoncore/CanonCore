@@ -84,7 +84,7 @@ default heuristics: `CODING_STANDARDS.md`.
 
 **Production is `https://www.canoncore.com`**. What is provisioned and where each credential lives:
 `docs/infrastructure.md` — read before touching deployment, environment variables or the database,
-and note what it flags as unverified. When it is down, and the weekly Hobby usage check: `docs/runbook.md`.
+and note what it flags as unverified. When it is down, and what warns you before a spend pause: `docs/runbook.md`.
 
 **The URL is deployed and deliberately not shared.** `docs/infrastructure.md` → *The URL-sharing gate*
 holds both gates, lawfulness and readiness, and what opens each. **`docs/compliance/` holds the statutory
