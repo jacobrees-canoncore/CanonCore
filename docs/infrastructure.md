@@ -22,6 +22,7 @@ changes, it is evidence and does not belong here.
 - [Hosting](#hosting)
 - [The repository, and what `main` refuses](#the-repository-and-what-main-refuses)
 - [The Provider repository baseline](#the-provider-repository-baseline)
+- [The Provider repository agent baseline](#the-provider-repository-agent-baseline)
 - [Environment variables](#environment-variables)
 - [Database](#database)
 - [Backups](#backups)
@@ -883,6 +884,129 @@ flagged when it found supply-chain scanning assumed to live in **CAN-61 Keep the
 dependencies from silting up**. It has to be settled before a monitor is pointed at anything, which
 is why it is not blocked by the deployment it will watch.
 
+## The Provider repository agent baseline
+
+The section above gives a Provider repository this project's *gates*. This one gives it the
+*practice* behind them — the four engineering skills, and the documents they are written against.
+Built by **CAN-153 Give every Provider repository an agent baseline, as CAN-107 gave it a CI one**
+on 21 August 2026, after `provider-tmdb` existed rather than before it, which is the one way this
+baseline is unlike the CI one: an unchecked merge is permanent and a session run without the
+standards is not.
+
+**It is one Claude Code plugin, and this repository is what it delivers.** The decision, what was
+rejected, and what it costs are [ADR-0029](adr/0029-a-provider-reaches-this-practice-as-a-plugin.md);
+this is the register of what is provisioned.
+
+| Part | Shape | How a repository gets it |
+| --- | --- | --- |
+| The four skills, and `CLAUDE.md`, `CODING_STANDARDS.md`, `CONTEXT.md`, `docs/` | Two manifests here — [`.claude-plugin/marketplace.json`](../.claude-plugin/marketplace.json) and [`.claude-plugin/plugin.json`](../.claude-plugin/plugin.json) — whose plugin `source` is `"./"`, so the payload is this repository | That repository's own `.claude/settings.json`, below |
+| The install itself | Not settings, and not reliably automatic | Two commands per person per machine, below |
+| What is true of *that* repository, loaded on every request there | A short `CLAUDE.md` of its own | Written per Provider. It is not a copy of this one — [ADR-0029](adr/0029-a-provider-reaches-this-practice-as-a-plugin.md) → *Consequences* |
+
+### What a Provider repository commits, and the commands it does not run
+
+Its whole `.claude/settings.json`, and nothing else changes hands:
+
+```json
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "extraKnownMarketplaces": {
+    "canoncore": {
+      "source": { "source": "github", "repo": "jacobrees-canoncore/CanonCore" }
+    }
+  },
+  "enabledPlugins": { "canoncore-engineering@canoncore": true }
+}
+```
+
+**Those lines declare; they install nothing.** *"Adding the marketplace doesn't install plugins that
+come from an external source, on any path that loads plugins ... Until then, Claude Code reports the
+plugin as not installed and shows the `claude plugin install` command to run"*
+([Discover and install plugins](https://code.claude.com/docs/en/discover-plugins), read
+21 August 2026). So each person runs **two** commands once per machine, in this order:
+
+```bash
+claude plugin marketplace add jacobrees-canoncore/CanonCore --scope project
+claude plugin install canoncore-engineering@canoncore --scope project
+```
+
+**The second cannot bootstrap the first.** `claude plugin install` looks the plugin up in a local
+copy of the catalogue, so against a marketplace that has never been fetched it fails with
+`Plugin "canoncore-engineering" not found in marketplace "canoncore"` — which reads like a wrong
+name and is not one. Neither command rewrites the committed block; the `add` writes back the entry
+that is already there.
+
+**The first is listed even though it is sometimes unnecessary.** Claude Code adds a marketplace
+declared this way *"once a team member trusts the repository folder ... without a further prompt"*
+(same page) — which happened in one directory tried here and not in `provider-tmdb`'s own worktree,
+over four sessions with that folder trusted. So the register gives the command that always works
+rather than the one that is sometimes not needed.
+
+**What was measured, on 21 August 2026**, with every trace of the marketplace and its cache removed
+first:
+
+| Step | What was observed |
+| --- | --- |
+| A session in `provider-tmdb`, carrying only that file | Nothing fetched, no skills, and Claude Code named `claude plugin install` as the missing step |
+| `claude plugin install` before any `marketplace add` | Refused — the catalogue had never been fetched |
+| Both commands, in the order above | Installed. `claude plugin details` reported the inventory below |
+| A session there afterwards | Listed `canoncore-engineering:code-review`, resolved `${CLAUDE_PLUGIN_ROOT}` to the cache copy, read `CODING_STANDARDS.md` through it, and reported `plugin:canoncore-engineering:resend` as an MCP server it could not authorise |
+
+The fourth row is the whole inventory a model sees, and that is correct rather than a partial load:
+`draft-pr`, `implement` and `review-pr` all carry `disable-model-invocation`, so they never appear
+in a model's own list and only a person fires them. **`claude plugin details` is the reading that
+shows all four**, and it is the evidence to ask for:
+
+```
+Skills (4)  code-review, draft-pr, implement, review-pr
+MCP servers (1)  resend  (tool schemas resolved at runtime; not counted)
+Always-on:  ~231 tok   added to every session
+```
+
+### What is in the payload
+
+The plugin's `source` is `"./"`, so the installed copy is this repository. **Read back from the cache
+on 21 August 2026**, from a `github` source: **3.8 MB**, holding `CLAUDE.md`, `CODING_STANDARDS.md`,
+`CONTEXT.md`, `docs/` and `.claude/skills/`, plus `apps/`, `packages/` and `scripts/`, which are
+inert. **No `node_modules`**: a plugin's Node packages install only where its root holds a
+`package.json` **and** a `bun.lock`, `bun.lockb`, `npm-shrinkwrap.json` or `package-lock.json`
+([Plugins reference](https://code.claude.com/docs/en/plugins-reference), read 21 August 2026), and
+this repository's lockfile is `pnpm-lock.yaml`.
+
+**`.mcp.json` is in it, and `claude plugin details` reports `MCP servers (1) resend` against what is
+installed.** Two standing rules follow from that and from the payload being the repository root —
+nothing credentialled in `.mcp.json`, and a new root directory can join the payload silently. Both
+are argued in [ADR-0029](adr/0029-a-provider-reaches-this-practice-as-a-plugin.md) → *What this
+costs*, and the first is in [`../CLAUDE.md`](../CLAUDE.md) because it binds an edit made here.
+
+### Neither manifest names a ref
+
+Both the marketplace and the plugin resolve this repository's default branch, which is the same trade
+[*Why the `uses:` reference works*](#why-the-uses-reference-works-and-what-would-break-it) takes for
+the CI baseline. **Pinning is available if that ever bites, and the two pin differently**: a
+marketplace source takes `ref` and not `sha`; a plugin source takes `ref` **and** `sha`, and the
+`sha` wins when both are set ([Create a plugin marketplace](https://code.claude.com/docs/en/plugin-marketplaces),
+read 21 August 2026).
+
+**The marketplace `ref` is also how this was proved before it merged.**
+`claude plugin marketplace add jacobrees-canoncore/CanonCore@<branch>` writes the `ref` into the
+entry, so every row above was measured against a branch — which is the one thing about this
+arrangement that the committed form has still not demonstrated for itself.
+
+### What holds it together
+
+`scripts/check-docs.ts` compares this section against the manifests and the skills directory on
+every run, for the same reason the composed status check context is checked: what a Provider
+repository loads is decided by four strings — `canoncore`, `canoncore-engineering`, the `source`
+and the `skills` path — and none of them is anywhere near the documents that describe them.
+A rename here breaks every Provider repository's session at once, and nothing in a Provider
+repository would report why.
+
+**Every `${CLAUDE_PLUGIN_ROOT}` path in a skill body is checked too.** Those paths resolve against
+the payload rather than against the working directory, so nothing else in this repository would ever
+notice one going stale: a moved document leaves the skill pointing at a file that exists here and
+not there.
+
 ## Environment variables
 
 **The roster for this application.** Every variable the `canoncore` Vercel project holds, plus the
@@ -1299,7 +1423,7 @@ whatever noticed can mint the replacement, is wrong in one direction only.
 | Preview branch | **One**, named `preview`, `br-calm-flower-zame56ly` — schema-only, shared by every preview deployment, and holding no production row. *The shared preview branch* below is what it is and how it is kept level |
 | Region | `eu-west-2` (London) |
 | Plan | Launch, billed through Vercel. **Five root branches**, of which `main` and `preview` are two ([Neon, schema-only branches](https://neon.com/docs/guides/branching-schema-only), whose *Schema-only branch allowances* section tables it per plan: Free 3, Launch 5, Scale 25) |
-| History retention | **7 days**, `history_retention_seconds: 604800`. Raised from Neon's default 24 hours on 21 August 2026 by **CAN-55 Keep a backup that reaches past Neon's 24-hour history window**, with a `PATCH` and a fresh `GET` to read it back. 7 days is Launch's maximum — *"Up to 7 days"* ([plans](https://neon.com/docs/introduction/plans), read 21 August 2026) — and it is billed at $0.20/GB-month against the write history retained inside the window, on root branches only. The two root branches hold 63 MB between them and the database has fourteen migrations, two Stories and one account in it, so this is worth pennies; **the exact figure has not been read**, because the consumption endpoint is organisation-scoped and this project's key is not — and the API's own `written_data_bytes` is no substitute, since it reads `0` here beside a `data_storage_bytes_hour` that also reads `0` for a database billing $26.48. [ADR-0028](adr/0028-a-nightly-encrypted-backup-off-neon.md) |
+| History retention | **7 days**, `history_retention_seconds: 604800`. Raised from Neon's default 24 hours on 21 August 2026 by **CAN-55 Keep a backup that reaches past Neon's 24-hour history window**, with a `PATCH` and a fresh `GET` to read it back. 7 days is Launch's maximum — *"Up to 7 days"* ([plans](https://neon.com/docs/introduction/plans), read 21 August 2026) — and it is billed at $0.20/GB-month against the write history retained inside the window, on root branches only. The two root branches hold 63 MB between them and the database has fourteen migrations, two Stories and one account in it, so this is worth pennies; **the exact figure has not been read**, because the consumption endpoint is organisation-scoped and this project's key is not — and the API's own `written_data_bytes` is no substitute, since it reads `0` here beside a `data_storage_bytes_hour` that also reads `0` for a database billing $26.48. [ADR-0029](adr/0028-a-nightly-encrypted-backup-off-neon.md) |
 | Compute size | **Autoscaling 0.25–1 CU**, set 21 August 2026 on both computes *and* on the project's `default_endpoint_settings`, so branches created later inherit it. Was a **fixed 1 CU**, minimum and maximum both, which billed four times Neon's own floor for a 70 MB database. Scale-to-zero is 5 minutes, which is Launch's minimum — 1-minute timeouts are Scale-only ([plans](https://neon.com/docs/introduction/plans), read 21 August 2026) |
 | What bounds this bill | **Nothing does, and that is now a finding rather than an open question.** Three controls exist and all three refuse: Vercel's $40 budget excludes Marketplace integrations; `vercel integration resource create-threshold` is auto-recharge for *prepaid* balances and `vercel integration balance neon` answers `No balance information found`; and Neon's own consumption quota is refused with `HTTP 404 — action restricted; reason:"organization is managed by Vercel"`. **The restriction is specific to quotas**, not to project writes — a no-op `PATCH` on the same endpoint in the same minute answered `200`. [ADR-0026](adr/0026-the-database-bill-is-watched-rather-than-capped.md) |
 | Spending notifications | **On, $15**, organisation-wide across `canoncore` and `waveger`. E-mail at 80% and 100%, spending checked every 15 minutes, **alerts only — nothing pauses**. Set 21 August 2026 and read back from a cold reload. It fired immediately, because August's spend stood at $26.48 on Neon's own billing page, forty minutes after Vercel's installation page read $26.28. **The 20 cents between them is not reconciled**, and an earlier version of this row explained it as spend accrued between the reads — which does not survive arithmetic: it would be $0.30 an hour, more than four times the worst month this project has ever been on course for. Two vendors' pages, two figures, no explanation when it was set; that is the alert working, not a misconfiguration. The figure sits below the $24 Vercel platform fee on purpose, so the database cannot become the largest line without an e-mail first |
@@ -1829,7 +1953,7 @@ once it says `verify-full`.
 
 **A `pg_dump` of production every night, encrypted, in a store that is not Neon.** Neon's 7-day
 history window covers a mistake; it does not cover losing the account the window is inside, and that
-is the only thing this buys. [ADR-0028](adr/0028-a-nightly-encrypted-backup-off-neon.md) holds the
+is the only thing this buys. [ADR-0029](adr/0028-a-nightly-encrypted-backup-off-neon.md) holds the
 argument and what it rejected; [`runbook.md`](runbook.md) → *The database has to be restored from a
 backup* is what to do when one is needed.
 
@@ -1909,7 +2033,7 @@ that reports success:
 failures: `scripts/check-docs.ts` compares this section's schedule and retention against the workflow
 and the code, and reads the store to fail when the newest backup is more than 48 hours old. The
 second gates on a push rather than on a clock, which is a real limit and is
-[ADR-0028](adr/0028-a-nightly-encrypted-backup-off-neon.md) → *How a backup that stops is noticed*.
+[ADR-0029](adr/0028-a-nightly-encrypted-backup-off-neon.md) → *How a backup that stops is noticed*.
 
 ## External data source: TMDB
 

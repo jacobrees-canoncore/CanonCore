@@ -26,6 +26,19 @@ export function fail(why: string): never {
   throw new Error(why)
 }
 
+/**
+ * A parsed JSON value as an object, or nothing.
+ *
+ * Here rather than in either baseline module because both read JSON that a person edits, and the two
+ * private copies this replaced had already drifted apart: one admitted an array and one did not. An
+ * array is `typeof "object"` and not null, so the lenient reading returns a value whose every field
+ * lookup is `undefined` — a shape that fails later and somewhere else.
+ */
+export const asRecord = (value: unknown): Record<string, unknown> | undefined =>
+  typeof value === "object" && value !== null && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : undefined
+
 /** One variable, as either the roster or Vercel describes it. */
 type VariableState = {
   environments: Set<string>

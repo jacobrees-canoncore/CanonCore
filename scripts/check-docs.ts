@@ -33,6 +33,9 @@
 //  14. history window     -  docs/infrastructure.md  vs  Neon's own `history_retention_seconds`.
 //                            The setting a backup does not cover, and the one with no code to go
 //                            stale — so nothing but this would ever read it again
+//  15. agent baseline     -  docs/infrastructure.md  vs  the two plugin manifests and the skills
+//                            directory they publish, plus every `${CLAUDE_PLUGIN_ROOT}` path a
+//                            skill names, none of which resolves in this checkout
 //
 // Run:  node scripts/check-docs.ts [--verbose]
 //
@@ -58,6 +61,14 @@ import {
   composeRequiredContext,
   parseDocumentedProviderContext,
 } from "./lib/provider-baseline.ts";
+import {
+  compareProviderSettings,
+  parseDocumentedProviderSettings,
+  parseManifests,
+  pluginId,
+  pluginRootPaths,
+  skillRoots,
+} from "./lib/agent-baseline.ts";
 import {
   Skip,
   anchorsOf,
@@ -113,6 +124,8 @@ const GLOSSARY = "CONTEXT.md";
 const PROVIDER_CALLER = "docs/provider-baseline/ci.yml";
 const PROVIDER_WORKFLOW = ".github/workflows/provider-ci.yml";
 const BACKUP_WORKFLOW = ".github/workflows/backup-database.yml";
+const MARKETPLACE_MANIFEST = ".claude-plugin/marketplace.json";
+const PLUGIN_MANIFEST = ".claude-plugin/plugin.json";
 
 const results: Result[] = [];
 const read = (p: string) => readFileSync(join(ROOT, p), "utf8");
@@ -837,6 +850,80 @@ await checkAsync("Neon's history window matches the register", async () => {
         `this repository would notice it changing.`,
     );
   return `${live} seconds, ${live / 86_400} days`;
+});
+
+// ---------------------------------------------------------------------------
+// 15. The agent baseline the Provider repositories install.
+//
+// Check 10's failure, in the other half of what a Provider repository inherits. There the string
+// that breaks every Provider at once is a status check context; here it is the plugin id, and the
+// same thing is true of it: it is written into repositories this checkout cannot see, so nothing
+// there reports a rename here and nothing here notices one either.
+//
+// Two of the strings are worse than a rename, because they fail by *installing*. With the plugin's
+// `source` anything but the marketplace root, the documents stop travelling and the plugin still
+// installs; with the `skills` path pointing at a directory that has moved, it installs with no
+// skills in it. Both read, from the far end, as a plugin that simply carries less than it used to.
+//
+// Local files throughout, so this never skips. What it does not reach is the far end: no Provider
+// repository's `.claude/settings.json` is in this checkout, and a roster of them here would be the
+// second copy of a list the organisation already holds - the same reasoning that keeps Provider
+// rulesets out of check 10.
+//
+// **The `${CLAUDE_PLUGIN_ROOT}` half is the one with no other guard at all.** Check 7 follows
+// relative markdown links; these are not links, and they resolve against a copy of this repository
+// rather than against this repository, so a document moved here leaves a skill pointing at a file
+// that is present in every checkout and absent from every payload.
+// ---------------------------------------------------------------------------
+
+check("the documented agent baseline matches the manifests", () => {
+  const baseline = parseManifests(read(MARKETPLACE_MANIFEST), read(PLUGIN_MANIFEST));
+  const problems = compareProviderSettings(
+    parseDocumentedProviderSettings(read(CONTEXT_HOME)),
+    baseline,
+    REPOSITORY,
+  );
+  // The payload is what makes the documents travel, and `"./"` is the only source that is this
+  // repository. ADR-0029 -> Why the payload is the whole repository is the argument.
+  if (baseline.source !== "./")
+    problems.push(
+      `the marketplace's plugin source is "${baseline.source}" rather than "./", so the payload ` +
+        `is no longer this repository and every document the skills reach stops travelling`,
+    );
+  for (const root of skillRoots(baseline))
+    if (!existsSync(join(ROOT, root)))
+      problems.push(`the plugin manifest adds the skills path "${root}", which does not exist`);
+  if (problems.length)
+    fail(
+      `the agent baseline disagrees with itself:\n${problems.map((p) => `    - ${p}`).join("\n")}\n` +
+        `    Every Provider repository committed the block in ${CONTEXT_HOME}, so a disagreement ` +
+        `here is one none of them can see.`,
+    );
+  return `${pluginId(baseline)}, ${baseline.skills.length} skills path${baseline.skills.length === 1 ? "" : "s"}`;
+});
+
+check("every ${CLAUDE_PLUGIN_ROOT} path a skill names resolves", () => {
+  const baseline = parseManifests(read(MARKETPLACE_MANIFEST), read(PLUGIN_MANIFEST));
+  const roots = skillRoots(baseline);
+  const skills = source("git", ["ls-files", "*/SKILL.md"], "cannot list tracked files")
+    .split("\n")
+    .filter(Boolean)
+    .filter((path) => roots.some((root) => path.startsWith(`${root}/`)));
+  if (!skills.length)
+    fail("`git ls-files \"*/SKILL.md\"` matched no skill under the manifest's own skills paths");
+
+  const missing: string[] = [];
+  let named = 0;
+  for (const skill of skills)
+    for (const path of pluginRootPaths(read(skill))) {
+      named += 1;
+      if (!existsSync(join(ROOT, path))) missing.push(`${skill} → \${CLAUDE_PLUGIN_ROOT}/${path}`);
+    }
+  if (missing.length)
+    fail(
+      `paths that resolve to nothing in the payload:\n${missing.map((m) => `    - ${m}`).join("\n")}`,
+    );
+  return `${named} path${named === 1 ? "" : "s"} across ${skills.length} skills`;
 });
 
 const width = Math.max(...results.map((r) => r.name.length));

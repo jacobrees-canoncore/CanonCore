@@ -1,0 +1,10 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
+  "name": "canoncore-engineering",
+  "description": "CanonCore's engineering chain and the documents it works to, reached by a Provider repository rather than copied into it.",
+  "version": "0.1.0",
+  "author": { "name": "CanonCore" },
+  "repository": "https://github.com/jacobrees-canoncore/CanonCore",
+  "license": "MIT",
+  "skills": ["./.claude/skills"]
+}

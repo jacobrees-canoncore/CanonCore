@@ -31,6 +31,30 @@ request must disclose*).
 
 `WS=ad2669ec-93a5-4ce1-97fa-c7d9247a1452` throughout.
 
+## In a Provider repository, four steps read differently
+
+This skill arrived there as a Claude Code plugin, so the pointers' root is `${CLAUDE_PLUGIN_ROOT}` rather than
+the working directory. Everything else below holds as written except these four, and each one fails
+by *passing* if it is taken literally there (`docs/agents/workflow.md` → *Work that spans two
+repositories*).
+
+- **Step 2's contexts.** The step already asks the ruleset for its own names rather than assuming
+  any, and that is the line to follow rather than the `Vercel` examples around it: a Provider's
+  ruleset requires one context, composed from a reusable workflow that lives in CanonCore and
+  spelled out in `docs/infrastructure.md` → *The Provider repository baseline* alone. There is no
+  `Vercel` commit status there unless that Provider has a deployment reporting one, so *the third
+  state*'s status branch has nothing to look at and the remedy for a stuck record is
+  `gh run rerun` alone.
+- **Step 2's document check.** `node scripts/check-docs.ts` is CanonCore's. Run whatever the
+  Provider's own is — the credential-free half of it gates in `pnpm run test` and has already run in
+  CI, so what is left here is the half needing a credential. Say it was skipped when there is none.
+- **Step 3's preview.** A Provider need not have a deployment at all, and a closed one refuses a
+  caller not presenting the application's credential. Where there is no preview, say so and ask the
+  user to confirm the change some other way rather than treating a missing URL as step 2 having gone
+  wrong.
+- **Step 9's sweep.** `scripts/sweep-worktree-databases.ts` is CanonCore's, and a Provider has no
+  Neon branch to sweep. Skip it.
+
 ## Steps
 
 1. **Resolve the PR.** The argument if given, otherwise the current branch's. Switch to the `gh`

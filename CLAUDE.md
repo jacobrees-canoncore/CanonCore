@@ -175,7 +175,7 @@ answer first, then what will offer you something else.
   — every earlier approval is disregarded and none will be sought, so the six-month cache limit binds
   and reads as fatal. The reflex is a second Source as a floor, which ADR-0014 refuses outright.
 - **`apps/web` holds no source-specific code and no *Source* credential** (ADR-0014) — ask any tool
-  for a TMDB client and it lands in `apps/web`. Bound to *Source*: `RESEND_API_KEY` is not one.
+  for a TMDB client and it lands in `apps/web`. Bound to *Source*: `RESEND_API_KEY` is not one. **Nor may `.mcp.json` hold a credential of any kind** ([ADR-0029](docs/adr/0029-a-provider-reaches-this-practice-as-a-plugin.md)): this whole repository is what every Provider repository installs as a Claude Code plugin, so a server added there is published into six sessions with no use for it — and a pointer that dangles there is fixed with `${CLAUDE_PLUGIN_ROOT}`, never by copying the documents across.
 - **Reachability splits by credential: authenticated closed, keyless open** (ADR-0014) — habit offers
   one class for all Providers. The old third class is spent: no permission is load-bearing since 16 August.
 - **Hand-written CSS, no framework and no component library** ([ADR-0013](docs/adr/0013-hand-written-css-no-framework.md))
@@ -206,6 +206,6 @@ database and releases. That, the recovery, and the one push it may make: `docs/a
 It counts only when the review read the *committed* change, not the staged one. A second round follows
 any commit the first produced, then the PR discloses. `docs/agents/workflow.md` → *The review runs once*.
 
-`/draft-pr` and `/review-pr` are in `.claude/skills/`; run either from its own body. Policy: `docs/agents/workflow.md`.
+`/implement`, `/code-review`, `/draft-pr` and `/review-pr` are in `.claude/skills/`; run the last two from their own bodies. A Provider repository installs that directory rather than copying it, and what the chain does differently there is `docs/agents/workflow.md` → *Work that spans two repositories*.
 
 **Run the grill and the implementation in separate sessions.** Why, the plugin token costs, how the chain is declared, and when `/wayfinder` replaces `/to-spec`: `docs/agents/tooling.md`.

@@ -990,13 +990,16 @@ first Provider was built this way rather than because it was planned that way �
    `--no-parent` because the Provider's lane is not a child of this one, and `--linear-issue` because
    the link is worktree metadata rather than something inferred from the branch name.
 
-3. **Run the session from a checkout of *this* repository, and write into the Provider's worktree by
-   absolute path.** That is the part with no mechanism behind it yet: the engineering skills and the
-   standards they cite all live here, and **a plugin carries skills but carries no documents**, so a
-   session started inside a Provider checkout has neither `CODING_STANDARDS.md` nor `CONTEXT.md` nor
-   the ADRs, and the skills' relative pointers resolve to nothing.
-   **CAN-153 Give every Provider repository an agent baseline, as CAN-107 gave it a CI one** owns
-   closing that; until it lands, working from here is what keeps the standards in reach.
+3. **Run the session inside the Provider's own checkout**, which used to be the thing that did not
+   work. The chain and the documents it cites arrive there as a Claude Code plugin whose payload is
+   this repository, so `CLAUDE.md`, `CODING_STANDARDS.md`, `CONTEXT.md` and the ADRs are all present
+   and the skills' pointers resolve — against `${CLAUDE_PLUGIN_ROOT}` rather than the working
+   directory ([ADR-0029](../adr/0029-a-provider-reaches-this-practice-as-a-plugin.md)).
+
+   What that costs the Provider is one `.claude/settings.json` of its own and two commands per
+   person per machine, which the settings do **not** run for you.
+   [`../infrastructure.md`](../infrastructure.md) → *The Provider repository agent baseline* has both,
+   and what was measured about each.
 
 4. **Running the gates the second bullet names is on you, before you commit.** Nothing here runs
    them, and together they report the one composed status check that repository's ruleset requires
@@ -1017,10 +1020,11 @@ first Provider was built this way rather than because it was planned that way �
    command a person runs. [`../infrastructure.md`](../infrastructure.md) → *Where a Source credential
    lives* is why each Provider checks its own project rather than one checker walking an estate.
 
-6. **Landing is `/draft-pr` and `/review-pr` as usual, and two of their assumptions are this
-   repository's.** They wait on the contexts a ruleset names — two here, one there — and `/review-pr`
-   knows about a migration that has to reach the preview branch first, which a Provider has no
-   equivalent of. Read the Provider's own ruleset rather than assuming this one's.
+6. **Landing is `/draft-pr` and `/review-pr` as usual, and each says itself what it does differently
+   there.** `/review-pr` carries a section naming the four of its steps that read differently in a
+   Provider repository — the contexts, the document check, the preview and the database sweep — and
+   the rule under all four is the same: read that repository's own ruleset rather than assuming this
+   one's.
 
 **Land the contract side first, then the consumer**, which is the widening rule above one repository
 further out. The contract evolves additive-only, because someone may be self-hosting our Provider on

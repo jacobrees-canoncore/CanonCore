@@ -123,10 +123,13 @@ copy wins silently and the two drift.
 
 **The chain runs per repository, and a Provider is a repository.** `/implement`, `/draft-pr` and
 `/review-pr` run there against that repo's own gates, while the tracker does not move
-(`docs/agents/issue-tracker.md`). The skills themselves are *this* repository's `.claude/`, so a
-Provider repository has them only once it carries its own copy. What breaks if one ticket is worked
-across both repositories, and what to provision before a Provider repository's first pull request,
-is `docs/agents/workflow.md` → *Work that spans two repositories*. Neither is restated here.
+(`docs/agents/issue-tracker.md`). The skills themselves are *this* repository's `.claude/`, and a
+Provider repository reaches them without a copy: the same directory is the payload of one Claude
+Code plugin it installs ([ADR-0029](../adr/0029-a-provider-reaches-this-practice-as-a-plugin.md),
+register in `docs/infrastructure.md` → *The Provider repository agent baseline*). What breaks if one
+ticket is worked across both repositories, and what to provision before a Provider repository's
+first pull request, is `docs/agents/workflow.md` → *Work that spans two repositories*. Neither is
+restated here.
 
 Small work can skip from the grill straight to `/implement`. `/wayfinder` replaces `/to-spec` when
 the shape is still foggy — it resolves unknown *decisions* one at a time, where `to-spec` assumes
