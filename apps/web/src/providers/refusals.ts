@@ -32,6 +32,40 @@ const permitted: Decision = { permitted: true };
 const refused = (because: string): Decision => ({ permitted: false, because });
 
 /**
+ * What the application holds about one Source: the declaration in force, and whether the last read
+ * of it came back as something that is not a declaration at all.
+ *
+ * **The second half is not part of the declaration, which is why it is a separate member.** A
+ * declaration is what a Provider said; this is what happened the last time one was asked for.
+ */
+export type SourceState = {
+  readonly declaration: CapabilityDeclaration;
+  /** Set only where the Provider *answered* with something that is not a declaration. */
+  readonly unreadable?: { readonly since: Date; readonly because: string };
+};
+
+/**
+ * Whether what this Source declares can still be taken as current.
+ *
+ * **A Provider that answered with something that is not a declaration has stopped standing behind
+ * the one being held**, and every permission below rests on that declaration being current. So the
+ * permissions are withdrawn while it is unreadable, and the obligations are not: retention,
+ * attribution and the restrictions go on binding, because a Provider with a bad deploy is not a
+ * Source whose terms have relaxed. `unreadableSince` in [`../db/schema.ts`](../db/schema.ts) carries
+ * the argument for the line between the two, and for why an outage is deliberately not one of the
+ * things that reaches here.
+ */
+function declarationIsCurrent({ declaration, unreadable }: SourceState): Decision {
+  if (!unreadable) return permitted;
+
+  return refused(
+    `${declaration.source.name}'s Provider has been answering with something that is not a ` +
+      `capability declaration since ${unreadable.since.toISOString()}, so what it last declared is ` +
+      `not taken as current: ${unreadable.because}`,
+  );
+}
+
+/**
  * Whether Artwork may be displayed for a record this Source supplied.
  *
  * **`terms` is what the record's whole containment chain says about it**, not what the record's own
@@ -46,10 +80,11 @@ const refused = (because: string): Decision => ({ permitted: false, because });
  * image it governs arrives one release too late, which is the argument the contract itself makes for
  * carrying `suppressesArtwork` before any image exists.
  */
-export function displayArtwork(
-  declaration: CapabilityDeclaration,
-  terms: readonly string[] | undefined,
-): Decision {
+export function displayArtwork(state: SourceState, terms: readonly string[] | undefined): Decision {
+  const current = declarationIsCurrent(state);
+  if (!current.permitted) return current;
+
+  const { declaration } = state;
   const source = declaration.source.name;
 
   if (!declaration.classification) {
@@ -98,7 +133,11 @@ export function displayArtwork(
  * reading, and importing that as though the Source had published it would put a claim on the record
  * that nobody made.
  */
-export function importOrderingAsCanonical(declaration: CapabilityDeclaration): Decision {
+export function importOrderingAsCanonical(state: SourceState): Decision {
+  const current = declarationIsCurrent(state);
+  if (!current.permitted) return current;
+
+  const { declaration } = state;
   const source = declaration.source.name;
 
   if (!declaration.orderings) {
@@ -124,7 +163,11 @@ export function importOrderingAsCanonical(declaration: CapabilityDeclaration): D
  * Provider without evidence beyond that fetch cannot tell them apart. Acting on it anyway is how a
  * catalogue deletes itself.
  */
-export function treatAsGone(declaration: CapabilityDeclaration): Decision {
+export function treatAsGone(state: SourceState): Decision {
+  const current = declarationIsCurrent(state);
+  if (!current.permitted) return current;
+
+  const { declaration } = state;
   const source = declaration.source.name;
 
   if (!declaration.liveness) {
@@ -160,7 +203,11 @@ export function treatAsGone(declaration: CapabilityDeclaration): Decision {
  * again is what [ADR-0022](../../../../docs/adr/0022-the-provider-contract.md) → *Decision 2* means
  * by a consumer degrading rather than carrying on with the old declaration.
  */
-export function readSnapshot(declaration: CapabilityDeclaration, storedUnder: Date): Decision {
+export function readSnapshot({ declaration }: SourceState, storedUnder: Date): Decision {
+  // **Deliberately not gated on `declarationIsCurrent`.** An unreadable declaration withdraws what
+  // the held one *permits*; the values in a Snapshot are not a permission, they are the Source's
+  // content, and what they are displayed under is the obligation the held declaration imposes —
+  // which goes on binding. What ends a Source nobody can read any more is its retention, not this.
   if (storedUnder.getTime() === declaration.declaredAt.getTime()) return permitted;
 
   return refused(
@@ -184,12 +231,13 @@ export function readSnapshot(declaration: CapabilityDeclaration, storedUnder: Da
  * here and one without a vocabulary produces its own refusal. A second copy of the conditions would
  * be a second place for them to drift from the rules the application actually runs.
  */
-export function refusalsInForce(declaration: CapabilityDeclaration): readonly string[] {
-  return [
-    displayArtwork(declaration, []),
-    importOrderingAsCanonical(declaration),
-    treatAsGone(declaration),
-  ]
+export function refusalsInForce(state: SourceState): readonly string[] {
+  // An unreadable declaration refuses all three with the same sentence, so it is asked once and
+  // reported once rather than three times over.
+  const current = declarationIsCurrent(state);
+  if (!current.permitted) return [current.because];
+
+  return [displayArtwork(state, []), importOrderingAsCanonical(state), treatAsGone(state)]
     .filter((decision) => decision.permitted === false)
     .map((decision) => decision.because);
 }

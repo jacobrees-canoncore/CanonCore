@@ -1,5 +1,6 @@
 import { sql } from "drizzle-orm";
-import { type CapabilityDeclaration, retentionFromInterval } from "../providers/declaration";
+import { retentionFromInterval } from "../providers/declaration";
+import type { SourceState } from "../providers/refusals";
 import { source } from "./schema";
 import { withSession } from "./session";
 
@@ -12,14 +13,19 @@ import { withSession } from "./session";
  * does can change it.
  */
 
-/** One Source, and the declaration currently in force for it. */
-export type DeclaredSource = {
+/**
+ * One Source, and everything the application holds about it.
+ *
+ * It **is** a `SourceState` — the declaration in force and whether the last read of it came back
+ * unreadable — with the row's own identity added, so the refusal rules can be asked about a row
+ * without a second type being kept in step with theirs.
+ */
+export type DeclaredSource = SourceState & {
   readonly id: string;
   /** The Provider this was declared by. Half of the Source's identity — `schema.ts` says why. */
   readonly providerBaseUrl: string;
   /** When the application last read the declaration, on its own clock rather than the Provider's. */
   readonly readAt: Date;
-  readonly declaration: CapabilityDeclaration;
 };
 
 /**
@@ -72,6 +78,8 @@ export async function readDeclaredSources(userId: string): Promise<DeclaredSourc
         orderingsCanonical: source.orderingsCanonical,
         livenessConfirmsDeletion: source.livenessConfirmsDeletion,
         livenessEvidence: source.livenessEvidence,
+        unreadableSince: source.unreadableSince,
+        unreadableBecause: source.unreadableBecause,
       })
       .from(source)
       // By the Source's name, then by the Provider that declared it, so two Providers serving
@@ -82,6 +90,13 @@ export async function readDeclaredSources(userId: string): Promise<DeclaredSourc
       id: row.id,
       providerBaseUrl: row.providerBaseUrl,
       readAt: row.readAt,
+      // The column pair is `null`/`null` or both set — a check constraint relates them — so one
+      // test decides both, and the absent case is `undefined` for the reason the three optional
+      // blocks below are.
+      unreadable:
+        row.unreadableSince === null
+          ? undefined
+          : { since: row.unreadableSince, because: row.unreadableBecause ?? "" },
       declaration: {
         declaredAt: row.declaredAt,
         source: { id: row.declaredId, name: row.name, url: row.url },

@@ -38,7 +38,22 @@ export type ProviderRead =
       readonly providerBaseUrl: string;
       readonly declaration: CapabilityDeclaration;
     }
-  | { readonly ok: false; readonly refused: string };
+  | {
+      readonly ok: false;
+      readonly refused: string;
+      /**
+       * The Provider's address, set **only** where it answered and what it answered is not a
+       * capability declaration.
+       *
+       * That is the one failure here that says something about the *Provider* rather than about the
+       * network between here and it: an unreachable host, a timeout and an error status are what an
+       * outage, a revoked credential and a rate limit all look like, and none of them is a Provider
+       * stating anything. Its presence is the condition, so a caller cannot act on it without the
+       * address it would act against — `unreadableSince` in [`../db/schema.ts`](../db/schema.ts) is
+       * what that caller does with it.
+       */
+      readonly answeredNotADeclaration?: string;
+    };
 
 /**
  * A Provider's base URL as the contract defines one: an origin, optionally with a path prefix, and
@@ -119,6 +134,7 @@ export async function readDeclaration(providerBaseUrl: string): Promise<Provider
     return {
       ok: false,
       refused: `${endpoint} answered 200 with ${type || "no content type"}, which is not a capability declaration.`,
+      answeredNotADeclaration: base.url,
     };
   }
 
@@ -126,7 +142,11 @@ export async function readDeclaration(providerBaseUrl: string): Promise<Provider
   try {
     body = await response.json();
   } catch (error) {
-    return { ok: false, refused: `${endpoint} answered with a body that is not JSON: ${reason(error)}` };
+    return {
+      ok: false,
+      refused: `${endpoint} answered with a body that is not JSON: ${reason(error)}`,
+      answeredNotADeclaration: base.url,
+    };
   }
 
   const parsed = parseDeclaration(body);
@@ -134,6 +154,7 @@ export async function readDeclaration(providerBaseUrl: string): Promise<Provider
     return {
       ok: false,
       refused: `${endpoint} answered with something this contract does not describe:\n${parsed.refused}`,
+      answeredNotADeclaration: base.url,
     };
   }
 

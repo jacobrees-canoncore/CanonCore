@@ -164,6 +164,8 @@ function declaredSource(overrides: Record<string, unknown> = {}) {
     orderings_canonical: null,
     liveness_confirms_deletion: null,
     liveness_evidence: null,
+    unreadable_since: null,
+    unreadable_because: null,
     ...overrides,
   };
 }
@@ -1345,6 +1347,8 @@ describe.skipIf(noDatabase)("the schema, against a real PostgreSQL", () => {
         "read_at",
         "restrictions",
         "retention",
+        "unreadable_because",
+        "unreadable_since",
         "url",
       ]);
     });
@@ -2542,6 +2546,7 @@ describe.skipIf(noDatabase)("the schema, against a real PostgreSQL", () => {
    */
   describe("a Provider's capability declaration, as it is stored and re-read", () => {
     let recordDeclaration: typeof import("./record-declaration").recordDeclaration;
+    let recordUnreadableDeclaration: typeof import("./record-declaration").recordUnreadableDeclaration;
     let readDeclaredSources: typeof import("./sources").readDeclaredSources;
     let refusals: typeof import("../providers/refusals");
 
@@ -2594,7 +2599,7 @@ describe.skipIf(noDatabase)("the schema, against a real PostgreSQL", () => {
     const storyOfE = { id: "0e0e0e0e-0e0e-4e0e-8e0e-0e0e0e0e0e0e", owner: "user-e" };
 
     beforeAll(async () => {
-      ({ recordDeclaration } = await import("./record-declaration"));
+      ({ recordDeclaration, recordUnreadableDeclaration } = await import("./record-declaration"));
       ({ readDeclaredSources } = await import("./sources"));
       refusals = await import("../providers/refusals");
 
@@ -2669,7 +2674,7 @@ describe.skipIf(noDatabase)("the schema, against a real PostgreSQL", () => {
 
       // And the refusal that fact produces, read from what came back out of the database rather
       // than from the object that went in.
-      const decision = refusals.displayArtwork(stored.declaration, []);
+      const decision = refusals.displayArtwork(stored, []);
       expect(decision.permitted).toBe(false);
       expect(decision.because).toContain("no content classification");
     });
@@ -2685,7 +2690,7 @@ describe.skipIf(noDatabase)("the schema, against a real PostgreSQL", () => {
       expect(stored.declaration.restrictions).toEqual(["non-commercial"]);
       expect(stored.declaration.attribution).toEqual(declaring.attribution);
       expect(stored.declaration.classification).toEqual(declaring.classification);
-      expect(refusals.displayArtwork(stored.declaration, ["a-source-specific-word"]).permitted).toBe(
+      expect(refusals.displayArtwork(stored, ["a-source-specific-word"]).permitted).toBe(
         false,
       );
     });
@@ -2736,9 +2741,9 @@ describe.skipIf(noDatabase)("the schema, against a real PostgreSQL", () => {
       expect(stored.declaration).toEqual(silenced);
       // The narrowing, which is the whole reason a change is not allowed to be silent: what the old
       // declaration permitted, the new one refuses.
-      expect(refusals.importOrderingAsCanonical(stored.declaration).permitted).toBe(false);
-      expect(refusals.treatAsGone(stored.declaration).permitted).toBe(false);
-      expect(refusals.displayArtwork(stored.declaration, []).permitted).toBe(false);
+      expect(refusals.importOrderingAsCanonical(stored).permitted).toBe(false);
+      expect(refusals.treatAsGone(stored).permitted).toBe(false);
+      expect(refusals.displayArtwork(stored, []).permitted).toBe(false);
     });
 
     test("what was stored under the old declaration is withheld rather than re-read under the new one", async () => {
@@ -2756,7 +2761,7 @@ describe.skipIf(noDatabase)("the schema, against a real PostgreSQL", () => {
       expect(superseding.snapshotsWithheld).toBe(1);
       // The row still says what it was stored under, which is what makes the refusal possible at
       // all — and the refusal is asked of the declaration that came back out of the database.
-      expect(refusals.readSnapshot(stored.declaration, rows[0].source_declared_at).permitted).toBe(
+      expect(refusals.readSnapshot(stored, rows[0].source_declared_at).permitted).toBe(
         false,
       );
     });
@@ -2769,7 +2774,7 @@ describe.skipIf(noDatabase)("the schema, against a real PostgreSQL", () => {
       const [stored] = await declared();
 
       expect(again.snapshotsWithheld).toBe(0);
-      expect(refusals.readSnapshot(stored.declaration, declaring.declaredAt).permitted).toBe(true);
+      expect(refusals.readSnapshot(stored, declaring.declaredAt).permitted).toBe(true);
     });
 
     test("a declaration older than the one held is refused, and nothing changes", async () => {
@@ -2812,6 +2817,73 @@ describe.skipIf(noDatabase)("the schema, against a real PostgreSQL", () => {
           classification: JSON.stringify([]),
         }),
       ).rejects.toThrow(/source_classification_vocabulary_is_not_empty/);
+    });
+
+    test("a Provider that answers with something else has its Source marked, and refused", async () => {
+      // The "and says so" half of *a declaration the application cannot parse fails the Source
+      // closed*: a printed line is known only to whoever watched the run, and this is a column, a
+      // sentence and a refusal.
+      await recordDeclaration(migrator, provider, declaring);
+      const marked = await recordUnreadableDeclaration(
+        migrator,
+        provider,
+        "It answered 200 with text/html, which is not a capability declaration.",
+      );
+
+      const [stored] = await declared();
+
+      expect(marked).toBe(1);
+      expect(stored.unreadable?.because).toContain("text/html");
+      // What the declaration permitted is withdrawn — read back out of the database rather than
+      // asserted on the object that went in.
+      expect(refusals.displayArtwork(stored, ["a-source-specific-word"]).permitted).toBe(false);
+      expect(refusals.importOrderingAsCanonical(stored).permitted).toBe(false);
+      expect(refusals.treatAsGone(stored).permitted).toBe(false);
+      // And what it obliges is not.
+      expect(stored.declaration.retention).toBe("P6M");
+      expect(stored.declaration.restrictions).toEqual(["non-commercial"]);
+    });
+
+    test("the moment is the first such answer rather than the latest", async () => {
+      await recordDeclaration(migrator, provider, declaring);
+      await recordUnreadableDeclaration(migrator, provider, "The first one.");
+      const [first] = await declared();
+
+      await recordUnreadableDeclaration(migrator, provider, "The second one.");
+      const [second] = await declared();
+
+      // A Provider answering rubbish every hour for a month has been unreadable for a month.
+      expect(second.unreadable?.since).toEqual(first.unreadable?.since);
+      expect(second.unreadable?.because).toBe("The second one.");
+    });
+
+    test("a read that succeeds clears the mark, whether or not the declaration changed", async () => {
+      await recordDeclaration(migrator, provider, declaring);
+
+      await recordUnreadableDeclaration(migrator, provider, "Something that is not a declaration.");
+      await recordDeclaration(migrator, provider, declaring);
+      expect((await declared())[0].unreadable).toBeUndefined();
+
+      await recordUnreadableDeclaration(migrator, provider, "Something that is not a declaration.");
+      await recordDeclaration(migrator, provider, silenced);
+      expect((await declared())[0].unreadable).toBeUndefined();
+    });
+
+    test("a Provider that has declared nothing here has nothing to mark", async () => {
+      // Which is what failing closed comes to for a first read: no row, so no Source, so nothing
+      // served. The count is what says so rather than a silent zero-row update.
+      expect(await recordUnreadableDeclaration(migrator, provider, "Anything.")).toBe(0);
+    });
+
+    test("a moment without a reason cannot be stored, nor a reason without a moment", async () => {
+      for (const half of [
+        { unreadable_since: "2026-08-20T00:00:00Z" },
+        { unreadable_because: "A reason nobody dated." },
+      ]) {
+        await expect(
+          insertSource(migrator, { declared_id: `half-a-mark-${Object.keys(half)[0]}`, ...half }),
+        ).rejects.toThrow(/source_unreadable_is_a_moment_and_a_reason/);
+      }
     });
 
     test("evidence cannot be stored for a liveness claim nobody made", async () => {

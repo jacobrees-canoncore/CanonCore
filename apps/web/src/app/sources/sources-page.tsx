@@ -55,7 +55,7 @@ export function SourcesPage({ sources }: { sources: readonly DeclaredSource[] })
 /** One Source: who declares it, what it obliges, and what its silence refuses. */
 function SourceEntry({ declared }: { declared: DeclaredSource }) {
   const { declaration } = declared;
-  const refusals = refusalsInForce(declaration);
+  const refusals = refusalsInForce(declared);
 
   return (
     <section>
@@ -107,6 +107,9 @@ function SourceEntry({ declared }: { declared: DeclaredSource }) {
 
       <p className="meta">
         Declared {declaration.declaredAt.toISOString()}, read {declared.readAt.toISOString()}.
+        {declared.unreadable === undefined
+          ? ""
+          : ` No read since ${declared.unreadable.since.toISOString()} has produced a declaration, so the one above is the last that did.`}
       </p>
       <hr />
     </section>

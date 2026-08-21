@@ -1,6 +1,13 @@
 import { describe, expect, test } from "vitest";
 import type { CapabilityDeclaration } from "./declaration";
-import { displayArtwork, importOrderingAsCanonical, readSnapshot, treatAsGone } from "./refusals";
+import type { SourceState } from "./refusals";
+import {
+  displayArtwork,
+  importOrderingAsCanonical,
+  readSnapshot,
+  refusalsInForce,
+  treatAsGone,
+} from "./refusals";
 
 /**
  * The refusals, asserted in both directions on every question.
@@ -11,7 +18,7 @@ import { displayArtwork, importOrderingAsCanonical, readSnapshot, treatAsGone } 
  */
 
 /** A Provider that declares only what its Source's terms say, and none of the three optional blocks. */
-const silent: CapabilityDeclaration = {
+const silentDeclaration: CapabilityDeclaration = {
   declaredAt: new Date("2026-08-17T08:00:00Z"),
   source: { id: "example", name: "An example Source", url: "https://example.invalid" },
   retention: "indefinite",
@@ -38,7 +45,28 @@ const invertedVocabulary = [
   { term: "alarming-sounding", label: "Shown", suppressesArtwork: false },
 ];
 
-const classifying: CapabilityDeclaration = { ...silent, classification: invertedVocabulary };
+/**
+ * What the application holds about a Source whose last read succeeded.
+ *
+ * Every case below varies this, which is what keeps the two halves apart: a case about a
+ * declaration's silence changes `declaration`, and the case about a Provider answering with rubbish
+ * changes `unreadable` and nothing else.
+ */
+const silent: SourceState = { declaration: silentDeclaration };
+
+/** The same Source, declaring a vocabulary. */
+const classifying: SourceState = {
+  declaration: { ...silentDeclaration, classification: invertedVocabulary },
+};
+
+/** And the same Source again, whose Provider has since answered with something that is not one. */
+const unreadable: SourceState = {
+  ...classifying,
+  unreadable: {
+    since: new Date("2026-08-20T00:00:00Z"),
+    because: "It answered 200 with text/html, which is not a capability declaration.",
+  },
+};
 
 describe("Artwork, which a Provider's silence refuses", () => {
   test("a Provider that declares no classification has its Artwork refused", () => {
@@ -80,9 +108,11 @@ describe("Artwork, which a Provider's silence refuses", () => {
   });
 
   test("a term with no label of its own is named by the Source's own word", () => {
-    const unlabelled = {
-      ...silent,
-      classification: [{ term: "a-source-specific-word", suppressesArtwork: true }],
+    const unlabelled: SourceState = {
+      declaration: {
+        ...silentDeclaration,
+        classification: [{ term: "a-source-specific-word", suppressesArtwork: true }],
+      },
     };
 
     expect(displayArtwork(unlabelled, ["a-source-specific-word"]).because).toContain(
@@ -100,13 +130,13 @@ describe("an Ordering, which is canonical only where a Provider says so", () => 
   });
 
   test("a Provider that serves Orderings but declares them one reading is refused too", () => {
-    expect(importOrderingAsCanonical({ ...silent, orderings: { canonical: false } }).permitted).toBe(
+    expect(importOrderingAsCanonical({ declaration: { ...silentDeclaration, orderings: { canonical: false } } }).permitted).toBe(
       false,
     );
   });
 
   test("a Provider declaring the Source's own sequence is permitted", () => {
-    expect(importOrderingAsCanonical({ ...silent, orderings: { canonical: true } }).permitted).toBe(
+    expect(importOrderingAsCanonical({ declaration: { ...silentDeclaration, orderings: { canonical: true } } }).permitted).toBe(
       true,
     );
   });
@@ -121,14 +151,16 @@ describe("a deletion, which only a Provider with evidence may claim", () => {
   });
 
   test("a Provider that declares it cannot confirm a deletion is refused too", () => {
-    expect(treatAsGone({ ...silent, liveness: { confirmsDeletion: false } }).permitted).toBe(false);
+    expect(treatAsGone({ declaration: { ...silentDeclaration, liveness: { confirmsDeletion: false } } }).permitted).toBe(false);
   });
 
   test("a Provider with evidence beyond the failed fetch is permitted", () => {
     expect(
       treatAsGone({
-        ...silent,
-        liveness: { confirmsDeletion: true, evidence: "The Source publishes its live identifiers." },
+        declaration: {
+          ...silentDeclaration,
+          liveness: { confirmsDeletion: true, evidence: "The Source publishes its live identifiers." },
+        },
       }).permitted,
     ).toBe(true);
   });
@@ -151,5 +183,60 @@ describe("a declaration that changed between reads", () => {
     // through: a row can only carry a timestamp the application wrote, so one ahead of the Source's
     // own means the two have gone out of step and neither reading is safe.
     expect(readSnapshot(silent, new Date("2027-01-01T00:00:00Z")).permitted).toBe(false);
+  });
+});
+
+describe("a Provider that has stopped answering with a declaration at all", () => {
+  test("what the held declaration permits is withdrawn, all three of them", () => {
+    // The Provider answered, and what it answered is not a declaration — so it has stopped standing
+    // behind the one being held, and every permission below rests on that declaration being current.
+    expect(displayArtwork(unreadable, []).permitted).toBe(false);
+    expect(displayArtwork(unreadable, ["alarming-sounding"]).permitted).toBe(false);
+    expect(importOrderingAsCanonical(unreadable).permitted).toBe(false);
+    expect(treatAsGone(unreadable).permitted).toBe(false);
+  });
+
+  test("the same Source with a readable declaration permits all three, so the withdrawal is the change", () => {
+    // Without this the case above passes on a declaration that refuses everything anyway, which is
+    // how a rule that had stopped running would go on reporting the right answers.
+    const readable: SourceState = {
+      declaration: {
+        ...classifying.declaration,
+        orderings: { canonical: true },
+        liveness: { confirmsDeletion: true },
+      },
+    };
+
+    expect(displayArtwork(readable, ["alarming-sounding"]).permitted).toBe(true);
+    expect(importOrderingAsCanonical(readable).permitted).toBe(true);
+    expect(treatAsGone(readable).permitted).toBe(true);
+    expect(displayArtwork({ ...readable, unreadable: unreadable.unreadable }, ["alarming-sounding"]).permitted).toBe(false);
+  });
+
+  test("the refusal says since when, and what the Provider actually answered with", () => {
+    const decision = displayArtwork(unreadable, []);
+
+    expect(decision.because).toContain("2026-08-20T00:00:00.000Z");
+    expect(decision.because).toContain("text/html");
+  });
+
+  test("what the Source obliges is untouched, and so is a Snapshot stored under the held declaration", () => {
+    // The line the whole design turns on: an unreadable declaration withdraws what the held one
+    // *permits* and nothing it *obliges*. A Provider with a bad deploy is not a Source whose terms
+    // have relaxed, and the values already stored are displayed under the credit it last stated.
+    expect(unreadable.declaration.retention).toBe(silentDeclaration.retention);
+    expect(unreadable.declaration.attribution).toEqual(silentDeclaration.attribution);
+    expect(unreadable.declaration.restrictions).toEqual(silentDeclaration.restrictions);
+    expect(readSnapshot(unreadable, unreadable.declaration.declaredAt).permitted).toBe(true);
+  });
+
+  test("it is reported once rather than three times over", () => {
+    // All three refuse with the same sentence, so a page listing them would say it three times.
+    expect(refusalsInForce(unreadable)).toHaveLength(1);
+    expect(refusalsInForce(unreadable)[0]).toContain("not a capability declaration");
+  });
+
+  test("a Source whose last read succeeded reports only what its declaration withholds", () => {
+    expect(refusalsInForce(silent)).toHaveLength(3);
   });
 });

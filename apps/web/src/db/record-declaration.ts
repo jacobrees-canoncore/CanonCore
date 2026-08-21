@@ -62,6 +62,40 @@ export type Outcome = "recorded" | "unchanged" | "superseded";
  * backwards is serving something stale or something else entirely, and writing it would put values
  * already stored under terms that were superseded before they were read.
  */
+/**
+ * Record that this Provider answered with something that is not a capability declaration, and say
+ * how many Sources of its that reached.
+ *
+ * **Only for a Source already recorded, and only where the Provider answered.** There is nothing to
+ * mark for one nothing has declared yet — it has no row, which is the whole of what failing closed
+ * comes to there — and an unreachable host is not a Provider stating anything. `unreadableSince` in
+ * [`schema.ts`](schema.ts) holds the line between the two, and what the mark withdraws.
+ */
+export async function recordUnreadableDeclaration(
+  client: Client,
+  providerBaseUrl: string,
+  because: string,
+): Promise<number> {
+  const database = drizzle(client);
+
+  // **By Provider alone, because an answer that did not parse names no Source.** `declared_id` comes
+  // out of the declaration, and there isn't one — so what is marked is every row this Provider has
+  // declared, which the contract makes at most one of: `/capabilities` answers for a single Source.
+  const marked = await database
+    .update(source)
+    .set({
+      // The **first** such answer, not the latest. A Provider answering rubbish every hour for a
+      // month has been unreadable for a month, and a column that moved each time would report that
+      // it started an hour ago.
+      unreadableSince: sql`coalesce(${source.unreadableSince}, now())`,
+      unreadableBecause: because,
+    })
+    .where(eq(source.providerBaseUrl, providerBaseUrl))
+    .returning({ id: source.id });
+
+  return marked.length;
+}
+
 export async function recordDeclaration(
   client: Client,
   providerBaseUrl: string,
@@ -88,6 +122,12 @@ export async function recordDeclaration(
     orderingsCanonical: declaration.orderings?.canonical ?? null,
     livenessConfirmsDeletion: declaration.liveness?.confirmsDeletion ?? null,
     livenessEvidence: declaration.liveness?.evidence ?? null,
+
+    // A declaration that reads clears the mark, which is what makes it a fact about the *last* read
+    // rather than a flag that accumulates. Both halves together, because the constraint relates
+    // them.
+    unreadableSince: null,
+    unreadableBecause: null,
   };
 
   // One shape for all three outcomes, so a member cannot be right on one path and forgotten on
@@ -139,7 +179,7 @@ export async function recordDeclaration(
       // has re-read in a long time visible as one.
       await transaction
         .update(source)
-        .set({ readAt: sql`now()` })
+        .set({ readAt: sql`now()`, unreadableSince: null, unreadableBecause: null })
         .where(eq(source.id, held.id));
 
       return record("unchanged", held.id);

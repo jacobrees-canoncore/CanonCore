@@ -55,8 +55,13 @@ export type CapabilityDeclaration = {
   readonly liveness?: LivenessDeclaration;
 };
 
-/** The retention a Source's terms cap nothing at. A value, never an absence. */
-export const indefinitely = "indefinite";
+/**
+ * The retention a Source's terms cap nothing at. A value, never an absence.
+ *
+ * Named for the word the contract, `CONTEXT.md` and the column all use, so `retention === indefinite`
+ * compares against the thing rather than against an adverb.
+ */
+export const indefinite = "indefinite";
 
 type SourceIdentity = {
   /**
@@ -150,19 +155,17 @@ export type ParsedDeclaration =
   | { readonly ok: true; readonly declaration: CapabilityDeclaration }
   | { readonly ok: false; readonly refused: string };
 
-/**
- * **This schema narrows what the contract accepts in exactly two places, and both are below.**
- *
- * Everywhere else it accepts precisely what `Capabilities` accepts, empty strings included: the YAML
- * file is normative and this is not, so a member it leaves as a bare `string` is one a conformant
- * Provider may send empty — and refusing that would fail a whole Source over a blank credit line. An
- * earlier version of this file put a minimum length on ten such members, which is the mistake worth
- * naming rather than quietly reversing: a consumer's opinion about what is useful is not the
- * contract.
- *
- * The two narrowings are `url` and `retention` immediately below, each because accepting what the
- * contract permits would cost more than refusing a Provider does.
- */
+// **Where this schema narrows what the contract accepts, and where it must not.**
+//
+// The YAML file is normative and this is not, so a member it leaves as a bare `string` is one a
+// conformant Provider may send empty — and refusing that would fail a whole Source over a blank
+// credit line. An earlier version of this file put a minimum length on ten such members, which is
+// the mistake worth naming rather than quietly reversing: a consumer's opinion about what is useful
+// is not the contract.
+//
+// **Three narrowings survive, each named where it is written**: `url` and `retention` immediately
+// below, and one on `declaredAt` that JavaScript imposes rather than this file choosing it. Nothing
+// else here refuses anything `Capabilities` accepts.
 
 /**
  * Every URL a declaration carries is `http` or `https` and nothing else.
@@ -217,7 +220,7 @@ const attribution = z.discriminatedUnion("required", [
  * from every duration a term can express.
  */
 const retention = z.union([
-  z.literal(indefinitely),
+  z.literal(indefinite),
   z.iso.duration().refine((value) => /[1-9]/.test(value), {
     error: "a retention of no time at all is not a duration any terms express",
   }),
@@ -243,8 +246,29 @@ const classificationTerm = z.object({
  * additive"*. A consumer that rejected a member it did not recognise would break on the next
  * revision of a document that is deliberately additive-only.
  */
+/**
+ * The Provider's own clock, as RFC 3339 writes one.
+ *
+ * **Upper-cased before it is checked, which is a canonicalisation rather than an edit.** RFC 3339's
+ * grammar is ABNF, whose string literals are case-insensitive
+ * ([RFC 5234 §2.3](https://www.rfc-editor.org/rfc/rfc5234#section-2.3)), so `2026-08-17t08:00:00z`
+ * is the same instant as `2026-08-17T08:00:00Z` and a conformant Provider may send either. Zod's
+ * check accepts only the upper-case spelling — measured on the installed 4.4.3, 21 August 2026 —
+ * so without this a Source would fail closed over a lower-case letter.
+ *
+ * **The one narrowing left is a leap second, and JavaScript is what imposes it.** RFC 3339 admits
+ * `23:59:60`; `new Date("2026-12-31T23:59:60Z")` is `Invalid Date`, measured the same day. There is
+ * no instant for this to carry, so it is refused and said rather than silently rounded to `:59` —
+ * which would move a declaration's own clock, the one thing here that orders two reads.
+ */
+const declaredAt = z
+  .string()
+  .transform((value) => value.toUpperCase())
+  .pipe(z.iso.datetime({ offset: true }))
+  .transform((value) => new Date(value));
+
 const declaration = z.object({
-  declaredAt: z.iso.datetime({ offset: true }).transform((value) => new Date(value)),
+  declaredAt,
   source: z.object({
     // The contract's own pattern. It is what makes the identifier safe to compare, and it is
     // compared only within one Provider — see `SourceIdentity.id`.
@@ -302,7 +326,7 @@ export function parseDeclaration(body: unknown): ParsedDeclaration {
  * `fetched_at + retention` is then infinite and no `now()` reaches it.
  */
 export function retentionAsInterval(declared: string): string {
-  return declared === indefinitely ? infiniteInterval : declared;
+  return declared === indefinite ? infiniteInterval : declared;
 }
 
 /**
@@ -320,7 +344,7 @@ export function retentionAsInterval(declared: string): string {
  * interval, which is two answers to one question.
  */
 export function retentionFromInterval(stored: string): string {
-  return stored === infiniteInterval ? indefinitely : stored;
+  return stored === infiniteInterval ? indefinite : stored;
 }
 
 /** PostgreSQL's infinite interval, which is what `indefinite` is stored as. */

@@ -15,7 +15,10 @@
 // What is read, what is refused and what a second read does to the first:
 // `../src/providers/read-declaration.ts` and `../src/db/record-declaration.ts`.
 import { Client } from "pg";
-import { recordDeclaration } from "../src/db/record-declaration.ts";
+import {
+  recordDeclaration,
+  recordUnreadableDeclaration,
+} from "../src/db/record-declaration.ts";
 import { readDeclaration } from "../src/providers/read-declaration.ts";
 import { refusalsInForce } from "../src/providers/refusals.ts";
 
@@ -38,11 +41,40 @@ if (!pasted) {
 
 const read = await readDeclaration(pasted);
 
-// A declaration that cannot be read fails the Source closed: nothing is written, and whatever was
-// held stays exactly as it was. A non-zero exit is what says so to whoever ran this.
+// A declaration that cannot be read fails the Source closed: no declaration is written, and whatever
+// was held stays in force. A non-zero exit is what says so to whoever ran this.
+//
+// **And where the Provider *answered* with something that is not a declaration, the Source is marked
+// unreadable** — which is the half a printed line cannot do. A mark is a column, a sentence on
+// `/sources` and a refusal; a line in a log is known only to whoever was watching the run.
+// `unreadableSince` in ../src/db/schema.ts is why an unreachable host is deliberately not one of
+// these, and what the mark withdraws.
 if (!read.ok) {
   console.error(`Refused. ${read.refused}`);
   process.exitCode = 1;
+
+  if (read.answeredNotADeclaration) {
+    const client = new Client({ connectionString: url });
+    await client.connect();
+    try {
+      const marked = await recordUnreadableDeclaration(
+        client,
+        read.answeredNotADeclaration,
+        read.refused,
+      );
+      console.error(
+        marked > 0
+          ? `  Marked ${marked} Source(s) of this Provider unreadable. What it last declared is no ` +
+              "longer taken as current, so its Artwork, its Orderings and anything it stops serving " +
+              "are withheld until a read succeeds. What it obliges — retention, attribution, the " +
+              "restrictions — still binds."
+          : "  Nothing to mark: this Provider has declared no Source here, so there is no row, which " +
+              "is what failing closed comes to for a first read.",
+      );
+    } finally {
+      await client.end();
+    }
+  }
 } else {
   const client = new Client({ connectionString: url });
   await client.connect();
@@ -61,7 +93,9 @@ if (!read.ok) {
     // The silences, which are the half nobody would otherwise see. A Provider declaring less than it
     // used to has narrowed what may be done with it, and this is where that shows up at the moment
     // the narrowing lands rather than the next time somebody looks.
-    const refused = refusalsInForce(read.declaration);
+    // Asked of a Source whose read has just succeeded, so its declaration is current by
+    // construction — which is what the bare `{ declaration }` says.
+    const refused = refusalsInForce({ declaration: read.declaration });
     if (refused.length === 0) {
       console.info("  Withheld: nothing. This Provider declares everything the application asks for.");
     } else {

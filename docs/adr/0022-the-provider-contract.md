@@ -211,6 +211,16 @@ is where they become code.
 > classification binds, a widened one does not — and the application is in no position to make it.
 > Withholding is safe for every field at once, and the refresh that ends it is
 > [CAN-103 Refresh Snapshots before their Source's retention expires, and drop what cannot be refreshed](https://linear.app/jacobrees-canoncore/issue/CAN-103).
+>
+> **A Provider that answers with something that is not a declaration is a third case, and it is not
+> an outage.** This decision governs what a declaration's *members* mean; it says nothing about a
+> Provider that has stopped serving one at all. The line taken is that an unreachable host, a
+> timeout and an error status are indistinguishable from each other and leave everything as it was —
+> a `503` "is never evidence that anything was deleted" is this contract's own sentence — while a
+> reply that is not a declaration is distinguishable, and marks the Source unreadable: what the held
+> declaration **permits** is withdrawn, and what it **obliges** goes on binding, because a Provider
+> with a bad deploy is not a Source whose terms have relaxed. `unreadableSince` in
+> `apps/web/src/db/schema.ts` is where that line is drawn and argued.
 
 **The declaration carries `declaredAt`, so two reads can be ordered.** CAN-104 Read a Provider's
 capability declaration, and refuse what it does not serve requires that what

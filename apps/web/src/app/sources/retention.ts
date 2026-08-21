@@ -1,4 +1,4 @@
-import { indefinitely } from "@/providers/declaration";
+import { indefinite } from "@/providers/declaration";
 
 /**
  * A declared retention, as a sentence.
@@ -13,7 +13,7 @@ import { indefinitely } from "@/providers/declaration";
  * licence, and the two would only ever coincide by accident.
  */
 export function formatRetention(retention: string): string {
-  if (retention === indefinitely) return "No limit: this Source's terms cap nothing.";
+  if (retention === indefinite) return "No limit: this Source's terms cap nothing.";
 
   const parts = retention.match(
     /^P(?:(\d+)Y)?(?:(\d+)M)?(?:(\d+)D)?(?:T(?:(\d+)H)?(?:(\d+)M)?(?:([\d.]+)S)?)?$/,

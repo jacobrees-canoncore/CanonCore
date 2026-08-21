@@ -12,7 +12,7 @@ import { fileURLToPath } from "node:url";
 import { parse as parseYaml } from "yaml";
 import { describe, expect, test } from "vitest";
 import {
-  indefinitely,
+  indefinite,
   parseDeclaration,
   retentionAsInterval,
   retentionFromInterval,
@@ -133,7 +133,7 @@ describe("what the Source's terms say, which is never optional", () => {
     // The two are opposite answers and only one of them is safe, so the absence is a refusal of the
     // whole declaration rather than a value chosen on the Provider's behalf.
     expect(parseDeclaration(omitting("retention")).ok).toBe(false);
-    expect(read({ ...minimal, retention: indefinitely }).retention).toBe(indefinitely);
+    expect(read({ ...minimal, retention: indefinite }).retention).toBe(indefinite);
     expect(read({ ...minimal, retention: "P6M" }).retention).toBe("P6M");
   });
 
@@ -261,13 +261,32 @@ describe("a declaration the application cannot read at all", () => {
       new Date("2026-08-17T08:00:00Z"),
     );
   });
+
+  test.each([["2026-08-17t08:00:00z"], ["2026-08-17T08:00:00z"], ["2026-08-17t09:00:00+01:00"]])(
+    "%s is the same instant as its upper-case spelling, and is read",
+    (declaredAt) => {
+      // RFC 3339's grammar is ABNF, whose literals are case-insensitive, so a conformant Provider
+      // may send either — and zod's own check accepts only the upper-case one. Without the
+      // canonicalisation in `declaration.ts` a Source would fail closed over a lower-case letter.
+      expect(read({ ...minimal, declaredAt }).declaredAt).toEqual(
+        new Date(declaredAt.toUpperCase()),
+      );
+    },
+  );
+
+  test("a leap second is refused rather than rounded, because JavaScript has no instant for it", () => {
+    // The one narrowing on this member that this file does not choose: `new Date` gives
+    // `Invalid Date` for `23:59:60`. Rounding it to `:59` would move the clock that orders two
+    // reads, which is the one thing it exists to do.
+    expect(parseDeclaration({ ...minimal, declaredAt: "2026-12-31T23:59:60Z" }).ok).toBe(false);
+  });
 });
 
 describe("the retention a column takes", () => {
   test("indefinite is the infinite interval, and a duration is passed through", () => {
     // Both are PostgreSQL's own input formats, so nothing is converted — `retentionAsInterval` says
     // which page of the manual each comes from.
-    expect(retentionAsInterval(indefinitely)).toBe("infinity");
+    expect(retentionAsInterval(indefinite)).toBe("infinity");
     expect(retentionAsInterval("P6M")).toBe("P6M");
   });
 
@@ -275,7 +294,7 @@ describe("the retention a column takes", () => {
     // These two carry the `indefinite`/`infinity` sentinel across and touch nothing else. What
     // PostgreSQL does to a duration on the way back out is a different claim, and `rls.test.ts` is
     // where it is measured rather than assumed.
-    for (const declared of [indefinitely, "P6M", "P1Y2M3DT4H5M6S", "PT30M"]) {
+    for (const declared of [indefinite, "P6M", "P1Y2M3DT4H5M6S", "PT30M"]) {
       expect(retentionFromInterval(retentionAsInterval(declared))).toBe(declared);
     }
   });

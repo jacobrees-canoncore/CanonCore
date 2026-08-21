@@ -745,12 +745,27 @@ anywhere but the Anchor mint, so nothing a deployment runs can write this table.
 | `recorded` | This Provider had not declared this Source before. A row now exists |
 | `unchanged` | The same declaration, on the Provider's own clock. Only `read_at` moved |
 | `superseded` | A later declaration replaced the one held. Read the `WITHHELD` lines: what the old one permitted, the new one may refuse. Any Snapshot stored under the old declaration is withheld until it has been read again, and the count is on the last line |
-| `Refused.` | **The read failed and nothing was stored.** The rest of the line says why — unreachable, an error status, a body that is not JSON, or a declaration this contract does not describe. Whatever was held is exactly as it was |
+| `Refused.` | **The read failed and no declaration was stored.** The rest of the line says why — unreachable, an error status, a body that is not JSON, or a declaration this contract does not describe. Whatever was held stays in force. **Where the Provider *answered*, a second line says the Source was `Marked … unreadable`** and what that withdraws |
 | An uncaught `Error:` | **The read succeeded and the store refused it.** One case reaches this, `older than`, below. Like the purge, this is one transaction, so a failure part-way through rolls back rather than leaving half a write |
 
-**A refusal is the safe outcome, not a failure to work around.** A declaration the application cannot
-read fails the Source closed: it has been told nothing, and the safe reading of nothing is that the
-Provider serves nothing. The two worth naming apart:
+**A refusal is the safe outcome, not a failure to work around**, and what it means depends on whether
+a declaration is already held.
+
+- **For a Source nothing has declared yet** it is literal: no row is written, so there is no Source
+  and nothing is served.
+- **For one already recorded** the declaration in force stays in force — an outage, a bad deploy and
+  a revoked credential are indistinguishable, and dropping to *serves nothing* on any of them would
+  blank a catalogue on a network blip. What ends a Source nobody can read any more is its retention,
+  not a failed read.
+- **And where the Provider answered with something that is not a declaration**, the Source is
+  **marked unreadable**: that is distinguishable — it replied, and what it replied is not terms this
+  contract describes — so it has stopped standing behind what is held. **What the mark withdraws is
+  what that declaration permits and nothing it obliges**: no Artwork, no Ordering taken as the
+  Source's own sequence, nothing treated as deleted, while the retention, the credit and the
+  restrictions go on binding. `/sources` says since when and why, and the next read that succeeds
+  clears it.
+
+The two refusals worth naming apart:
 
 - **`requires a credential`.** The Provider answered `401`. This application holds no *Source*
   credential and passes none ([ADR-0014](adr/0014-shell-providers-and-per-source-retention.md) →

@@ -2961,7 +2961,10 @@ It lists every Source a Provider has declared, what each obliges — the retenti
 credit owed, what the terms forbid — and, first on each entry, **what is withheld because that
 Provider does not say**. Absence is refusal rather than permission, so a Provider declaring no
 content classification has no Artwork displayed from it, and that fact is a stored column and a
-visible sentence rather than a rule running quietly. It is linked from the footer of every page,
+visible sentence rather than a rule running quietly. **A Provider that has stopped answering with a
+declaration at all shows up there too**, with the date its answers stopped being readable and what
+was wrong with the last one — a fact that would otherwise be known only to whoever watched a command
+run. It is linked from the footer of every page,
 where an About or Credits section belongs and where
 [CAN-105 Carry each Source's attribution obligation through to every surface that displays it](https://linear.app/jacobrees-canoncore/issue/CAN-105)
 will look for one.

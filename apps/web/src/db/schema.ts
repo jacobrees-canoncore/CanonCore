@@ -555,6 +555,30 @@ export const source = pgTable(
      */
     livenessConfirmsDeletion: boolean("liveness_confirms_deletion"),
     livenessEvidence: text("liveness_evidence"),
+
+    /**
+     * When this Provider last **answered** with something that is not a capability declaration, and
+     * what was wrong with it. Null on a Source whose declaration reads.
+     *
+     * **The pair is what makes "fails the Source closed, and says so" durable.** Without it a read
+     * that failed is known only to whoever watched it run: `read_at` deliberately does not move on a
+     * failure, so a Source whose Provider has been answering rubbish for months would render exactly
+     * like a healthy one. With it, the fact is a column, a sentence on `/sources`, and a refusal.
+     *
+     * **Set only where the Provider answered.** An unreachable host, a timeout and a `503` are
+     * *not* a Provider stating anything — the contract says a `503` "is never evidence that anything
+     * was deleted", and an outage, a revoked credential and a network partition are indistinguishable
+     * from each other. A `200` carrying something that is not a declaration is distinguishable: the
+     * Provider replied, and what it replied is not terms this contract describes.
+     *
+     * **What it withdraws is what the declaration *permits*, never what it obliges**
+     * (`../providers/refusals.ts`). Retention, attribution and the restrictions go on binding,
+     * because a broken Provider is not a Source whose terms have relaxed; Artwork, a canonical
+     * Ordering and acting on `gone` are withheld, because those rest on a declaration this Provider
+     * has stopped standing behind.
+     */
+    unreadableSince: timestamp("unreadable_since", { withTimezone: true }),
+    unreadableBecause: text("unreadable_because"),
   },
   (t) => [
     // ADR-0022's scoping rule, as a constraint rather than as a convention: one row per Source *per
@@ -585,6 +609,13 @@ export const source = pgTable(
     check(
       "source_liveness_evidence_belongs_to_a_liveness_declaration",
       sql`${t.livenessEvidence} is null or ${t.livenessConfirmsDeletion} is not null`,
+    ),
+
+    // Both halves or neither: a moment with no reason cannot be shown to anybody, and a reason with
+    // no moment cannot be told from one recorded years ago.
+    check(
+      "source_unreadable_is_a_moment_and_a_reason",
+      sql`(${t.unreadableSince} is null) = (${t.unreadableBecause} is null)`,
     ),
   ],
 );

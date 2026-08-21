@@ -630,8 +630,8 @@ all. Two of the surveyed sources already are; the roster as a whole will not be.
   does not serve**. The rule reads the flag a declared term carries and never the term itself, and
   three absences each refuse rather than permit: a Provider with no vocabulary, a record nothing in
   its containment chain classified, and a term outside the vocabulary its Provider declared. The
-  application contains that Source's field name nowhere, which a test over every file under
-  `apps/web/src` is what holds. [ADR-0022](0022-the-provider-contract.md) → *Decision 2* carries what
+  application contains that Source's field name nowhere, which a test over every TypeScript file in
+  `apps/web` — `src` and the operator commands in `scripts` alike — is what holds. [ADR-0022](0022-the-provider-contract.md) → *Decision 2* carries what
   else that ticket settled.
 - **The compliance work is not this decision.** Decision 7 makes both risk assessments a v1 blocker
   under `s.9(4)` and `s.11(4)`, but that gates **shipping**, not documenting, and the assessments were

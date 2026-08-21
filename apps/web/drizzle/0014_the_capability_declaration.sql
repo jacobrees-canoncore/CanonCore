@@ -3,18 +3,28 @@
 -- blocks whose *absence* is a refusal — classification, Orderings and liveness.
 -- CAN-104 Read a Provider's capability declaration, and refuse what it does not serve.
 --
--- **Seventeen columns arrive `NOT NULL` with no default, and that is a narrowing.** The rule it
--- could break is that every migration must leave the schema able to serve the previous release's
--- code, writes included (docs/adr/0027-migrations-are-forward-only-and-a-rollback-moves-code-alone.md),
--- and adding a `NOT NULL` is a narrowing however additive it reads. **It is safe here because both
--- tables are empty and nothing writes to either**: `source` is written by no code and seeded by no
--- migration — `schema.ts` says why, and it is decision 1 of ADR-0014 rather than an accident — and
--- nothing has ever written a Snapshot. The previous release reads both and deletes from both, and
--- neither is affected by a column it does not name.
+-- **This is a narrowing, in four shapes, and every one of them is stated because a reviewer's eye
+-- slides over three of them.** Seventeen columns are added across the two tables; **twelve of them
+-- arrive `NOT NULL` with no default** — eleven on `source` and `snapshot.source_declared_at` — while
+-- `read_at` is `NOT NULL DEFAULT now()` and four are nullable. Beside them, and narrowing just as
+-- much while reading as tidying up: one `UNIQUE`, on `(provider_base_url, declared_id)`, and three
+-- `CHECK`s, on the trailing slash, the empty vocabulary and the orphaned liveness evidence.
 --
--- **If a row did exist, this statement would fail loudly rather than corrupt anything**: PostgreSQL
--- refuses `ADD COLUMN ... NOT NULL` with no default on a populated table. A red migration step is a
--- blocked release, which is the failure to have.
+-- The rule all four could break is that every migration must leave the schema able to serve the
+-- previous release's code, writes included
+-- (docs/adr/0027-migrations-are-forward-only-and-a-rollback-moves-code-alone.md).
+--
+-- **All four are safe here for one reason: both tables are empty and nothing writes to either.**
+-- `source` is written by no code and seeded by no migration — `schema.ts` says why, and it is
+-- decision 1 of ADR-0014 rather than an accident — and nothing has ever written a Snapshot. So there
+-- is no existing row for a constraint to reject and no write of the previous release's for one to
+-- refuse. The previous release reads both tables and deletes from both, and neither is affected by a
+-- column or a constraint it does not name.
+--
+-- **If a row did exist, this would fail loudly rather than corrupt anything**: PostgreSQL refuses
+-- `ADD COLUMN ... NOT NULL` with no default on a populated table, and validates a new `UNIQUE` or
+-- `CHECK` against every row already there. A red migration step is a blocked release, which is the
+-- failure to have.
 --
 -- No grant accompanies it. Migration 0004 grants `SELECT` on the whole table, and a table-level
 -- privilege covers columns added afterwards.

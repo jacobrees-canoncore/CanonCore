@@ -437,6 +437,28 @@ test("a Provider that declares nothing optional draws its refusals, and still no
   expect(linksWithinOwnRoutes()).toEqual([]);
 });
 
+test("a Source whose Provider now answers with rubbish says so, and adds no anchor", () => {
+  // The durable half of *fails the Source closed, and says so*: the reason a Provider gave is a
+  // string from that Provider, rendered on the page, so it belongs in this file like every other.
+  render(
+    <SourcesPage
+      sources={[
+        {
+          id: "00000000-0000-4000-8000-0000000000c3",
+          providerBaseUrl: hostile,
+          readAt: new Date("2026-08-21T08:00:00Z"),
+          declaration: hostileDeclaration,
+          unreadable: { since: new Date("2026-08-22T08:00:00Z"), because: hostile },
+        },
+      ]}
+    />,
+  );
+
+  expect(screen.getByText(/not a capability declaration/)).toBeDefined();
+  expect(document.body.textContent).toContain("2026-08-22T08:00:00.000Z");
+  expect(linksWithinOwnRoutes()).toEqual([]);
+});
+
 test("the Sources page with nothing on it adds no anchor either", () => {
   render(<SourcesPage sources={[]} />);
 
