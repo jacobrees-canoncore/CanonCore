@@ -867,10 +867,9 @@ wired into the job GitHub runs, at a position where its failure stops what follo
 **The branch then stayed on that commit for ten hours, across the end of a session.** `5b1b590` was
 the remote head from 21:59:59Z on 16 August 2026 until 08:02:38Z the next morning, when the rest of
 the work arrived in one push — read on 21 August 2026 off the only two `push` runs that branch ever
-had, `31975102269` and `32008487556`, since the branch itself is gone. Nothing was scheduled to move
-it on: `/implement` stops at the commit, so what replaced it was the next session choosing to.
-`docs/agents/workflow.md` → *When `/implement` may push* is the rule that came of it, and what those
-ten hours cost is argued there.
+had, `31975102269` and `32008487556`, since the branch itself is gone. `docs/agents/workflow.md` →
+*When `/implement` may push* is the rule that came of it, and both what left the branch there and
+what it cost are argued there.
 
 **The commit outlived the branch, and only because it is named by its SHA.** The squash-merge put
 one commit on `main` and `delete_branch_on_merge` took `jacobdrees/can-54` away — a request for that

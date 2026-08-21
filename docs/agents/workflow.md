@@ -398,19 +398,18 @@ The loop above gives the push to `/draft-pr`, and `/implement` stops at the comm
 overrides that, and only one: a fact the acceptance criteria ask for that nothing but a run on
 GitHub can produce.**
 
-*The gates*, below, already says why such facts exist — **the gate is GitHub's copy of those checks,
-not yours**. A gate step runs on a laptop readily enough, and what that proves is that the command
-works. What it cannot show is that the step is wired into the job at a position where its failure
-stops what follows, because the job is GitHub's. So a criterion phrased as *fails the job* is asking
-for a run id, and no amount of local work satisfies it. **CAN-54 Fail a push that adds a
-known-vulnerable dependency** was exactly that criterion, and `docs/incidents.md` → *The audit gate
-was proved by a critical advisory, then reverted* is what its push produced — including the
-paragraph on what a local exit code would not have shown.
+Such facts exist because **the gate is GitHub's copy of those checks, not yours**, which *The
+gates*, below, argues and does not need repeating here. What follows from it is this: a criterion
+phrased as *fails the job* is asking for a run id, and no amount of local work satisfies it.
+**CAN-54 Fail a push that adds a known-vulnerable dependency** was exactly that criterion, and
+`docs/incidents.md` → *The audit gate was proved by a critical advisory, then reverted* is what its
+push produced, down to what a local exit code would not have shown.
 
 **Name the fact and where it will be read, before pushing.** A run id and the statuses of the steps
-in it, a check-run's own record, what a preview does with a schema nothing migrated for it: each of
-those is a fact with a home. *So the work is not lost*, *so the branch exists* and *so the gates get
-a head start* are not facts of that kind. They are conveniences, and `/draft-pr` delivers all three
+in it is the shape it has taken so far, and a check-run's own record is the other thing this
+repository has had to read off GitHub (`docs/incidents.md` → *A check-run finished and its record
+never closed*). *So the work is not lost*, *so the branch exists* and *so the gates get a head
+start* are not facts of that kind. They are conveniences, and `/draft-pr` delivers all three
 shortly afterwards at no cost. If the answer to *what will this push return* is not a thing you
 could quote back, the push was `/draft-pr`'s.
 
@@ -421,14 +420,15 @@ releases whatever passed. An experiment is the last thing to do that with.
 ### A commit broken on purpose is never the head of a pushed branch
 
 Evidence of this kind usually needs a commit that is broken deliberately — a dependency carrying a
-live advisory, a step removed to prove that something downstream depends on it, a workflow written
-to be refused. The run reports on whatever the branch's head is, so that commit has to be pushed,
-and when the run finishes the branch is still sitting on it.
+live advisory, or a step removed to prove that what follows it depends on it. The run reports on
+whatever the branch's head is, so that commit has to be pushed, and when the run finishes the branch
+is still sitting on it.
 
-**On CAN-54 the branch sat there for ten hours, across the end of a session**
-(`docs/incidents.md` → *The audit gate was proved by a critical advisory, then reverted*). Nothing
-was scheduled to move it on: `/implement` is documented as stopping at the commit, so what replaced
-it was the next session choosing to, and a session that had ended would not have.
+**On CAN-54 Fail a push that adds a known-vulnerable dependency the branch sat there for ten hours,
+across the end of a session** (`docs/incidents.md` → *The audit gate was proved by a critical
+advisory, then reverted*). Nothing is scheduled to move such a commit on, which is the general
+point: `/implement` is documented as stopping at the commit, so what replaces it is a later session
+choosing to, and a session that has ended chooses nothing.
 
 **What that costs is not the merge.** `main`'s ruleset refuses a branch whose checks are red
 whatever made them red, so nothing bad can land. It is that the branch stops being readable: a red
@@ -443,10 +443,13 @@ So, in this order and in the same session:
   no justification of its own; it is the second half of the push the exception already allowed, and
   it is not `/draft-pr`'s to make. Leaving it for `/draft-pr` is what parks the branch, since
   nothing says when that gets run.
-- **Prove the undo rather than asserting it.** `git diff origin/main -- <the files the experiment
-  touched>` returns nothing when the reversal is complete, which is the check behind that entry's
-  *"byte-identical to `main` again"*. A dependency experiment touches a manifest and a lockfile, and
-  the lockfile is the half that gets forgotten.
+- **Prove the undo rather than asserting it.** `git diff <the commit before the experiment> -- <the
+  files it touched>` returns nothing when the reversal is complete. That commit is the base, not
+  `origin/main`: a ticket that legitimately changes one of the same files would read as a failed
+  undo against `main` while being perfectly undone. The two coincided on CAN-54 Fail a push that
+  adds a known-vulnerable dependency, which is why that entry can say *"byte-identical to `main`
+  again"*. A dependency experiment touches a manifest and a lockfile, and the lockfile is the half
+  that gets forgotten.
 - **If the run cannot be read before the session ends, the branch still does not stay there.** Put
   it back on the last good commit and force it, then run the experiment again next session. It costs
   minutes to repeat; a branch nobody can read costs whoever finds it next, and that is usually a
@@ -462,15 +465,16 @@ So, in this order and in the same session:
 The record is an entry in [`docs/incidents.md`](../incidents.md) — that is where an observation
 lives once, and the pull request cites it rather than retelling it. What the entry owes is the run
 id, the commit as a SHA, and **which of the run's outcomes the push actually proves**. Not
-everything that changed behind a deliberate failure changed because of it: on CAN-54 two of the four
-steps that skipped after the failing one would have skipped whatever the audit did, and that entry
-says which two and why. An entry claiming the skip list whole would be claiming a run that never
-happened.
+everything that changed behind a deliberate failure changed because of it: on CAN-54 Fail a push
+that adds a known-vulnerable dependency two of the four steps that skipped after the failing one
+would have skipped whatever the audit did, and that entry says which two and why. An entry claiming
+the skip list whole would be claiming a run that never happened.
 
 **Write it before the merge, because the merge takes both away.** The squash-merge puts a single
 commit on `main` and the branch deletes itself, so afterwards the experiment's commit is on no
 branch of this repository and its run is reachable only by the id you kept. What still serves the
-commit is GitHub's retention of a pull request's own refs, which that entry records and measures.
+commit is GitHub's retention of a pull request's own refs, which that entry records as observed on
+one day rather than as a guarantee to lean on.
 
 ## The gates
 
