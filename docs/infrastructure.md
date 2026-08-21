@@ -894,14 +894,14 @@ baseline is unlike the CI one: an unchecked merge is permanent and a session run
 standards is not.
 
 **It is one Claude Code plugin, and this repository is what it delivers.** The decision, what was
-rejected, and what it costs are [ADR-0028](adr/0028-the-engineering-practice-reaches-a-provider-repository-as-a-plugin.md);
+rejected, and what it costs are [ADR-0028](adr/0028-a-provider-reaches-this-practice-as-a-plugin.md);
 this is the register of what is provisioned.
 
 | Part | Shape | How a repository gets it |
 | --- | --- | --- |
 | The four skills, and `CLAUDE.md`, `CODING_STANDARDS.md`, `CONTEXT.md`, `docs/` | Two manifests here — [`.claude-plugin/marketplace.json`](../.claude-plugin/marketplace.json) and [`.claude-plugin/plugin.json`](../.claude-plugin/plugin.json) — whose plugin `source` is `"./"`, so the payload is this repository | Eight lines of that repository's own `.claude/settings.json`, below |
-| The install itself | Not settings, and not automatic | One `claude plugin install` per person per machine, below |
-| What is true of *that* repository, loaded on every request there | A short `CLAUDE.md` of its own | Written per Provider. It is not a copy of this one — [ADR-0028](adr/0028-the-engineering-practice-reaches-a-provider-repository-as-a-plugin.md) → *Consequences* |
+| The install itself | Not settings, and not reliably automatic | Two commands per person per machine, below |
+| What is true of *that* repository, loaded on every request there | A short `CLAUDE.md` of its own | Written per Provider. It is not a copy of this one — [ADR-0028](adr/0028-a-provider-reaches-this-practice-as-a-plugin.md) → *Consequences* |
 
 ### The eight lines, and the command they do not run
 
@@ -918,28 +918,43 @@ A Provider repository commits exactly this, and nothing else changes hands:
 }
 ```
 
-**Those lines add the marketplace and they do not install the plugin.** Claude Code adds a
-marketplace declared this way *"once a team member trusts the repository folder"*, and separately:
-*"adding the marketplace doesn't install plugins that come from an external source, on any path that
-loads plugins ... Until then, Claude Code reports the plugin as not installed and shows the
-`claude plugin install` command to run"*
+**Those lines declare; they install nothing.** *"Adding the marketplace doesn't install plugins that
+come from an external source, on any path that loads plugins ... Until then, Claude Code reports the
+plugin as not installed and shows the `claude plugin install` command to run"*
 ([Discover and install plugins](https://code.claude.com/docs/en/discover-plugins), read
-21 August 2026). So each person runs this once per machine:
+21 August 2026). So each person runs **two** commands once per machine, in this order:
 
 ```bash
+claude plugin marketplace add jacobrees-canoncore/CanonCore --scope project
 claude plugin install canoncore-engineering@canoncore --scope project
 ```
 
-**Both halves were measured rather than read**, on 21 August 2026, from a directory holding nothing
-but those eight lines and with every trace of the marketplace and its cache removed first:
+**The second cannot bootstrap the first.** `claude plugin install` looks the plugin up in a local
+copy of the catalogue, so against a marketplace that has never been fetched it fails with
+`Plugin "canoncore-engineering" not found in marketplace "canoncore"` — which reads like a wrong
+name and is not one. Neither command rewrites the committed block; the `add` writes back the entry
+that is already there.
+
+**Why the first is listed rather than left to happen by itself.** Claude Code adds a marketplace
+declared this way *"once a team member trusts the repository folder ... without a further prompt"*
+(same page), and that was seen once here — in a throwaway directory holding nothing but the eight
+lines, `~/.claude/plugins/marketplaces/canoncore` appeared after the folder was trusted, with no
+cache entry and the skills still absent. **It did not happen in `provider-tmdb`'s own worktree**,
+across four sessions with that folder trusted and no trace of the marketplace on disk. So the
+automatic path is real and is not something to depend on, and the register gives the command that
+always works rather than the one that sometimes is not needed.
+
+**What was measured, on 21 August 2026**, with every trace of the marketplace and its cache removed
+first:
 
 | Step | What was observed |
 | --- | --- |
-| A session there, folder **not** trusted | Nothing fetched. No marketplace clone, no cache entry, and the plugin's skills absent from the session |
-| The same session, folder trusted | `~/.claude/plugins/marketplaces/canoncore` appeared — the marketplace added itself. **No cache entry**, and the skills still absent |
-| `claude plugin install …` after it | Installed, `.claude/settings.json` unchanged in content, and a session there then listed `canoncore-engineering:code-review` |
+| A session in `provider-tmdb`, only the eight lines | Nothing fetched, no skills, and Claude Code named `claude plugin install` as the missing step |
+| `claude plugin install` before any `marketplace add` | Refused — the catalogue had never been fetched |
+| Both commands, in the order above | Installed. `claude plugin details` reported the inventory below |
+| A session there afterwards | Listed `canoncore-engineering:code-review`, resolved `${CLAUDE_PLUGIN_ROOT}` to the cache copy, read `CODING_STANDARDS.md` through it, and reported `plugin:canoncore-engineering:resend` as an MCP server it could not authorise |
 
-The last row is the whole inventory a model sees, and that is correct rather than a partial load:
+The fourth row is the whole inventory a model sees, and that is correct rather than a partial load:
 `draft-pr`, `implement` and `review-pr` all carry `disable-model-invocation`, so they never appear
 in a model's own list and only a person fires them. **`claude plugin details` is the reading that
 shows all four**, and it is the evidence to ask for:

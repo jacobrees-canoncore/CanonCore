@@ -118,13 +118,14 @@ as well as in prefix, and every pointer would have needed rewriting rather than 
   `commands/`, `hooks/hooks.json`, `output-styles/` and `.lsp.json` are default component paths at a
   plugin root. None exists here today; one created for an unrelated reason would start travelling
   without anything saying so.
-- **A person still runs one command per machine.** The eight lines add the marketplace and enable
-  the plugin, and that is all they do: *"adding the marketplace doesn't install plugins that come
-  from an external source, on any path that loads plugins"*
+- **A person still runs two commands per machine.** The eight lines declare the marketplace and
+  enable the plugin, and that is all they do: *"adding the marketplace doesn't install plugins that
+  come from an external source, on any path that loads plugins"*
   ([Discover and install plugins](https://code.claude.com/docs/en/discover-plugins), read
-  21 August 2026), measured to be exactly so. Claude Code reports the `claude plugin install` line
-  to run, so this is a prompt rather than a trap, but the baseline is not fully automatic and saying
-  it were would be wrong.
+  21 August 2026), measured to be exactly so. Claude Code names the install line itself, so this is
+  a prompt rather than a trap — but the fetch it needs is not always automatic either, and the
+  register gives both commands rather than the documented happy path. **The baseline is not fully
+  automatic, and saying it were would be the useful half of a wrong claim.**
 - **`@main` on both ends, so a bad edit here reaches every Provider at once.** The same trade the CI
   baseline took, for the same reason: a fix reaches them all without six pull requests. The
   marketplace source accepts a `ref` and the plugin source accepts a `ref` and a `sha`, so pinning

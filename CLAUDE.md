@@ -175,7 +175,7 @@ answer first, then what will offer you something else.
   — every earlier approval is disregarded and none will be sought, so the six-month cache limit binds
   and reads as fatal. The reflex is a second Source as a floor, which ADR-0014 refuses outright.
 - **`apps/web` holds no source-specific code and no *Source* credential** (ADR-0014) — ask any tool
-  for a TMDB client and it lands in `apps/web`. Bound to *Source*: `RESEND_API_KEY` is not one. **Nor may `.mcp.json` hold a credential of any kind** ([ADR-0028](docs/adr/0028-the-engineering-practice-reaches-a-provider-repository-as-a-plugin.md)): this whole repository is what every Provider repository installs as a Claude Code plugin, so a server added there is published into six sessions with no use for it — and a pointer that dangles there is fixed with `${CLAUDE_PLUGIN_ROOT}`, never by copying the documents across.
+  for a TMDB client and it lands in `apps/web`. Bound to *Source*: `RESEND_API_KEY` is not one. **Nor may `.mcp.json` hold a credential of any kind** ([ADR-0028](docs/adr/0028-a-provider-reaches-this-practice-as-a-plugin.md)): this whole repository is what every Provider repository installs as a Claude Code plugin, so a server added there is published into six sessions with no use for it — and a pointer that dangles there is fixed with `${CLAUDE_PLUGIN_ROOT}`, never by copying the documents across.
 - **Reachability splits by credential: authenticated closed, keyless open** (ADR-0014) — habit offers
   one class for all Providers. The old third class is spent: no permission is load-bearing since 16 August.
 - **Hand-written CSS, no framework and no component library** ([ADR-0013](docs/adr/0013-hand-written-css-no-framework.md))
