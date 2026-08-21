@@ -968,8 +968,10 @@ are estate facts a sweep of this account would otherwise have to rediscover:
   holding a bearer token, not a person who can complete an SSO round trip**, so left on it would
   have refused the application rather than an attacker. What closes that endpoint is
   `CANONCORE_ACCESS_TOKEN` in the Provider's own application code; the platform wall was never what
-  was guarding it. `canoncore` holds the same posture and has since 16 August 2026 (*Hosting*
-  above), so this is the estate agreeing with itself rather than a new exception.
+  was guarding it. **`canoncore` holds the same posture**, read the same day and the same way:
+  `vercel project protection canoncore` answers `ssoProtection: null`. *Hosting* above records only
+  the Preview half of that, and dates it 16 August 2026 — so this is the estate agreeing with itself
+  rather than a new exception, though the two rows were read through different commands.
 - **The Git connection is not made**, so no deployment exists yet and the project is still `link:
   null`. The blocker is the App grant two paragraphs above, and it is a person's step.
 

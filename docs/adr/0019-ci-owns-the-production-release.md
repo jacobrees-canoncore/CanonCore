@@ -138,12 +138,9 @@ consequence for the order changes land in is procedure rather than decision:
   arrives with the platform's defaults, so *Work that spans two repositories* in
   [`docs/agents/workflow.md`](../agents/workflow.md) applies from that repository's first pull
   request. **The first one to test that sentence deploys from Git**, on every branch including its
-  own `main`: `provider-tmdb` has no schema, so the ordering this ADR enforces has nothing to
-  enforce, and Actions promotion would buy nothing while putting a `VERCEL_TOKEN` in a Provider's
-  secrets to buy it with. Settled on
+  own `main`, because a Provider has no schema and so nothing this ADR orders. **The half that does
+  reach it is the runner-up rather than the decision**: what makes a Provider's build correct goes
+  in its own `vercel.json`, for the same reason `git.deploymentEnabled` is in one. Settled on
   [CAN-150 provider-tmdb is provisioned on GitHub and unwired on Vercel, so nothing deploys](https://linear.app/jacobrees-canoncore/issue/CAN-150),
-  21 August 2026; [`docs/infrastructure.md`](../infrastructure.md) → *How a Provider deploys* holds it.
-  **One half of this ADR does reach a Provider, and it is the runner-up above rather than the
-  decision**: what makes a Provider's build correct — its framework preset and its function region —
-  goes in its `vercel.json` for the same reason `git.deploymentEnabled` does, that a dashboard
-  setting cannot be reviewed and does not survive re-provisioning.
+  21 August 2026, and argued once in [`docs/infrastructure.md`](../infrastructure.md) →
+  *How a Provider deploys* rather than again here.
