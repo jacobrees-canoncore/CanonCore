@@ -86,6 +86,14 @@ the wrong place".
 `scripts/check-docs.ts` goes blind the same way and for the same reason;
 [ADR-0014](../adr/0014-shell-providers-and-per-source-retention.md#consequences) owns that.
 
+**`get_web_analytics` narrows the same way inside the one project it does answer for, and this is
+the shape above rather than a new one**: it returns **production only** unless the query filters on
+`environment eq 'preview'`. Measured on 21 August 2026 over one window — three paths unfiltered,
+five with the filter, and the preview rows absent from the first. So a run driven against a preview
+deployment and read back without the filter answers *empty rather than wrong* again, and reads as a
+run that sent nothing. Found by **CAN-147 Verify the analytics redaction and opt-out against a real
+deployment**, whose whole subject was whether events arrive.
+
 ## Which servers are project scope and which are user scope
 
 `resend` is scoped to this project in [`.mcp.json`](../../.mcp.json) at the repository root, and its

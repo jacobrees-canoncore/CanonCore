@@ -44,9 +44,30 @@ import { beforeSend } from "./before-send";
 import { redactPath } from "./redaction";
 
 export function Measurement() {
-  // The one value both vendors are given for the page, already reduced. `path` is passed as well
-  // as `route` because the script builds the reported URL out of it — so what `beforeSend`
-  // receives is already safe, and redacts to itself.
+  // The one reduced value for the page. It goes to both vendors as `route`, and to Web Analytics
+  // as `path` as well — **`path` is a prop only Web Analytics has**, and the difference decides how
+  // much work `beforeSend` is left doing below.
+  //
+  // Both scripts build the URL they report with the same helper, and it only clears the query
+  // string when it actually substitutes the path it was handed:
+  //
+  //     function n(e){let t=location.href;if(e){let n=new URL(t);
+  //       if(n.pathname!==e)return n.pathname=e,n.search="",n.href}   // substituted: query dropped
+  //       return t}                                                   // unchanged: query kept
+  //
+  // **Web Analytics** is handed `path`, so `/story/<id>` is rebuilt and reaches `beforeSend` already
+  // safe — but every member of `staticPaths` reduces to itself, the pathname does not differ, and
+  // what arrives is `location.href` whole, query string included.
+  //
+  // **Speed Insights is handed nothing**: `SpeedInsightsProps` has no `path`, so its script calls the
+  // helper as `href:n(i?.dataset.path)` with `undefined` and gets `location.href` back **on every
+  // route**, `/story/<id>` included.
+  //
+  // So `beforeSend` is not a second line behind the reduced path: it is the only thing that removes
+  // a password-reset token from `/reset-password`, and for Speed Insights the only thing that
+  // removes a Story's identifier at all. That is what `redaction.ts` calls the sharpest reason it
+  // exists. Read off the live scripts and confirmed against a deployment on 21 August 2026:
+  // `docs/infrastructure.md` → *What the two measurement products were observed doing*.
   const route = redactPath(usePathname());
 
   return (
