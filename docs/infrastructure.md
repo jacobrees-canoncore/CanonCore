@@ -899,16 +899,17 @@ this is the register of what is provisioned.
 
 | Part | Shape | How a repository gets it |
 | --- | --- | --- |
-| The four skills, and `CLAUDE.md`, `CODING_STANDARDS.md`, `CONTEXT.md`, `docs/` | Two manifests here — [`.claude-plugin/marketplace.json`](../.claude-plugin/marketplace.json) and [`.claude-plugin/plugin.json`](../.claude-plugin/plugin.json) — whose plugin `source` is `"./"`, so the payload is this repository | Eight lines of that repository's own `.claude/settings.json`, below |
+| The four skills, and `CLAUDE.md`, `CODING_STANDARDS.md`, `CONTEXT.md`, `docs/` | Two manifests here — [`.claude-plugin/marketplace.json`](../.claude-plugin/marketplace.json) and [`.claude-plugin/plugin.json`](../.claude-plugin/plugin.json) — whose plugin `source` is `"./"`, so the payload is this repository | That repository's own `.claude/settings.json`, below |
 | The install itself | Not settings, and not reliably automatic | Two commands per person per machine, below |
 | What is true of *that* repository, loaded on every request there | A short `CLAUDE.md` of its own | Written per Provider. It is not a copy of this one — [ADR-0028](adr/0028-a-provider-reaches-this-practice-as-a-plugin.md) → *Consequences* |
 
-### The eight lines, and the command they do not run
+### What a Provider repository commits, and the commands it does not run
 
-A Provider repository commits exactly this, and nothing else changes hands:
+Its whole `.claude/settings.json`, and nothing else changes hands:
 
 ```json
 {
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
   "extraKnownMarketplaces": {
     "canoncore": {
       "source": { "source": "github", "repo": "jacobrees-canoncore/CanonCore" }
@@ -935,21 +936,18 @@ copy of the catalogue, so against a marketplace that has never been fetched it f
 name and is not one. Neither command rewrites the committed block; the `add` writes back the entry
 that is already there.
 
-**Why the first is listed rather than left to happen by itself.** Claude Code adds a marketplace
+**The first is listed even though it is sometimes unnecessary.** Claude Code adds a marketplace
 declared this way *"once a team member trusts the repository folder ... without a further prompt"*
-(same page), and that was seen once here — in a throwaway directory holding nothing but the eight
-lines, `~/.claude/plugins/marketplaces/canoncore` appeared after the folder was trusted, with no
-cache entry and the skills still absent. **It did not happen in `provider-tmdb`'s own worktree**,
-across four sessions with that folder trusted and no trace of the marketplace on disk. So the
-automatic path is real and is not something to depend on, and the register gives the command that
-always works rather than the one that sometimes is not needed.
+(same page) — which happened in one directory tried here and not in `provider-tmdb`'s own worktree,
+over four sessions with that folder trusted. So the register gives the command that always works
+rather than the one that is sometimes not needed.
 
 **What was measured, on 21 August 2026**, with every trace of the marketplace and its cache removed
 first:
 
 | Step | What was observed |
 | --- | --- |
-| A session in `provider-tmdb`, only the eight lines | Nothing fetched, no skills, and Claude Code named `claude plugin install` as the missing step |
+| A session in `provider-tmdb`, carrying only that file | Nothing fetched, no skills, and Claude Code named `claude plugin install` as the missing step |
 | `claude plugin install` before any `marketplace add` | Refused — the catalogue had never been fetched |
 | Both commands, in the order above | Installed. `claude plugin details` reported the inventory below |
 | A session there afterwards | Listed `canoncore-engineering:code-review`, resolved `${CLAUDE_PLUGIN_ROOT}` to the cache copy, read `CODING_STANDARDS.md` through it, and reported `plugin:canoncore-engineering:resend` as an MCP server it could not authorise |

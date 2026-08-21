@@ -996,8 +996,8 @@ first Provider was built this way rather than because it was planned that way �
    and the skills' pointers resolve — against `${CLAUDE_PLUGIN_ROOT}` rather than the working
    directory ([ADR-0028](../adr/0028-a-provider-reaches-this-practice-as-a-plugin.md)).
 
-   What that costs the Provider is eight lines of its own `.claude/settings.json` and two commands
-   per person per machine, which the settings do **not** run for you.
+   What that costs the Provider is one `.claude/settings.json` of its own and two commands per
+   person per machine, which the settings do **not** run for you.
    [`../infrastructure.md`](../infrastructure.md) → *The Provider repository agent baseline* has both,
    and what was measured about each.
 

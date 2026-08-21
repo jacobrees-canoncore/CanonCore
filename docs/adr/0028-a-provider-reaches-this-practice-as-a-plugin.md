@@ -41,8 +41,8 @@ relative to a repository root that, in a Provider repository, is a different rep
 resolve to nothing.
 
 **So the problem was addressing and loading, not transport**, and the two halves have different
-answers. That distinction is why this decision costs a Provider eight lines rather than a vendored
-copy of four documents.
+answers. That distinction is why this decision costs a Provider one settings file rather than a
+vendored copy of four documents.
 
 ## Three parts, and only the third needs anything of the Provider
 
@@ -116,7 +116,7 @@ as well as in prefix, and every pointer would have needed rewriting rather than 
   `commands/`, `hooks/hooks.json`, `output-styles/` and `.lsp.json` are default component paths at a
   plugin root. None exists here today; one created for an unrelated reason would start travelling
   without anything saying so.
-- **The eight lines declare and install nothing, so a person still runs two commands per machine.**
+- **The settings file declares and installs nothing, so a person still runs two commands per machine.**
   *"Adding the marketplace doesn't install plugins that come from an external source, on any path
   that loads plugins"*
   ([Discover and install plugins](https://code.claude.com/docs/en/discover-plugins), read
