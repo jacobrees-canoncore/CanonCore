@@ -366,9 +366,16 @@ works and that what goes down it is redacted.
 | Who releases `main` | GitHub Actions: migrate, build, promote, in that order |
 | Previews | **Untouched.** Every branch but `main` still deploys from Git |
 | Set by | CAN-23 One Story from Neon, behind row-level security, on **14 August 2026** |
+| Rollback | **Unaffected by any of the above.** Eligibility is having served the production domain, not having been built from Git, so every deployment Actions promotes is a rollback target — each reports `isRollbackCandidate: true` on `GET /v6/deployments`, read 21 August 2026 |
+| Auto-assignment | `autoAssignCustomDomains`, `true` today. **A rollback sets it `false`** and a promote sets it back: measured across a real rollback of production on 21 August 2026. `lastRollbackTarget` stayed `null` throughout and is not the field to read |
 
 *The file is read from the Root Directory, confirmed 14 August 2026 by putting a header in it and
 finding that header in `.vercel/output/config.json` after `vercel build`.*
+
+*Production has been rolled back and restored once, deliberately, to prove the route rather than to
+recover from anything — [`runbook.md`](runbook.md) → *A release is bad* holds the measurement and the
+procedure, and [ADR-0027](adr/0027-migrations-are-forward-only-and-a-rollback-moves-code-alone.md)
+holds why the schema is never rolled back with it.*
 
 **Why CI owns the release rather than Vercel, why the runner-up — a project setting instead of a file
 — lost, and why turning previews off would block every merge:

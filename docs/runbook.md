@@ -24,6 +24,7 @@ which starts by saying so.
 
 - [The alert, and what it cannot tell you](#the-alert-and-what-it-cannot-tell-you)
 - [Triage: two requests](#triage-two-requests)
+- [A release is bad](#a-release-is-bad)
 - [The database does not answer](#the-database-does-not-answer)
 - [Spend Management paused the production deployment](#spend-management-paused-the-production-deployment)
 - [A Source's licence terminates](#a-sources-licence-terminates)
@@ -66,13 +67,115 @@ curl -s -o /dev/null -w '%{http_code}\n' https://www.canoncore.com/
 | `503`, 0 bytes | **Our own answer.** The application is running and three consecutive asks to PostgreSQL failed | [The database does not answer](#the-database-does-not-answer) |
 | `503` with a body | **Vercel's answer, not ours** — this route never sends one. A paused deployment serves `503 DEPLOYMENT_PAUSED` ([Vercel KB](https://vercel.com/kb/guide/why-is-my-account-deployment-blocked), read 16 August 2026) | [Spend Management paused the production deployment](#spend-management-paused-the-production-deployment) |
 | `504`, or any other 5xx with a body | **Vercel's answer again.** `504 FUNCTION_INVOCATION_TIMEOUT` is *"a function invocation [that] takes longer than the allowed execution time"* ([Vercel](https://vercel.com/docs/errors/FUNCTION_INVOCATION_TIMEOUT), read 16 August 2026) — for this route, a connection attempt that neither failed nor succeeded. Treat it as the database entry below | [The database does not answer](#the-database-does-not-answer) |
-| `404` | The deployment in production does not carry this route, so the release did not land | `git log origin/main`, then the Actions run for that commit |
+| `404` | The deployment in production does not carry this route, so the release did not land | [A release is bad](#a-release-is-bad) |
 | Nothing, or a DNS failure | Neither the application nor Vercel answered | [Vercel's status page](https://www.vercel-status.com/), then the DNS records in [`infrastructure.md`](infrastructure.md) → *Domains* |
 
 The second request is the disambiguator when the first is ambiguous: `/` reads a Story through the
 same connection pool, so a database outage takes it to a 500 as well. **`/` at 200 while
 `/api/health` is at 503 means the page has stopped depending on the database** — which is fine for
 the page and fatal for the check, because from then on only this route can see the outage.
+
+## A release is bad
+
+**Symptom. Three shapes, and only one of them reaches the phone.**
+
+- **`/` answers a 5xx of our own.** This is the one that pages you, and quickly: the monitor polls
+  `/`, and anything answering with an erroneous status is *"instantly marked as down without
+  verification"* ([`infrastructure.md`](infrastructure.md) → *Uptime monitoring: UptimeRobot*). The
+  interval is an hour, so that is the latency.
+- **A route 404s that used to answer.** The release did not land, or landed without it.
+- **The site answers `200` and is wrong.** **Nothing pages you at all**, and no check proposed here
+  would: detection is one bit wide. This entry is reached by someone looking, not by an alert.
+
+**Check. Three questions, and the third decides whether the fix below is safe.**
+
+1. **Did a release run, and how did it end?** `gh run list --branch main --limit 3`. The order is
+   migrate, build, promote ([ADR-0019](adr/0019-ci-owns-the-production-release.md)), so *where* a red
+   run stopped says what state production is in: a failed migration promoted nothing, and a failed
+   promotion left the schema moved with the old code still serving.
+2. **Which production deployments exist, and what commit is each?** Newest first. `vercel list --prod`
+   shows neither the commit nor which one is current, whatever
+   [Vercel's guide](https://vercel.com/docs/deployments/rollback-production-deployment) says, so ask
+   for JSON:
+
+   ```bash
+   vercel list canoncore --prod --json --scope jacobreesnew-7380s-projects \
+     | jq -r '.deployments[] | "\(.url)  \(.meta.githubCommitSha[0:8])  \(.meta.githubCommitMessage | split("\n")[0])"'
+   ```
+
+   To confirm which one is serving, `vercel inspect <url>` lists its **Aliases**, and the current one
+   carries `https://www.canoncore.com`.
+3. **Did anything between the two releases touch the schema?** This is the question that decides
+   everything below.
+
+   ```bash
+   git diff --name-only <good-sha> <bad-sha> -- apps/web/drizzle
+   ```
+
+   **Empty output is the green light.** The rollback is then code-only and loses nothing. Non-empty,
+   read *What this cannot recover* before going any further —
+   [ADR-0027](adr/0027-migrations-are-forward-only-and-a-rollback-moves-code-alone.md) is why the
+   answer is not to reverse the migration.
+
+**Fix. One command, and it took two seconds.**
+
+```bash
+vercel rollback <previous-deployment-url> --yes --scope jacobreesnew-7380s-projects
+vercel rollback status --scope jacobreesnew-7380s-projects
+```
+
+Then confirm from outside, with the two requests at the top of this file. **Do not confirm from
+`vercel rollback status`** — after an undo it names the deployment you promoted rather than the one
+you rolled back from, so it reports the same shape either way.
+
+**This was run against production on 21 August 2026 rather than reasoned about.** `c6c15d4` was
+rolled back to `9d9f356` and restored, using `/api/alive` as the observable because that route exists
+in the first and not the second: it answered `404` under the rollback and `200` after the restore,
+while `/` and `/api/health` stayed `200` and `/` came back byte-identical. Both commands returned in
+about two seconds. The project had never been rolled back before.
+
+**Two things the rollback changes that nothing warns you about.**
+
+- **It turns off auto-assignment of production domains.** Measured: the project's
+  `autoAssignCustomDomains` went `true` → `false` across the rollback and back to `true` when
+  `vercel promote` restored it. Vercel documents this, but documents its consequence only for *"new
+  pushes to your production branch"* ([Instant Rollback](https://vercel.com/docs/instant-rollback),
+  read 21 August 2026) — a path this repository does not have, because `main` does not deploy from
+  Git. **Do not read that as the warning not applying.** Whether the next CI release re-takes the
+  domain with the flag off is **not tested and not stated anywhere**, so after you merge the fix,
+  check the domain actually moved rather than trusting the green run.
+- **`lastRollbackTarget` stayed `null` throughout**, so it is not the field that tells you whether
+  you are in a rolled-back state. `autoAssignCustomDomains` is. Both are on
+  `GET /v9/projects/prj_BMzP9Dq7Qx3Eev8WwsvVoH5khnaU`.
+
+**Undo it when the fix has landed**, which is also what puts auto-assignment back:
+
+```bash
+vercel promote <good-deployment-url> --yes --scope jacobreesnew-7380s-projects
+```
+
+**What this cannot recover.** A procedure that overstates its reach is worse than none, so:
+
+- **A bad migration. This is the big one.** The rollback moves the code and never the schema, there
+  are no down-migrations and there will not be
+  ([ADR-0027](adr/0027-migrations-are-forward-only-and-a-rollback-moves-code-alone.md)). If the bad
+  release narrowed the schema, rolling the code back lands old code on a shape it may not be able to
+  serve, and you have swapped one outage for another. **Fix forward.** The only thing that puts a
+  schema back is a Neon branch restore, which replaces the data too — *The database does not answer*
+  below has the quotation and the refusal.
+- **Rows the bad release wrote.** Rolling the code back does not unwrite them, and a release that
+  corrupted data is not recovered here at all.
+- **Environment variables changed since the target was built.** *"The configuration used for the
+  rolled-back deployment may become stale"* (same page), so a credential rotated after that build
+  does not travel back with it.
+- **Anything outside the deployment** — Neon settings, the ruleset, DNS, the spend budget. None of it
+  is in the build, so none of it moves.
+- **More than one release back is a judgement, not a guarantee.** Pro allows rolling back to any
+  deployment previously aliased to production (same page), and every production deployment here
+  reports `isRollbackCandidate: true` on `GET /v6/deployments`. What the repository *guarantees* is
+  one release: every migration is required to leave the schema able to serve the previous release's
+  code, and nothing promises that two releases back. Going further means running check 3 across the
+  whole span.
 
 ## The database does not answer
 

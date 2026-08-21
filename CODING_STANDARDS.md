@@ -48,6 +48,20 @@ which is the exposure the shape exists to remove.
 `DATABASE_URL`, better-auth's secrets and `RESEND_API_KEY` are not Source credentials, and neither
 is `provider-tmdb`'s own — that one authenticates us to our own Provider.
 
+**A migration that narrows the schema is a finding unless the change says why it is safe now.**
+Dropping a column, dropping a table or constraint, and `SET NOT NULL` on a populated table are all
+well-formed SQL that every heuristic reads as tidying up, and drizzle-kit generates them without
+comment. The rule they can break is *every migration must leave the schema able to serve the previous
+release's code*, which is what keeps the migrate-then-promote window safe **and** what makes a
+rollback possible at all, since the schema is never rolled back
+([ADR-0027](docs/adr/0027-migrations-are-forward-only-and-a-rollback-moves-code-alone.md)).
+
+Nothing in the diff can settle it, which is why it lands here rather than in a gate: the question is
+whether the *previous release's* code still needs the old shape, and that code is not in the
+migration file. So the remedy is **widen now, narrow in a later change**, and a narrowing that is
+genuinely due says so in the pull request body
+([`docs/agents/workflow.md`](docs/agents/workflow.md) → *What a merge carries*).
+
 ## Domain language
 
 Names in code, tests and issue titles use the terms in [`CONTEXT.md`](CONTEXT.md). Using an
