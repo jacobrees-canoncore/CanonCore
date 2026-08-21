@@ -1125,7 +1125,9 @@ export function parseGlossary(markdown: string): Glossary {
  *   alone. A word the glossary uses **only to qualify** a term is not a thing in its own right, so
  *   it has no standalone job in the domain and a standalone use is the banned sense. That is what
  *   separates `canonical` from `entry`, `part` and `source`, which the glossary uses as the head
- *   of a term or as a term outright and which therefore do have one.
+ *   of a term or as a term outright and which therefore do have one. Derived rather than named:
+ *   writing `canonical` into this file would be the copy of the vocabulary the glossary is meant
+ *   to be the one home for, and the shape extends itself if a second qualified term is ever added.
  */
 function scoping(glossary: Glossary) {
   const owners = new Map<string, string[]>();
@@ -1198,8 +1200,17 @@ function blockProse(block: Nodes): { text: string; line: number }[] {
         startsLine = false;
         continue;
       }
-      // Only where the glossary puts them: opening a line of their own. The same word mid-sentence
-      // is prose, and taking the rest of the paragraph with it would be a hole nothing reports.
+      // A hard break separates two words as surely as a soft wrap does, and pushing nothing for it
+      // would glue them into one — the same defect the leaf-block walk fixed for a list's items.
+      if (node.type === "break") {
+        pieces.push({ text: "\n", line: lineOf(node) });
+        startsLine = true;
+        continue;
+      }
+      // Only where the glossary puts them: opening a line of their own, after which the rest of
+      // this block is the list or the example. The same word mid-sentence is prose. Both markers
+      // are `CONTEXT.md`'s alone today — `git grep -l "^_Avoid_"` and `_e.g._` find no other
+      // document — so what this reaches elsewhere is a block deliberately laid out like an entry.
       if (node.type === "emphasis" && startsLine) {
         const marker = norm(rendered(node));
         if (marker === "avoid" || marker === "e.g.") {
@@ -1243,8 +1254,8 @@ function* sentences(text: string): Generator<{ sentence: string; at: number }> {
  * Every use of an `_Avoid_` word **for the concept it is listed against**, which is the whole
  * difficulty: the lists are per concept rather than a banned-word list, so "collection" is wrong
  * for a Catalogue and right for a media collection, and a check flagging every occurrence would be
- * noise and would be turned off. Measured over this repository's tracked markdown, every listed
- * word and its plural comes to 18,261 occurrences, so "flag them all" is not a gate anyone keeps.
+ * noise and would be turned off. Measured over the documents this check reads, the 166 distinct
+ * listed words and their plurals occur 8,859 times, so "flag them all" is not a gate anyone keeps.
  *
  * Two rules decide it, and each is grounded in something the glossary itself says rather than in a
  * guess about English.
@@ -1272,13 +1283,22 @@ function* sentences(text: string): Generator<{ sentence: string; at: number }> {
  *   glossary writes it, capitalised, because that is how this repository marks the domain. So
  *   `docs/adr/0003-…`'s "A merge is one person's assertion … held as an alias" broke two
  *   conventions at once and was reached by neither; it was fixed by hand. Matching the term at any
- *   case was measured instead: 14 findings over this tree, none of them genuine — "a database"
+ *   case was measured instead: 12 findings over this tree, none of them genuine — "a database"
  *   beside a lower-case "catalogue", "a significant change" beside "operation".
  * - **A reference across a sentence boundary**: "A Merge is one assertion. It is held as an alias."
  *
  * A glossary entry's own definition is out too, because `**Term**:` ends a sentence: what a concept
  * *is* — "A named, authored sequence" — is a definition rather than a naming, and the lists ban
  * naming one.
+ *
+ * **And it gets one wrong in the other direction**, which a note listing only what escapes would
+ * read as a promise it does not. The register is one sentence, so a sentence naming a concept for
+ * an unrelated reason puts every word in it into that concept's register. A quoted ticket title is
+ * how that happens here: `docs/agents/workflow.md`'s "one file rather than one per table" was
+ * reported against *Version*, because **CAN-25 The catalogue: Version, part of, Anchor, canonical
+ * version** was cited in the same sentence. It was answered by ending the sentence at the citation,
+ * which the exemption table does not record because it is not an exemption — it is prose rewritten
+ * to suit a checker, and worth knowing has happened once.
  */
 export function findAvoidedWords(body: string, glossary: Glossary): DomainLanguageFinding[] {
   const { owners, termWords, qualifiers } = scoping(glossary);
@@ -1286,8 +1306,9 @@ export function findAvoidedWords(body: string, glossary: Glossary): DomainLangua
   const exempt = glossary.exempt.map((phrase) => new RegExp(spaced(phrase), "gi"));
 
   for (const block of descendants(parseMarkdown(body).children)) {
-    // A paragraph or a heading, wherever it sits — inside a list item, a blockquote, a table cell.
-    // Anything else is either a container of these or not prose at all, a fenced block being both.
+    // A paragraph or a heading, wherever it sits — inside a list item or a blockquote. Anything
+    // else is either a container of those or not prose at all, a fenced block being both. A table
+    // arrives as a paragraph of pipes, which `sentences` below splits into its cells.
     if (block.type !== "paragraph" && block.type !== "heading") continue;
     const pieces = blockProse(block);
     const text = pieces.map((p) => p.text).join("");
@@ -1349,11 +1370,13 @@ export function findAvoidedWords(body: string, glossary: Glossary): DomainLangua
           const naming = new RegExp(
             `\\b(?:${DETERMINERS.map(eitherCase).join("|")})\\s+(?:[a-z][a-z-]*\\s+){0,2}` +
               `(${inflections(word).map(eitherCase).join("|")})\\b`,
-            "g",
+            "gd",
           );
           for (const hit of sentence.matchAll(naming)) {
-            // The frame's own start is the determiner; the word is what the exemptions cover.
-            const wordAt = sentence.toLowerCase().indexOf(hit[1].toLowerCase(), hit.index);
+            // The frame starts at the determiner; what the exemptions cover is the word, so the
+            // capture group's own offset is what this needs — searching for the word again would
+            // find the adjective slot first wherever the two are spelled alike ("a work work").
+            const wordAt = hit.indices?.[1]?.[0] ?? hit.index;
             report({
               index: wordAt,
               word: hit[1],

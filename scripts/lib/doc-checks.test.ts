@@ -998,6 +998,7 @@ const glossaryOf = (entries: string, exemptions: string[] = []) =>
     ].join('\n'),
   )
 
+const STORY = ['**Story**:', 'The thing that happened.', '_Avoid_: Work, title, item, media, content'].join('\n')
 const MERGE = ['**Merge**:', "One person's assertion that two Anchors are the same thing.", '_Avoid_: Deduplicate, link, alias, combine, resolve'].join('\n')
 const ORDERING = ['**Ordering**:', 'A named, authored sequence over Stories.', '_e.g._ Broadcast order. An in-universe chronology.', '_Avoid_: List, order, sort, sequence, timeline, collection, playlist'].join('\n')
 const CATALOGUE = ['**Catalogue**:', "One person's own Stories.", '_Avoid_: Library, collection, database'].join('\n')
@@ -1150,6 +1151,17 @@ test('a sentence writing the concept in lower case too is out of reach, and this
     findAvoidedWords(asTheGlossaryWritesIt, glossaryOf(MERGE)).map((f) => f.word),
     ['alias'],
   )
+})
+
+test('a hard break separates two words, the way a soft wrap does', () => {
+  // A `break` node carries no text, so pushing nothing for it glued the halves into one word and
+  // the boundary vanished — the same defect as a list's items, one level down. Both spellings.
+  for (const wrap of ['  \n', '\\\n', '\n'])
+    assert.deepEqual(
+      findAvoidedWords(`A Story is held as a${wrap}work of art.`, glossaryOf(STORY)).map((f) => f.word),
+      ['work'],
+      `broken across ${JSON.stringify(wrap)}`,
+    )
 })
 
 test('a word inside a code span is code rather than prose', () => {

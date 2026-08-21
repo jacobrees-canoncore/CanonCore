@@ -66,7 +66,7 @@ proper name passes by being written here.
 | `broadcast order` | The proper name of one Ordering, which the rule above exempts |
 | `chronological order` | The same, for the other Ordering this project ships |
 | `production order` | The third the glossary names, in Placement's own example. Listed because the rule covers it, not because anything here trips it |
-| `a list of` | An enumeration of things, which is not an authored Ordering over them |
+| `a list of references` | An enumeration of things, which is not an authored Ordering over them |
 | `a separate service` | A Provider, which is what both documents using this phrase are naming. The ban is on calling a *Source* one |
 | `a service that speaks` | The opening of Provider's own definition here, quoted by the ADRs that cite it |
 | `a batch id` | The column an Operation carries, named for what it groups |

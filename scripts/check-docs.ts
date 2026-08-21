@@ -690,7 +690,7 @@ check("every document uses the glossary's word for the concept", () => {
         `exception in ${GLOSSARY} → *Language* with the reason beside it.`,
     );
   const terms = glossary.terms.length;
-  return `${terms} term${terms === 1 ? "" : "s"} across ${scope.length} documents`;
+  return `${terms} term${terms === 1 ? "" : "s"} across ${scope.length} document${scope.length === 1 ? "" : "s"}`;
 });
 
 const width = Math.max(...results.map((r) => r.name.length));
