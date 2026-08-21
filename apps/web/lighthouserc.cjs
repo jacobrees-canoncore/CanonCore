@@ -38,11 +38,26 @@
  * a budget nobody can see the distance to is one that is either silently loose for ever or about to
  * start flaking. `apps/web/scripts/lighthouse-summary.mts`.
  *
- * **The known risk, stated rather than discovered on a pull request: LCP has the least room.** The
- * worst run seen on any collection is 2175 ms against a 2500 ms budget, and the runner is slower
- * than the machine that produced it. If CI breaches it the answer is not a looser budget — the cap
- * is the Core Web Vitals threshold itself — but finding out why a page of text takes 2 s to paint
- * when it first paints at 0.75 s.
+ * ## What the LCP number is, which is not what it looks like
+ *
+ * **These pages paint their largest element in about 68 ms, and the 2 s figure is the simulator.**
+ * Every report carries both: `observedLargestContentfulPaint` is 63-142 ms across all 15 runs and
+ * is *identical to* `observedFirstContentfulPaint` on every one of them — the largest element is
+ * server-rendered text, so it arrives with the first paint, exactly as it should. The asserted
+ * `largest-contentful-paint` is Lighthouse's estimate under its default simulated throttling, and
+ * it comes out equal to `interactive` to the millisecond on every run.
+ *
+ * **So this budget is a script-graph budget wearing a paint metric's name.** That is worth stating
+ * because it changes what a breach means: it will be reached by JavaScript that takes longer to
+ * load and run, never by something that delays a paint. It overlaps the script-bytes budget below
+ * rather than being independent of it — bytes and dependency depth are not the same thing, which is
+ * why both are kept, but a reader should not treat them as two witnesses.
+ *
+ * **It also bounds the flake risk.** The worst run seen on any collection is 2175 ms against a
+ * 2500 ms budget. Simulation derives its timings from observed CPU task durations, so a slower
+ * runner does move the number — but it is multiplying up 68 ms of real work, not measuring a paint
+ * that was already slow. If CI breaches it, the answer is not a looser budget: the cap is the Core
+ * Web Vitals threshold itself, and the thing to look at is what arrived in the script graph.
  *
  * **Two limits on what that table is worth, and both are deliberate rather than unnoticed.** It was
  * measured on a laptop and the gate runs on a shared GitHub runner, which is slower — Lighthouse's
@@ -95,6 +110,18 @@ module.exports = {
         // this application's own — so it is the one where a byte regression would show first.
         "http://localhost:3000/privacy/analytics",
       ],
+      // **Two extensions this list wants and does not have**, left here rather than filed because
+      // whoever re-baselines these numbers is the person who should decide them, and CAN-89 Give
+      // the product a visual identity and a reading surface forces that re-baselining anyway.
+      //
+      // `/story/<id>` is the page that draws the most and will grow the most, and it is absent only
+      // because it needs a concrete id — migration 0002's founding Story has a fixed one, so this
+      // is a line of config rather than a problem.
+      //
+      // And this measures mobile alone, which is Lighthouse's default. Core Web Vitals are judged
+      // "at the 75th percentile of page loads, segmented across mobile and desktop"
+      // (https://web.dev/articles/vitals), so half of what the thresholds describe is unmeasured
+      // here. A desktop preset would be a second `collect` run rather than another URL.
     },
     assert: {
       // The worst run of the five rather than the median. A budget answers "could this have been
@@ -103,9 +130,14 @@ module.exports = {
       aggregationMethod: "pessimistic",
       assertions: {
         // 2017 ms measured, and the measurement plus any slack worth the name lands above 2500, so
-        // the threshold is what sets this. That leaves 483 ms of headroom — about a fifth — which
-        // is a real gate rather than a formality: this page is text, and nothing it could
-        // legitimately grow into should cost it half a second.
+        // the threshold is what sets this. That leaves 483 ms of headroom, about a fifth.
+        //
+        // Read it as the script-graph budget it actually is — *What the LCP number is* above — not
+        // as half a second of paint time. The pages paint in 68 ms.
+        //
+        // **Kept at the threshold rather than tightened to the measurement**, even knowing that,
+        // because the threshold is the number the metric is judged by in the field and a budget
+        // that drifts past it silently is the failure worth preventing.
         "largest-contentful-paint": ["error", { maxNumericValue: largestContentfulPaintThreshold }],
 
         // **The one budget the measurement does not really constrain**, and saying so is better
