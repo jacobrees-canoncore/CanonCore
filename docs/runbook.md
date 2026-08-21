@@ -338,10 +338,11 @@ would print:
 | `Error: connect` | The database did not answer — `ECONNREFUSED` against a closed port, checked 17 August 2026. It is the same database as [The database does not answer](#the-database-does-not-answer), so **its second and third checks apply**: the Neon branch's compute, then Neon's status page. Its first does not — Vercel's runtime logs are a deployment's, and this runs on an Actions runner that never touches the application's connection code |
 | None of the above | Read the run's own error line: it may have failed before the purge (the runner, the install) or inside it (a statement timeout, a dropped connection). **Either way nothing was committed** — the purge is one transaction, so a failure part-way through rolls back rather than leaving half a purge |
 
-**And today there is nothing to purge.** No Provider exists yet (**CAN-101 Create the provider-tmdb
-repository, and give it the TMDB credential**), nothing writes a `source` row, and no Snapshot has
-ever been fetched. This entry is here so that the first time it is needed is not the first time it is
-written.
+**And today there is nothing to purge.** No Provider serves anything yet — `provider-tmdb`'s
+repository has existed since 21 August 2026 but carries only its CI baseline, with no deployment and
+no contract behind it (**CAN-101 Create the provider-tmdb repository, and give it the TMDB
+credential**) — nothing writes a `source` row, and no Snapshot has ever been fetched. This entry is
+here so that the first time it is needed is not the first time it is written.
 
 ## What warns you before a pause
 

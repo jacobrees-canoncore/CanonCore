@@ -15,10 +15,13 @@
 // bounds the damage of a mistyped repository name — a repository whose default branch does not
 // call this project's reusable workflow is refused before a single setting is touched.
 //
-// One thing is deliberately not here. The **dependency graph** has no REST route this found, so it
-// stays a dashboard step and is reported as a SKIP rather than as done: with the graph off,
+// One thing is deliberately not here. The **dependency graph** has no route on the repository
+// itself — the one that reaches it is an org-level code security configuration, which is a shape
+// nothing here has taken (docs/infrastructure.md -> What the first real run showed) — so it stays a
+// dashboard step and is reported as a SKIP rather than as done: with the graph off,
 // Dependabot alerts report nothing while still reading as enabled
-// (docs/incidents.md -> Dependabot alerts were enabled and blind).
+// (docs/incidents.md -> Dependabot alerts were enabled and blind). **It skips in two cases and
+// only the first is a click**; the step itself says what the second is.
 //
 // The report's shape and its "a skip is not a pass" tally are `scripts/check-docs.ts`'s, reused
 // rather than re-invented, because the two are read by the same person for the same reason.
@@ -257,17 +260,32 @@ step("Dependabot alerts read back as on", () => {
   return "204 No Content";
 });
 
-// Last, and a SKIP rather than a FAIL when it is off: nothing here can turn it on, and a step that
-// reports a human's outstanding work as a failure of provisioning is a step that gets ignored.
-step("the dependency graph is on, which is what makes the alerts above see anything", () => {
+// Last, and a SKIP rather than a FAIL in both of its unhappy cases: nothing here can turn the graph
+// on or make it index, and a step that reports a human's outstanding work — or GitHub's — as a
+// failure of provisioning is a step that gets ignored.
+step("the dependency graph is on, and has indexed something for the alerts to match", () => {
   const graph = readDependencyGraph(
     attempt(["api", `repos/${repository}/dependency-graph/sbom`, "--jq", ".sbom.packages | length"]),
   );
   if (!graph.enabled)
     skip(
       "the dependency graph is off, so Dependabot alerts will report nothing while still reading " +
-        "as enabled. No REST route to it was found — turn it on at Settings → Advanced Security → " +
-        "Dependency graph, then re-run this.",
+        "as enabled. Nothing on the repository itself turns it on — do it at Settings → Advanced " +
+        "Security → Dependency graph, then re-run this.",
+    );
+  // **On is not the same as seeing anything, and the endpoint's status cannot tell them apart.**
+  // Why a count of one means no manifest was parsed is `readDependencyGraph`'s, where it is under
+  // test. What it costs here is the point: reporting PASS on it would be that incident's lesson
+  // unlearned one door along — a green tick that cannot tell *nothing is vulnerable* from *nothing
+  // was parsed*. It was `provider-tmdb`'s state on the first run, which is why this exists:
+  // docs/infrastructure.md -> What the first real run showed.
+  if (!graph.indexed)
+    skip(
+      "the dependency graph is on and holds nothing but the repository's own entry, so it has " +
+        "indexed no manifest and Dependabot alerts have nothing to match against. Nothing here " +
+        "can make it index — the graph is already on, so there is no setting to flip. Wait for " +
+        "GitHub and re-run this; docs/infrastructure.md -> What the first real run showed has how " +
+        "long it has been seen taking, and what has and has not been tried.",
     );
   return `${graph.packages} packages in the graph`;
 });
