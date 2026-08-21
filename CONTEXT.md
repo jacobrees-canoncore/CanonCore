@@ -73,6 +73,8 @@ proper name passes by being written here.
 | `no title` | The field a Story may lack, not a word for the Story |
 | `one sequence` | TMDB's own single ordering, described from outside |
 | `canonical host` | DNS's word for the name that serves, settled by [ADR-0010](docs/adr/0010-canonical-host-www.md) |
+| `a plugin carries` | Claude Code's own plugins, which is what this repository means by the word everywhere the glossary is not in view |
+| `an agent baseline` | The baseline a coding agent needs in a repository, named in a ticket title quoted mid-sentence |
 | `canonical record` | Names the shared-catalogue shape [ADR-0003](docs/adr/0003-no-shared-catalogue.md) refused, which is Anchor's own `_Avoid_` entry |
 
 ### The catalogue
