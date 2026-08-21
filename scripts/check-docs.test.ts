@@ -401,7 +401,7 @@ test("a register that agrees with the workflow passes, and unreachable sources o
   // What the two document checks actually walked, asserted rather than assumed. A pass over an
   // empty set is what this suite reported for as long as the child inherited its directory, and
   // the count is printed only in the summary and under `--verbose`.
-  assert.match(summary, /\| PASS \| every relative link and anchor resolves \| 5 documents \|/);
+  assert.match(summary, /\| PASS \| every relative link and anchor resolves \| 6 documents \|/);
   assert.match(summary, /\| PASS \| every "file → \*Section\*" pointer resolves \| 2 pointers resolve \|/);
 });
 
@@ -823,7 +823,7 @@ test("the same word doing another job passes, which is what keeps the gate worth
   assert.equal(code, 0, output);
   // What it walked, asserted rather than assumed: a pass over an empty document set reads
   // identically to a pass over the repository.
-  assert.match(summary, /\| PASS \| every document uses the glossary's word for the concept \| 1 term across 6 documents \|/);
+  assert.match(summary, /\| PASS \| every document uses the glossary's word for the concept \| 1 term across 7 documents \|/);
 });
 
 test("a register promising a schedule the workflow does not run fails", () => {

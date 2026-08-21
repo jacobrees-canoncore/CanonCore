@@ -2955,7 +2955,9 @@ which is why that half is a client component.
 one* rests on: nothing in the product creates a record, so an account holds nothing its holder
 authored.
 
-**One route is served that is not a page at all.** `/api/health` answers **200 with an empty body**
+**Four routes are served that are not pages at all**, and this is the one the monitor asks —
+`/api/alive`, `/api/auth/*` and `/api/csp-report` are the others, each with its own paragraph
+elsewhere in this register. **`/api/health`** answers **200 with an empty body**
 while it can still serve the founding Story to a reader with no account, **500** when PostgreSQL
 answers and that Story does not come back, and **503** when three asks in a row do not answer at
 all; `HEAD` gets the same, from the same handler. It is the uptime monitor's target rather than
