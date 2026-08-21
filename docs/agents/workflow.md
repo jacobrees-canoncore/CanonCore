@@ -613,7 +613,7 @@ front end on bytes, budgets and React lint**.
 
 | Job, and the context it reports | What it asserts |
 | --- | --- |
-| `Lighthouse budgets` | LCP, Total Blocking Time and script bytes, against `maxNumericValue` budgets, five runs a URL, worst run taken. [`apps/web/lighthouserc.cjs`](../../apps/web/lighthouserc.cjs) carries every number and the measurement it came from |
+| `Lighthouse budgets` | LCP, Total Blocking Time and script bytes, against `maxNumericValue` budgets, five runs a URL, worst run taken — except TBT, which takes the median because the worst of five on a shared runner is its cold start rather than the page. [`apps/web/lighthouserc.cjs`](../../apps/web/lighthouserc.cjs) carries every number, the measurement it came from, and that argument |
 | `React lint on the diff` | react-doctor's error diagnostics on what the pull request introduced |
 
 **`pull_request` is forced for the second and chosen for the first.** react-doctor's Action is

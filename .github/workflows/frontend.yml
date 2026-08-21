@@ -101,6 +101,11 @@ jobs:
           name: lighthouse-reports
           path: apps/web/.lighthouseci/
           retention-days: 7
+          # **Without this the upload succeeds and uploads nothing.** `.lighthouseci` is a
+          # dot-directory, and the action ignores "any file beginning with `.` or files within
+          # folders beginning with `.`" unless told otherwise — it warns rather than failing, so the
+          # first run of this gate reported a successful upload and produced zero artifacts.
+          include-hidden-files: true
 
   react-doctor:
     name: React lint on the diff
