@@ -150,6 +150,9 @@ that is v1's scope rather than a condition here, and this gate would open withou
 | Include files outside the root directory | On |
 | Node.js version | 24.x |
 | Web Analytics | **On**, enabled 21 August 2026 on the tier included in Pro. **Not** the `Web Analytics Plus` add-on, which the enable dialog offers at $10 a month and which was declined. What it has been observed receiving is *What the two measurement products were observed doing* below |
+| Observability Plus | **Off**, turned off 21 August 2026 by [CAN-144 Bound or detect the Neon bill, which the Vercel spend cap excludes](https://linear.app/jacobrees-canoncore/issue/CAN-144) and read back from a cold reload. **It was on, and nobody chose it** — it arrived with the Pro upgrade, and its own confirm dialog said *"Your team is currently utilizing Observability Plus"*. Base cost `Included`, then **`$1.20` per 1M events with no allowance**, and as an **add-on** it sits on the excluded side of the *What the $40 does not bound* row above, so Spend Management would not have bounded it. Turning it off loses advanced metrics and their retention, which is no loss while *The URL-sharing gate* is closed and there is no traffic to observe |
+| Other add-ons | **All off**, read from the same page on 21 August 2026: `Web Analytics Plus` ($10/mo), `Flags Explorer — Unlimited Overrides` ($250/mo), `Advanced Deployment Protection` ($150/mo), `Preview Deployment Suffix` ($100/mo). The rows sit one click apart and the controls carry no accessible labels, so read the row text before clicking anything here — [incident](incidents.md#a-mis-aimed-click-on-the-add-ons-page-offers-to-enable-a-paid-product) |
+| Build machines | **`Elastic` for all projects**, but the **team default for *new* projects is `Turbo`**, the most expensive tier. Read 21 August 2026 from the radio state rather than the badges, which are misleading: `Elastic` carries a *Recommended* badge and `Turbo` carries the *Team Default* one. Nothing is costing meaningfully today — included credit stood at **`$0.30` of `$20`** — so this is recorded rather than changed, and it is a decision for whoever creates the next project |
 | Speed Insights | **Off**, and deliberately. $10 per project per month on Pro, for a product whose subject is field traffic there is none of — the note below has the figures and what turning it on would buy. **It is nonetheless receiving data**, which the same section records |
 
 *Read back with `vercel project inspect canoncore`; the Root Directory row and the three under it
@@ -1035,13 +1038,24 @@ having said until then that this project holds no Neon API key.
 > cosmetic — the same Neon organisation carries `waveger`, which nothing in this repository has any
 > business writing to.
 >
-> **A second, org-wide key exists on that organisation and this project did not create it.** The
-> Console lists `Canoncore`, org-wide, **created 16 February 2026, last used 19 March 2026** — both
-> dates months before this project's Neon project existed (10 August 2026). It grants admin-level
+> **A second, org-wide key existed on that organisation, and this project did not create it.** The
+> Console listed `Canoncore`, org-wide, **created 16 February 2026, last used 19 March 2026** — both
+> dates months before this project's Neon project existed (10 August 2026). It granted admin-level
 > access to every project, member and billing detail on the organisation. Recorded here because a
-> dormant admin credential nobody has accounted for is exactly what this roster exists to surface;
-> **it has not been touched**, because deleting a key whose consumer is unknown is not a step to
-> take from inside an unrelated ticket.
+> dormant admin credential nobody has accounted for is exactly what this roster exists to surface.
+>
+> **It was revoked on 21 August 2026**, and the Console was re-read afterwards from a cold
+> navigation: the org-wide entry is gone, and the project-scoped key above is the only one left.
+> The paragraph above is kept in the past tense rather than deleted, because a revoked credential
+> that once existed is worth more here than a clean table. **CAN-138 Give every Orca worktree its
+> own preview database, so parallel schema work stops colliding** found and recorded it and
+> deliberately did not touch it, on the ground that deleting a key whose consumer is unknown is not
+> a step to take from inside an unrelated ticket — a judgement this row does not overturn. Revoking
+> it was decided separately under
+> [CAN-144 Bound or detect the Neon bill, which the Vercel spend cap excludes](https://linear.app/jacobrees-canoncore/issue/CAN-144)
+> on its own merits: five months dormant, organisation-wide, and predating everything it could
+> reach. **Nothing is known to have broken**, which is not the same as nothing having broken; if
+> some unattributed tool stops authenticating against Neon, this is the first thing to suspect.
 
 ### What this check compares, and what it cannot
 
@@ -1260,7 +1274,9 @@ whatever noticed can mint the replacement, is wrong in one direction only.
 | Preview branch | **One**, named `preview`, `br-calm-flower-zame56ly` — schema-only, shared by every preview deployment, and holding no production row. *The shared preview branch* below is what it is and how it is kept level |
 | Region | `eu-west-2` (London) |
 | Plan | Launch, billed through Vercel. **Five root branches**, of which `main` and `preview` are two ([Neon, schema-only branches](https://neon.com/docs/guides/branching-schema-only), whose *Schema-only branch allowances* section tables it per plan: Free 3, Launch 5, Scale 25) |
-| What bounds this bill | **Nothing here does.** Launch bills rather than suspending, and Vercel's $40 Spend Management budget explicitly excludes Marketplace integrations — *Hosting* above. So the cap that bounds the hosting bill does not reach the database one |
+| Compute size | **Autoscaling 0.25–1 CU**, set 21 August 2026 on both computes *and* on the project's `default_endpoint_settings`, so branches created later inherit it. Was a **fixed 1 CU**, minimum and maximum both, which billed four times Neon's own floor for a 70 MB database. Scale-to-zero is 5 minutes, which is Launch's minimum — 1-minute timeouts are Scale-only ([plans](https://neon.com/docs/introduction/plans), read 21 August 2026) |
+| What bounds this bill | **Nothing does, and that is now a finding rather than an open question.** Three controls exist and all three refuse: Vercel's $40 budget excludes Marketplace integrations; `vercel integration resource create-threshold` is auto-recharge for *prepaid* balances and `vercel integration balance neon` answers `No balance information found`; and Neon's own consumption quota is refused with `HTTP 404 — action restricted; reason:"organization is managed by Vercel"`. **The restriction is specific to quotas**, not to project writes — a no-op `PATCH` on the same endpoint in the same minute answered `200`. [ADR-0026](adr/0026-the-database-bill-is-watched-rather-than-capped.md) |
+| Spending notifications | **On, $15**, organisation-wide across `canoncore` and `waveger`. E-mail at 80% and 100%, spending checked every 15 minutes, **alerts only — nothing pauses**. Set 21 August 2026 and read back from a cold reload. It fired immediately, because August's spend stood at $26.48 on Neon's own billing page, forty minutes after Vercel's installation page read $26.28. **The 20 cents between them is not reconciled**, and an earlier version of this row explained it as spend accrued between the reads — which does not survive arithmetic: it would be $0.30 an hour, more than four times the worst month this project has ever been on course for. Two vendors' pages, two figures, no explanation when it was set; that is the alert working, not a misconfiguration. The figure sits below the $24 Vercel platform fee on purpose, so the database cannot become the largest line without an e-mail first |
 | Neon Auth | **Disabled**, recorded 10 August 2026 by CAN-18 Provision the Vercel project, the Neon database and the production domain and unchanged since. The reason is [ADR-0016](adr/0016-provisioning-plain-api-keys-neon-excepted.md) → *What will try to reopen it*, which also records why the reason this row used to give stopped being true |
 | Create Database Branch For Deployment | **Neither box ticked.** `Production` never was; `Preview` was unticked on 17 August 2026 by **CAN-79 Previews clone production rows, and the integration has no switch to stop it**, which is what stops a preview branch being cloned from production — [ADR-0023](adr/0023-one-shared-schema-only-preview-branch.md) |
 | Require Active Resource Before Deploy | **Required** — it was the prerequisite that ungreyed the checkbox above, and it outlives it |
@@ -2296,8 +2312,8 @@ repointing this monitor at that route is the one step of it no agent can take, a
 | Account | `jacobreesnew@gmail.com`, display name `Jacob Rees` |
 | Sign-in | Google. The same address as the Sentry account, which signs in through GitHub instead |
 | Plan | **Free 50**. No payment method, no billing info, **0 SMS/voice credits** |
-| Free-tier limits | 50 monitors, 5-minute interval, 3-month log retention, 1 status page |
-| Monitor | id `803731762`, `https://www.canoncore.com`, HTTP/S, checked every 5 minutes |
+| Free-tier limits | **5-minute interval is a floor, not a fixed value** — the control offers 15s, 30s, 1m, 5m, 30m, 1h, 12h and 24h, and only the options *below* 5 minutes are paid-gated (read from the live edit form, 21 August 2026). 3-month log retention, 1 status page. **The monitor count is unresolved**: this row said 50, and the dashboard shows `0 / 1` beside the list. Not established either way, and it is settled the moment a second monitor is added |
+| Monitor | id `803731762`, `https://www.canoncore.com`, HTTP/S, **checked every hour** since 21 August 2026 — read back as *"Checked every hour"* off a cold reload, uptime history unbroken. It was every 5 minutes, and that interval was what kept the database compute awake 63.8% of wall clock: the front page reads Postgres per request and Neon's scale-to-zero timeout is also 5 minutes, so each poll restarted the clock. [ADR-0026](adr/0026-the-database-bill-is-watched-rather-than-capped.md) |
 | The request | `HEAD`, follows redirections, IPv4 first, 30-second timeout, up on 2xx and 3xx |
 | Check location | One, auto-selected by UptimeRobot. Observed: North America |
 | Alert route | E-mail `jacobreesnew@gmail.com` **and iOS app push**, both set for up and down events |
@@ -2345,17 +2361,39 @@ monitor reads *attached to no status page*, and stays that way until both open.
 **The account signs in with Google and both API keys are un-generated**, so there is no credential
 any agent here could use and no command to run: this is a dashboard edit, and it is the last thing
 CAN-56 Find out the site is down without waiting to be told needs. Do it **after** the route is
-live in production, because pointing a monitor at a 404 pages the phone within five minutes.
+live in production, because pointing a monitor at a 404 pages the phone — within an hour now,
+and within five minutes again if the second monitor below is added.
 
 1. UptimeRobot → monitor `803731762` → **Edit** → URL to `https://www.canoncore.com/api/health`.
    **Edit this monitor rather than adding a second one**, so its uptime history stays continuous.
-2. Change nothing else. `HEAD`, the 5-minute interval, 2xx/3xx as up and both alert contacts are
-   all still what this route was built for, and the first two cannot be changed on Free 50 anyway.
+   **This step is now half of a pair.** [ADR-0026](adr/0026-the-database-bill-is-watched-rather-than-capped.md)
+   wants a *second* monitor on [`/api/alive`](../apps/web/src/app/api/alive/route.ts) at five
+   minutes, so that site outages are still caught quickly while this one proves the database
+   hourly. **Whether the free plan permits a second monitor at all is unresolved** — the row above
+   says why — and that is settled here, at the moment one is added. If it does not, this monitor is
+   the only one and the choice is between fast detection and a cheap database.
+2. Change nothing else. `HEAD`, 2xx/3xx as up and both alert contacts are all still what this route
+   was built for. **The interval is now an hour and is deliberate** — [ADR-0026](adr/0026-the-database-bill-is-watched-rather-than-capped.md)
+   holds why, and what has to happen before it goes back down. An earlier version of this step said
+   the interval "cannot be changed on Free 50", which is false and was load-bearing for the design
+   that produced the database bill.
 3. Confirm the alert route with the monitor page's **Test Notification** button rather than by
    inducing an incident, which is how it was done the first time and cost an incident write-up.
 4. Update the *Monitor* row above, with the date it was read back.
 
 Then the check is live, and what to do when it fires is [`runbook.md`](runbook.md).
+
+### The two routes a monitor may point at
+
+| Route | Reaches the database? | Polled by |
+| --- | --- | --- |
+| [`/api/health`](../apps/web/src/app/api/health/route.ts) | **Yes** — three asks before it answers anything but 200 | Nothing yet. Monitor `803731762` still polls `/`; *The repoint* above is the outstanding step |
+| [`/api/alive`](../apps/web/src/app/api/alive/route.ts) | **No, and its test asserts so** against the file's own source | Nothing. Added 21 August 2026 for the second monitor [ADR-0026](adr/0026-the-database-bill-is-watched-rather-than-capped.md) wants, which is blocked on the monitor-count question above |
+
+**Neither is polled by anything today**, which is worth stating plainly rather than leaving to be
+inferred from two "outstanding" notes: the only monitor points at the front page, hourly. **And
+`/api/alive` must never be pointed at *instead of* `/api/health`** — it reaches no database, so it
+would report green straight through a total database failure.
 
 ## The estate
 
