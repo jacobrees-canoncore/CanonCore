@@ -864,6 +864,22 @@ a laptop as readily, and proves only that the command works. What needed proving
 wired into the job GitHub runs, at a position where its failure stops what follows.
 `docs/agents/workflow.md` → *The gates* is where that ordering is argued.
 
+**The branch then stayed on that commit for ten hours, across the end of a session.** `5b1b590` was
+the remote head from 21:59:59Z on 16 August 2026 until 08:02:38Z the next morning, when the rest of
+the work arrived in one push — read on 21 August 2026 off the only two `push` runs that branch ever
+had, `31975102269` and `32008487556`, since the branch itself is gone. Nothing was scheduled to move
+it on: `/implement` stops at the commit, so what replaced it was the next session choosing to.
+`docs/agents/workflow.md` → *When `/implement` may push* is the rule that came of it, and what those
+ten hours cost is argued there.
+
+**The commit outlived the branch, and only because it is named by its SHA.** The squash-merge put
+one commit on `main` and `delete_branch_on_merge` took `jacobdrees/can-54` away — a request for that
+branch now returns 404 — while `5b1b590` still resolves, through the refs GitHub keeps for
+[PR #191](https://github.com/jacobrees-canoncore/CanonCore/pull/191). Both checked on 21 August 2026.
+That is GitHub retaining a pull request's history rather than this repository holding a reference
+anyone could find by looking, which is why the id and the SHA belong in an entry like this one
+before the merge and not after it.
+
 ---
 
 # Database

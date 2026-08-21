@@ -16,7 +16,7 @@ Run typechecking regularly, single test files regularly, and the full test suite
 
 Once done, use /code-review to review the work. **If taking its findings produces a commit, review once more, and stop there** — round two's own corrections are disclosed in the pull request rather than reviewed a third time (`docs/agents/workflow.md` → *Two rounds, and the second is the last*).
 
-Commit your work to the current branch.
+Commit your work to the current branch. **Push before `/draft-pr` only for a fact the acceptance criteria need and only a run on GitHub can produce, and never end the session with the branch on a commit broken to get it** — read the run, record its id and the commit in `docs/incidents.md`, then push the undo (`docs/agents/workflow.md` → *When `/implement` may push*).
 
 Why this is a fork of `mattpocock-skills:implement` rather than a delegation,
 and how to re-sync it: [references/rationale.md](references/rationale.md).

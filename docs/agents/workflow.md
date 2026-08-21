@@ -35,6 +35,7 @@ to remove — a retold incident is.
 - [Branches](#branches)
 - [The `gh` account, and the two ways `gh` fails](#the-gh-account-and-the-two-ways-gh-fails)
 - [The loop](#the-loop)
+- [When `/implement` may push, and what it must never leave behind](#when-implement-may-push-and-what-it-must-never-leave-behind)
 - [The gates](#the-gates)
 - [What `main` refuses](#what-main-refuses)
 - [What a merge carries](#what-a-merge-carries)
@@ -390,6 +391,86 @@ the three cases named above, and the third of those ends after round two.
   commit title, so the PR title should match it.
 - **Urgent fixes take the same path.** There is no hotfix lane. The gate is worth more when you are
   in a hurry, not less.
+
+## When `/implement` may push, and what it must never leave behind
+
+The loop above gives the push to `/draft-pr`, and `/implement` stops at the commit. **One thing
+overrides that, and only one: a fact the acceptance criteria ask for that nothing but a run on
+GitHub can produce.**
+
+*The gates*, below, already says why such facts exist — **the gate is GitHub's copy of those checks,
+not yours**. A gate step runs on a laptop readily enough, and what that proves is that the command
+works. What it cannot show is that the step is wired into the job at a position where its failure
+stops what follows, because the job is GitHub's. So a criterion phrased as *fails the job* is asking
+for a run id, and no amount of local work satisfies it. **CAN-54 Fail a push that adds a
+known-vulnerable dependency** was exactly that criterion, and `docs/incidents.md` → *The audit gate
+was proved by a critical advisory, then reverted* is what its push produced — including the
+paragraph on what a local exit code would not have shown.
+
+**Name the fact and where it will be read, before pushing.** A run id and the statuses of the steps
+in it, a check-run's own record, what a preview does with a schema nothing migrated for it: each of
+those is a fact with a home. *So the work is not lost*, *so the branch exists* and *so the gates get
+a head start* are not facts of that kind. They are conveniences, and `/draft-pr` delivers all three
+shortly afterwards at no cost. If the answer to *what will this push return* is not a thing you
+could quote back, the push was `/draft-pr`'s.
+
+**It is the ticket's branch, and never `main`.** Everything in *Why a PR at all, for one developer*
+applies unchanged: a push to `main` runs the gates on a commit that is already there and then
+releases whatever passed. An experiment is the last thing to do that with.
+
+### A commit broken on purpose is never the head of a pushed branch
+
+Evidence of this kind usually needs a commit that is broken deliberately — a dependency carrying a
+live advisory, a step removed to prove that something downstream depends on it, a workflow written
+to be refused. The run reports on whatever the branch's head is, so that commit has to be pushed,
+and when the run finishes the branch is still sitting on it.
+
+**On CAN-54 the branch sat there for ten hours, across the end of a session**
+(`docs/incidents.md` → *The audit gate was proved by a critical advisory, then reverted*). Nothing
+was scheduled to move it on: `/implement` is documented as stopping at the commit, so what replaced
+it was the next session choosing to, and a session that had ended would not have.
+
+**What that costs is not the merge.** `main`'s ruleset refuses a branch whose checks are red
+whatever made them red, so nothing bad can land. It is that the branch stops being readable: a red
+run on a pushed branch is how a genuine failure looks too, and nobody arriving at it can tell the
+two apart without reading a commit message they have no reason to open. Anyone who checks that
+branch out and installs gets the advisory with it, and anything the branch deploys — a preview, for
+as long as the head is that commit — deploys the broken state.
+
+So, in this order and in the same session:
+
+- **Read the run, write the evidence down, then commit the undo and push it.** The undo push needs
+  no justification of its own; it is the second half of the push the exception already allowed, and
+  it is not `/draft-pr`'s to make. Leaving it for `/draft-pr` is what parks the branch, since
+  nothing says when that gets run.
+- **Prove the undo rather than asserting it.** `git diff origin/main -- <the files the experiment
+  touched>` returns nothing when the reversal is complete, which is the check behind that entry's
+  *"byte-identical to `main` again"*. A dependency experiment touches a manifest and a lockfile, and
+  the lockfile is the half that gets forgotten.
+- **If the run cannot be read before the session ends, the branch still does not stay there.** Put
+  it back on the last good commit and force it, then run the experiment again next session. It costs
+  minutes to repeat; a branch nobody can read costs whoever finds it next, and that is usually a
+  session with none of this context.
+
+  ```bash
+  git reset --hard <last good commit> && git push --force-with-lease
+  ```
+
+### The run id and the commit go into the record, before the merge
+
+**Evidence is the entire return on the push, so a run nobody wrote down makes the push pointless.**
+The record is an entry in [`docs/incidents.md`](../incidents.md) — that is where an observation
+lives once, and the pull request cites it rather than retelling it. What the entry owes is the run
+id, the commit as a SHA, and **which of the run's outcomes the push actually proves**. Not
+everything that changed behind a deliberate failure changed because of it: on CAN-54 two of the four
+steps that skipped after the failing one would have skipped whatever the audit did, and that entry
+says which two and why. An entry claiming the skip list whole would be claiming a run that never
+happened.
+
+**Write it before the merge, because the merge takes both away.** The squash-merge puts a single
+commit on `main` and the branch deletes itself, so afterwards the experiment's commit is on no
+branch of this repository and its run is reachable only by the id you kept. What still serves the
+commit is GitHub's retention of a pull request's own refs, which that entry records and measures.
 
 ## The gates
 

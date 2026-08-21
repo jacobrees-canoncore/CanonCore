@@ -3,8 +3,9 @@
 Read this before changing or re-syncing `.claude/skills/implement/`.
 
 The body of `SKILL.md` is a verbatim fork of `mattpocock-skills:implement` at
-pack version 1.2.3, plus four local additions: the read-the-ticket line, the
-docs-lookup line, the two-round line, and the closing pointer to this file.
+pack version 1.2.3, plus five local additions: the read-the-ticket line, the
+docs-lookup line, the two-round line, the push clause on the commit line, and
+the closing pointer to this file.
 
 ## Why it is a copy rather than a delegation
 
@@ -46,6 +47,21 @@ bounded at two rounds now, with the residual carried by a disclosure in the pull
 request body. Both rounds happen inside this skill, so the bound has to be
 stated where they run; the argument stays in
 [workflow.md](../../../../docs/agents/workflow.md).
+
+## Why the push clause was added
+
+Upstream's line is *"Commit your work to the current branch"*, and `CLAUDE.md`
+described this skill as stopping there. Both are right about the normal case and
+neither covers the one that recurs here: an acceptance criterion that asks a gate
+to *fail the job* can only be met by a run on GitHub, so the push happens inside
+this skill: on **CAN-54 Fail a push that adds a known-vulnerable dependency**
+the first one landed eleven hours before the pull request existed. The sharper half is what it
+leaves behind — a branch parked for ten hours on a commit carrying a critical
+advisory, because a skill that stops at the commit has nothing to say about
+moving it on ([workflow.md](../../../../docs/agents/workflow.md) → *When
+`/implement` may push*, and `docs/incidents.md` → *The audit gate was proved by a
+critical advisory, then reverted*). The push happens where this skill runs, so
+the bound has to be stated here; the argument stays in workflow.md.
 
 ## Why the docs-lookup line was added
 
