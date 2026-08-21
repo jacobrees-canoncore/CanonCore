@@ -914,6 +914,7 @@ for its own credentials**; the pointer here is *Where a Source credential lives*
 | `SENTRY_DSN` | Vercel | Production, Preview | Sensitive | Also recorded under *Error reporting* below, since a DSN is not a secret |
 | `SENTRY_AUTH_TOKEN` | Vercel | Production, Preview | Sensitive | Organisation auth token, scope `org:ci`, for source-map upload |
 | `MIGRATION_DATABASE_URL` | GitHub Actions secret | — | — | The migration role's connection string, which has to ask for `sslmode=verify-full`. Not in Vercel: migrations run in Actions, not in the build. **Two workflows consume it**: `ci.yml`'s migration step, and `purge-source.yml`, which is dispatched by hand and holds the credential so that an operator under a licence deadline has none to fetch — [`runbook.md`](runbook.md) → *A Source's licence terminates* |
+| `NEON_API_KEY` | This machine | — | — | **Project-scoped**, Neon, for the worktree databases — *The Neon API key* below. Held in a file on the machine that runs the setup hook and in no deployment, so no reader here can check it, and it appears on every `check-docs` run as unchecked rather than silently absent |
 | `VERCEL_TOKEN` | GitHub Actions secret | — | — | **Account-scoped, and it has to be.** Two steps of `ci.yml` consume it: the `node scripts/check-docs.ts --verbose` run, and **Build and promote the production deployment**. A *project*-scoped token fails both, and fails them differently. Replaced 14 August 2026, **expires 14 August 2027** — *Why this one is account-scoped* below holds the identity, the expiry and the scope, and `scripts/check-docs.ts` compares that expiry against Vercel on every run, in CI as well as locally |
 
 **Two `NEON_*` variables, and they are ours rather than the integration's.** All sixteen the
@@ -1010,6 +1011,37 @@ prevent; a credential recorded as homeless is merely work outstanding — and th
 corrected the moment the home appeared, because it said where the token was not. **It keeps its
 Holder outside this project**, and becomes a row in the roster above only if it ever returns here,
 which under ADR-0014 it should not.
+
+### The Neon API key
+
+**One project-scoped Neon key, on the machine that runs the setup hook, and nowhere else.** It
+exists so that `orca worktree create` can give a lane a database of its own —
+[ADR-0025](adr/0025-a-preview-database-per-worktree.md) — and it is what
+[ADR-0016](adr/0016-provisioning-plain-api-keys-neon-excepted.md) was amended for on 21 August 2026,
+having said until then that this project holds no Neon API key.
+
+| | |
+| --- | --- |
+| Name in Neon | `canoncore worktree databases (CAN-138)`, created 21 August 2026 |
+| Scope | **Project-scoped to `canoncore`** (`steep-wave-52467839`), not organisation-wide. Created through the Console's *Create new API key* → *Project-scoped*, which offers the project as a field |
+| Where it lives | `~/.config/canoncore/neon-api-key`, mode `600`. `NEON_API_KEY` in the environment overrides it |
+| Where it must never live | This repository, a Vercel variable, a GitHub Actions secret, or any deployment. It can create and destroy databases |
+| Who reads it | [`../scripts/provision-worktree-database.ts`](../scripts/provision-worktree-database.ts) and [`../scripts/sweep-worktree-databases.ts`](../scripts/sweep-worktree-databases.ts). Both report a SKIP and change nothing when it is absent |
+| If it is lost | Reissue it in the Neon Console and rewrite the file. Nothing else holds a copy, and a lane with no key falls back to the shared `preview` branch rather than failing |
+
+> **The scope was verified rather than assumed**, on the day it was issued and against the live API:
+> it reads `canoncore`'s branches (`200`) and answers `404` on the sibling `waveger` project
+> (`delicate-credit-61083163`) and on every `/organizations/…` path. Least privilege here is not
+> cosmetic — the same Neon organisation carries `waveger`, which nothing in this repository has any
+> business writing to.
+>
+> **A second, org-wide key exists on that organisation and this project did not create it.** The
+> Console lists `Canoncore`, org-wide, **created 16 February 2026, last used 19 March 2026** — both
+> dates months before this project's Neon project existed (10 August 2026). It grants admin-level
+> access to every project, member and billing detail on the organisation. Recorded here because a
+> dormant admin credential nobody has accounted for is exactly what this roster exists to surface;
+> **it has not been touched**, because deleting a key whose consumer is unknown is not a step to
+> take from inside an unrelated ticket.
 
 ### What this check compares, and what it cannot
 
@@ -1612,16 +1644,77 @@ mechanism gave when `main` had not been migrated, in the same place, for the sam
 
 #### What every preview shares, and what it does not
 
-**Two previews open at once share one database.** That is the cost ADR-0023 accepts and the reason
-to state it here: one preview's writes are visible to another's, and a sign-in on one is a `user`
-row the other can see. Nothing shared with **production** — no row, no history, and no parent
-relationship through which a restore could reach one.
+**Two previews open at once share one database** — *when neither has one of its own*, which since
+21 August 2026 is the fallback rather than the rule. *A preview database per worktree* below is what
+changed and [ADR-0025](adr/0025-a-preview-database-per-worktree.md) is why. Where it does apply, the
+cost is the one ADR-0023 accepts: one preview's writes are visible to another's, and a sign-in on one
+is a `user` row the other can see. Nothing shared with **production** — no row, no history, and no
+parent relationship through which a restore could reach one.
 
-**Cleanup is not owned because there is nothing to own.** One branch, no per-deployment lifecycle,
-and nothing created on a push. The fifty-odd `preview/<git-branch>` clones the integration had
-accumulated by 17 August 2026 — one per git branch that ever had a preview, not per open pull
-request ([incident](incidents.md#what-a-preview-branch-looks-like-and-how-long-it-outlives-its-pr))
-— were deleted by **CAN-79 Previews clone production rows, and the integration has no switch to stop it** in the same change that stopped them being made.
+**Cleanup of the shared branch is not owned because there is nothing to own.** One branch, no
+per-deployment lifecycle, and nothing created on a push. The fifty-odd `preview/<git-branch>` clones
+the integration had accumulated by 17 August 2026 — one per git branch that ever had a preview, not
+per open pull request ([incident](incidents.md#what-a-preview-branch-looks-like-and-how-long-it-outlives-its-pr))
+— were deleted by **CAN-79 Previews clone production rows, and the integration has no switch to stop it** in the same change that stopped them being made. Worktree
+databases *do* have a lifecycle, and the section below names what owns it.
+
+### A preview database per worktree
+
+**Every open Orca worktree has a Neon branch of its own**, `wt/<git-branch>`, a child of `preview`,
+reached by a Vercel Preview `NEON_PGHOST` scoped to that one git branch.
+[ADR-0025](adr/0025-a-preview-database-per-worktree.md) holds the design and the argument; this is
+the state and the two commands.
+
+| | |
+| --- | --- |
+| Created by | [`../scripts/provision-worktree-database.ts`](../scripts/provision-worktree-database.ts), run by [`../orca.yaml`](../orca.yaml)'s `scripts.setup` on `orca worktree create` |
+| Removed by | [`../scripts/sweep-worktree-databases.ts`](../scripts/sweep-worktree-databases.ts), which `/review-pr` runs after a merge. **Dry by default**; `--apply` deletes |
+| Named | `wt/` + the git branch. The prefix is what keeps the sweeper away from `main` and `preview` |
+| Parent | `preview`, `br-calm-flower-zame56ly`. So it inherits the schema, the grants, the policies, the ownership and the seeded fourteen-row Drizzle journal, and none of production's rows |
+| Compute | Whatever the project's `default_endpoint_settings` says. The hook passes no endpoint options, deliberately, so compute size stays one decision in one place — *Database* above |
+| Expiry | **None.** `expires_at` works here and is refused for two other reasons — ADR-0025 → *Teardown* |
+| Fallback | A branch with no worktree database reads the environment-wide Preview `NEON_PGHOST`, which is the shared `preview` branch. Nothing falls back to production |
+
+> **What was read back on 21 August 2026, by experiment rather than from the documentation.** A
+> child of the schema-only `preview` branch **is an ordinary child**: `parent_id` set, `parent_lsn`,
+> `parent_timestamp`, `init_source: parent-data`, so it spends the ten-branch total allowance and
+> not the five-root one. It carried **12 tables, 3 roles, 0 wrongly-owned tables** and a journal at
+> **14 rows** — so it is migratable from its first run, unlike `preview` before *The ownership
+> repair of 21 August 2026*. **`story` read 0 against production's 2.**
+>
+> **It inherits `preview`'s own rows as well as its schema**, and that is the part the research did
+> not predict. `preview` held two `user` rows on 21 August 2026 and the child held exactly those
+> two. Both are at `mail.canoncore.com`, the domain *Transactional email: Resend* below treats as an
+> address that cannot be a person, so they are this project's own test mailboxes. **The general case
+> is the one to watch**: whatever `preview` accumulates is copied into every worktree database, so a
+> real address signing in on a preview would be multiplied by the number of open lanes. Emptying
+> `user` on `preview` is the remedy, and it takes effect for children created afterwards.
+>
+> **Two lanes were shown not to collide**, which is the whole point of the arrangement: a migration
+> applied to one worktree's database left the other's journal at 14 rows against 15, without the new
+> table, and both held none of production's rows.
+>
+> **And a real deployment was shown to read it**, which is the assertion that matters because it is
+> the only one made from outside the settings. The preview built from this branch's first push
+> logged, at request time:
+>
+> ```
+> [canoncore] database host ep-cool-salad-zafk7fgl-pooler.c-2.eu-west-2.aws.neon.tech (VERCEL_ENV=preview)
+> ```
+>
+> That is `wt/jacobdrees/can-138`'s own compute — **not** the shared branch's
+> `ep-floral-meadow-za2ibgdu` and **not** production's `ep-aged-moon-zaujrwy4`. **What is still
+> outstanding is the same line from a second provisioned lane**, which needs `orca.yaml` to be on
+> `main` before another lane can inherit the hook, so it belongs to the after-merge check rather
+> than to this change.
+
+**A branch-scoped variable is invisible to the roster check, and must therefore match the documented
+row exactly.** `vercel env ls` prints no git-branch column and
+[`../scripts/lib/doc-checks.ts`](../scripts/lib/doc-checks.ts) merges every row of one name, so
+these rows neither appear as undocumented extras nor can be audited there — `vercel env pull
+--environment=preview --git-branch <name>` is the only read-back. Two consequences: the hook passes
+`--no-sensitive`, because one Sensitive row would flip the merged entry and redden `check-docs` for
+every lane at once; and the **sweeper rather than the gate** is what stops these accumulating.
 
 ### How a preview reaches its own database
 

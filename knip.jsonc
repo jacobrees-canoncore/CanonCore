@@ -26,9 +26,20 @@
       // (docs/agents/issue-tracker.md -> Keep an emphasis run on one line, and check the stored
       // body). Neither can be a CI gate: `orca` is a local desktop CLI.
       //
+      // The other two are the worktree-database pair
+      // (docs/adr/0025-a-preview-database-per-worktree.md). `provision-worktree-database.ts` is run
+      // by `orca.yaml`'s `scripts.setup`, which is Orca's file rather than a workflow, and
+      // `sweep-worktree-databases.ts` is run from `/review-pr`. Both are reached from prose and a
+      // YAML key knip has no plugin for, so both read as files nothing uses.
+      //
       // This declares entry points rather than suppressing a report. A genuinely dead file added
       // to this workspace later is still reported, which an `ignore` entry would have stopped.
-      "entry": ["provision-provider-repository.ts", "check-linear-bodies.ts"],
+      "entry": [
+        "provision-provider-repository.ts",
+        "check-linear-bodies.ts",
+        "provision-worktree-database.ts",
+        "sweep-worktree-databases.ts"
+      ],
 
       // The first entry in this file's only ignore list, and docs/agents/workflow.md -> The gates
       // records why the list now exists at all. `orca` is the Orca desktop app's own CLI, installed

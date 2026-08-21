@@ -8,5 +8,13 @@
 # for each. That pointer is deliberately the `##` section rather than the subsection inside it:
 # check-docs only guards pointers in tracked `*.md`, so this one cannot be checked and wants the
 # most stable target available.
+#
+# The second command gives this lane a preview database of its own, so that two lanes migrating at
+# once cannot silently skip one another's migration. It is here rather than anywhere later because
+# Vercel will not accept a branch-scoped variable for a git branch that is not yet on GitHub, and
+# this is the last moment that is still hours before the first push — docs/adr/0025-a-preview-
+# database-per-worktree.md. It never fails a lane: with no database of its own the preview reads the
+# shared `preview` branch, which is what every preview did before it existed, so it reports what
+# happened and exits 0 either way. `;` rather than `&&` for the same reason.
 scripts:
-  setup: pnpm install --frozen-lockfile
+  setup: pnpm install --frozen-lockfile; node scripts/provision-worktree-database.ts

@@ -73,6 +73,30 @@ rather than being called by it ([`docs/infrastructure.md`](../infrastructure.md)
 *Uptime monitoring: UptimeRobot*). None of the three has a resource whose lifetime is a deployment's
 lifetime, so for all three an integration would buy nothing and cost what the next section itemises.
 
+> **This project now holds a Neon API key, and that is this ADR's rule being followed rather than
+> broken.** Added 21 August 2026 by
+> [CAN-138 Give every Orca worktree its own preview database, so parallel schema work stops colliding](https://linear.app/jacobrees-canoncore/issue/CAN-138)
+> and held by [ADR-0025](0025-a-preview-database-per-worktree.md), which gives every open worktree a
+> Neon branch of its own. **The resource it manages has a lifetime, and it is a *worktree's*, not a
+> *deployment's*** — which is precisely why a key can drive it and the integration cannot be asked
+> to. A key creates the branch at worktree-creation time, hours before any deployment exists, and a
+> Vercel variable scoped to one git branch is what tells the deployment which branch it got. The
+> paragraph above says nothing would then tell a running deployment which branch it got; that is
+> still true, and ADR-0025 does not need it to, because the variable exists before the deployment
+> does.
+>
+> **It is project-scoped rather than organisation-wide**, verified by experiment on the day it was
+> issued: it reads the `canoncore` project and answers `404` on the sibling `waveger` project and on
+> every `/organizations/…` path. **It is machine-local and in no deployment, no Actions secret and
+> no Vercel variable**, because it can create and destroy databases —
+> [`docs/infrastructure.md`](../infrastructure.md) → *The Neon API key* holds where it lives and how
+> to reissue it.
+>
+> **What this does not change is the Marketplace exception below**, which is about the *integration*
+> and survives on billing alone. This is the first credential this project has held for a vendor it
+> also has an integration with, and the two are unrelated: the integration owns the resource and the
+> bill, the key drives branches under it.
+
 So the rule is not "avoid the Marketplace". It is: **install an integration only for a
 platform-level behaviour a credential cannot express, and pay for it knowingly.**
 

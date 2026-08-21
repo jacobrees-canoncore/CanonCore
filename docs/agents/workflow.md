@@ -269,6 +269,23 @@ that step fails with `ERR_MODULE_NOT_FOUND` instead of installing, which is what
 `orca.yaml` existed. So the file is not only a declaration: it is what lets a fresh lane run the
 gates as documented.
 
+**A lane also starts with a preview database of its own**, and the same hook is what gives it one.
+`scripts.setup` runs [`../../scripts/provision-worktree-database.ts`](../../scripts/provision-worktree-database.ts)
+after the install: it puts the branch on GitHub at its base commit, creates a Neon branch under
+`preview`, and sets a Preview `NEON_PGHOST` scoped to that branch, so every preview deployment of the
+lane reads a database no other lane writes to.
+[ADR-0025](../adr/0025-a-preview-database-per-worktree.md) is why, and the short version is that two
+lanes on one database can permanently skip one another's migration while `drizzle-kit` reports
+success.
+
+**It never fails a lane, and that is the design rather than a weakness.** A lane with no database of
+its own reads the shared `preview` branch — every preview's behaviour before this existed — so the
+hook reports what happened and exits 0. Re-running it by hand is the whole repair. Two consequences
+worth knowing before they surprise you: **the branch is on GitHub from creation**, so a lane that
+rebases cannot fast-forward its first push and wants the `git fetch origin && … && git push
+--force-with-lease` line under *The local `main` is permanently stale in a worktree* below; and
+**`/review-pr` sweeps the database after the merge**, which is what stops them accumulating.
+
 **Two things about the hook stop a slow first command reading as a broken lane.** Orca takes the file
 from the commit, so no per-machine script or policy has to be set for it to run; and the agent
 starts **concurrently** with the install rather than after it, because the policy that would make it

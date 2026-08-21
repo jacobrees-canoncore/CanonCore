@@ -165,8 +165,8 @@ answer first, then what will offer you something else.
 - **CI releases `main`, and Vercel's Git deploys are off for it** ([ADR-0019](docs/adr/0019-ci-owns-the-production-release.md))
   — `vercel:deploy` and every dashboard nudge assume Git deploys, which is a promotion no migration
   preceded. Previews stay on Git: turning them off would block every merge.
-- **One shared schema-only Neon branch serves every preview** ([ADR-0023](docs/adr/0023-one-shared-schema-only-preview-branch.md)) — per-deployment branches and schema-only
-  branching are mutually exclusive, so **re-ticking Vercel's `Create Database Branch For Deployment → Preview` silently restores clones of production**: its webhook overrides our variable, everything appears to work, and no check catches it. The `neon` MCP's `create_branch` takes no `init_source` and quietly makes a `parent-data` clone instead.
+- **A Neon branch per worktree, child of a shared schema-only `preview` that is the fallback** ([ADR-0025](docs/adr/0025-a-preview-database-per-worktree.md), [ADR-0023](docs/adr/0023-one-shared-schema-only-preview-branch.md)) — per-deployment branches and schema-only
+  branching are mutually exclusive, so **re-ticking Vercel's `Create Database Branch For Deployment → Preview` silently restores clones of production**: its webhook overrides our branch-scoped variable too, everything appears to work, and no check catches it. The `neon` MCP's `create_branch` takes no `init_source` and quietly makes a `parent-data` clone instead. **Vercel refuses a branch-scoped variable for a branch not yet on GitHub**, which is why `orca.yaml`'s hook creates the ref first.
 - **Adult works catalogued, their artwork never displayed**
   ([ADR-0012](docs/adr/0012-adult-works-catalogued-artwork-never-displayed.md)) — Trakt filters adult
   titles out of its TMDB import, so "just exclude them" reads as obvious. It is not: recording that a

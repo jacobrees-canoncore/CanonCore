@@ -1,14 +1,16 @@
 #!/usr/bin/env bash
 #
-# Apply this branch's Drizzle migrations to Neon's shared `preview` branch, ahead of the merge, and
+# Apply this branch's Drizzle migrations to the database its previews read, ahead of the merge, and
 # read production's invariants back without writing to it.
 #
-# **Why this exists at all, and why it is not a step in CI.** Every preview deployment reads the
-# shared, schema-only `preview` branch — one branch, no production rows, addressed by a Preview-scoped
-# `NEON_PGHOST` (ADR-0023, and `docs/infrastructure.md` -> How a preview reaches its own database).
-# That branch is never re-copied from anything, so a migration reaches it only because somebody
-# applies it; and it has to be applied *before* the code that reads it deploys, or the preview 500s,
-# the required `Vercel` check goes red, and the pull request cannot merge.
+# **Why this exists at all, and why it is not a step in CI.** A preview deployment reads a Neon
+# branch holding no production row, addressed by a Preview-scoped `NEON_PGHOST` — this worktree's
+# own since 21 August 2026 (docs/adr/0025-a-preview-database-per-worktree.md), and the shared
+# schema-only `preview` branch where a lane has none (ADR-0023, and `docs/infrastructure.md` -> How a
+# preview reaches its own database). Neither is ever re-copied from anything, so a migration reaches
+# it only because somebody applies it; and it has to be applied *before* the code that reads it
+# deploys, or the preview 500s, the required `Vercel` check goes red, and the pull request cannot
+# merge.
 #
 # **`main` is read here, never written**, which is a narrowing CAN-79 Previews clone production rows,
 # and the integration has no switch to stop it made when previews stopped being cloned from it. The
@@ -54,7 +56,7 @@ head1() { printf '\n%s%s▸ %s%s\n' "$BOLD" "$BLUE" "$1" "$RESET"; }
 
 cd "$(dirname "$0")/.."
 
-head1 "Apply this branch's migrations to Neon's \`preview\` branch, ahead of the merge"
+head1 "Apply this branch's migrations to the database its previews read, ahead of the merge"
 
 # Read from the journal rather than named here, so this stays true as migrations are added.
 EXPECTED_MIGRATIONS=$(node -e '
@@ -62,7 +64,7 @@ EXPECTED_MIGRATIONS=$(node -e '
   console.log(j.entries.length);
 ')
 say "This branch carries ${EXPECTED_MIGRATIONS} migrations in apps/web/drizzle/meta/_journal.json."
-note "Whichever of them the \`preview\` branch has not yet seen will be applied, in order."
+note "Whichever of them that database has not yet seen will be applied, in order."
 note "Production is read back afterwards and never written — the release migrates it at merge."
 printf '\n'
 git --no-pager log --oneline "$(git merge-base HEAD main)..HEAD" -- apps/web/drizzle \
@@ -78,7 +80,7 @@ printf '\n'
 # ---
 head1 "canoncore_migrator's connection string"
 note "This is the value of the MIGRATION_DATABASE_URL GitHub Actions secret. It addresses"
-note "production; the \`preview\` branch's string is composed from it below, because a Neon role"
+note "production; the preview branch's string is composed from it below, because a Neon role"
 note "is project-level and carries the same password on every branch."
 note "Input is hidden. It is not written to disk, exported beyond this process, or echoed."
 printf '  %sPaste it, then press Enter:%s ' "$BOLD" "$RESET"
@@ -125,13 +127,38 @@ ok "String names canoncore_migrator"
 # They are also the two fields that can be *shown*. Both are Non-sensitive Vercel variables
 # precisely so they can be read back and caught going stale
 # (docs/infrastructure.md -> Environment variables), so this echoes what it is about to use.
-head1 "Where the \`preview\` branch answers"
-note "The Preview-scoped NEON_PGHOST and NEON_PGDATABASE. Either of:"
-note "  vercel env pull --environment=preview --project canoncore <file>"
-note "  the Neon console -> Branches -> preview -> Connect"
-printf '  %sPaste the host, then press Enter:%s ' "$BOLD" "$RESET"
-read -r PREVIEW_HOST || true
-printf '\n'
+head1 "Where this branch's preview database answers"
+
+# **This worktree's own database is offered, and it is the ordinary case since 21 August 2026.**
+# `orca worktree create` gives each lane a Neon branch of its own, so the host below is this
+# branch's and nobody else's - docs/adr/0025-a-preview-database-per-worktree.md. The resolver is the
+# provisioning script itself rather than a second copy of the lookup, and it creates nothing.
+#
+# **The fallback is a paste, and it is not a legacy path.** A lane whose setup hook did not run has
+# no database of its own and correctly reads the shared `preview` branch, which is what the prompt
+# is for. That case is also the only one where the warning further down still binds.
+WORKTREE_HOST="$(node scripts/provision-worktree-database.ts --print-host 2>/dev/null || true)"
+
+if [[ -n "$WORKTREE_HOST" ]]; then
+  ok "This worktree has a database of its own"
+  note "  $WORKTREE_HOST"
+  printf '  %sPress Enter to use it, or paste a different host:%s ' "$BOLD" "$RESET"
+  read -r PREVIEW_HOST || true
+  PREVIEW_HOST="${PREVIEW_HOST:-$WORKTREE_HOST}"
+  printf '\n'
+else
+  warn "This worktree has no database of its own, so its previews read the shared \`preview\` branch."
+  note "docs/adr/0025-a-preview-database-per-worktree.md -> When the hook does not run. Re-running"
+  note "  node scripts/provision-worktree-database.ts"
+  note "is the repair; migrating the shared branch from here is the alternative, and the warning"
+  note "under \"Applying\" below is why it is the worse one."
+  note "The Preview-scoped NEON_PGHOST and NEON_PGDATABASE. Either of:"
+  note "  vercel env pull --environment=preview --project canoncore <file>"
+  note "  the Neon console -> Branches -> preview -> Connect"
+  printf '  %sPaste the host, then press Enter:%s ' "$BOLD" "$RESET"
+  read -r PREVIEW_HOST || true
+  printf '\n'
+fi
 
 if [[ -z "${PREVIEW_HOST:-}" ]]; then
   bad "Nothing was pasted. Stopping without changing anything."
@@ -231,17 +258,24 @@ ok "Target: $PREVIEW_HOST/$PREVIEW_DATABASE"
 # carry the same number. The count catches only the opposite ordering, where somebody else's
 # migration is present and the total runs high.
 #
-# Every preview reads one shared branch today, so this is reachable now. **One branch at a time may
-# apply a migration here** until CAN-138 Give every Orca worktree its own preview database, so
-# parallel schema work stops colliding gives each worktree a database of its own.
-# docs/research/per-worktree-preview-databases.md quotes the source and holds the orderings.
-head1 "Applying to \`preview\`"
+# **That hazard is why each worktree now has a database of its own**, which CAN-138 Give every Orca
+# worktree its own preview database, so parallel schema work stops colliding built and
+# docs/adr/0025-a-preview-database-per-worktree.md records. Against a database only this branch
+# writes to, no ordering exists in which one lane silently skips another's file, and the warning
+# below therefore binds only in the fallback case. docs/research/per-worktree-preview-databases.md
+# quotes the source and holds the orderings.
+head1 "Applying"
 note "Re-running this branch's own migrations applies nothing, so this is safe to repeat."
-warn "One branch at a time may apply a migration to \`preview\`, ever — not merely one at a time"
-note "today. Every branch shares this database, so a migration older than the newest already"
-note "applied to it is skipped permanently and still reports success, however many days apart the"
-note "two runs are. If another branch has migrated \`preview\` since this one was cut, stop and read"
-note "the comment above this line."
+if [[ -n "$WORKTREE_HOST" && "$PREVIEW_HOST" == "$WORKTREE_HOST" ]]; then
+  ok "This is this branch's own database, so no other lane can be skipped by this run."
+else
+  warn "This is a database other branches share. One branch at a time may apply a migration to it,"
+  note "ever — not merely one at a time today. A migration older than the newest already applied is"
+  note "skipped permanently and still reports success, however many days apart the two runs are. If"
+  note "another branch has migrated it since this one was cut, stop and read the comment above this"
+  note "line. Giving this lane a database of its own removes the hazard rather than timing it:"
+  note "  node scripts/provision-worktree-database.ts"
+fi
 if ! MIGRATION_DATABASE_URL="$PREVIEW_URL" pnpm --filter @canoncore/web db:migrate; then
   bad "The migration failed. Nothing below ran."
   note "Read the error above before re-running: a partly-applied migration is not a state"
@@ -434,7 +468,7 @@ print_matrix() {
      order by c.relname" || true
 }
 
-head1 "Verifying \`preview\`, which is what this run changed"
+head1 "Verifying the branch this run changed"
 
 # The journal has to match the repository exactly here, and this is the check that catches the one
 # failure a schema-only branch arrives with: schema-only copies every table but no *row*, so the
@@ -493,7 +527,7 @@ else
 fi
 verify_invariants "$MAIN_PSQL"
 
-head1 "\`preview\`, to compare against docs/infrastructure.md -> Roles"
+head1 "The branch this run changed, to compare against docs/infrastructure.md -> Roles"
 print_matrix "$PREVIEW_PSQL"
 
 head1 "production, to compare against the same table and against the matrix above"
@@ -503,12 +537,12 @@ printf '\n'
 if (( FAILED )); then
   printf '%s%s  ✗ The databases do not match what the documents claim%s\n' "$BOLD" "$RED" "$RESET"
   note "Do not merge. docs/infrastructure.md -> Roles holds the invariants that should hold."
-  note "Read which branch each failure above was against: one against \`preview\` is this run's"
+  note "Read which branch each failure above was against: one against the preview database is this run's"
   note "own work, one against production is a finding that predates it."
   exit 1
 fi
 
-printf '%s%s  ✓ Applied to \`preview\` and verified, and production reads clean%s\n' "$BOLD" "$GREEN" "$RESET"
-note "Every preview deployment now finds this branch's schema, and none of production's rows."
+printf '%s%s  ✓ Applied to %s and verified, and production reads clean%s\n' "$BOLD" "$GREEN" "$PREVIEW_HOST" "$RESET"
+note "Every preview deployment of this branch now finds its schema, and none of production's rows."
 note "The release migrates production at merge — docs/adr/0019-ci-owns-the-production-release.md."
 printf '\n'
