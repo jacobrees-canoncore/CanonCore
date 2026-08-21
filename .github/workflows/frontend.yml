@@ -1,16 +1,11 @@
 name: Front end
 
-# `pull_request`, and that is a constraint rather than a preference. react-doctor's `scope: changed`
-# reports only the issues a change introduced, and its own reference says the Action is "designed
-# for `pull_request` events; other events scan the full project regardless of `scope` setting"
-# (https://www.react.doctor/docs/reference/github-action-reference.md). A push-triggered run would
-# therefore gate the whole repository on day one, which is the "red on arrival" failure
-# `docs/agents/workflow.md` -> *The gates* refuses for `pnpm audit`'s threshold.
-#
-# It also keeps Lighthouse's five runs a URL off every branch push. `ci.yml` stays `on: push` and
-# stays the single required context; these two are a second and third context that report on pull
-# requests only, and `docs/infrastructure.md` -> *The ruleset* says why neither is required there:
-# a required context that cannot report on every commit blocks the merge indefinitely.
+# **`docs/agents/workflow.md` -> *Two more gates, on pull requests only* owns every decision in this
+# file, and this file points there rather than repeating them** — the arrangement `ci.yml` already
+# has with the same document. Four are argued there: why the trigger is `pull_request` rather than
+# `push`, why neither job is a required context, why `@lhci/cli` is installed on the runner instead
+# of declared as a dependency, and why the react-doctor Action is pinned to a digest and granted no
+# write scope. What is repeated below is only what a reader needs at the line they are looking at.
 on: pull_request
 
 concurrency:
@@ -68,28 +63,13 @@ jobs:
 
       - run: pnpm --filter @canoncore/web run build
 
-      # **Installed here rather than declared in `apps/web`, and that is forced rather than
-      # tidy.** `@lhci/cli` pulls `extract-zip` through `lighthouse` -> `puppeteer-core`, and
-      # `GHSA-jmr9-qjv8-65gv` names every published version of it — the advisory's patched range
-      # is `>=2.0.2` and `2.0.1` is the newest that exists — so as a dependency it makes
-      # `pnpm audit --audit-level=high` red for ever, with no override that could fix it. It also
-      # reaches `tmp <0.2.6`, `GHSA-ph9p-34f9-6g65`, which an override could fix and which does not
-      # change the answer.
-      #
-      # A globally installed CI tool is not in the lockfile and not in anything this repository
-      # ships, so `pnpm audit`'s subject stays what it is meant to be: the dependencies of the
-      # application. `ci.yml` installs `vercel` exactly this way and for the same reason it uses
-      # npm — `pnpm add -g` needs `PNPM_HOME` configured, and npm's global bin is already on a
-      # runner's PATH. The version is pinned here in place of a lockfile pinning it.
-      #
-      # To re-derive the budgets on a laptop, `npx @lhci/cli@0.15.1 autorun` from `apps/web` with
-      # the same four variables set.
+      # Installed rather than declared as a dependency, which is forced rather than tidy: it
+      # reaches an advisory no override can clear. The version is pinned here in place of a
+      # lockfile pinning it. Argued in workflow.md, with the advisory ids.
       - run: npm i -g @lhci/cli@0.15.1
 
-      # `lhci autorun` starts the server itself, collects, and asserts. It uploads nothing: with no
-      # `upload` block in `lighthouserc.cjs` it skips that command entirely rather than falling back
-      # to `temporary-public-storage`, which would publish every report to a public bucket. The
-      # config file carries every budget and the measurement each was derived from.
+      # `lhci autorun` starts the server itself, collects, and asserts. `lighthouserc.cjs` carries
+      # every budget, the measurement each was derived from, and why nothing is uploaded anywhere.
       #
       # `BETTER_AUTH_SECRET` is set because `src/auth/auth.ts` refuses to serve without one and `/`
       # resolves a session on every request. It is a throwaway for a container that is destroyed
@@ -102,6 +82,14 @@ jobs:
           DATABASE_AUTH_USER: canoncore_auth
           DATABASE_AUTH_PASSWORD: canoncore_auth
           BETTER_AUTH_SECRET: a-throwaway-secret-for-this-job-only
+
+      # Always, including on a pass: `lhci assert` prints numbers only when one breaks, so without
+      # this a green run says nothing about how much headroom is left. The script says why that
+      # matters here.
+      - name: Say what it measured
+        if: always()
+        working-directory: apps/web
+        run: node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/lighthouse-summary.mts
 
       # The reports, kept only when something failed. A budget breach says which number moved; it
       # does not say which resource moved it, and that is in the report.
@@ -116,11 +104,33 @@ jobs:
   react-doctor:
     name: React lint on the diff
     runs-on: ubuntu-latest
+    # `contents: read` is inherited. `pull-requests: read` is granted on top of it and is the
+    # narrowest thing that closes a *silent* failure: when a compare scope cannot reach the base
+    # branch the Action falls back to `pulls.listFiles`, and failing that it reports every issue in
+    # the changed files rather than only the introduced ones. `fetch-depth: 0` below is the real
+    # remedy and this is the belt. Read, never write — the three write scopes its comment, review
+    # and status outputs would need are refused at the step below.
+    permissions:
+      contents: read
+      pull-requests: read
     steps:
-      # Pinned to the commit `v2` resolved to on 21 August 2026, rather than to the moving tag.
-      # Every other Action here is `actions/*` or `pnpm/*`; this is the first third-party one, and a
-      # mutable major tag on a third party is a supply-chain decision rather than a default.
-      # `renovate.jsonc` -> the `github-actions` note records that this one is a digest.
+      # **The Action does not check the repository out, and nothing says so on the tin.** It is a
+      # composite whose first step is `actions/setup-node`, so without this the workspace is empty
+      # and the CLI exits non-zero with `ProjectNotFoundError: No React project found` — a job red
+      # on arrival for a reason that has nothing to do with the diff, which is the failure this
+      # file's own header refuses.
+      #
+      # `fetch-depth: 0` rather than the default 1, because `scope: changed` compares against the
+      # base branch and a shallow checkout cannot reach it. The Action's own
+      # `silence-missing-baseline-warning` input documents that degradation and names this as the
+      # fix: "fixing the checkout with `fetch-depth: 0` is the real remedy".
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      # The commit `v2` resolved to on 21 August 2026, rather than the moving tag. Why a digest
+      # here and a major tag everywhere else is in workflow.md; that it is the one digest in this
+      # repository, and what that does to automerge, is in `renovate.jsonc`.
       - uses: millionco/react-doctor@01820bb4fd4d0a4aebcd8df2b2a143a098649cb2 # v2
         with:
           # `error` rather than the Action's `none` default, which comments instead of gating.
@@ -134,11 +144,9 @@ jobs:
           # gate whose rules change under it without a commit here.
           version: 0.9.12
           node-version: 24
-          # **All three off, and the job's own pass or fail is the whole signal.** Each of them
-          # needs a write scope granted to a third-party Action — `pull-requests: write` for the
-          # review comments, `issues: write` for the sticky summary, `statuses: write` for the
-          # commit status — and what this ticket asked for is a gate on `error-count`, not a pull
-          # request surface. `contents: read` at the top of this file is therefore all it gets.
+          # All three off. Each needs a write scope granted to a third-party Action —
+          # `pull-requests: write`, `issues: write`, `statuses: write` — and the job's own pass or
+          # fail is the whole signal this ticket asked for. Argued in workflow.md.
           comment: false
           review-comments: false
           commit-status: false

@@ -4,6 +4,10 @@ import Link from "next/link";
 import { objectionKey } from "@/analytics/opt-out";
 import { ObjectionControl } from "./objection-control";
 
+/** The browser tab, and nothing else: this page is never in search results — the root layout
+ * sets `robots: { index: false }` for the whole site. */
+export const metadata: Metadata = { title: `Counting visits — ${siteName}` };
+
 /**
  * The information duty and the objection duty that
  * [ADR-0020](../../../../../docs/adr/0020-no-cookie-consent-banner.md) attaches to measuring
@@ -23,8 +27,6 @@ import { ObjectionControl } from "./objection-control";
  * Static: nothing on it depends on the request, and the one thing that depends on the *device* is
  * the control, which is a client component for exactly that reason.
  */
-export const metadata: Metadata = { title: `Counting visits — ${siteName}` };
-
 export default function CountingVisits() {
   return (
     <main>

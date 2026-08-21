@@ -1,6 +1,7 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, expect, test, vi } from "vitest";
 import { objectionKey } from "@/analytics/opt-out";
+import { withUnreachableStorage } from "@/analytics/unreachable-storage";
 import { ObjectionControl } from "./objection-control";
 
 afterEach(() => {
@@ -35,11 +36,7 @@ test("withdraws the objection when the button is pressed again", async () => {
 // A control that visibly does nothing is worse than one that explains itself. A browser refusing
 // site data is already not measured, so the objection stands; what it cannot do is withdraw one.
 test("says why nothing changed when the browser refuses to store the setting", async () => {
-  const insecure = () => {
-    throw new Error("The operation is insecure.");
-  };
-  vi.spyOn(Storage.prototype, "getItem").mockImplementation(insecure);
-  vi.spyOn(Storage.prototype, "removeItem").mockImplementation(insecure);
+  withUnreachableStorage();
 
   render(<ObjectionControl />);
   fireEvent.click(await screen.findByRole("button"));

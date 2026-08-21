@@ -152,7 +152,7 @@ that is v1's scope rather than a condition here, and this gate would open withou
 | Speed Insights | **On.** `speedInsights.id` `EKL37pxaQMvbkLwNUNHVZg1OgPh`, no `disabledAt`, `hasData` `false` |
 
 *Read back with `vercel project inspect canoncore`; the Root Directory row and the three under it
-set by CAN-22 on 11 August 2026. Preview protection was set on 13 August 2026 and turned off since —
+set by CAN-22 A page on a public URL, deployed, with CI on 11 August 2026. Preview protection was set on 13 August 2026 and turned off since —
 the row above records the 16 August acceptance.*
 
 **The last two rows are not `vercel project inspect`'s to report** — it prints neither — and were

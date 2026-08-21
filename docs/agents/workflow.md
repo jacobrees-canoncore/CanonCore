@@ -567,7 +567,9 @@ acceptable, and the three ways it fails quietly, is
 [`../infrastructure.md`](../infrastructure.md) → *Dependency updates*.
 
 **All of them run in one Actions job, in that order, so the first failure stops the rest.** That job
-is the single check a pull request reports and one of the two contexts `main`'s ruleset requires;
+is one of the two contexts `main`'s ruleset requires, and the only one this repository emits — *Two
+more gates, on pull requests only* below adds two that report on pull requests and are deliberately
+not required;
 [`docs/infrastructure.md`](../infrastructure.md) → *The ruleset* is the only document that names it,
 and `scripts/check-docs.ts` fails the build if that name and `ci.yml` ever disagree. Requiring the
 three commands as three contexts would require names nothing emits, which is worse than requiring
@@ -636,10 +638,22 @@ override that could clear it. A globally installed CI tool is in neither the loc
 this repository ships. It is the same shape, and the same `npm i -g`, as `vercel` above.
 
 **react-doctor's Action is pinned to a commit rather than to its `v2` tag**, and it is the first
-third-party Action in this repository — everything else is `actions/*` or `pnpm/*`. It is granted
-`contents: read` and nothing else, with its comment, review-comment and commit-status outputs all
-turned off: each of those needs a write scope handed to a third party, and what the ticket asked for
-is a gate on `error-count` rather than a pull request surface.
+third-party Action in this repository — everything else is `actions/*` or `pnpm/*`. Its comment,
+review-comment and commit-status outputs are all turned off, because each needs a write scope handed
+to a third party and the job's own pass or fail is the whole gate the ticket asked for. What it does
+get is `pull-requests: read`, for the reason in the next paragraph.
+
+**Two things about that Action are not on the tin, and both were found by a review rather than by
+reading its documentation.** It is a composite whose first step is `actions/setup-node`: **it does
+not check the repository out**, so without an `actions/checkout` of our own it scans an empty
+workspace and exits with `ProjectNotFoundError: No React project found` — red on arrival for a reason
+unrelated to the diff. And the checkout must be `fetch-depth: 0`, because `scope: changed` compares
+against the base branch and a shallow one cannot reach it; the Action's own
+`silence-missing-baseline-warning` input documents that case and names this as "the real remedy".
+**The failure it guards is silent rather than loud** — the fallback is a scan of every issue in the
+changed files rather than only the introduced ones, reported through a pull request comment that is
+turned off here. `pull-requests: read` gives the intermediate `pulls.listFiles` fallback something to
+use; `fetch-depth: 0` is what stops it being needed.
 
 **To re-derive the budgets**, from `apps/web`, with a local PostgreSQL carrying the migrations:
 

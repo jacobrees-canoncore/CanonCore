@@ -5,26 +5,12 @@ import {
   recordObjection,
   subscribeToObjection,
 } from "./opt-out";
+import { withUnreachableStorage } from "./unreachable-storage";
 
 afterEach(() => {
   window.localStorage.clear();
   vi.restoreAllMocks();
 });
-
-/**
- * Storage that throws on every access, which is what a browser with site data blocked gives.
- *
- * Spied on the prototype rather than on `window.localStorage`: jsdom hands back a Proxy, and an
- * own property defined on that does not shadow the method the call actually reaches.
- */
-function withUnreachableStorage() {
-  const insecure = () => {
-    throw new Error("The operation is insecure.");
-  };
-  vi.spyOn(Storage.prototype, "getItem").mockImplementation(insecure);
-  vi.spyOn(Storage.prototype, "setItem").mockImplementation(insecure);
-  vi.spyOn(Storage.prototype, "removeItem").mockImplementation(insecure);
-}
 
 describe("objectedToMeasurement", () => {
   test("is false by default, because the exception does not run on consent", () => {

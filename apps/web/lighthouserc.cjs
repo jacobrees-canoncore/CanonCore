@@ -27,14 +27,22 @@
  *
  * | URL | LCP, worst of 5 | TBT, worst of 5 | script bytes |
  * | --- | --- | --- | --- |
- * | `/` | 2011 ms | 7 ms | 139,156 |
- * | `/sign-in` | 2067 ms | 7 ms | 139,156 |
- * | `/privacy/analytics` | 2017 ms | 12 ms | 143,558 |
+ * | `/` | 2013 ms | 9 ms | 139,219 |
+ * | `/sign-in` | 2009 ms | 6 ms | 139,219 |
+ * | `/privacy/analytics` | 2017 ms | 12 ms | 143,617 |
  *
- * Byte counts are identical across all five runs of each URL; the two timings are not, and TBT is
- * the volatile one — a second collection of the same build on the same machine put `/sign-in` at
- * 9 ms and `/privacy/analytics` at 9 ms. That spread on an idle laptop is the argument the TBT
- * budget below makes for itself.
+ * **Byte counts are identical across all five runs of a URL; the two timings are not.** Across four
+ * collections of the same tree on the same idle laptop, worst-run LCP ranged 2009-2175 ms and
+ * worst-run TBT 6-12 ms. That spread is the argument both timing budgets below make for themselves,
+ * and it is why the job writes what it measured to the run summary on a pass as well as a failure:
+ * a budget nobody can see the distance to is one that is either silently loose for ever or about to
+ * start flaking. `apps/web/scripts/lighthouse-summary.mts`.
+ *
+ * **The known risk, stated rather than discovered on a pull request: LCP has the least room.** The
+ * worst run seen on any collection is 2175 ms against a 2500 ms budget, and the runner is slower
+ * than the machine that produced it. If CI breaches it the answer is not a looser budget — the cap
+ * is the Core Web Vitals threshold itself — but finding out why a page of text takes 2 s to paint
+ * when it first paints at 0.75 s.
  *
  * **Two limits on what that table is worth, and both are deliberate rather than unnoticed.** It was
  * measured on a laptop and the gate runs on a shared GitHub runner, which is slower — Lighthouse's
@@ -94,8 +102,8 @@ module.exports = {
       // reader in five.
       aggregationMethod: "pessimistic",
       assertions: {
-        // 2067 ms measured, and the measurement plus any slack worth the name lands above 2500, so
-        // the threshold is what sets this. That leaves 433 ms of headroom — about a fifth — which
+        // 2017 ms measured, and the measurement plus any slack worth the name lands above 2500, so
+        // the threshold is what sets this. That leaves 483 ms of headroom — about a fifth — which
         // is a real gate rather than a formality: this page is text, and nothing it could
         // legitimately grow into should cost it half a second.
         "largest-contentful-paint": ["error", { maxNumericValue: largestContentfulPaintThreshold }],
@@ -114,9 +122,14 @@ module.exports = {
           { maxNumericValue: totalBlockingTimeThreshold - totalBlockingTimeThreshold / 4 },
         ],
 
-        // 143,558 bytes measured on the heaviest of the three, identical byte-for-byte across all
+        // 143,617 bytes measured on the heaviest of the three, identical byte-for-byte across all
         // five runs — it is a build output, not a timing — so the slack is 10% rather than the
         // multiple a noisy metric would need. About 14 kB of headroom.
+        //
+        // **It has already earned its keep once, on the change that introduced it.** A `next/link`
+        // on the front page, added to satisfy a react-doctor warning, cost 8,401 bytes on the page
+        // a stranger loads, and nothing but this number would have said so. `src/app/front-page.tsx`
+        // carries the trade.
         //
         // **A legitimate increase past this re-baselines the number on purpose.** That is the gate
         // working rather than the gate being wrong, and it is the whole reason a budget beats a

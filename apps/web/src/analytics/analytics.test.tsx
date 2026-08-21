@@ -1,6 +1,7 @@
 import { render } from "@testing-library/react";
 import { afterEach, describe, expect, test } from "vitest";
-import { Measurement, beforeSend } from "./analytics";
+import { Measurement } from "./analytics";
+import { beforeSend } from "./before-send";
 import { objectionKey } from "./opt-out";
 
 afterEach(() => window.localStorage.clear());
