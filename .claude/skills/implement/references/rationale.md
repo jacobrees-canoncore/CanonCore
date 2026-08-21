@@ -3,8 +3,8 @@
 Read this before changing or re-syncing `.claude/skills/implement/`.
 
 The body of `SKILL.md` is a verbatim fork of `mattpocock-skills:implement` at
-pack version 1.2.3, plus three local additions: the read-the-ticket line, the
-docs-lookup line, and the closing pointer to this file.
+pack version 1.2.3, plus four local additions: the read-the-ticket line, the
+docs-lookup line, the two-round line, and the closing pointer to this file.
 
 ## Why it is a copy rather than a delegation
 
@@ -34,6 +34,18 @@ recorded, so the body by itself is not the ticket. `--comments` is the flag
 that carries them: `--full` is capped and may truncate, and `--current` is the
 form a worktree created with `--linear-issue` makes work
 ([issue-tracker.md](../../../../docs/agents/issue-tracker.md) → *Conventions*).
+
+## Why the two-round line was added
+
+Upstream ends at a single review, and `docs/agents/workflow.md` → *The review
+runs once* left the rest open until **CAN-125 Give the review loop a stated end,
+and say what an unreviewed commit must disclose**: every round that finds
+something produces a commit that round never saw, so *run it again* was always
+the compliant answer and the last fix always landed unreviewed. The loop is
+bounded at two rounds now, with the residual carried by a disclosure in the pull
+request body. Both rounds happen inside this skill, so the bound has to be
+stated where they run; the argument stays in
+[workflow.md](../../../../docs/agents/workflow.md).
 
 ## Why the docs-lookup line was added
 

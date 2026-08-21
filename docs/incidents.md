@@ -20,6 +20,7 @@ is what the rule was built on.
 **Landing a change**
 - [A review of a staged-but-uncommitted change reads an empty range](#a-review-of-a-staged-but-uncommitted-change-reads-an-empty-range)
 - [Sub-agent reviews find defects for the session that invoked them](#sub-agent-reviews-find-defects-for-the-session-that-invoked-them)
+- [A round of fixes failed the standard its own findings had named](#a-round-of-fixes-failed-the-standard-its-own-findings-had-named)
 - [#87 reversed a Done ticket's deliverable five hours later](#87-reversed-a-done-tickets-deliverable-five-hours-later)
 - [A worktree branch reads *behind* while being in perfect shape](#a-worktree-branch-reads-behind-while-being-in-perfect-shape)
 - [`--delete-branch` fails after the merge has already succeeded](#--delete-branch-fails-after-the-merge-has-already-succeeded)
@@ -128,6 +129,43 @@ matter of trust.
 fresh-session review as "a legitimate alternative", and `code-review.md` gives a different reason
 for the sub-agents (keeping the two axes out of each other's context). The claim here is that the
 isolation buys the fresh eyes as a side effect, whoever calls it.
+
+## A round of fixes failed the standard its own findings had named
+
+**17 August 2026, CAN-54 Fail a push that adds a known-vulnerable dependency,
+[#191](https://github.com/jacobrees-canoncore/CanonCore/pull/191).** Both axes, twice, against
+`main`. All times BST.
+
+| Round | Found | Produced |
+| --- | --- | --- |
+| 1 | 2 defects | [`86cce08`](https://github.com/jacobrees-canoncore/CanonCore/commit/86cce087c9bb3ca86da51fcdcc8ce62dbf3453fb), 08:56:38 |
+| 2 | 4 defects | [`fae4544`](https://github.com/jacobrees-canoncore/CanonCore/commit/fae4544236e188b90af7c9c0dffbf574f9dbfe72), 09:02:09 |
+| 3 | never ran | — |
+
+**Two of round two's four were in text round one had just written, and each failed the very standard
+the round-one fix had been applied to satisfy.** Both are readable from the two commits:
+
+| Round one wrote | Round two found |
+| --- | --- |
+| *"The field is not among the five that payload documents"* in `docs/incidents.md`, replacing an absence that had been inferred from a single call | `PATCH /repos/{owner}/{repo}` documents **nine** `security_and_analysis` sub-properties. Round one's own message names *"Two counts were wrong"* among its fixes; this was a third |
+| *"Use exit code 0 if the registry responds with an error. Useful when audit checks are used in CI"* in `docs/agents/workflow.md`, attributed to [pnpm audit](https://pnpm.io/cli/audit) | That wording is `pnpm audit --help` at 11.20.0. The page says something milder. Round one had added the citation under *"Three checkable claims cited nothing"* |
+
+The branch merged at **10:07**, sixty-five minutes after `fae4544`, which no review had read.
+[#191](https://github.com/jacobrees-canoncore/CanonCore/pull/191)'s body said so in a `## Review`
+section written for the occasion, and named the primary source each of the four fixes had been
+checked against instead. `docs/agents/workflow.md` → *What the pull request must disclose* makes
+that section standing, and fixes what it has to say.
+
+**What it proves.** A round of fixes is fresh unreviewed writing and fails in the same ways the
+original did, here in the exact way the round was fixing: CODING_STANDARDS.md → *Documents are the
+artefact here* counts *"citing a document that does not say it"* as the same defect as citing
+nothing, and round one's citation-adding commit committed it. So round two reads a range where
+defects demonstrably are, and what says so is round one *having produced a commit* — not anything
+about how round one's own findings looked.
+
+**What it does not prove.** Nothing here is evidence about a third round, which never ran. That the
+loop stops at two is a decision argued in `docs/agents/workflow.md` → *Two rounds, and the second is
+the last* from the need for an end that is not a judgement call, and not from this observation.
 
 ## #87 reversed a Done ticket's deliverable five hours later
 

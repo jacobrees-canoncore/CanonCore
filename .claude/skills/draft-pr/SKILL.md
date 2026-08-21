@@ -153,6 +153,11 @@ argument or a piece of evidence lives, for when a step surprises you:
 
    <one or two paragraphs: what changed about the product, and why>
 
+   ## Review
+
+   <how many rounds ran and against what range; which commit is unreviewed, and what
+   was done instead>
+
    ## Checks
 
    - [ ] The repo's checks pass
@@ -166,6 +171,20 @@ argument or a piece of evidence lives, for when a step surprises you:
    cannot apply to** rather than leaving it as noise: a checklist of things that cannot be done is
    worse than no checklist. The first two apply to every change, so dropping either needs a reason
    particular to the diff.
+
+   **`## Review` is never dropped.** Every branch has a review story, and a section that appears only
+   when something is unreviewed cannot be told apart from one that was forgotten. Four things, the
+   last three answering *none* when the last round found nothing
+   (`docs/agents/workflow.md` → *What the pull request must disclose*):
+
+   - how many rounds ran and against what range — *"both axes, twice, against `main`"*, never the
+     bare *"reviewed"*;
+   - which commit is unreviewed, by SHA, and that it is the response to the last round;
+   - that every hunk in it traces to a finding of that round, which is the licence it lands under;
+   - what each of those fixes was checked against, since a review did not.
+
+   `/implement` runs round one, and a round two whenever round one produced a commit; there is no
+   round three (`docs/agents/workflow.md` → *Two rounds, and the second is the last*).
 
    **Name any out-of-band artefact this change needs**, because a merge carries the application code
    and nothing else: a migration, a scheduled job, a queue, a permission, an environment variable
@@ -216,7 +235,9 @@ argument or a piece of evidence lives, for when a step surprises you:
     to prevent. Say a review is needed only in the three cases where one did not cover this range —
     `/implement` never ran, the diff its review read was empty or partial, or the branch has gained
     commits it never saw — and say which one applies. Ask rather than assume when you cannot tell
-    from this session. (`docs/agents/workflow.md` → *The review runs once*.)
+    from this session. **The third case ends after round two**: a commit that does nothing but apply
+    round two's own findings is disclosed in step 8's `## Review` rather than reviewed again.
+    (`docs/agents/workflow.md` → *The review runs once*.)
 
     **Do not wait for the checks here either.** They were queued seconds ago, so waiting blocks for
     a full run before anyone has read the diff, and any green seen now is stale the moment anything

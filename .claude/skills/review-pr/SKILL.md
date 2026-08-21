@@ -24,6 +24,11 @@ reports no findings and reads like a clean one, so the question to ask is **whic
 ran** — not whether a review happened. Ask rather than assume when this session cannot tell.
 (`docs/agents/workflow.md` → *The review runs once*.)
 
+**Commits landing since is the bounded case.** After two rounds, a commit that does nothing but
+apply the second round's own findings is disclosed rather than reviewed a third time, and the body's
+`## Review` section is where that disclosure lives (`docs/agents/workflow.md` → *What the pull
+request must disclose*).
+
 `WS=ad2669ec-93a5-4ce1-97fa-c7d9247a1452` throughout.
 
 ## Steps
@@ -193,7 +198,16 @@ ran** — not whether a review happened. Ask rather than assume when this sessio
 5. **Mark ready.** `gh pr ready`. Reversible with `gh pr ready --undo`.
 
 6. **Ask before merging.** This is the one step here that puts the change into production and the
-   one that is not a click away from being undone. On a yes:
+   one that is not a click away from being undone.
+
+   **Put the body's `## Review` section into the question**, quoted rather than summarised. Whoever
+   merges is exactly who an unreviewed commit was disclosed to, and this is the last moment it can
+   reach them; leaving it in the body for them to find makes the disclosure the session's decision
+   again. If `## Review` is missing, or is silent on which commit is unreviewed — *none* is an
+   answer, silence is not — stop and write it. That is a body to fix, not a merge to push through
+   (`docs/agents/workflow.md` → *What the pull request must disclose*).
+
+   On a yes:
 
    ```bash
    gh pr merge <n> --squash --match-head-commit <the SHA step 2 ended on>

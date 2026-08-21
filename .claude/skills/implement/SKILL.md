@@ -14,7 +14,7 @@ Check the docs before writing code against an API signature, config option or ve
 
 Run typechecking regularly, single test files regularly, and the full test suite once at the end.
 
-Once done, use /code-review to review the work.
+Once done, use /code-review to review the work. **If taking its findings produces a commit, review once more, and stop there** — round two's own corrections are disclosed in the pull request rather than reviewed a third time (`docs/agents/workflow.md` → *Two rounds, and the second is the last*).
 
 Commit your work to the current branch.
 
