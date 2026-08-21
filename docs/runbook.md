@@ -187,11 +187,11 @@ nothing. No credential to fetch: the workflow below already holds one.
    one of the four routes above. `macos-mail-mcp` reads it; note the standing rule that it may be
    used for nothing but mail this project sent or received.
 2. **The Source's own site**, for a publicly posted notice.
-3. **The credential, by hand — once one exists to try.** No Source credential is held anywhere yet:
-   [`infrastructure.md`](infrastructure.md) → *Where a Source credential lives* records the TMDB
-   token as held nowhere **until `provider-tmdb` exists**, which is what **CAN-101 Create the
-   provider-tmdb repository, and give it the TMDB credential** does. So this step is the procedure
-   for the world after that ticket and cannot be followed before it. Whether the key still answers is the difference between (iv) and an
+3. **The credential, by hand.** [`infrastructure.md`](infrastructure.md) → *Where a Source
+   credential lives* records the TMDB token as held on the `provider-tmdb` Vercel project since
+   21 August 2026, so there is a key to try — but **nothing here consumes it yet**, because
+   **CAN-101 Create the provider-tmdb repository, and give it the TMDB credential** has still to
+   build the Provider that reads it. Whether the key still answers is the difference between (iv) and an
    ordinary outage, and *"TMDB revocation is eventual"* — regenerating our own key left the old one
    answering sixteen minutes later
    ([incident](incidents.md#regenerating-a-tmdb-key-does-not-revoke-the-old-one-promptly)) — so a
@@ -338,10 +338,11 @@ would print:
 | `Error: connect` | The database did not answer — `ECONNREFUSED` against a closed port, checked 17 August 2026. It is the same database as [The database does not answer](#the-database-does-not-answer), so **its second and third checks apply**: the Neon branch's compute, then Neon's status page. Its first does not — Vercel's runtime logs are a deployment's, and this runs on an Actions runner that never touches the application's connection code |
 | None of the above | Read the run's own error line: it may have failed before the purge (the runner, the install) or inside it (a statement timeout, a dropped connection). **Either way nothing was committed** — the purge is one transaction, so a failure part-way through rolls back rather than leaving half a purge |
 
-**And today there is nothing to purge.** No Provider exists yet (**CAN-101 Create the provider-tmdb
-repository, and give it the TMDB credential**), nothing writes a `source` row, and no Snapshot has
-ever been fetched. This entry is here so that the first time it is needed is not the first time it is
-written.
+**And today there is nothing to purge.** No Provider serves anything yet — `provider-tmdb`'s
+repository has existed since 21 August 2026 but carries only its CI baseline, with no deployment and
+no contract behind it (**CAN-101 Create the provider-tmdb repository, and give it the TMDB
+credential**) — nothing writes a `source` row, and no Snapshot has ever been fetched. This entry is
+here so that the first time it is needed is not the first time it is written.
 
 ## What warns you before a pause
 

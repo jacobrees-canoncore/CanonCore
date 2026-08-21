@@ -311,7 +311,7 @@ already off and are recorded so that "off" is a decision rather than a gap.
 
 | Setting | State | Read back by |
 | --- | --- | --- |
-| Dependency graph | **enabled** | `dependency-graph/sbom` → a package count while on. It answered `404` while off |
+| Dependency graph | **enabled** | `dependency-graph/sbom` → a package count while on. It answered `404` while off, and **`1`** — the repository's own SBOM entry, nothing indexed beside it — while on and blind, which is a second failure this row cannot express and `check-docs.ts` fails separately |
 | Dependabot alerts | **enabled** | `vulnerability-alerts` → `204 No Content` ([the documented *enabled*](https://docs.github.com/en/rest/repos/repos#check-if-vulnerability-alerts-are-enabled-for-a-repository)) |
 | Secret scanning | **enabled** | `security_and_analysis.secret_scanning.status` |
 | Secret scanning push protection | **enabled** | `security_and_analysis.secret_scanning_push_protection.status` |
@@ -326,8 +326,10 @@ gh api repos/jacobrees-canoncore/CanonCore/dependency-graph/sbom --jq '.sbom.pac
 ```
 
 **Three commands, because these settings live in three places and the first reaches only five of
-them.** Alerts are not in `security_and_analysis`; the dependency graph is in neither, and no REST
-route to it was found. **Read all three, or the answer is partial in the row that matters most** —
+them.** Alerts are not in `security_and_analysis`; the dependency graph is in neither, and no
+*repository* route reaches it — the one that does is an org-level code security configuration, and
+*The Provider repository baseline* → *What the first real run showed* is where that is recorded and
+why it is not used. **Read all three, or the answer is partial in the row that matters most** —
 the graph is what the two Dependabot rows match against, and with it off they report nothing while
 still reading as enabled ([incident](incidents.md#dependabot-alerts-were-enabled-and-blind)).
 
@@ -408,10 +410,12 @@ are written and run by this project*), so at the first one the gates above stop 
 gates there are. Six or more repositories with no lint gate, no dependency audit and no secret
 scanning is a worse posture than the one this repository's own gates protect: the protection would
 scale with the number of repositories, downwards. Built by **CAN-107 Give every Provider repository
-a CI baseline** on 20 August 2026, **before the first Provider repository exists**, which is the
+a CI baseline** on 20 August 2026, **before the first Provider repository existed**, which is the
 whole of why the ticket blocks **CAN-101 Create the provider-tmdb repository, and give it the TMDB
 credential** rather than the reverse. A baseline that arrives second is a retrofit, and the
-repository it was retrofitted onto had already merged something unchecked.
+repository it was retrofitted onto had already merged something unchecked. **It did arrive first**:
+`provider-tmdb`'s own first commit carried the caller, and the ruleset was written the same day,
+before any pull request had been opened there (*What the first real run showed* below).
 
 **It is two artefacts and one dashboard step, not one workflow**, because half of what a baseline
 has to carry is not workflow-shaped: a `uses:` line cannot enable secret scanning and cannot create
@@ -421,7 +425,7 @@ a ruleset.
 | --- | --- | --- |
 | test, typecheck, lint, build, dependency audit | A reusable workflow, [`.github/workflows/provider-ci.yml`](../.github/workflows/provider-ci.yml) | One `uses:` line, in one file copied unchanged from [`docs/provider-baseline/ci.yml`](provider-baseline/ci.yml) |
 | Secret scanning, push protection, Dependabot alerts, squash-only merges, the ruleset | Repository settings | [`scripts/provision-provider-repository.ts`](../scripts/provision-provider-repository.ts), one run per repository |
-| The dependency graph | A repository setting with no REST route | By hand, at Settings → Advanced Security |
+| The dependency graph | A repository setting no *repository* route reaches | By hand, at Settings → Advanced Security. An org-level [code security configuration](https://docs.github.com/en/rest/code-security/configurations) carries `dependency_graph` and can be attached to named repositories, which is a shape nothing here has taken — *What the first real run showed* below |
 
 **The required context is `baseline / gates`**, and it is composed rather than chosen: for a
 reusable workflow *"the name format is `<job name> / <reusable job name>`"*
@@ -524,9 +528,13 @@ The order matters, and the script enforces it rather than documenting it and hop
    a preference.** For the contents endpoint *"the workflow scope is also required in order to
    modify files in the `.github/workflows` directory"*
    ([repository contents](https://docs.github.com/en/rest/repos/contents)), and the token behind
-   `gh` here holds `repo` and not `workflow` (`gh auth status`, read 20 August 2026). So the file
-   travels with the repository's own first commit, and the script verifies that it arrived rather
-   than putting it there.
+   `gh` here holds `repo` and not `workflow` (`gh auth status`, read 20 and 21 August 2026). So the
+   file travels with the repository's own first commit, and the script verifies that it arrived
+   rather than putting it there. **The missing scope binds that endpoint and not the push, and the
+   first commit is what settled it**: `provider-tmdb`'s carried `.github/workflows/ci.yml` over ssh
+   on 21 August 2026 and was accepted, because an ssh push presents a key rather than that token.
+   So `gh auth refresh -s workflow` is not a step here — the same commit that makes the repository
+   non-empty is the one that installs the gate.
 3. **Let one run finish**, so the composed context has actually reported. The script reports what
    that run concluded and never refuses on it: a red default branch is a reason to provision rather
    than a reason not to, since the ruleset is what stops the *next* unchecked merge.
@@ -535,36 +543,140 @@ The order matters, and the script enforces it rather than documenting it and hop
    rather than a call, a missing script or package manager, or a context no check run has been seen
    reporting. That last one is **CAN-40 Give main a ruleset that refuses an unchecked merge**'s
    lesson in code: nothing is required of a repository until a run has been seen emitting it.
-5. **Turn the dependency graph on by hand**, then re-run the script. It reports SKIP rather than
-   PASS while the graph is off, because with the graph off Dependabot alerts report nothing while
-   still reading as enabled ([incident](incidents.md#dependabot-alerts-were-enabled-and-blind)).
+5. **Get the dependency graph seeing something**, then re-run the script. It reports SKIP rather
+   than PASS in **two** cases, and only the first is the dashboard step: the graph being *off*, and
+   the graph being *on and holding nothing but the repository's own SBOM entry*. Both leave
+   Dependabot alerts reporting nothing while still reading as enabled
+   ([incident](incidents.md#dependabot-alerts-were-enabled-and-blind)), and the second is the one no
+   endpoint status reveals. **A repository created now may need neither a click nor anything else
+   you can do** — `provider-tmdb` came with the graph already on and had to wait for GitHub to parse
+   its manifests, which is *What the first real run showed* below.
 
 It then reads back everything it set — the merge methods, both secret-scanning settings, the alerts
 and the whole ruleset including its bypass actors — because what was asked for is not what is true
 until it has been read.
 
-**No write has been run against a real Provider repository, because none exists** — and the
-distinction from *nothing has been run* is the useful one:
+### What the first real run showed
 
-- **The whole preflight was run against this repository on 20 August 2026**, which is not a
-  Provider and is refused as one. It read the repository, `.github/workflows/ci.yml`, the root
-  `package.json` and `main`'s check runs, and reported exactly three reasons: no job calling the
-  baseline, no `test`, `typecheck`, `lint` or `build` script at the root, and no check run named
-  `baseline / gates` — naming `test, typecheck, lint, build` as what reported instead. It exited
-  non-zero **before the first write**. Two details of that run are worth keeping rather than
-  rounding off: the package-manager half of the third check did **not** fire, because this
-  repository declares `packageManager`, so the two halves are independently live; and an earlier
-  version of the check-runs step reported `(.name)` there, which is what sent the parsing into
-  `provider-baseline.ts` where it is tested — a step that refuses for a plausible-looking reason is
-  indistinguishable from one that is working.
-- **The ruleset it would have written is this repository's own**, read back from the live ruleset on
-  20 August 2026 and reproduced with one context instead of two. Every comparison in it is under
-  test in [`scripts/lib/provider-baseline.test.ts`](../scripts/lib/provider-baseline.test.ts), and
-  the two workflow files' shape in
-  [`scripts/provider-baseline-workflows.test.ts`](../scripts/provider-baseline-workflows.test.ts).
-- **What no run here can prove is the write half**: that GitHub accepts this ruleset payload on a
-  fresh repository, and that the composed context is the name it reports there. **Treat the first
-  provisioning run as the thing that proves both**, and correct this section from what it says.
+**The write half ran on 21 August 2026, against `provider-tmdb`**, under **CAN-143 Provision
+provider-tmdb to the baseline, and correct the register from the first real run**. Until then this
+section could say only what the preflight refused. Three things it could not prove are now proved,
+and **one step it used to report as passing turned out not to be evidence of anything** — which is
+the more useful half, and is below the three.
+
+- **GitHub accepted the ruleset payload unchanged**, which is the half no run here could prove.
+  Read back in full, ruleset `21142169` is deep-equal to what `baselineRuleset` composed for every
+  field sent — `name`, `target`, `enforcement`, both `ref_name` conditions, all three rules with
+  their parameters in the order they were sent, and `bypass_actors: []`. The only difference is the
+  key order inside `conditions.ref_name`. GitHub **added** `id`, `source_type`, `source`,
+  `node_id`, `created_at`, `updated_at`, `current_user_can_bypass` and `_links`, and normalised,
+  defaulted, reordered or dropped nothing. `current_user_can_bypass` came back `never`, which is
+  the empty bypass list read from the other end and by a different name.
+- **The composed context is the name a check run reports there, character for character.** The
+  first run on `main` produced exactly one check run, named `baseline / gates`, from the
+  `github-actions` app, concluding `success`
+  ([run 32475994986](https://github.com/jacobrees-canoncore/provider-tmdb/actions/runs/32475994986),
+  21 August 2026). So the `<job name> / <reusable job name>` format holds across repositories as
+  well as within one, and **`scripts/lib/provider-baseline.ts` needed no correction** — the payload
+  and the composition are both what they said they were.
+- **The update path is proven too, and by accident rather than by design.** A second run the same
+  day found the ruleset already there and took the `PUT` branch instead of the `POST`, reporting
+  `updated ruleset 21142169` where the first had reported `created`, and the read-back after it was
+  the same deep-equal. **The evidence is the script's own report and not the API**, which is worth
+  saying because the API cannot corroborate it: `created_at` and `updated_at` are 22 ms apart and
+  `rulesets/21142169/history` holds one version — consistent with a `PUT` that changed nothing,
+  which is exactly what a correct one does. So re-running provisioning against a repository that
+  already carries the baseline is a safe no-op that reports drift. **That is not the same as drift
+  detection**: it writes before it reads, and nothing runs it unprompted, so what it catches is
+  drift somebody already went looking for. **CAN-145 Give the Provider provisioning a report-only
+  mode, and something that runs it** owns both halves.
+- **The `workflow` scope was never needed**, per step 2 above: the first push carried the caller
+  over ssh and was accepted.
+
+**The one step that did not pass is the dependency graph, and it failed in a new way.** It was
+**already on** and had **indexed nothing**, so no dashboard step applied and none would have helped.
+The first push landed at 11:10 UTC on 21 August 2026. These were read repeatedly from 11:12 to
+12:12, the last of them **sixty-two minutes after the push**, and **no reading was ever different**:
+
+| Read | Answer | CanonCore, same day |
+| --- | --- | --- |
+| `dependency-graph/sbom` | **`200`** with `.sbom.packages` of length `1` — the SPDX entry describing the repository itself, and no dependency at all | `781` |
+| `dependencyGraphManifests` (GraphQL, `hawkgirl-preview`) | `totalCount: 0` | `8`, including `pnpm-lock.yaml` and every `package.json` |
+| `github.com/…/network/dependencies`, **signed out** | *"No dependencies found."* | — |
+
+**The `200` is the reading that settles it**, and it is the one the register's own row turns on: the
+[incident](incidents.md#dependabot-alerts-were-enabled-and-blind) recorded `404` from this endpoint
+while the graph was off. **The third row settles nothing on its own and is here as a reading rather
+than as proof** — an unauthenticated fetch would not be shown an *Enable* button whatever the state,
+and the Settings page was not read. GitHub's own expectation is that the graph is *"usually populated
+within minutes"* of a push
+([Configuring the dependency graph](https://docs.github.com/en/code-security/supply-chain-security/understanding-your-software-supply-chain/configuring-the-dependency-graph)),
+which is why sixty-two of them is worth writing down rather than waiting out quietly. **The next Provider
+should expect this**, and the step that reports it now says so rather than reporting a pass.
+
+**It is not the lockfile.** `pnpm` is its own row in
+[the supported ecosystems](https://docs.github.com/en/code-security/supply-chain-security/understanding-your-software-supply-chain/dependency-graph-supported-package-ecosystems),
+recommended file `pnpm-lock.yaml`, with static transitive dependencies — and CanonCore's own graph
+parses that file into 744 exactly-versioned entries. So this is GitHub failing to index a format it
+supports, which makes it a vendor fault to escalate rather than a repository to fix.
+
+**Nothing was found that flips it on, because it is already on** — the org-level configuration below
+would set the same `enabled` it already holds. **What would sidestep the indexer entirely is the
+[dependency submission API](https://docs.github.com/en/rest/dependency-graph/dependency-submission)**,
+which is not a workaround but GitHub's own preferred route: submissions are ranked above static
+analysis because they happen *"during artifact builds"* and *"have the most complete information"*,
+and *"submitted dependencies will receive Dependabot alerts and Dependabot security updates"*. **It
+is not adopted here and the cost is why**: it would put a submission step in every Provider's shared
+baseline and change what the graph holds from what GitHub detected to what our CI asserted — a gate
+that can be wrong in a new direction, for a format static detection is supposed to handle. It is the
+answer if this turns out to be permanent rather than slow.
+
+**So the sign that made the incident legible is gone, and that is the correction.** There the graph
+was off and answered `404`. Here it answers `200` with a count, reads as on by every route there is,
+and the alerts are matching against nothing exactly as they were — the same blindness with no status
+code to catch it by. **`readDependencyGraph` now returns `indexed` beside `enabled`**, false when
+the count is the repository's own entry alone, and provisioning SKIPs on it rather than reporting
+PASS: a green tick that cannot tell *nothing is vulnerable* from *nothing was parsed* is what that
+incident exists to stop. The first run reported `11 passed`; the corrected script reports
+`10 passed, 1 skipped` against the same repository — run, not predicted — and **that is the honest
+number until GitHub indexes it**. **The condition itself is
+CAN-146 `provider-tmdb`'s dependency graph is enabled and has indexed nothing**, which owns the
+re-read and the escalation: closing the reporting gap is not closing the condition, and a note in a
+document owns nothing.
+
+**The same hole was open in this repository, and closing it there is half the fix.** The row above
+says `enabled`, a graph holding nothing *is* enabled, so the roster comparison agrees either way —
+which means CanonCore, where the incident happened, would have gone on reading green through exactly
+the state `provider-tmdb` was in. `scripts/check-docs.ts` now fails separately on it, beside the
+roster rather than inside them, because it is not a disagreement with this document. **Pointed at
+`provider-tmdb` on 21 August 2026 it did fail, and every roster row agreed on the same run** — which
+is the evidence that the rows could not have caught it.
+
+**And there is a REST route after all**, which this section said had never been found. `POST
+/orgs/{org}/code-security/configurations` takes `dependency_graph` — `enabled`, `disabled` or
+`not_set` — and `…/{id}/attach` applies a configuration to named repositories
+([Code security configurations](https://docs.github.com/en/rest/code-security/configurations)). The
+org already carries GitHub's unattached `GitHub recommended` configuration, id `17`, and
+`provider-tmdb` has none attached. **It is not used here and using it would be a decision, not a
+fix**: the recommended one turns on four things *Dependency and secret scanning* above records as
+deliberately off, and a configuration of our own would replace half of
+`provision-provider-repository.ts` with an attachable object — which is the right shape and is
+nobody's ticket yet. What the route does *not* do is make an already-enabled graph index.
+
+**What preceded it is still worth keeping, because it is why two things are shaped as they are.**
+The whole preflight was run against *this* repository on 20 August 2026, which is not a Provider and
+is refused as one: it reported no job calling the baseline, no `test`, `typecheck`, `lint` or
+`build` script at the root, and no check run by the composed name — naming `test, typecheck, lint,
+build` as what reported instead — and exited non-zero **before the first write**. The
+package-manager half of the third check did **not** fire, because this repository declares
+`packageManager`, so the two halves are independently live. And an earlier version of the check-runs
+step reported `(.name)` there, which is what sent the parsing into `provider-baseline.ts` where it
+is tested: a step that refuses for a plausible-looking reason is indistinguishable from one that is
+working. The ruleset itself was this repository's own, read off the live one that day and reproduced
+with one context instead of two; every comparison in it is under test in
+[`scripts/lib/provider-baseline.test.ts`](../scripts/lib/provider-baseline.test.ts), and the two
+workflow files' shape in
+[`scripts/provider-baseline-workflows.test.ts`](../scripts/provider-baseline-workflows.test.ts).
 
 ### Where a Provider's failure surfaces
 
@@ -724,12 +836,14 @@ documents it.
 
 | Source | Credential | Where it lives now |
 | --- | --- | --- |
-| TMDB | Bearer token, scope `api_read` | **Pending `provider-tmdb`, which does not exist yet.** Removed from the `canoncore` project on 15 August 2026 by **CAN-99 Move the TMDB credential out of the app, atomically with its roster row**. Until that repository exists the token is held nowhere, and is recoverable from [`themoviedb.org/settings/api`](https://www.themoviedb.org/settings/api) — see *External data source: TMDB* below |
+| TMDB | Bearer token, scope `api_read` | **The `provider-tmdb` Vercel project**, as `TMDB_READ_ACCESS_TOKEN`, Sensitive, on Preview and Production — read back with `vercel env ls --project provider-tmdb` on 21 August 2026. It was removed from the `canoncore` project on 15 August 2026 by **CAN-99 Move the TMDB credential out of the app, atomically with its roster row** and held nowhere in between. It is recoverable from [`themoviedb.org/settings/api`](https://www.themoviedb.org/settings/api) — see *External data source: TMDB* below |
 
-**Held nowhere is a real state, and it is recorded rather than tidied away.** A credential whose
-home is unrecorded is the failure this roster exists to prevent; a credential recorded as homeless
-is merely work outstanding. It becomes a row above only if it ever returns to this project, which
-under ADR-0014 it should not.
+**Held nowhere was a real state, and recording it rather than tidying it away is what made the
+change above legible.** A credential whose home is unrecorded is the failure this roster exists to
+prevent; a credential recorded as homeless is merely work outstanding — and the row could be
+corrected the moment the home appeared, because it said where the token was not. **It keeps its
+Holder outside this project**, and becomes a row in the roster above only if it ever returns here,
+which under ADR-0014 it should not.
 
 ### What this check compares, and what it cannot
 
@@ -1417,8 +1531,9 @@ its published terms only, and how long a copy may be kept is a property of the S
 > which puts no *Source* credential in `apps/web`, `TMDB_API_READ_ACCESS_TOKEN` was removed from the
 > `canoncore` Vercel project on 15 August 2026 by **CAN-99 Move the TMDB credential out of the app,
 > atomically with its roster row**, together with its roster row, in one change. **Its destination
-> `provider-tmdb` does not exist yet**, so the token is held nowhere and is reissued from the source
-> named below — *Where a Source credential lives* above records that state.
+> now holds it**: the `provider-tmdb` Vercel project carries it as `TMDB_READ_ACCESS_TOKEN`,
+> Sensitive, on Preview and Production — a different name from the one this project used, and
+> *Where a Source credential lives* above is the row that records it.
 >
 > **What remains here is the account, not the secret.** The table below describes the TMDB account
 > and the registered application, which stay this project's however the credential is held.

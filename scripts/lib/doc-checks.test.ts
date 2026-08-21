@@ -429,9 +429,36 @@ test('the dependency graph is read from the SBOM, which has no field of its own'
   // A package count while on, `404` while off. The refusal this could be confused with is a
   // `403` here, and a caller without admin has already skipped the whole check upstream — so a
   // `404` arriving is the graph being off.
-  assert.deepEqual(readDependencyGraph({ ok: true, output: '696\n' }), { enabled: true, packages: 696 })
-  assert.deepEqual(readDependencyGraph(ghFailure(404, 'Not Found')), { enabled: false, packages: 0 })
+  assert.deepEqual(readDependencyGraph({ ok: true, output: '696\n' }), {
+    enabled: true,
+    indexed: true,
+    packages: 696,
+  })
+  assert.deepEqual(readDependencyGraph(ghFailure(404, 'Not Found')), {
+    enabled: false,
+    indexed: false,
+    packages: 0,
+  })
   assert.throws(() => readDependencyGraph(ghFailure(403, 'Forbidden')), Skip)
+})
+
+test('a graph holding only the repository itself is on and has indexed nothing', () => {
+  // The reading `enabled` cannot carry, and the one a `404` used to be the only sign of. Why one
+  // package is none, and what the threshold rests on, is `readDependencyGraph`'s own docblock.
+  // What is pinned here is the boundary, because it is the whole of the decision.
+  assert.deepEqual(readDependencyGraph({ ok: true, output: '1\n' }), {
+    enabled: true,
+    indexed: false,
+    packages: 1,
+  })
+
+  // Two is the boundary: one dependency beside the repository's own entry is a manifest parsed.
+  assert.equal(readDependencyGraph({ ok: true, output: '2\n' }).indexed, true)
+
+  // Zero has never been seen from this endpoint, and the threshold catches it anyway rather than
+  // resting on that. `> 1` is deliberately not `=== 1`: a reading below the self entry is a graph
+  // holding even less, not a special case to pass through.
+  assert.equal(readDependencyGraph({ ok: true, output: '0\n' }).indexed, false)
 })
 
 test('an SBOM answer that is not a package count fails rather than being read as on', () => {

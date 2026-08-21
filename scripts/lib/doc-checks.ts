@@ -511,8 +511,10 @@ export function readVulnerabilityAlerts(attempt: Attempt): boolean {
 
 /**
  * The dependency graph, which has no read-back field of its own: it is absent from
- * `security_and_analysis`, and the SBOM endpoint stands in for it — a package count while on, and
- * `404` while off.
+ * `security_and_analysis`, and the SBOM endpoint stands in for it — `404` while off, and a package
+ * count while on, which is **two** readings rather than one. `enabled` is whether it answered;
+ * `indexed` is whether the count is more than the repository's own entry. A graph can be the first
+ * without being the second, and that pair is the whole of why this returns three fields.
  *
  * A `404` is also what an endpoint nobody may read can answer, and telling those apart is the
  * whole difficulty. What separates them sits upstream rather than in the response: reaching this
@@ -527,11 +529,33 @@ export function readVulnerabilityAlerts(attempt: Attempt): boolean {
  * not found` without saying which a refusal takes, so anything that is not a `404` is unread here
  * rather than diagnosed.
  *
+ * **`indexed` is the second reading, and `enabled` does not carry it.** A count of one is the
+ * package the SPDX document describes — the repository itself — and no dependency at all: the
+ * graph is on, has parsed no manifest, and leaves Dependabot alerts matching against nothing. That
+ * is the blindness docs/incidents.md → Dependabot alerts were enabled and blind is about, arriving
+ * **without** the `404` that made it legible there, so nothing in the status separates the two.
+ *
+ * **That the self entry is always present is observed rather than documented**, and the threshold
+ * rests on it. [1] describes the `packages` array without saying whether the repository is one of
+ * them; what was read is the `SPDXRef-DOCUMENT … DESCRIBES` relationship pointing at a package
+ * named for the repository, on `provider-tmdb` and on CanonCore, 21 August 2026 — the first
+ * answering `1` package and `totalCount: 0` manifests, the second `781` and `8`.
+ *
+ * **What being wrong about it costs is the caller's to decide, and the two callers decided
+ * differently**: `provision-provider-repository.ts` skips, `check-docs.ts` fails. So this is not a
+ * conservative reading that can only under-report — on an established repository a wrong assumption
+ * here is a red check. Each caller says why it chose what it did; what this function owes them is
+ * the reading, not the verdict.
+ *
  * [1] https://docs.github.com/en/rest/dependency-graph/sboms
  */
-export function readDependencyGraph(attempt: Attempt): { enabled: boolean; packages: number } {
+export function readDependencyGraph(attempt: Attempt): {
+  enabled: boolean;
+  indexed: boolean;
+  packages: number;
+} {
   if (!attempt.ok) {
-    if (httpStatus(attempt.output) === 404) return { enabled: false, packages: 0 };
+    if (httpStatus(attempt.output) === 404) return { enabled: false, indexed: false, packages: 0 };
     skip(`could not read \`dependency-graph/sbom\`: ${explainFailure(attempt.output)}`);
   }
   // `Number("")` is `0`, so the emptiness has to be caught before the parse rather than by it:
@@ -547,7 +571,7 @@ export function readDependencyGraph(attempt: Attempt): { enabled: boolean; packa
       `\`dependency-graph/sbom\` answered "${answer}" where a package count was expected, so the ` +
         "graph's row is not being compared. The SBOM payload's shape may have moved.",
     );
-  return { enabled: true, packages };
+  return { enabled: true, indexed: packages > 1, packages };
 }
 
 /** The three sources' answers, named as the roster's own Read back by column names them. */

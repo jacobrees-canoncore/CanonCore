@@ -446,6 +446,26 @@ check("the security-settings roster matches the repository", () => {
       `the security-settings roster in ${CONTEXT_HOME} disagrees with the repository:\n    - ` +
         problems.join("\n    - "),
     );
+  // **The graph row agreeing is not the graph seeing anything**, and the row cannot express the
+  // difference: it says `enabled`, and a graph holding nothing is enabled. What that leaves is the
+  // two Dependabot rows beside it matching against an empty index — `readDependencyGraph` carries
+  // the reading and the incident it belongs to. It is checked here rather than in
+  // `compareSecuritySettings` because it is not a disagreement with the document, and that
+  // function's job is the comparison.
+  //
+  // **`fail` here where `provision-provider-repository.ts` skips on the identical condition**, and
+  // the difference is the repository rather than the reading. There it is a repository created
+  // minutes ago whose graph GitHub has not got to yet: provisioning genuinely succeeded, nothing
+  // the operator can do would help, and a FAIL would report their work as broken. Here it is a
+  // repository years into its life whose graph has been indexing all along, so the same reading is
+  // a live posture defect rather than a wait. This check is local-only, so a red one costs a laptop
+  // rather than every merge.
+  if (graph.enabled && !graph.indexed)
+    fail(
+      "the dependency graph is on and holds no dependency at all, so it has indexed no manifest " +
+        "and the two Dependabot rows above are matching against nothing. The roster agrees with " +
+        "it either way, which is why this is checked separately.",
+    );
   // The package count is reported and never compared: it moves with every dependency change, and
   // a gate that is red on arrival is a gate that gets ignored. What it is evidence of is the graph
   // answering at all, which is the row that has no field of its own to read back.
@@ -586,9 +606,19 @@ check(`${ALWAYS_LOADED} is within its own stated line target`, () => {
 // every merge in every Provider repository that already requires the old string. Nothing in a
 // Provider repository would report that, and there is no ruleset here to compare against.
 //
-// So the composition is checked where both halves live. What it cannot reach is the Provider
-// rulesets themselves: none exists yet, and a check iterating an empty roster is the vacuous pass
-// this file fails on elsewhere. That comparison belongs to the first ticket that creates one.
+// So the composition is checked where both halves live. What it does not reach is the Provider
+// rulesets themselves, and since 21 August 2026 one exists — `provider-tmdb`'s, requiring this
+// string. It stays out of this file on purpose rather than for want of a subject:
+// `provision-provider-repository.ts` reads every setting it wrote back and exits non-zero on any
+// that has drifted, so **a re-run of it is the nearest thing to that comparison** — and a check
+// here would first need a roster of Provider repositories written into a document, a second copy of
+// a list the organisation already holds, which is the drift this file exists to catch rather than
+// to create.
+//
+// **That is not the same as drift detection existing.** The re-run writes before it reads, and
+// nothing runs it unprompted, so what it catches is drift somebody already went looking for.
+// **CAN-145 Give the Provider provisioning a report-only mode, and something that runs it** owns
+// both halves; docs/infrastructure.md -> What the first real run showed records the gap.
 // ---------------------------------------------------------------------------
 
 check("the Provider baseline context matches the documented one", () => {
