@@ -951,7 +951,8 @@ have access to the repository if it's private"*, which reads like a typo and is 
 /user/installations/{id}/repositories/{repo_id}` needs a user access token *created for that app*,
 and `gh`'s is not one however many scopes it carries — it answers `403` *"You do not have permission
 to modify this app"* to an account that is an organisation owner. So it is the App's own settings
-page, and the next Provider should expect the same step.
+page, a person's passkey, and about a minute; **it was done for `provider-tmdb` on 21 August 2026**,
+and `vercel git connect` succeeded on the next attempt. The next Provider should expect the same step.
 
 #### What is true of the first Provider today
 
@@ -972,8 +973,13 @@ are estate facts a sweep of this account would otherwise have to rediscover:
   `vercel project protection canoncore` answers `ssoProtection: null`. *Hosting* above records only
   the Preview half of that, and dates it 16 August 2026 — so this is the estate agreeing with itself
   rather than a new exception, though the two rows were read through different commands.
-- **The Git connection is not made**, so no deployment exists yet and the project is still `link:
-  null`. The blocker is the App grant two paragraphs above, and it is a person's step.
+- **It deploys, and the deployment serves the contract.** Linked 21 August 2026, and the first push
+  after it answered `401` with `content-type: application/problem+json` at `/v1/capabilities` while
+  `/logo.svg` answered `200` — which is the function running rather than `public/` published as a
+  static site, the failure two paragraphs below. It ran in `lhr1`. **That Provider's own register
+  holds the readings**, and *What the first deployment settled* there also records the one thing
+  worth carrying to the next Provider: the first deployment took the production alias off a branch
+  that was not `main`, for a reason one observation cannot establish.
 
 #### The two ways a Provider's first deployment builds green and serves nothing
 
@@ -1010,13 +1016,15 @@ the same rule that governs every other required context here. Connecting Git is 
 Provider a candidate rather than a hypothetical, and adding the context afterwards is nobody's
 ticket yet.
 
-**One of the two rows in the table above is asserted rather than observed, and the distinction is the
-usual one.** `framework` is confirmed from the build: `vercel build` writes
+**Both rows in the table above are now observed, and they had to be observed differently.**
+`framework` is confirmed from the build: `vercel build` writes
 `config: {zeroConfig: true, framework: "hono"}` into `builds.json` and reports
 `detectedFramework: {status: "skipped"}`, which is detection standing down because the file named it.
-**`regions` appears nowhere in `.vercel/output`**, because it is applied when a deployment is created
-rather than when one is built — so nothing local can show it taking, and the first deployment's own
-function region is what settles it.
+**`regions` appears nowhere in `.vercel/output`** — it is applied when a deployment is created rather
+than when one is built — so nothing local could show it, and it took a real deployment: `["lhr1"]` on
+the deployment, and `x-vercel-id: lhr1::lhr1::…` on every response. **A `vercel.json` row is worth
+checking on both sides for that reason**: which of the two a setting lands on is not something the
+file's own shape tells you.
 
 ### Where a Provider's failure surfaces
 
@@ -1027,7 +1035,7 @@ in place today:
 | The failure | Where it surfaces | State |
 | --- | --- | --- |
 | Its gate goes red | GitHub's own Actions notification: *"you'll receive a notification when any workflow runs that you've triggered have completed"* ([Notifications for workflow runs](https://docs.github.com/en/actions/concepts/workflows-and-actions/notifications-for-workflow-runs)) | **Inherited rather than built here**, and it holds only while every push to a Provider repository is a person's: it reaches whoever triggered the run and nobody else, so installing Renovate on a Provider repository would make its failures silent. The alternative was a notifying step in the baseline, which would put a sending credential in six public repositories to buy what GitHub already does today |
-| The deployment is gone | An UptimeRobot monitor of its own, from the fifty [ADR-0018](adr/0018-observability-sentry-and-an-uptime-monitor-outside-it.md) holds in reserve for exactly this | **Not provisioned.** No Provider deployment exists yet |
+| The deployment is gone | An UptimeRobot monitor of its own, from the fifty [ADR-0018](adr/0018-observability-sentry-and-an-uptime-monitor-outside-it.md) holds in reserve for exactly this | **Not provisioned**, and no longer for want of something to watch: `provider-tmdb` has deployed since 21 August 2026. What still blocks it is the decision below, not the deployment |
 | An exception inside it | A Sentry project of its own, as `apps/mobile` and `apps/tv` each get one | **Not provisioned**, and blocked: nothing reports to Sentry at all yet, and **CAN-51 Keep a record of server errors past the hour Vercel keeps them** owns the SDK's shape |
 
 **One thing has to be decided before the second row can be provisioned, and it is not a settings
@@ -1310,10 +1318,12 @@ documents it.
 in a project that served nothing. **CAN-152 Implement the Provider contract in provider-tmdb, and
 close its endpoint** is what reads it: the repository serves version 1 of the contract, closes its
 endpoint against `CANONCORE_ACCESS_TOKEN`, and derives `liveness` from TMDB's daily ID exports.
-**What still does not exist is the deployment**, though how it will be made now does:
+**And it now runs somewhere.**
 [CAN-150 provider-tmdb is provisioned on GitHub and unwired on Vercel, so nothing deploys](https://linear.app/jacobrees-canoncore/issue/CAN-150)
-settled that on 21 August 2026 — *How a Provider deploys* above — and left one step that needs a
-person. So the code is written and running nowhere for a reason that is now named rather than open.
+connected the project to Git on 21 August 2026 and observed a push produce a deployment that answers
+on the contract's paths — *How a Provider deploys* above. **What is still missing is the caller**:
+the application holds no `CANONCORE_ACCESS_TOKEN`, so the Provider is deployed, closed, and reached
+by nothing ([CAN-113 Add a Provider by pasting its URL](https://linear.app/jacobrees-canoncore/issue/CAN-113)).
 
 **Held nowhere was a real state, and recording it rather than tidying it away is what made the
 change above legible.** A credential whose home is unrecorded is the failure this roster exists to
