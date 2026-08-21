@@ -22,6 +22,7 @@ document does that for the measure and for everything beside it.
 - [The measure is a preference, and it is 34 rem](#the-measure-is-a-preference-and-it-is-34-rem)
 - [The criteria taken while designing, and what each measured](#the-criteria-taken-while-designing-and-what-each-measured)
 - [The values live twice, and a test is what keeps them equal](#the-values-live-twice-and-a-test-is-what-keeps-them-equal)
+- [The two states nothing calls yet](#the-two-states-nothing-calls-yet)
 - [What will try to reopen it](#what-will-try-to-reopen-it)
 - [Consequences](#consequences)
 
@@ -182,6 +183,31 @@ and the second renderer is already inside v1* has the count: of that format's th
 `number` crosses unchanged and three are lossy. So the check is
 `apps/web/src/app/design-tokens.test.ts`, and it asserts agreement **in both directions**, because a
 one-way check passes a sheet that has quietly grown a token nothing else can read.
+
+## The two states nothing calls yet
+
+`forbidden.tsx` and `unauthorized.tsx` exist, and nothing in the application calls `forbidden()` or
+`unauthorized()`. Both functions are **`experimental` at the installed Next 16.3.0** and refuse to
+work without `experimental.authInterrupts` in `next.config.ts`, so that flag is on for two states
+that cannot currently be reached.
+
+**That sits against a principle rather than beside it.** `CLAUDE.md` → *Engineering principles*
+rules out configuration for a need that does not exist, and on its own this is exactly that. It is
+recorded here rather than argued in three files because a decision that overrides a principle
+belongs in the place `CODING_STANDARDS.md` → *ADRs override the baseline* says overrides live.
+
+**What decides it is that the alternative is worse, and cheap to reverse if it is not.** A page that
+says a reader may not see something is a design decision — its heading, its tone, and how carefully
+it avoids telling a signed-out stranger that signing in would have been enough. Left out, that
+decision falls to
+[CAN-32 Roles, takedown, and the Online Safety Act surfaces](https://linear.app/jacobrees-canoncore/issue/CAN-32),
+which is busy with roles, takedown and the statutory surfaces, and would take it by default — which
+is the failure [ADR-0013](0013-hand-written-css-no-framework.md) exists to record, on the two pages
+that tell a person what they are not allowed to do. The flag switches on those two functions and the
+two files that render for them and nothing else, and removing all of it is three deletions.
+
+**What would reverse it**: Next.js dropping the APIs rather than stabilising them, or CAN-32 landing
+with no role that can forbid anything — in which case both pages go, and the flag with them.
 
 ## What will try to reopen it
 

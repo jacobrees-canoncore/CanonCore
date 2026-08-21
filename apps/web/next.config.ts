@@ -33,9 +33,8 @@ const nextConfig: NextConfig = {
     // **`forbidden()` and `unauthorized()` are experimental at 16.3.0 and refuse to work without
     // this**, which is the whole of what it switches on: the two functions, and the
     // `forbidden.tsx` / `unauthorized.tsx` files that render for them. Next's own reference for
-    // both says so in terms. Turned on by CAN-89 Give the product a visual identity and a reading
-    // surface, which designs those two pages; CAN-32 Roles, takedown, and the Online Safety Act
-    // surfaces brings the first roles there is anything to be forbidden by.
+    // both says so in terms. Why it is on before anything calls either, and what would turn it off
+    // again: `docs/adr/0028-the-visual-identity.md` -> *The two states nothing calls yet*.
     authInterrupts: true,
   },
 };

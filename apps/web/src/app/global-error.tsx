@@ -13,6 +13,7 @@ import {
   spacing,
   typeScale,
 } from "@canoncore/config";
+import type { ErrorBoundaryProps } from "./interruption";
 
 /**
  * The last page there is: the root layout itself threw, so there is no shell, no `globals.css` and
@@ -73,13 +74,7 @@ const sheet = `
   @media (forced-colors: active) { :focus-visible { outline-color: Highlight; } }
 `;
 
-export default function GlobalError({
-  error,
-  retry,
-}: {
-  error: Error & { digest?: string };
-  retry: () => void;
-}) {
+export default function GlobalError({ error, retry }: ErrorBoundaryProps) {
   return (
     // `global-error` renders the document, so it has to supply the two elements a document is.
     <html lang="en">

@@ -40,10 +40,17 @@ const sheet = readFileSync(resolve("src/app/globals.css"), "utf8");
  * `after` picks which `:root` — the file has two, and the second is inside the
  * `prefers-color-scheme: dark` media query. Scanning to the first `}` is enough because neither
  * block nests anything.
+ *
+ * The pattern carries the brace because the sheet's own header comment says the word `:root` in
+ * prose, and a search for the bare word finds that first. It reached the right block anyway, by way
+ * of the next `{` happening to be the real one — which is the kind of thing that keeps working
+ * until somebody edits a comment.
  */
 function declarations(after: string): Map<string, string> {
-  const from = sheet.indexOf(":root", sheet.indexOf(after));
-  const open = sheet.indexOf("{", from);
+  const block = /:root\s*\{/g;
+  block.lastIndex = sheet.indexOf(after);
+  const start = block.exec(sheet)!.index;
+  const open = sheet.indexOf("{", start);
   const body = sheet.slice(open + 1, sheet.indexOf("}", open));
   const found = new Map<string, string>();
   for (const line of body.split(";")) {

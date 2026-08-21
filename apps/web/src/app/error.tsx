@@ -1,6 +1,6 @@
 "use client";
 
-import { Interruption } from "./interruption";
+import { type ErrorBoundaryProps, Interruption } from "./interruption";
 
 /**
  * What a page becomes when rendering it threw, anywhere below the root layout.
@@ -19,13 +19,7 @@ import { Interruption } from "./interruption";
  * `retry` rather than `reset`, which Next 16 documents as the one to reach for: it re-fetches and
  * re-renders the boundary's children, where `reset` only clears the error state.
  */
-export default function PageError({
-  error,
-  retry,
-}: {
-  error: Error & { digest?: string };
-  retry: () => void;
-}) {
+export default function PageError({ error, retry }: ErrorBoundaryProps) {
   return (
     <>
       <Interruption heading="Something went wrong">

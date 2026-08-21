@@ -2901,8 +2901,9 @@ change added the states a route can be in and had none of — `loading`, `error`
 `not-found`, `forbidden` and `unauthorized` — and the application's first favicon, `icon.svg`.
 **`forbidden` and `unauthorized` are experimental at Next 16.3.0** and need the
 `experimental.authInterrupts` opt-in that `next.config.ts` now carries; nothing calls either
-function yet, so what exists is the design rather than a reachable page. The values the shell is
-drawn in are [ADR-0028](adr/0028-the-visual-identity.md).
+function yet, so what exists is the design rather than a reachable page —
+[ADR-0028](adr/0028-the-visual-identity.md) → *The two states nothing calls yet* is why it is on
+before anything reaches it. The values the shell is drawn in are that same ADR.
 
 **There is still no way for anyone but the operator to put a row here**, which is the sentence *Gate
 one* rests on: nothing in the product creates a record, so an account holds nothing its holder

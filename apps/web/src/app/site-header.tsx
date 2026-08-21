@@ -35,13 +35,14 @@ export function SiteHeader() {
           **The one suppression in this application, and the rule fires here alone for a reason that
           is not about policy.** `@next/next/no-html-link-for-pages` compares each `href` through
           `normalizeURL`, which appends a trailing slash to everything except `"/"`, against route
-          patterns built without one — so `^/sign-in$` never matches `/sign-in/`, and the four plain
-          anchors on the front page and the account pages go unreported while this one does. Read
+          patterns built without one — so `^/sign-in$` never matches `/sign-in/`. **Ten plain page
+          anchors across six files go unreported while this one does**, spelling four addresses
+          between them: `/sign-in`, `/sign-up`, `/forgot-password` and `/privacy/analytics`. Read
           off `@next/eslint-plugin-next@16.3.0`, `dist/utils/url.js`, on 21 August 2026.
 
           So taking `next/link` here would not be following a rule the repository otherwise follows;
-          it would be paying 8,401 bytes on every page because one href out of five is spelled in a
-          way the matcher happens to reach. The trade is the one the doc comment above states, and
+          it would be paying 8,401 bytes on every page because one address out of the five this
+          application links to is spelled in a way the matcher happens to reach. The trade is the one the doc comment above states, and
           `no-linkification.test.tsx` is what actually holds this application's anchors to a closed
           set.
         */}
