@@ -963,14 +963,13 @@ order ships a consumer calling something that does not exist.
 ### The lane is closed out, and the checkout is left for a person
 
 A merge ends the ticket; it does not end the lane. The worktree stays on disk, its terminals stay
-live, and its board card keeps whatever status it had when the work started. That is how five lanes
-came to be tidied up by hand on 16 and 17 August 2026 — each one after re-deriving the merge
-evidence `/review-pr` was already holding, which is why the close-out belongs in the skill rather
-than in a habit.
+live, and its board card keeps whatever status it had when the work started — three things that
+outlive the merge and are nobody's job until somebody notices
+([incident](../incidents.md#five-merged-lanes-were-closed-out-by-hand)).
 
 **So `/review-pr` closes the lane out itself, and closing out is two things rather than three**: the
 board card is set to `completed`, and the lane's terminals are stopped. **The checkout is left**,
-and that is the decision, not the part nobody got round to.
+and that is the decision rather than the part nobody got round to.
 
 - **Rejected: removing the worktree.** It is what was done by hand every time, and it is safe —
   `orca worktree rm` deletes an already-merged branch and preserves an unmerged one, so the older
@@ -979,18 +978,20 @@ and that is the decision, not the part nobody got round to.
   → *Known negatives, recorded so they are not re-investigated*). It is rejected on other grounds: a
   checkout is cheap to keep, and discarding the work is a call for a person rather than one to take
   from a skill's own reading of a merge. The skill offers the line and a person runs it.
-- **`completed` is the value, and it is written down here because nothing checks it.**
-  `--workspace-status` takes any string — an unknown id is accepted and becomes the card's status —
-  so a misspelling produces a column nobody looks at rather than an error. The four default board
-  ids are `todo`, `in-progress`, `in-review` and `completed`.
-- **The close-out acts only on a proven merge**, on the evidence the report already quotes: `state`,
-  `mergedAt`, and the lane's head still matching the merged `headRefOid`. Nothing is destroyed if it
-  acts wrongly; what it would waste is the work of a lane that never landed.
+- **`completed` is the value, and it is written down here because nothing checks it.** An unknown
+  status id is accepted and becomes the card's status
+  ([incident](../incidents.md#an-unknown-board-status-id-is-accepted-and-becomes-the-cards-status)),
+  so a misspelling buys a column nobody looks at rather than an error.
+- **The close-out acts only on a proven merge** — the evidence the report already quotes: `state`,
+  `mergedAt`, and the lane's head still matching the merged `headRefOid`. Nothing is destroyed when
+  it acts wrongly, because nothing is removed; what goes wrong is quieter than that. An unfinished
+  lane goes dark with its card reading done, and the work in it is forgotten rather than lost.
 - **From a plain clone it is a no-op, announced rather than skipped silently.** A branch made with
   `git switch -c` has no Orca worktree behind it, and the loop has to keep working there.
 
-**Stopping the terminals is the last act of all, after the report, because it ends the session that
-would otherwise write it.** `orca terminal stop` takes a worktree and stops every pty under it, and
-when `/review-pr` runs inside the lane one of those is its own. So the report comes first and says
-what the close-out did and what is about to happen; then the lane goes quiet, and `orca worktree ps`
-reads `status: "inactive"` instead of a merged lane still reporting itself live.
+**Stopping the terminals is the last act of all, and the report comes before it.** `orca terminal
+stop` takes a worktree and stops every pty under it, the caller's included, so a lane's own agent
+does not survive the call it made
+([incident](../incidents.md#a-terminal-that-stops-its-own-worktree-prints-the-result-and-then-dies)).
+The ordering is forced rather than chosen: a close-out that stopped the terminals first would
+produce no report at all.

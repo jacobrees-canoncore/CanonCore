@@ -36,6 +36,9 @@ is what the rule was built on.
 - [The harness classifier refused `gh pr create`](#the-harness-classifier-refused-gh-pr-create)
 - [A slash command sent mid-message never loaded](#a-slash-command-sent-mid-message-never-loaded)
 - [An unauthenticated OAuth MCP server exposes only its sign-in tools](#an-unauthenticated-oauth-mcp-server-exposes-only-its-sign-in-tools)
+- [Five merged lanes were closed out by hand](#five-merged-lanes-were-closed-out-by-hand)
+- [A terminal that stops its own worktree prints the result and then dies](#a-terminal-that-stops-its-own-worktree-prints-the-result-and-then-dies)
+- [An unknown board status id is accepted and becomes the card's status](#an-unknown-board-status-id-is-accepted-and-becomes-the-cards-status)
 
 **The tracker**
 - [The Linear→GitHub sync reverted a description write](#the-lineargithub-sync-reverted-a-description-write)
@@ -465,6 +468,54 @@ sign-in completes: it exposes `authenticate` and `complete_authentication` and n
 
 **What it proves.** An empty toolset is a sign-in state, not a broken server and not an absent
 capability. Sign-in state is per session and belongs in no document as standing fact.
+
+## Five merged lanes were closed out by hand
+
+**16 and 17 August 2026**, recorded on CAN-128 Close out the worktree when /review-pr lands a merge.
+Five worktrees — `can-86`, `can-102`, `can-123`, `can-56`, `can-54` — were removed by hand after
+their pull requests had merged, each one after checking by hand that the branch had genuinely
+landed. The lanes themselves left no trace behind them, so the removals cannot be re-run from git
+([`research/orca-gaps-and-the-worktree-workflow.md`](research/orca-gaps-and-the-worktree-workflow.md)
+→ *The lane era is datable, and "thirteen" is exactly right*).
+
+**What it proves.** The check a person was repeating is one `/review-pr` had already made and
+quoted: the pull request's `state` and `mergedAt`. A lane outlives the merge in three ways at once —
+checkout, terminals, board card — and none of them is anybody's job until somebody notices.
+
+## A terminal that stops its own worktree prints the result and then dies
+
+**21 August 2026, on CAN-128 Close out the worktree when /review-pr lands a merge**, Orca 1.4.186.
+`orca terminal stop` takes `--worktree <selector>` and no terminal selector — *"Stop terminals for a
+worktree"* (`orca terminal stop --help`) — so it stops every live pty under the worktree, the
+caller's included. On a throwaway worktree, its one shell was sent
+`orca terminal stop --worktree current --json; echo SURVIVED_THE_STOP`. The shell's tail holds the
+whole response — `ok: true`, `result.stopped` of `1` — and no `SURVIVED_THE_STOP`. `terminal list`
+then returned no terminals and `worktree ps` read `status: "inactive"` with `liveTerminalCount: 0`,
+while the worktree stayed listed and on disk until it was removed.
+
+**Why.** The CLI passes the selector straight through: `terminal.stop` resolves to
+`runtime.stopTerminalsForWorktree(worktree)` in the bundled runtime, with no exclusion for the
+caller. It is the call the desktop application's *Sleep* makes.
+
+**What it proves.** The response comes back and the shell that asked for it does not survive to use
+it. So a step that runs this can only be the last step there is: an agent inside the lane cannot act
+on the output, and whatever it has not already said is never said. The ordering is forced rather
+than preferred — stopping the terminals before reporting produces no report at all.
+
+## An unknown board status id is accepted and becomes the card's status
+
+**21 August 2026, on CAN-128 Close out the worktree when /review-pr lands a merge**, Orca 1.4.186.
+`orca worktree set --worktree current --workspace-status not-a-real-status --json` returned
+`ok: true` carrying `workspaceStatus: "not-a-real-status"`, and `orca worktree show` read the same
+value back. The lane was set to `in-progress` again immediately.
+
+**Why.** The flag is documented as *"Board status id (defaults: todo, in-progress, in-review,
+completed)"* (`orca worktree set --help`), and the CLI forwards whatever string it is given rather
+than checking it against the board.
+
+**What it proves.** A misspelled status is not an error, it is a board column nobody looks at. So a
+status a skill writes has to be recorded where a reader can check the spelling, and read back from
+the call's own output rather than assumed from its exit code.
 
 ---
 
