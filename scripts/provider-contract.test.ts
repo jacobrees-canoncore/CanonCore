@@ -8,6 +8,8 @@ import { Validator } from "@seriousme/openapi-schema-validator";
 import Ajv from "ajv/dist/2020.js";
 import addFormats from "ajv-formats";
 
+import { parseGlossary } from "./lib/doc-checks.ts";
+
 // The gate on the published Provider contract, which is a machine-readable artefact rather than
 // prose: docs/provider-contract/v1/openapi.yaml. The argument for every shape asserted here is
 // docs/adr/0022-the-provider-contract.md, and what the contract has to carry at all is
@@ -102,13 +104,16 @@ const validatorFor = (schema: string) =>
  * below read it rather than only quoting it in a comment — a quotation goes stale silently and a
  * read does not. Throws when the term is absent, since a vocabulary whose concept the glossary has
  * dropped is the failure this is here to catch.
+ *
+ * Read through `parseGlossary`, which is where the document's shape is known: a second regex over
+ * the same headings is exactly the drift `check-docs.ts` exists to catch.
  */
 function glossaryEntry(term: string): string {
-  const glossary = readFileSync(join(ROOT, "CONTEXT.md"), "utf8");
-  const found = glossary.match(new RegExp(`^\\*\\*${term}\\*\\*:\\n([\\s\\S]*?)^_Avoid_:`, "m"));
+  const glossary = parseGlossary(readFileSync(join(ROOT, "CONTEXT.md"), "utf8"));
+  const found = glossary.terms.find((t) => t.term === term);
 
   assert.ok(found, `CONTEXT.md defines no term "${term}"`);
-  return found[1];
+  return found.definition;
 }
 
 /** A conformant capability declaration, as the minimum every case below varies from. */

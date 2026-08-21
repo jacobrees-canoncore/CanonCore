@@ -157,7 +157,7 @@ check, and the honest response is to say so rather than to pretend the shape is 
 `§3` prescribes a notice, and its FAQ separately requires an About or Credits section whose wording
 differs — recorded on CAN-105 Carry each Source's attribution obligation through to every surface
 that displays it, which says the declaration must carry the notice verbatim per Source rather than
-assume one canonical string. A single slot would have pushed the second text into the prose
+assume a single string. A single slot would have pushed the second text into the prose
 `conditions` field, which a consumer is not obliged to render, so the obligation would have been
 declared and undischargeable at once. Each notice carries its own condition, because the two differ
 in placement as well as in wording.
@@ -283,7 +283,7 @@ as a sorted array of record identifiers.
 
 **`canonical` is gated twice.** An Ordering declares whether it is the Source's own sequence, and a
 consumer treats that as `false` unless the capability declaration says this Provider may serve a
-canonical Ordering at all. One community's reading imported as the Source's own is the
+`canonical` Ordering at all. One community's reading imported as the Source's own is the
 misattribution ADR-0014 → *Decision 9* is about, arriving through a different door.
 
 **Serving no Orderings is conformant**, and the declaration's absence is how a Provider says so.

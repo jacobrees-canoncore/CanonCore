@@ -173,7 +173,7 @@ and until it lands the **Fallback** below is provisional in its target, though n
 
 ## Consequences
 
-- **Broadcast order is the canonical episode set, not an episode group.** TMDB stores one episode
+- **Broadcast order is TMDB's own episode set, not an episode group.** TMDB stores one episode
   set in original air order as editorial policy — "episodes should be added as they first aired on
   their original channel", and "Please do not ask us to change the episodes to a non-original
   order. There is an 'Episode Group' feature that can be used for all and any alternative orders."

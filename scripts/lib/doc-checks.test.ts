@@ -28,6 +28,8 @@ import {
   loadedLines,
   parseDocumentedLineTarget,
   resolvePointer,
+  findAvoidedWords,
+  parseGlossary,
 } from './doc-checks.ts'
 
 // `vercel env ls` as it actually prints: OSC 8 hyperlinks around each environment name, one row
@@ -971,4 +973,220 @@ test('prose that reads like a target does not become one', () => {
   ].join('\n')
 
   assert.equal(parseDocumentedLineTarget(body), 200)
+})
+
+// --- The glossary's `_Avoid_` lists ------------------------------------------------------------
+
+/**
+ * A glossary laid out like `CONTEXT.md`: the exemption table, then entries carrying a definition,
+ * an optional `_e.g._` line and an `_Avoid_` list. Only the entries a case needs are written, so
+ * the shared/one-owner split is whatever that case set up rather than whatever the real glossary
+ * happens to hold today.
+ */
+const glossaryOf = (entries: string, exemptions: string[] = []) =>
+  parseGlossary(
+    [
+      '## Language',
+      '',
+      '**A proper name is exempt.**',
+      '',
+      '| Phrase | Why the word is not the banned one |',
+      '| --- | --- |',
+      ...(exemptions.length ? exemptions : ['| `nothing at all` | A row, so the table has one |']),
+      '',
+      entries,
+    ].join('\n'),
+  )
+
+const MERGE = ['**Merge**:', "One person's assertion that two Anchors are the same thing.", '_Avoid_: Deduplicate, link, alias, combine, resolve'].join('\n')
+const ORDERING = ['**Ordering**:', 'A named, authored sequence over Stories.', '_e.g._ Broadcast order. An in-universe chronology.', '_Avoid_: List, order, sort, sequence, timeline, collection, playlist'].join('\n')
+const CATALOGUE = ['**Catalogue**:', "One person's own Stories.", '_Avoid_: Library, collection, database'].join('\n')
+
+test('the glossary is read out of the document rather than carried here', () => {
+  const glossary = glossaryOf([MERGE, ORDERING].join('\n\n'))
+
+  assert.deepEqual(
+    glossary.terms.map((t) => t.term),
+    ['Merge', 'Ordering'],
+  )
+  assert.deepEqual(glossary.terms[0].avoid, ['deduplicate', 'link', 'alias', 'combine', 'resolve'])
+  // Carried for `provider-contract.test.ts`, which asserts the contract's closed vocabularies are
+  // the words the glossary defines. It stops at the `_Avoid_` line, which is not the definition.
+  assert.match(glossary.terms[0].definition, /two Anchors are the same thing/)
+  assert.doesNotMatch(glossary.terms[0].definition, /Avoid/)
+})
+
+test('a term whose entry states no `_Avoid_` list fails rather than passing over it', () => {
+  // The lists are the whole subject. An entry that lost one would otherwise be a concept the
+  // check silently stopped enforcing, which is the drift this file exists to catch.
+  assert.throws(
+    () => glossaryOf(['**Merge**:', 'One assertion.'].join('\n')),
+    /Merge.*no `_Avoid_` list/,
+  )
+})
+
+test('a glossary holding no terms fails, because an empty set is not agreement', () => {
+  assert.throws(() => glossaryOf('Nothing but prose here.'), /no glossary entries were found/)
+})
+
+test('a word used for the concept its list names is a finding', () => {
+  const found = findAvoidedWords(
+    'A Merge is one assertion, held as an alias rather than a rewrite.',
+    glossaryOf(MERGE),
+  )
+
+  assert.deepEqual(
+    found.map((f) => [f.term, f.word]),
+    [['Merge', 'alias']],
+  )
+})
+
+test('the same word in a sentence that names no concept is left alone', () => {
+  // The whole of the scoping: `alias` is banned for Merge, not banned outright. A sentence about
+  // DNS is not a sentence using it for Merge, and flagging it would be the noise that gets a
+  // gate turned off.
+  assert.deepEqual(
+    findAvoidedWords('The record is held as an alias of the apex.', glossaryOf(MERGE)),
+    [],
+  )
+})
+
+test('a word more than one concept bans is not checkable at all', () => {
+  // `collection` is on Ordering's list and on Catalogue's. The glossary has not settled which
+  // concept a bare use belongs to, so neither can this.
+  assert.deepEqual(
+    findAvoidedWords(
+      'An Ordering is not a collection, and neither is a Catalogue.',
+      glossaryOf([ORDERING, CATALOGUE].join('\n\n')),
+    ),
+    [],
+  )
+})
+
+test('a verb is not a name, so it is not a use of the word for the concept', () => {
+  assert.deepEqual(
+    findAvoidedWords('One Ordering lists a serial where another lists episodes.', glossaryOf(ORDERING)),
+    [],
+  )
+})
+
+test('a proper name passes, which is the exemption the glossary already writes', () => {
+  const found = findAvoidedWords(
+    'An Ordering is separate, so a broadcast order and a chronological order are two of them.',
+    glossaryOf(ORDERING, ['| `broadcast order` | A proper name of one Ordering |']),
+  )
+
+  assert.deepEqual(
+    found.map((f) => f.quote),
+    ['a chronological order'],
+  )
+})
+
+test("the glossary's own `_Avoid_` and `_e.g._` lines are the lists and the names, not prose", () => {
+  // Ordering's list is the word `order` itself, and its example is "Broadcast order". A check
+  // reading either as prose would fail on the glossary that defines it.
+  assert.deepEqual(findAvoidedWords(ORDERING, glossaryOf(ORDERING)), [])
+})
+
+test('an `_e.g._` mid-sentence is prose, and does not take the rest of the paragraph with it', () => {
+  // The marker is structural where the glossary puts it — opening a line of its own. Read anywhere
+  // else it would silently stop checking the rest of a paragraph, which is a hole nothing reports.
+  const found = findAvoidedWords(
+    'One example follows — _e.g._ a Merge is held as an alias rather than a rewrite.',
+    glossaryOf(MERGE),
+  )
+
+  assert.deepEqual(
+    found.map((f) => f.word),
+    ['alias'],
+  )
+})
+
+test('a table cell is a sentence of its own, because a row is not one', () => {
+  // Tables are not parsed as tables here — the parser is CommonMark, where a table is a paragraph
+  // of pipes — so without a boundary at `|` the register would be whatever any cell in the table
+  // named, and the rows above and below it would join in.
+  assert.deepEqual(
+    findAvoidedWords(
+      ['| Concept | How it is held |', '| --- | --- |', '| A Merge | as an alias |'].join('\n'),
+      glossaryOf(MERGE),
+    ),
+    [],
+  )
+})
+
+test('a word inside a code span is code rather than prose', () => {
+  assert.deepEqual(
+    findAvoidedWords('A Merge is stored in `an alias` column.', glossaryOf(MERGE)),
+    [],
+  )
+})
+
+test('the line reported is the line the word sits on, not the block it started in', () => {
+  const found = findAvoidedWords(
+    ['# Heading', '', 'A Merge is one assertion,', 'held as an alias rather than a rewrite.'].join('\n'),
+    glossaryOf(MERGE),
+  )
+
+  assert.deepEqual(
+    found.map((f) => f.line),
+    [4],
+  )
+})
+
+// --- A word the glossary only ever uses to qualify another term --------------------------------
+
+const VALIDITY = ['**Validity**:', 'Whether the thing a Placement records counts.', '_Avoid_: Canon, canonical, canonicity, official, legitimate'].join('\n')
+const VERSION = ['**Version**:', 'One specific way a Story can be watched.', '_Avoid_: Edition, cut, release'].join('\n')
+const CANONICAL_VERSION = ['**Canonical version**:', 'An optional pointer from a Story to a Version.', '_Avoid_: Default, primary, main, preferred'].join('\n')
+
+const QUALIFIED = glossaryOf([VALIDITY, VERSION, CANONICAL_VERSION].join('\n\n'))
+
+test('a banned word the glossary only uses to qualify a term is a finding wherever it stands alone', () => {
+  // No sentence here names Validity, and that is the point: `canonical` qualifies *Version* in
+  // the glossary and does nothing else, so it has no standalone job to be doing.
+  const found = findAvoidedWords('Broadcast order is the canonical episode set.', QUALIFIED)
+
+  assert.deepEqual(
+    found.map((f) => [f.term, f.word]),
+    [['Validity', 'canonical']],
+  )
+})
+
+test('the qualified term itself passes, since that is the word the glossary has', () => {
+  assert.deepEqual(
+    findAvoidedWords('A Story may point at a canonical version of itself.', QUALIFIED),
+    [],
+  )
+})
+
+test('a qualifier the glossary bans for nobody is not checked', () => {
+  // "Listed Provider" qualifies Provider too, and `listed` is on no `_Avoid_` list. Only a word
+  // the glossary has actually banned somewhere is one this can speak about.
+  const glossary = glossaryOf(
+    [
+      '**Provider**:',
+      'A service that speaks the contract.',
+      '_Avoid_: Plugin, extension, adapter',
+      '',
+      '**Listed Provider**:',
+      'A Provider this project runs.',
+      '_Avoid_: First-party, built-in, core',
+    ].join('\n'),
+  )
+
+  assert.deepEqual(findAvoidedWords('The listed set is short.', glossary), [])
+})
+
+test('a qualifier use the glossary exempts passes with its reason recorded there', () => {
+  assert.deepEqual(
+    findAvoidedWords(
+      'The canonical host is www.canoncore.com.',
+      glossaryOf(
+        [VALIDITY, VERSION, CANONICAL_VERSION].join('\n\n'),
+        ['| `canonical host` | DNS\'s own word for the name that serves |'],
+      ),
+    ),
+    [],
+  )
 })

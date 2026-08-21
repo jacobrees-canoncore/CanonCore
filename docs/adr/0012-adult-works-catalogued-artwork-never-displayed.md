@@ -2,9 +2,9 @@
 status: accepted
 ---
 
-# Adult works may be catalogued; their artwork is never displayed
+# Adult Stories may be catalogued; their Artwork is never displayed
 
-The catalogue is unbounded: any work may be recorded, including pornographic films. Their **artwork is
+The catalogue is unbounded: any Story may be recorded, including pornographic films. Their **artwork is
 never publicly displayed**, and that single constraint is the whole of what keeps a Part 5 highly
 effective age assurance duty out of this product.
 
@@ -234,7 +234,7 @@ unresolved question as above, on which this rule is again the safe side.
 
 ## The alternatives
 
-**Excluding adult works from the catalogue** is what Trakt does, filtering them out of its TMDB import.
+**Excluding adult Stories from the catalogue** is what Trakt does, filtering them out of its TMDB import.
 Simpler, and with nothing to get wrong later. Rejected because it contradicts the unbounded catalogue this
 product exists to be, and because the exposure it avoids is one flag on a mechanism
 [CAN-13 Artwork: uploads, rights and takedown](https://linear.app/jacobrees-canoncore/issue/CAN-13)
@@ -254,7 +254,7 @@ Progress.
 
 ## Consequences
 
-- **The import does not filter adult works.** It carries TMDB's `adult` flag through onto the Snapshot,
+- **The import does not filter adult Stories.** It carries TMDB's `adult` flag through onto the Snapshot,
   so the renderer has something to decide on (CAN-26 Import a series from TMDB, with the overlay behind
   it).
 - **Artwork on adult-flagged records is `display_permitted = false`**, and the public renderer refuses to

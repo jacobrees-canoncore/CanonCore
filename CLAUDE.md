@@ -100,7 +100,7 @@ such a change ships, not after.
   ad2669ec-93a5-4ce1-97fa-c7d9247a1452` on **every** call: Orca is connected to three workspaces and
   picks the wrong one silently. Open issues sit in three bands (`v1`, `Readiness`, `Later`); a `Later`
   `blocked-by` is usually a chosen order, not a real dependency. `docs/agents/issue-tracker.md`.
-- **Triage labels.** The five canonical state roles verbatim, plus `bug`/`enhancement` mapping to
+- **Triage labels.** The five state roles verbatim, plus `bug`/`enhancement` mapping to
   Linear's `Bug`/`Feature`. `label add` / `label remove`, never `label set`.
   `docs/agents/triage-labels.md`.
 - **Domain docs.** One `CONTEXT.md`, one `docs/adr/`. How to consume them: `CONTEXT.md` → *Using these documents*.
@@ -154,7 +154,7 @@ answer first, then what will offer you something else.
   — anything offering storage, uploads, transcoding or a player is proposing that we hold bytes.
 - **Anchors carrying no metadata** ([ADR-0003](docs/adr/0003-no-shared-catalogue.md)) — a canonical records
   table, a "master" catalogue or an edit-approval queue all reintroduce the shared catalogue this avoids.
-- **`www.canoncore.com` canonical, apex 301ing to it** ([ADR-0010](docs/adr/0010-canonical-host-www.md))
+- **`www.canoncore.com` the canonical host, apex 301ing to it** ([ADR-0010](docs/adr/0010-canonical-host-www.md))
   — `vercel:auth` and most better-auth examples suggest a `Domain`-scoped cookie, or the apex itself.
 - **A plain API key for every vendor, the Marketplace for Neon alone** ([ADR-0016](docs/adr/0016-provisioning-plain-api-keys-neon-excepted.md), and Resend refused by
   [ADR-0011](docs/adr/0011-transactional-email-resend.md)) — `vercel:marketplace`, `vercel:vercel-storage` and `vercel:bootstrap` all route through the Marketplace. Nothing else buys anything, and an integration owns the variable. **Neon's exception now rests on billing alone**: what earned it was per-deployment preview branching, which ADR-0023 turned off.
@@ -167,10 +167,10 @@ answer first, then what will offer you something else.
 - **Migrations are forward-only, and a rollback moves code alone** (ADR-0027) — drizzle-kit ships no down-migration and habit supplies one anyway; it cannot restore what the forward statement destroyed. The rule that replaces it: **every migration must leave the schema able to serve the previous release's code, writes included** — so a narrowing waits for a later change, and adding a `UNIQUE`, `CHECK` or `NOT NULL` is a narrowing however additive it reads.
 - **A Neon branch per worktree, child of a shared schema-only `preview` that is the fallback** ([ADR-0025](docs/adr/0025-a-preview-database-per-worktree.md), [ADR-0023](docs/adr/0023-one-shared-schema-only-preview-branch.md)) — per-deployment branches and schema-only
   branching are mutually exclusive, so **re-ticking Vercel's `Create Database Branch For Deployment → Preview` silently restores clones of production**: its webhook overrides our branch-scoped variable too, everything appears to work, and no check catches it. The `neon` MCP's `create_branch` takes no `init_source` and quietly makes a `parent-data` clone instead. **Vercel refuses a branch-scoped variable for a branch not yet on GitHub**, which is why `orca.yaml`'s hook creates the ref first.
-- **Adult works catalogued, their artwork never displayed**
+- **Adult Stories catalogued, their Artwork never displayed**
   ([ADR-0012](docs/adr/0012-adult-works-catalogued-artwork-never-displayed.md)) — Trakt filters adult
   titles out of its TMDB import, so "just exclude them" reads as obvious. It is not: recording that a
-  work exists is not carrying pornographic content, and the exposure is the poster.
+  Story exists is not carrying pornographic content, and the exposure is the poster.
 - **TMDB as the general source, on published terms with no exception** ([ADR-0009](docs/adr/0009-external-source-tmdb.md))
   — every earlier approval is disregarded and none will be sought, so the six-month cache limit binds
   and reads as fatal. The reflex is a second Source as a floor, which ADR-0014 refuses outright.

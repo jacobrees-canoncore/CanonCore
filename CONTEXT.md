@@ -49,6 +49,25 @@ in the product, and in a ticket title — even though `order` is on the Ordering
 the common noun for the concept, never the title of one particular thing. So "in broadcast order" is
 correct and "sorted into the right order" is not.
 
+**These lists are checked rather than remembered.** `scripts/check-docs.ts` reads this section and
+fails a build that uses one of the words below for the concept it is listed against; the table is
+the only place an exception lives, so the check carries no vocabulary of its own. Two rules decide
+whether an occurrence is the banned sense, and what they deliberately do not reach is written
+beside them in [`scripts/lib/doc-checks.ts`](scripts/lib/doc-checks.ts). A phrase here is one where
+the word means something this glossary is not talking about.
+
+| Phrase | Why the word is not the banned one |
+| --- | --- |
+| `broadcast order` | The proper name of one Ordering, which the rule above exempts |
+| `chronological order` | The same, for the other Ordering this project ships |
+| `a list of` | An enumeration of things, which is not an authored Ordering over them |
+| `service` | What a Provider is, by this glossary's own entry for one. The ban is on calling a *Source* a service, and a bare use is not evidence of that |
+| `a batch id` | The column an Operation carries, named for what it groups |
+| `no title` | The field a Story may lack, not a word for the Story |
+| `one sequence` | TMDB's own single ordering, described from outside |
+| `canonical host` | DNS's word for the name that serves, settled by [ADR-0010](docs/adr/0010-canonical-host-www.md) |
+| `canonical record` | Names the shared-catalogue shape [ADR-0003](docs/adr/0003-no-shared-catalogue.md) refused, which is Anchor's own `_Avoid_` entry |
+
 ### The catalogue
 
 **Story**:

@@ -1051,6 +1051,301 @@ export function parseDocumentedLineTarget(body: string): number {
 export const pointerResolves = (section: string, titles: string[]) =>
   titles.some((t) => t === section || t.startsWith(section));
 
+
+// --- The glossary's `_Avoid_` lists -------------------------------------------------------------
+
+/** One glossary entry: the concept's own word, what it says, and what its `_Avoid_` list bans. */
+type GlossaryTerm = { term: string; definition: string; avoid: string[] }
+
+/** The glossary as this check reads it: every entry, and the phrases the lists do not reach. */
+export type Glossary = { terms: GlossaryTerm[]; exempt: string[] }
+
+/** One use of an `_Avoid_` word for the concept it is listed against. */
+export type DomainLanguageFinding = {
+  line: number
+  /** The word as the document wrote it. */
+  word: string
+  /** The concept whose `_Avoid_` list bans it. */
+  term: string
+  /** The phrase it was found in, which is what a reader has to be shown to act. */
+  quote: string
+  /** Why this occurrence is the banned sense rather than another. */
+  why: string
+}
+
+/**
+ * The glossary, read out of the document that holds it.
+ *
+ * The vocabulary has one home — `CONTEXT.md` — for the reason the line-target check reads its
+ * number out of `CLAUDE.md`: a second copy in this file is a copy nobody updates, and the check
+ * would then enforce a glossary the project no longer has.
+ *
+ * An entry stating no `_Avoid_` list fails rather than being passed over. The lists are the whole
+ * subject here, so an entry that lost one is a concept this silently stopped enforcing, which is
+ * the drift the file exists to catch. Same reasoning for a parse that finds no entries at all:
+ * empty is not agreement, it is a glossary this run never read.
+ *
+ * `definition` is carried for a second reader: `provider-contract.test.ts` asserts that the
+ * contract's closed vocabularies are the words the glossary defines, and a second regex over the
+ * same document is the drift this whole file exists to catch rather than to create.
+ */
+export function parseGlossary(markdown: string): Glossary {
+  const terms: GlossaryTerm[] = [];
+  // `**Term**:` alone on a line opens an entry, which runs to the next one.
+  const blocks = markdown.split(/^\*\*([^*\n]+)\*\*:[ \t]*$/m);
+  for (let i = 1; i < blocks.length; i += 2) {
+    const term = blocks[i].trim();
+    const listed = blocks[i + 1].match(/^_Avoid_:[ \t]*(.+)$/m);
+    if (!listed) fail(`the glossary entry for ${term} states no \`_Avoid_\` list`);
+    terms.push({
+      term,
+      definition: blocks[i + 1].slice(0, listed.index),
+      avoid: listed[1].split(",").map(norm).filter(Boolean),
+    });
+  }
+  if (terms.length === 0)
+    fail("no glossary entries were found: expected `**Term**:` lines each carrying `_Avoid_:`");
+  const exempt = parseTable(markdown, "Phrase")
+    .map((r) => norm(r.Phrase))
+    .filter(Boolean);
+  return { terms, exempt };
+}
+
+/**
+ * What the glossary has settled about each of its banned words, which is what decides whether an
+ * occurrence can be read as the banned sense at all.
+ *
+ * - `owners` — which concepts ban the word. **More than one and it is not checkable**: "collection"
+ *   is banned for Ordering, for Catalogue and for Ownership, so the glossary has not said which
+ *   concept a bare use belongs to and neither can this.
+ * - `termWords` — every word the glossary uses inside a term's own name. A banned word among them
+ *   is one the glossary also uses *for* a concept, so an occurrence is not evidence of the banned
+ *   sense: `source`, `provider`, `entry` and `part` are all of them.
+ * - `qualifiers` — a term of the form `<banned word> <another term>`, today *Canonical version*
+ *   alone. A word the glossary uses **only to qualify** a term is not a thing in its own right, so
+ *   it has no standalone job in the domain and a standalone use is the banned sense. That is what
+ *   separates `canonical` from `entry`, `part` and `source`, which the glossary uses as the head
+ *   of a term or as a term outright and which therefore do have one.
+ */
+function settled(glossary: Glossary) {
+  const owners = new Map<string, string[]>();
+  for (const t of glossary.terms)
+    for (const a of t.avoid) owners.set(a, [...(owners.get(a) ?? []), t.term]);
+  const byName = new Map(glossary.terms.map((t) => [t.term.toLowerCase(), t.term]));
+  const termWords = new Set(glossary.terms.flatMap((t) => t.term.toLowerCase().split(/\s+/)));
+  const qualifiers: { word: string; qualified: string; bannedFor: string }[] = [];
+  for (const t of glossary.terms) {
+    const [first, ...rest] = t.term.toLowerCase().split(/\s+/);
+    const qualified = byName.get(rest.join(" "));
+    const bannedFor = owners.get(first);
+    if (rest.length && qualified && bannedFor?.length === 1)
+      qualifiers.push({ word: first, qualified, bannedFor: bannedFor[0] });
+  }
+  return { owners, termWords, qualifiers };
+}
+
+// The determiners a term appears behind when it names something — "a Story", "the Ordering", "one
+// Version". Only the ones that cannot themselves be the subject: `another`, `each`, `any` and
+// `that` can, so "another lists its episodes" and "a document that lists them" would be read as
+// nouns behind them when the word is a verb.
+const DETERMINERS = "a an the its their our your his her my one two every no".split(" ");
+
+/** A word as a document may write it. Multi-word entries are phrases and do not inflect. */
+function inflections(word: string): string[] {
+  if (/\s/.test(word)) return [word];
+  if (/[^aeiou]y$/.test(word)) return [word, `${word.slice(0, -1)}ies`];
+  if (/(s|x|z|ch|sh)$/.test(word)) return [word, `${word}es`];
+  return [word, `${word}s`];
+}
+
+/** A term as the glossary writes it in prose, which is how a document naming the concept does. */
+const capitalised = (term: string) => term[0].toUpperCase() + term.slice(1);
+
+/** A phrase, matched across the line breaks a document wraps it on. */
+const spaced = (phrase: string) => phrase.replace(/\s+/g, "\\s+");
+
+const anyOf = (words: string[]) => words.map(spaced).join("|");
+
+/**
+ * A word matched at either case, so that the slots around it can stay case-sensitive. An `i` flag
+ * would be simpler and would take the whole pattern with it — including the lowercase-only
+ * adjective slot below, which is the one thing separating "one Ordering lists a serial" from a
+ * noun behind two adjectives.
+ */
+const eitherCase = (word: string) => `[${word[0].toLowerCase()}${word[0].toUpperCase()}]${spaced(word.slice(1))}`;
+
+/**
+ * One block's prose, in pieces that each know the line they came from.
+ *
+ * Three things are not prose and are dropped here rather than filtered later. A code span is code:
+ * `0014-shell-providers-and-per-source-retention.md` is a filename, not a sentence calling a
+ * Provider a source, and it was the largest class of false reading by a wide margin. An `_Avoid_`
+ * line **is** one of the lists, and an `_e.g._` line names particular things, which the glossary
+ * exempts in terms — so a check reading either as prose fails on the document that defines it.
+ * Both markers run to the end of their entry, which is how the glossary is laid out.
+ */
+function blockProse(block: Nodes): { text: string; line: number }[] {
+  const pieces: { text: string; line: number }[] = [];
+  let structural = false;
+  let startsLine = true;
+  const walk = (nodes: readonly Nodes[]) => {
+    for (const node of nodes) {
+      if (node.type === "inlineCode" || node.type === "code" || node.type === "html") {
+        pieces.push({ text: " · ", line: lineOf(node) });
+        startsLine = false;
+        continue;
+      }
+      // Only where the glossary puts them: opening a line of their own. The same word mid-sentence
+      // is prose, and taking the rest of the paragraph with it would be a hole nothing reports.
+      if (node.type === "emphasis" && startsLine) {
+        const marker = norm(rendered(node));
+        if (marker === "avoid" || marker === "e.g.") {
+          structural = true;
+          continue;
+        }
+      }
+      if (node.type === "text") {
+        if (!structural) pieces.push({ text: node.value, line: lineOf(node) });
+        startsLine = node.value.endsWith("\n");
+        continue;
+      }
+      if ("children" in node) walk(node.children);
+    }
+  };
+  walk([block]);
+  return pieces;
+}
+
+/**
+ * Sentences, with where each starts, since the register is decided one sentence at a time.
+ *
+ * A `|` ends one as surely as a full stop does. Tables are not parsed as tables here — the parser
+ * runs on CommonMark, where a table is a paragraph of pipes — so without this a row's cells read as
+ * one sentence and, worse, so do the rows above and below it. The register is then whatever any
+ * cell in the table happened to name. Every `|` this repository writes in prose is inside a code
+ * span, which is dropped before this sees it.
+ */
+function* sentences(text: string): Generator<{ sentence: string; at: number }> {
+  const boundary = /(?<=[.;:!?])\s+|\s*\|\s*/g;
+  let at = 0;
+  let found: RegExpExecArray | null;
+  while ((found = boundary.exec(text))) {
+    yield { sentence: text.slice(at, found.index), at };
+    at = found.index + found[0].length;
+  }
+  yield { sentence: text.slice(at), at };
+}
+
+/**
+ * Every use of an `_Avoid_` word **for the concept it is listed against**, which is the whole
+ * difficulty: the lists are per concept rather than a banned-word list, so "collection" is wrong
+ * for a Catalogue and right for a media collection, and a check flagging every occurrence would be
+ * noise and would be turned off. Measured over this repository's tracked markdown, every listed
+ * word and its plural comes to 18,261 occurrences, so "flag them all" is not a gate anyone keeps.
+ *
+ * Two rules decide it, and each is grounded in something the glossary itself says rather than in a
+ * guess about English.
+ *
+ * **The register rule.** A word counts as used for concept T when the sentence *names* T, by T's
+ * own word, cased as the glossary writes it — and when the word is naming something rather than
+ * doing another job: behind a determiner, as a term is ("an alias", "a work"), which is what
+ * separates a name from a verb ("one Ordering lists a serial") and from a modifier
+ * ("source-specific code"). A sentence that never mentions Merge is not a sentence using `alias`
+ * for Merge, whatever else it is doing.
+ *
+ * **The qualifier rule.** `settled` above has it: a word the glossary uses only to qualify a term
+ * has no standalone job in the domain, so no register is needed and none is asked for.
+ *
+ * **What this does not reach**, stated because a gate whose reach is assumed is worse than one
+ * whose reach is known. A heading carries no register, so a title using the wrong common noun
+ * passes — `docs/adr/0012-…`'s own title did, and was fixed by hand; every heading-scoped rule
+ * tried against this repository ran at roughly one genuine finding in thirteen, which is the noise
+ * this is built to avoid. A glossary entry's own definition is out too, because `**Term**:` ends a
+ * sentence: what a concept *is* — "A named, authored sequence" — is a definition rather than a
+ * naming, and the lists ban naming one.
+ */
+export function findAvoidedWords(body: string, glossary: Glossary): DomainLanguageFinding[] {
+  const { owners, termWords, qualifiers } = settled(glossary);
+  const found: DomainLanguageFinding[] = [];
+  const exempt = glossary.exempt.map((phrase) => new RegExp(spaced(phrase), "gi"));
+
+  for (const block of parseMarkdown(body).children) {
+    const pieces = blockProse(block);
+    const text = pieces.map((p) => p.text).join("");
+    // Which line a character of that text came from: the piece holding it, plus the wraps before it.
+    const lineAt = (index: number) => {
+      let start = 0;
+      for (const piece of pieces) {
+        if (index < start + piece.text.length)
+          return piece.line + (piece.text.slice(0, index - start).match(/\n/g)?.length ?? 0);
+        start += piece.text.length;
+      }
+      return pieces.at(-1)?.line ?? 0;
+    };
+
+    for (const { sentence, at } of sentences(text)) {
+      const allowed = (index: number, length: number) =>
+        exempt.some((phrase) => {
+          phrase.lastIndex = 0;
+          for (const hit of sentence.matchAll(phrase))
+            if (hit.index <= index && index + length <= hit.index + hit[0].length) return true;
+          return false;
+        });
+      const report = (hit: { index: number; word: string; quote: string }, rest: Omit<DomainLanguageFinding, "line" | "quote" | "word">) => {
+        if (allowed(hit.index, hit.word.length)) return;
+        found.push({
+          ...rest,
+          word: hit.word,
+          quote: hit.quote.replace(/\s+/g, " ").trim(),
+          line: lineAt(at + hit.index),
+        });
+      };
+
+      for (const { word, qualified, bannedFor } of qualifiers) {
+        // The qualified term is the word doing its one legitimate job, so it is not a use at all.
+        const standalone = new RegExp(
+          `\\b(${word})\\b(?!\\s+(?:${anyOf(inflections(qualified))})\\b)(\\s+\\S+)?`,
+          "gi",
+        );
+        for (const hit of sentence.matchAll(standalone))
+          report(
+            { index: hit.index, word: hit[1], quote: hit[0] },
+            {
+              term: bannedFor,
+              why: `the glossary uses \`${word}\` only to qualify ${qualified}, so it names nothing on its own`,
+            },
+          );
+      }
+
+      const named = glossary.terms.filter((t) =>
+        new RegExp(`\\b(?:${anyOf(inflections(t.term).map(capitalised))})\\b`).test(sentence),
+      );
+      for (const { term, avoid } of named)
+        for (const word of avoid) {
+          // Banned by more than one concept, or a word the glossary also uses for a concept of its
+          // own — either way the glossary has left a second reading open, and so must this.
+          if ((owners.get(word)?.length ?? 0) !== 1) continue;
+          if (word.split(/\s+/).some((part) => termWords.has(part))) continue;
+          const naming = new RegExp(
+            `\\b(?:${DETERMINERS.map(eitherCase).join("|")})\\s+(?:[a-z][a-z-]*\\s+){0,2}` +
+              `(${inflections(word).map(eitherCase).join("|")})\\b`,
+            "g",
+          );
+          for (const hit of sentence.matchAll(naming)) {
+            // The frame's own start is the determiner; the word is what the exemptions cover.
+            const wordAt = sentence.toLowerCase().indexOf(hit[1].toLowerCase(), hit.index);
+            report(
+              { index: wordAt, word: hit[1], quote: hit[0] },
+              { term, why: `the sentence names ${term}, whose \`_Avoid_\` list holds it` },
+            );
+          }
+        }
+    }
+  }
+  return found;
+}
+
+
 // ---------------------------------------------------------------------------------------------
 // The report.
 //
