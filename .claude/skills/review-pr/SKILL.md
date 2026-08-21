@@ -200,12 +200,10 @@ request must disclose*).
 6. **Ask before merging.** This is the one step here that puts the change into production and the
    one that is not a click away from being undone.
 
-   **Put the body's `## Review` section into the question**, quoted rather than summarised. Whoever
-   merges is exactly who an unreviewed commit was disclosed to, and this is the last moment it can
-   reach them; leaving it in the body for them to find makes the disclosure the session's decision
-   again. If `## Review` is missing, or is silent on which commit is unreviewed — *none* is an
-   answer, silence is not — stop and write it. That is a body to fix, not a merge to push through
-   (`docs/agents/workflow.md` → *What the pull request must disclose*).
+   **Put the body's `## Review` section into the question, quoted rather than summarised** — whoever
+   merges is who an unreviewed commit was disclosed to, and this is the last moment it reaches them.
+   Stop and write it if any of its four lines is missing rather than answered; *none* is an answer,
+   silence is not (`docs/agents/workflow.md` → *What the pull request must disclose*).
 
    On a yes:
 

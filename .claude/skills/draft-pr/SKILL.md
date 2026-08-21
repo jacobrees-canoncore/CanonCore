@@ -155,8 +155,10 @@ argument or a piece of evidence lives, for when a step surprises you:
 
    ## Review
 
-   <how many rounds ran and against what range; which commit is unreviewed and where its
-   findings are written down; what was checked instead of a review>
+   <rounds run, and against what range — never the bare "reviewed">
+   <which commit is unreviewed, by SHA, and where its findings are written down>
+   <that every hunk in it traces to one of them>
+   <what each of those fixes was checked against, since a review did not>
 
    ## Checks
 
@@ -172,18 +174,10 @@ argument or a piece of evidence lives, for when a step surprises you:
    worse than no checklist. The first two apply to every change, so dropping either needs a reason
    particular to the diff.
 
-   **`## Review` is never dropped**, and says four things — the last three answering *none* when the
-   last round found nothing (`docs/agents/workflow.md` → *What the pull request must disclose*):
-
-   - how many rounds ran and against what range — *"both axes, twice, against `main`"*, never the
-     bare *"reviewed"*;
-   - which commit is unreviewed, by SHA, and that it is the response to the last round;
-   - that every hunk in it traces to a finding of that round, and where those findings are written
-     down — its own commit message, normally;
-   - what each of those fixes was checked against, since a review did not.
-
-   `/implement` runs round one, and a round two whenever round one produced a commit; there is no
-   round three (`docs/agents/workflow.md` → *Two rounds, and the second is the last*).
+   **`## Review` is never dropped**, and its last three lines answer *none* when the last round found
+   nothing (`docs/agents/workflow.md` → *What the pull request must disclose*). `/implement` runs
+   round one, and a round two whenever round one produced a commit; there is no round three
+   (`docs/agents/workflow.md` → *Two rounds, and the second is the last*).
 
    **Name any out-of-band artefact this change needs**, because a merge carries the application code
    and nothing else: a migration, a scheduled job, a queue, a permission, an environment variable

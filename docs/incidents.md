@@ -136,11 +136,17 @@ isolation buys the fresh eyes as a side effect, whoever calls it.
 [#191](https://github.com/jacobrees-canoncore/CanonCore/pull/191).** Both axes, twice, against
 `main`. All times BST.
 
-| Round | Found | Produced |
+| Round | Findings taken | Produced |
 | --- | --- | --- |
-| 1 | 2 defects | [`86cce08`](https://github.com/jacobrees-canoncore/CanonCore/commit/86cce087c9bb3ca86da51fcdcc8ce62dbf3453fb), 08:56:38 |
-| 2 | 4 defects | [`fae4544`](https://github.com/jacobrees-canoncore/CanonCore/commit/fae4544236e188b90af7c9c0dffbf574f9dbfe72), 09:02:09 |
+| 1 | 5 | [`86cce08`](https://github.com/jacobrees-canoncore/CanonCore/commit/86cce087c9bb3ca86da51fcdcc8ce62dbf3453fb), 08:56:38 |
+| 2 | 4 | [`fae4544`](https://github.com/jacobrees-canoncore/CanonCore/commit/fae4544236e188b90af7c9c0dffbf574f9dbfe72), 09:02:09 |
 | 3 | never ran | — |
+
+**Both counts are the bolded findings each commit's own message enumerates**, which is the only
+basis on which the two rows compare. [#191](https://github.com/jacobrees-canoncore/CanonCore/pull/191)'s
+body says *"round one found two factual defects, round two found four more"* — a narrower count of
+round one, taking the two wrong counts and leaving the remit breach, the uncited claims and the
+three-way duplication out.
 
 **Two of round two's four were in text round one had just written, and each failed the very standard
 the round-one fix had been applied to satisfy.** Both are readable from the two commits:

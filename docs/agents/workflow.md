@@ -114,14 +114,16 @@ reviewing and disclose what round two's commit is.** There is no third round.
 **The count is the rule because the count is the only part of this a session can apply to its own
 work without grading it.** Every alternative hands that judgement straight back: *review until a
 round comes back clean* makes the author of the fixes decide which findings are real, *stop when
-what is left is minor* makes it decide when its own defects do not matter. Judging your own
-convergence is what went wrong on **CAN-54 Fail a push that adds a known-vulnerable dependency**,
-and a rule that renames it has fixed nothing.
+what is left is minor* makes it decide when its own defects do not matter. That is what happened on
+**CAN-54 Fail a push that adds a known-vulnerable dependency**: the rule asked for another round and
+the branch merged anyway, on the session's own reckoning that each fix had been checked another way
+(`docs/incidents.md` → *A round of fixes failed the standard its own findings had named*). A rule
+that hands the same reckoning back under a new name has fixed nothing.
 
-**Round two is not a formality.** Its range is the implementation *plus* round one's fixes, and on
-CAN-54 that is where the defects were: four of them, two in sentences round one had just written,
-each failing the very standard the round-one fix had been applied to satisfy (`docs/incidents.md` →
-*A round of fixes failed the standard its own findings had named*).
+**Round two is not a formality.** Its range is the implementation *plus* round one's fixes, and that
+is where the defects turned up on CAN-54: some of round two's findings were in sentences round one
+had just written (`docs/incidents.md` → *A round of fixes failed the standard its own findings had
+named*).
 
 **Stopping at two is a decision, not a finding.** No third round has run here, so nothing says what
 one would have caught. The case for the number is that a loop needs an end that is not a judgement
@@ -133,8 +135,9 @@ by the two sections below, not by a claim that the branch is clean.
 Where the loop stops, what stops it has to be one kind of commit.
 
 **A correction applies findings the round itself raised, and nothing else.** Every hunk traces to a
-named finding, and the commit's own message enumerates those findings, so the correspondence can be
-checked rather than taken. A correction may land unreviewed, provided the pull request discloses it.
+named finding, and the commit's own message enumerates those findings, so the correspondence is
+written down rather than held in the session's head. A correction may land unreviewed, provided the
+pull request discloses it.
 
 **A finding that asks for a behaviour change is still a correction**, and the fix for a real defect
 nearly always is one. What decides is not the size or the kind of the change but the correspondence:
@@ -146,12 +149,13 @@ review reminded you of, a neighbouring defect noticed while fixing, a refactor t
 fix cleaner. Nobody has reviewed the need for it or the answer to it, which is the risk a correction
 does not carry. **It comes off the branch and becomes a ticket.** It does not become round three,
 and it does not become round one of a fresh loop: the two rounds belong to the branch, and a count
-that can be restarted by renaming what sits on it is not a count.
+that can be restarted by renaming what sits on it is not a count. **The session never resets it.**
 
-**A finding that rejects the implementation is the one thing that restarts the count.** The branch
-is then being implemented again rather than corrected, and it is a reviewer's judgement that put it there
-rather than the session's own. Say so in the pull request, where it is a fact about the branch
-instead of a private decision. Nothing else resets the count.
+That holds even when a round rejects the implementation outright. The rewrite still traces to the
+finding that asked for it, so it is a correction by the test above and lands like one — disclosed,
+in front of the person `/review-pr` asks before merging. Whether a rewrite that size should land on
+one round of review is their call, and putting it to them is the point of the disclosure. It is not
+a call the session makes by declaring itself back at round one.
 
 ### What the pull request must disclose
 
@@ -166,7 +170,9 @@ told apart from one that was forgotten. It says:
   when round two found nothing: that is this line's other answer, not a line to drop.
 - **That every hunk in it traces to a finding of that round, and where those findings are written
   down** — the commit's own message, normally. It is the licence the commit lands under, so it is
-  asserted and left checkable rather than assumed.
+  asserted and left readable rather than assumed. **The enumeration is the session's own**, so this
+  narrows the residual rather than closing it: it is the same residual as the range, above, and the
+  merge question is where a person can act on it.
 - **What stood in for the review** — what each fix was checked against, named. On CAN-54 that was a
   primary source apiece: GitHub's OpenAPI description, a fetch of `pnpm.io/cli/audit`, `ci.yml`'s
   own `if:` conditions, and `git show 19223b0` for the step count.
