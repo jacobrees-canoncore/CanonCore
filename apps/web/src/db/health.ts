@@ -5,8 +5,9 @@ import { readStory, type StoryDetail } from "./stories";
  * The Story the check reads, and the one thing it depends on that no code in this repository
  * creates: a row, inserted by migration 0002 and given the rest of its shape by migration 0012.
  *
- * **It is written down in three places and `scripts/check-docs.ts` compares them.** Here, in that
- * migration, and in `docs/infrastructure.md` -> The Story the health check reads. Removing the
+ * **It is written down in four places and `scripts/check-docs.ts` compares them.** Here, in that
+ * migration, in `docs/infrastructure.md` -> The Story the health check reads, and in the request
+ * `docs/runbook.md` -> The Story cannot be read tells a woken operator to send. Removing the
  * record reddens a build rather than leaving a check nobody can explain, and a copy that drifts
  * from the migration is caught before it can reach production — where it would be silent in the
  * worst way available: `readStory` answers `undefined` for anything that is not a uuid without

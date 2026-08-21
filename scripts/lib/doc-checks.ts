@@ -1063,22 +1063,29 @@ export function parseDocumentedLineTarget(body: string): number {
 // --- The Story the health check reads -----------------------------------------------------------
 
 /**
- * A uuid as all three of the places that name the founding Story write it, which is the whole of
+ * A uuid as all four of the places that name the founding Story write it, which is the whole of
  * what makes them comparable: the migration quotes it in SQL, the application assigns it to a
- * `const`, and the register writes it in a code span.
+ * `const`, the register writes it in a code span and the runbook puts it in a URL.
  */
 const UUID = "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}";
 
 /**
  * How each copy is recognised, and what to say when the file no longer carries one.
  *
- * **Named patterns rather than "the first uuid in the file"**, because two of these files carry
- * several: migration 0012 alone writes four, and a check that took whichever came first would
- * compare the wrong ones and pass.
+ * **Named patterns rather than "the first uuid in the file"**, because these files carry several
+ * apiece: migration 0012 alone writes four, and `docs/infrastructure.md` records this same
+ * identifier again in a measurement that has nothing to do with the check. Taking whichever came
+ * first would compare the wrong ones and pass.
  *
  * **The register's marker is a whole sentence on purpose.** It is the copy a person would delete —
- * the other two are code somebody is editing for a reason — so what has to survive is not the id
+ * the code copies are ones somebody is editing for a reason — so what has to survive is not the id
  * but the paragraph saying why the id is written down at all.
+ *
+ * **The runbook's is the copy that would drift in silence.** The other three are read by somebody
+ * every time the code or the register moves; a `curl` inside a procedure is read by nobody until
+ * somebody is following it at three in the morning. A stale one there does worse than fail: the
+ * entry's own table reads that `404` as the row having been removed, and sends the reader after a
+ * Story that was retired on purpose.
  */
 const foundingStoryCopies = {
   "the migration that inserts it": {
@@ -1092,6 +1099,10 @@ const foundingStoryCopies = {
   "the register that records it": {
     pattern: new RegExp(`\\*\\*The health check reads the Story \`(${UUID})\`\\*\\*`),
     absent: "no line reading **The health check reads the Story `…`** was found",
+  },
+  "the runbook request that diagnoses it": {
+    pattern: new RegExp(`canoncore\\.com/story/(${UUID})`),
+    absent: "no request to `canoncore.com/story/…` was found",
   },
 } as const;
 
@@ -1108,14 +1119,14 @@ export type FoundingStoryReading =
  * that the caller separating them once has no branch left for the case it has already excluded.
  *
  * **Two of them rather than one and a negation**, because a negated predicate narrows nothing: a
- * `filter(r => !wasFound(r))` hands back the whole union and every use of `missing` after it needs
- * a fallback that can never run.
+ * `filter(r => !foundingStoryWasFound(r))` hands back the whole union, and every use of `missing`
+ * after it needs a fallback that can never run.
  */
-export const wasFound = (
+export const foundingStoryWasFound = (
   reading: FoundingStoryReading,
 ): reading is { what: FoundingStoryCopy; id: string } => "id" in reading;
 
-export const wasNotFound = (
+export const foundingStoryWasNotFound = (
   reading: FoundingStoryReading,
 ): reading is { what: FoundingStoryCopy; missing: string } => "missing" in reading;
 

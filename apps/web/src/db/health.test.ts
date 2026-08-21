@@ -6,9 +6,10 @@
 // exercised from `rls.test.ts` alongside everything else that does.
 //
 // **Which Story it asks for is not asserted here**, though it is the one thing this module depends
-// on that no code creates. It is a text comparison across three files rather than a behaviour, and
-// `scripts/check-docs.ts` owns it — the third of those files is a document, which is the copy a
-// test beside this one could not have reached.
+// on that no code creates. It is a text comparison across four files rather than a behaviour, and
+// `scripts/check-docs.ts` owns all four — half of them documents. A test here could read those
+// files too; what it could not do is be the single place the comparison lives, and two half-checks
+// that each cover some of the copies are how the copies drift.
 import type { StoryDetail } from "./stories";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { checkHealth } from "./health";

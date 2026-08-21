@@ -285,9 +285,11 @@ A policy or a grant is only ever changed by a migration.
   it a second time.
 - **The row was removed on purpose**, because a Source's licence ended or because real rows have
   replaced the founding fixture. **Then the alert is right and the check is what is out of date.**
-  Choose the row it should read, change it in all three places
-  ([`infrastructure.md`](infrastructure.md) → *The Story the health check reads* says which), and
-  run `node scripts/check-docs.ts` — it fails until they agree.
+  Choose the row it should read and change it in all four places
+  ([`infrastructure.md`](infrastructure.md) → *The Story the health check reads* says which) —
+  **and the fourth is the request above on this page**, which is why the count is four rather than
+  three. Then run `node scripts/check-docs.ts`: it fails until all four agree, which is what stops
+  this entry sending the next reader after a Story somebody retired on purpose.
 
 **What not to do.** Do not answer this by making the check ask less. Pointing the monitor at
 [`/api/alive`](../apps/web/src/app/api/alive/route.ts), or putting a connection test back where the

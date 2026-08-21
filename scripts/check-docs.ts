@@ -36,9 +36,10 @@
 //  15. agent baseline     -  docs/infrastructure.md  vs  the two plugin manifests and the skills
 //                            directory they publish, plus every `${CLAUDE_PLUGIN_ROOT}` path a
 //                            skill names, none of which resolves in this checkout
-//  16. founding Story     -  docs/infrastructure.md  vs  the migration that inserts the row
-//                            /api/health reads  vs  the module that names it, since CAN-151 Watch
-//                            the Story route, where a broken policy serves 200 with nothing in it
+//  16. founding Story     -  the migration that inserts the row /api/health reads  vs  the module
+//                            that names it  vs  docs/infrastructure.md  vs  the request
+//                            docs/runbook.md sends, since CAN-151 Watch the Story route, where a
+//                            broken policy serves 200 with nothing in it
 //
 // Run:  node scripts/check-docs.ts [--verbose]
 //
@@ -96,8 +97,8 @@ import {
   parseDocumentedVariables,
   parseGlossary,
   readFoundingStory,
-  wasFound,
-  wasNotFound,
+  foundingStoryWasFound,
+  foundingStoryWasNotFound,
   findAvoidedWords,
   parseLinearLabels,
   parseSecretNames,
@@ -134,6 +135,7 @@ const MARKETPLACE_MANIFEST = ".claude-plugin/marketplace.json";
 const PLUGIN_MANIFEST = ".claude-plugin/plugin.json";
 const FOUNDING_STORY_MIGRATION = "apps/web/drizzle/0002_the_founding_story.sql";
 const HEALTH_CHECK = "apps/web/src/db/health.ts";
+const RUNBOOK = "docs/runbook.md";
 
 const results: Result[] = [];
 const read = (p: string) => readFileSync(join(ROOT, p), "utf8");
@@ -938,15 +940,18 @@ check("every ${CLAUDE_PLUGIN_ROOT} path a skill names resolves", () => {
 // 16. The Story `/api/health` reads.
 //
 // The check that watches production now depends on one row, which no code creates: it is there
-// because migration 0002 inserts it. That makes the id a thing three files have to agree about —
-// the migration, the module that asks for it, and docs/infrastructure.md -> The Story the health
-// check reads, which is the record CAN-151 Watch the Story route, where a broken policy serves 200
-// with nothing in it required.
+// because migration 0002 inserts it. That makes the id a thing four files have to agree about —
+// the migration, the module that asks for it, docs/infrastructure.md -> The Story the health check
+// reads, which is the record CAN-151 Watch the Story route, where a broken policy serves 200 with
+// nothing in it required, and the request docs/runbook.md -> The Story cannot be read tells a woken
+// operator to send.
 //
-// **The register is the copy this check exists for.** The other two are code, and
-// `apps/web/src/db/health.test.ts` already compares them on every test run. What nothing else could
-// catch is somebody tidying away the paragraph that explains why a production alert turns on a
-// fixture — after which the alert still fires and nobody can say what it means.
+// **Nothing else compares any of them.** An earlier draft of this comment said a unit test beside
+// `health.ts` compared the two code copies; that test was removed once this check reached all of
+// them, so this is the only comparison there is. Two of the four are prose, and prose is where the
+// failures are worst: a register with the paragraph tidied away still fires the alert and can no
+// longer say what it means, and a runbook whose `curl` names a retired row sends the reader after
+// a Story somebody replaced on purpose.
 //
 // Local files throughout, so it can never skip.
 // ---------------------------------------------------------------------------
@@ -956,8 +961,9 @@ check("the Story the health check reads has one agreed id", () => {
     "the migration that inserts it": read(FOUNDING_STORY_MIGRATION),
     "the health check that reads it": read(HEALTH_CHECK),
     "the register that records it": read(CONTEXT_HOME),
+    "the runbook request that diagnoses it": read(RUNBOOK),
   });
-  const lost = copies.filter(wasNotFound);
+  const lost = copies.filter(foundingStoryWasNotFound);
   if (lost.length)
     fail(
       `the founding Story's id is no longer written where this check reads it:\n    - ` +
@@ -965,11 +971,11 @@ check("the Story the health check reads has one agreed id", () => {
         `\n    The check in ${HEALTH_CHECK} depends on that row, so its id needs a record ` +
         `somebody would meet before deleting it.`,
     );
-  const found = copies.filter(wasFound);
+  const found = copies.filter(foundingStoryWasFound);
   const ids = new Set(found.map((c) => c.id));
   if (ids.size !== 1)
     fail(
-      `three files name the founding Story and they disagree:\n    - ` +
+      `four files name the founding Story and they disagree:\n    - ` +
         found.map((c) => `${c.what}: \`${c.id}\``).join("\n    - ") +
         `\n    The migration is the source. A check asking for a row that is not there answers ` +
         `500 and pages the phone every hour.`,

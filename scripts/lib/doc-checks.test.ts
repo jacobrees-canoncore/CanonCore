@@ -1291,20 +1291,40 @@ const REGISTER = [
   'no account.',
 ].join('\n')
 
+/** The runbook's copy: a `curl` in a procedure, which is the one nobody reads until it matters. */
+const RUNBOOK = [
+  '```bash',
+  "curl -s -o /dev/null -w '%{http_code}\\n' https://www.canoncore.com/story/00000000-0000-4000-8000-000000000001",
+  '```',
+].join('\n')
+
 const copies = (over: Partial<Parameters<typeof readFoundingStory>[0]> = {}) =>
   readFoundingStory({
     'the migration that inserts it': MIGRATION,
     'the health check that reads it': HEALTH,
     'the register that records it': REGISTER,
+    'the runbook request that diagnoses it': RUNBOOK,
     ...over,
   })
 
-test('the three copies of the founding Story are read as one id', () => {
+test('the four copies of the founding Story are read as one id', () => {
   assert.deepEqual(copies(), [
     { what: 'the migration that inserts it', id: '00000000-0000-4000-8000-000000000001' },
     { what: 'the health check that reads it', id: '00000000-0000-4000-8000-000000000001' },
     { what: 'the register that records it', id: '00000000-0000-4000-8000-000000000001' },
+    { what: 'the runbook request that diagnoses it', id: '00000000-0000-4000-8000-000000000001' },
   ])
+})
+
+test("the runbook's copy is read out of the request it sits in", () => {
+  // The copy that drifts in silence, and the reason the check reaches four files rather than three:
+  // a `curl` naming a retired row is read by nobody until somebody is following the procedure.
+  const retired = RUNBOOK.replace('000000000001', '00000000dead')
+
+  assert.deepEqual(copies({ 'the runbook request that diagnoses it': retired })[3], {
+    what: 'the runbook request that diagnoses it',
+    id: '00000000-0000-4000-8000-00000000dead',
+  })
 })
 
 test('a file naming several uuids yields the one its own marker stands beside', () => {

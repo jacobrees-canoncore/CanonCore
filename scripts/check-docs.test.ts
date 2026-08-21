@@ -82,6 +82,7 @@ function fixture({
   seededStory = "00000000-0000-4000-8000-000000000001",
   checkedStory = "00000000-0000-4000-8000-000000000001",
   recordedStory = "**The health check reads the Story `00000000-0000-4000-8000-000000000001`**",
+  diagnosedStory = "00000000-0000-4000-8000-000000000001",
 }: {
   jobName: string;
   documentedContext: string;
@@ -106,6 +107,7 @@ function fixture({
   seededStory?: string;
   checkedStory?: string;
   recordedStory?: string;
+  diagnosedStory?: string;
 }): Fixture {
   const dir = mkdtempSync(join(tmpdir(), "check-docs-"));
   const write = (rel: string, body: string) => {
@@ -219,6 +221,19 @@ function fixture({
   write(
     "apps/web/src/db/health.ts",
     [`const foundingStoryId = "${checkedStory}";`].join("\n"),
+  );
+  // And the fourth copy, in the procedure that sends a reader to that row by hand.
+  write(
+    "docs/runbook.md",
+    [
+      "# Runbook",
+      "",
+      "## The Story cannot be read",
+      "",
+      "```bash",
+      `curl -s https://www.canoncore.com/story/${diagnosedStory}`,
+      "```",
+    ].join("\n"),
   );
   write(
     "docs/agents/triage-labels.md",
@@ -748,6 +763,25 @@ test("a founding Story recorded nowhere fails the build", () => {
   assert.match(output, /the register that records it: no line reading/);
 });
 
+test("a runbook sending a reader to a Story the check no longer reads fails the build", () => {
+  // The fourth copy, and the one nothing else would notice: a `curl` in a procedure is read by
+  // nobody until somebody is following it, and its own table then reads the 404 as the row having
+  // been removed rather than as the request being stale.
+  const { run, gitOnly } = fixture({
+    jobName: "the register's context",
+    documentedContext: "the register's context",
+    diagnosedStory: "00000000-0000-4000-8000-00000000dead",
+  });
+  const { code, output } = run(gitOnly);
+
+  assert.equal(code, 1, output);
+  assert.match(output, /^FAIL {2}the Story the health check reads has one agreed id/m);
+  assert.match(
+    output,
+    /the runbook request that diagnoses it: `00000000-0000-4000-8000-00000000dead`/,
+  );
+});
+
 test("a founding Story the check asks for and no migration inserts fails the build", () => {
   // The other half, and the one that would be silent in production rather than loud: the check
   // would ask for a row nothing had ever created, answer 500 and page the phone every hour.
@@ -760,7 +794,7 @@ test("a founding Story the check asks for and no migration inserts fails the bui
 
   assert.equal(code, 1, output);
   assert.match(output, /^FAIL {2}the Story the health check reads has one agreed id/m);
-  assert.match(output, /three files name the founding Story and they disagree/);
+  assert.match(output, /four files name the founding Story and they disagree/);
   assert.match(output, /the health check that reads it: `00000000-0000-4000-8000-00000000dead`/);
 });
 
@@ -771,9 +805,12 @@ test("the same word doing another job passes, which is what keeps the gate worth
   const { run, gitOnly } = fixture({
     jobName: "the register's context",
     documentedContext: "the register's context",
+    // A document of its own rather than one the fixture already writes: `documents` is applied
+    // last, so naming `docs/runbook.md` here would silently replace the copy of the founding
+    // Story's id that lives in it and fail this case on a rule it is not about.
     documents: {
-      "docs/runbook.md": [
-        "# Runbook",
+      "docs/dns.md": [
+        "# DNS",
         "",
         "The apex is held as an alias record, and a Merge is not involved.",
       ].join("\n"),

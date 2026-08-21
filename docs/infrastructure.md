@@ -2733,11 +2733,11 @@ the product creates it, so it exists because a migration says so and for no othe
 
 **Why this row is here rather than only in the code.** The check now depends on a specific row, and
 a dependency that lives in one file is one nobody re-reads before deleting the thing it depends on.
-So the id is written in three places and the three are compared:
-[`health.ts`](../apps/web/src/db/health.ts) asks for it, the migration inserts it, and this row is
-the record. [`health.test.ts`](../apps/web/src/db/health.test.ts) ties the first to the second and
-`scripts/check-docs.ts` ties both to this one, so deleting this paragraph reddens a build. Added by
-**CAN-151 Watch the Story route, where a broken policy serves 200 with nothing in it**.
+So the id is written in **four** places and `scripts/check-docs.ts` compares all four: the migration
+inserts it, [`health.ts`](../apps/web/src/db/health.ts) asks for it, this row is the record, and
+[`runbook.md`](runbook.md) → *The Story cannot be read* sends a request to it. Deleting this
+paragraph reddens a build, and so does changing the id anywhere without changing it everywhere.
+Added by **CAN-151 Watch the Story route, where a broken policy serves 200 with nothing in it**.
 
 **Nothing polls it yet, for the same reason nothing polls the route at all**: monitor `803731762`
 still points at the front page, and *The repoint, and why it is a human step* above is the
