@@ -22,3 +22,19 @@ export const productionUrl = "https://www.canoncore.com";
  * `docs/infrastructure.md` → *Transactional email: Resend* is what is provisioned.
  */
 export const mailReceivingDomain = "mail.canoncore.com";
+
+export { fonts, leading, measure, palette, radius, spacing, typeScale } from "./design";
+
+/**
+ * Where a member of the public reports content, and complains about what we did about it.
+ *
+ * **A real mailbox on the apex, monitored by a person** — `docs/infrastructure.md` → *Reporting
+ * address* is what is provisioned and why it is not the Resend inbound domain. The Online Safety
+ * Act Codes require the route to be easy to find and to work for someone with no account, which is
+ * what puts it in the footer of every page: `docs/compliance/code-measures-register.md`, ICU D2.
+ *
+ * **Here rather than in `apps/web` for `mailReceivingDomain`'s reason.** Two public documents in
+ * `content/legal/` publish this address and the footer links to it, so a change that reached only
+ * one of them would leave the product telling a reporter two different things.
+ */
+export const reportingAddress = "report@canoncore.com";

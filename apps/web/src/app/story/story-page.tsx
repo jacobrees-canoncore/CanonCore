@@ -1,6 +1,4 @@
 import type { StoryDetail, StoryVersion } from "@/db/stories";
-import { siteName } from "@canoncore/config";
-import Link from "next/link";
 import { formatRuntime } from "./runtime";
 
 /**
@@ -9,23 +7,19 @@ import { formatRuntime } from "./runtime";
  * Split from `[id]/page.tsx` for `front-page.tsx`'s reason: the page is an async Server Component
  * reading the database, which a render test cannot call without one.
  *
- * **Nothing here is a link except the one back to the front page.** A title is a value somebody
- * typed or a Source supplied, and this application renders no such value as a followable address —
- * `../no-linkification.test.tsx` holds the closed set of addresses that may be anchors, and the
- * illegal-content risk assessment's *Existing controls relied on* is what rests on it. So what this
- * Story is part of is named rather than linked to, and reaching that Story means its own address.
+ * **Nothing here is a link at all.** A title is a value somebody typed or a Source supplied, and
+ * this application renders no such value as a followable address — `../no-linkification.test.tsx`
+ * holds the closed set of addresses that may be anchors, and the illegal-content risk assessment's
+ * *Existing controls relied on* is what rests on it. So what this Story is part of is named rather
+ * than linked to, and reaching that Story means its own address.
  *
- * That one link is `next/link` rather than a bare `<a>`, which is what
- * `@next/next/no-html-link-for-pages` requires of an href to a page — a client-side navigation
- * instead of a document load. It renders an anchor either way, so the control above sees it exactly
- * as it sees every other.
+ * **The one link back used to be here and is now in the shell**, where CAN-89 Give the product a
+ * visual identity and a reading surface put the masthead: a page that is arrived at from another
+ * needs a way home on every route, not on the two that remembered.
  */
 export function StoryPage({ story }: { story: StoryDetail }) {
   return (
-    <main>
-      <p className="site">
-        <Link href="/">{siteName}</Link>
-      </p>
+    <>
       <h1>{story.title}</h1>
       <p className="lead">
         {story.runtimeSeconds === null ? "No runtime stated." : formatRuntime(story.runtimeSeconds)}
@@ -33,7 +27,7 @@ export function StoryPage({ story }: { story: StoryDetail }) {
       <hr />
       <h2 id="part-of">Part of</h2>
       {story.partOf.length === 0 ? (
-        <p>Part of nothing else.</p>
+        <p className="empty">Part of nothing else.</p>
       ) : (
         <ul aria-labelledby="part-of">
           {story.partOf.map((whole) => (
@@ -44,7 +38,7 @@ export function StoryPage({ story }: { story: StoryDetail }) {
       <hr />
       <h2 id="versions">Versions</h2>
       {story.versions.length === 0 ? (
-        <p>No Version of this Story is recorded.</p>
+        <p className="empty">No Version of this Story is recorded.</p>
       ) : (
         <ul aria-labelledby="versions">
           {story.versions.map((version) => (
@@ -52,7 +46,7 @@ export function StoryPage({ story }: { story: StoryDetail }) {
           ))}
         </ul>
       )}
-    </main>
+    </>
   );
 }
 

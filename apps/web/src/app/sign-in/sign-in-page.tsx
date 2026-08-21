@@ -24,7 +24,7 @@ type WhatJustHappened = {
  */
 export function SignInPage(happened: WhatJustHappened) {
   return (
-    <main>
+    <>
       <h1>Sign in</h1>
       <hr />
 
@@ -53,7 +53,7 @@ export function SignInPage(happened: WhatJustHappened) {
       <p>
         No account yet? <a href="/sign-up">Create one</a>.
       </p>
-    </main>
+    </>
   );
 }
 

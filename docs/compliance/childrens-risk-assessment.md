@@ -315,6 +315,13 @@ illegal content assessment:
   ADR-0012 works through, with the extra step that the assertion came from a party this project
   cannot check.
 
+> **The first footer, 21 August 2026, engages nothing here either.**
+> [CAN-89 Give the product a visual identity and a reading surface](https://linear.app/jacobrees-canoncore/issue/CAN-89)
+> put the reporting address in the footer of every page. It displays no Artwork, reads no
+> classification, stores and serves no media bytes, adds no recommender and lowers no minimum age, so
+> none of the six entries above is engaged. The reasoning across both lists is recorded once, in
+> [`illegal-content-risk-assessment.md`](illegal-content-risk-assessment.md) → *Step 4 — Review*.
+>
 > **The terms of service amendment of 14 August 2026, and why it is not the first item above.** The
 > terms gained a statement that keeping a catalogue record of a film or a programme is not posting that
 > film's content. It permits nothing `s.61(6)` had not already placed outside primary priority content,

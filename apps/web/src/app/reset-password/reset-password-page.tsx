@@ -18,7 +18,7 @@ import { Problem } from "@/app/problem";
  */
 export function ResetPasswordPage({ token, problem }: { token?: string; problem?: string }) {
   return (
-    <main>
+    <>
       <h1>Choose a new password</h1>
       <hr />
 
@@ -52,6 +52,6 @@ export function ResetPasswordPage({ token, problem }: { token?: string; problem?
           </>
         )}
       </p>
-    </main>
+    </>
   );
 }

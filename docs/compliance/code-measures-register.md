@@ -66,6 +66,23 @@ waits on an address any more.
 still owes the public surfaces, the roles and the takedown, and every remaining *Not in effect* row
 names it alone.
 
+> **One half of D2 landed on 21 August 2026, and it moved no row.**
+> [CAN-89 Give the product a visual identity and a reading surface](https://linear.app/jacobrees-canoncore/issue/CAN-89)
+> gave the application its first footer, and the reporting address is in it on every page — which is
+> the first clause of D2.2 and the thing this register recorded as satisfied by nothing. **The rows
+> still read *Not in effect*, and deliberately.** D1's substance is a route that tells a reporter what
+> they may complain about, and the document that does is still unpublished; D2 also asks for the link
+> on the public Ordering page, and there is no Ordering page. A row whose `Effective` column carried a
+> date while either was outstanding would make this record false, which is what
+> *What the `Effective` column means* above exists to prevent. What changed is that the footer half
+> stops waiting on CAN-32 Roles, takedown, and the Online Safety Act surfaces and can be struck from
+> its scope.
+>
+> **Both Step 4 lists were checked against that change before it shipped**, as the terms amendments of
+> 14 and 16 August 2026 were: [`illegal-content-risk-assessment.md`](illegal-content-risk-assessment.md)
+> → *Step 4 — Review* and [`childrens-risk-assessment.md`](childrens-risk-assessment.md) →
+> *Step 4 — Review*. Neither is engaged.
+
 **This is not a compliance gap, because of the gate.** The service must carry no user-generated content
 until both have landed, and that is enforced as the URL-sharing gate in `docs/infrastructure.md` →
 *The URL-sharing gate*. A measure has nothing to bite on until there is content for it to bite on; what
@@ -78,8 +95,8 @@ would be a gap is content arriving first.
 | **ICU A2** | An individual accountable for the illegal content safety duties and the reporting and complaints duties | Recorded in [`accountable-individual.md`](accountable-individual.md). Sole operator, who is both the accountable individual and the only member of the senior governance body, as Ofcom expressly permits (Volume 1 §5.98) | 13 August 2026 |
 | **ICU C1** | Content moderation function to review and assess suspected illegal content | Content reported or otherwise noticed is reviewed by the operator. **The C1.3(b) route is used**: the terms of service prohibit illegal content by category, so content is assessed against the terms rather than by making a full `s.192` illegal content judgement — which needs those terms published | Not in effect — CAN-32 |
 | **ICU C2** | Content moderation function allowing swift takedown | An admin will be able to set any public record's Visibility to private, removing it from public view, recorded as an Operation with an audit entry. **No role, no Visibility and no audit entry exist on `main`** | Not in effect — CAN-32 |
-| **ICU D1** | Enabling complaints | A reporting route reachable **without an account**, covering all five limbs of "relevant complaints" and open to affected persons who are not users. Described in [`../../content/legal/reporting-and-complaints.md`](../../content/legal/reporting-and-complaints.md), which is written and addressed but not yet published | Not in effect — CAN-32 (route) |
-| **ICU D2** | Complaints systems easy to find, access and use | Reporting route to be linked from the footer of every page and from the public Ordering page; minimal steps (D2.2(c)). **D2.2(d) supporting information is met by the address itself** — a reporter can include anything in a message, so no field is needed and none is built. **D2.2(a) is replaced by an alternative measure** — see below | Not in effect — CAN-32 (route) |
+| **ICU D1** | Enabling complaints | A reporting route reachable **without an account**, covering all five limbs of "relevant complaints" and open to affected persons who are not users. The address works and is now reachable from every page (CAN-89 Give the product a visual identity and a reading surface), but what tells a reporter the five limbs is [`../../content/legal/reporting-and-complaints.md`](../../content/legal/reporting-and-complaints.md), which is written and addressed and not yet published | Not in effect — CAN-32 (route) |
+| **ICU D2** | Complaints systems easy to find, access and use | **The footer link exists on every page since 21 August 2026** (CAN-89 Give the product a visual identity and a reading surface); the link from the public Ordering page waits on there being one. Minimal steps (D2.2(c)). **D2.2(d) supporting information is met by the address itself** — a reporter can include anything in a message, so no field is needed and none is built. **D2.2(a) is replaced by an alternative measure** — see below | Not in effect — CAN-32 (route) |
 | **ICU D7** | Appropriate action on complaints about suspected illegal content | A complaint is treated as reason to suspect the content may be illegal and is reviewed under C1.3. Considered promptly; ICU C4 and C5 do not apply to this service | Not in effect — CAN-32 |
 | **ICU D9** | Appeals — determination | Appeals are determined promptly. This measure applies because the service is neither large nor multi-risk | Not in effect — CAN-32 |
 | **ICU D10** | Appeals — action following determination | Where a decision that content was illegal is reversed, the takedown is reversed and the position restored: Visibility is set back and any restriction lifted | Not in effect — CAN-32 |
@@ -165,7 +182,7 @@ reader will otherwise wonder where they went. Twelve plus one plus three is the 
 | **PCU A2** | Individual accountable for the children's safety duties and the reporting and complaints duties | The same individual as ICU A2. See [`accountable-individual.md`](accountable-individual.md) | 13 August 2026 |
 | **PCU C1** | Content moderation function to review and assess suspected content harmful to children | The same function as ICU C1, extended to content harmful to children | Not in effect — CAN-32 |
 | **PCU C2** | Content moderation function allowing swift action | Admin sets Visibility to private, which is a takedown under C2.3(a) rather than the C2.3(b) fallback. **Takedown being feasible is load-bearing** — see the note under the table | Not in effect — CAN-32 |
-| **PCU D1** | Enabling complaints | The same reporting route as ICU D1, reachable without an account | Not in effect — CAN-32 (route) |
+| **PCU D1** | Enabling complaints | The same reporting route as ICU D1, reachable without an account and, since CAN-89 Give the product a visual identity and a reading surface, from the footer of every page | Not in effect — CAN-32 (route) |
 | **PCU D2** | Easy to find, access and use complaints systems | As ICU D2. **PCU D2.2(a) is replaced by the same alternative measure** — see below | Not in effect — CAN-32 (route) |
 | **PCU D7** | Appropriate action for complaints about content harmful to children | Considered promptly; the prioritisation and target measures do not apply to this service | Not in effect — CAN-32 |
 | **PCU D9** | Content appeals — determination (neither large nor multi-risk) | Determined promptly, per the timeframes in [`review-policy.md`](review-policy.md) | Not in effect — CAN-32 |

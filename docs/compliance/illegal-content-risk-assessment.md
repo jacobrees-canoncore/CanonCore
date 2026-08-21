@@ -468,6 +468,19 @@ Ofcom materially changes a relevant Risk Profile.
 > `docs/infrastructure.md` → *Gate one: lawfulness* records that the sentence *nobody but the operator can
 > put content here* stops resting on the absence of accounts from this date.
 
+> **The first footer is on neither this list nor the children's additions to it.**
+> [CAN-89 Give the product a visual identity and a reading surface](https://linear.app/jacobrees-canoncore/issue/CAN-89)
+> gave the application a shell on 21 August 2026 and put the reporting address in the footer of every
+> page. Both lists were read against it before it shipped, as they were for the two terms amendments
+> below. **None is engaged**: it adds no upload, messaging, connection, search, recommender or
+> marketplace mechanism, changes no prohibition and no minimum age, and touches Fork not at all. The
+> one entry that could have been is the linkification bullet above, and it is not: the footer's
+> `href` is composed from a compile-time constant in `packages/config`, not from a value that
+> arrived from a Source, a Provider or a person, and
+> [`no-linkification.test.tsx`](../../apps/web/src/app/no-linkification.test.tsx) pins the composed
+> result in the closed set rather than arguing it. It also amends `content/legal/` — both preambles,
+> to record that a footer now exists — which changes no obligation either document states.
+>
 > **The terms amendment of 16 August 2026 is on neither this list nor the children's additions to
 > it.** It added a data-location disclosure for error reporting to
 > [`terms-of-service.md`](../../content/legal/terms-of-service.md) → *Your privacy, and where your

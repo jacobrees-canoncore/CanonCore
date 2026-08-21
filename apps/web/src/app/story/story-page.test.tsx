@@ -1,5 +1,4 @@
 import type { StoryDetail } from "@/db/stories";
-import { siteName } from "@canoncore/config";
 import { render, screen, within } from "@testing-library/react";
 import { expect, test } from "vitest";
 import { StoryPage } from "./story-page";
@@ -100,10 +99,11 @@ test("says so when there is nothing to be part of and no Version", () => {
   expect(screen.queryByText("No Version of this Story is recorded.")).not.toBeNull();
 });
 
-// The one link the page draws, and the only navigation there is: the front page is where a reader
-// came from and the only other place to go.
-test("links back to the front page, by name", () => {
+// The page draws no anchor at all since CAN-89 Give the product a visual identity and a reading
+// surface: the way back to the front page is the masthead, which the root layout renders on every
+// route. `../no-linkification.test.tsx` is where that is pinned, for the shell and for this page.
+test("draws no anchor of its own", () => {
   render(<StoryPage story={rose} />);
 
-  expect(screen.getByRole("link", { name: siteName }).getAttribute("href")).toBe("/");
+  expect(screen.queryAllByRole("link")).toEqual([]);
 });

@@ -1,18 +1,66 @@
+/*
+  The whole visual identity, in one hand-written sheet, per ADR-0013.
+
+  **Every value in `:root` is a copy of one exported by `@canoncore/config`'s `design.ts`, and
+  `design-tokens.test.ts` fails if the two disagree in either direction.** That module says why the
+  values exist twice at all: `global-error.tsx` renders without this sheet, and the Open Graph image
+  CAN-57 Make a public Ordering discoverable and shareable will draw is satori, which reads no
+  custom properties. ADR-0028 argues each choice; nothing below restates it.
+
+  Two conventions worth knowing before reading further. **Roles, not shades**: a colour is named for
+  the job it does, so `--rule` and `--edge` are different tokens because a separator and a control's
+  border are held to different contrast floors. And **the scale is the vocabulary**: a size or a gap
+  picks a step, never a number, which is what makes the two scales worth having.
+*/
+
 :root {
+  /* Both themes are supplied, so form controls and scrollbars follow the reader's own. */
   color-scheme: light dark;
+
   --bg: #fbfaf8;
   --fg: #1a1917;
   --muted: #6f6a61;
   --rule: #e3ded5;
+  --edge: #948e83;
+  --focus: #2f7d76;
   --problem: #8f2f24;
+
+  --text-meta: 0.833rem;
+  --text-body: 1rem;
+  --text-lead: 1.2rem;
+  --text-heading: 1.44rem;
+  --text-title: 1.728rem;
+  --text-display: 2.074rem;
+
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+  --space-12: 3rem;
+  --space-16: 4rem;
+
+  --measure: 34rem;
+
+  --leading-body: 1.6;
+  --leading-tight: 1.2;
+
+  --font-prose: ui-serif, Georgia, "Iowan Old Style", "Times New Roman", serif;
+  --font-ui: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+
+  --radius: 0.25rem;
 }
 
+/* The palette, and nothing else. A scale that differed between the two would be a second design. */
 @media (prefers-color-scheme: dark) {
   :root {
     --bg: #141311;
     --fg: #f2efe9;
     --muted: #928b7f;
     --rule: #2c2a26;
+    --edge: #6a655c;
+    --focus: #3b9189;
     --problem: #f0a094;
   }
 }
@@ -21,56 +69,180 @@
   box-sizing: border-box;
 }
 
+/*
+  The shell: masthead, content, footer, in that order, with the footer pinned to the bottom of a
+  short page by the middle row taking the slack. `100dvh` rather than `100vh` so a mobile browser's
+  collapsing toolbar does not leave the footer below the fold on a page with nothing on it.
+*/
 body {
   margin: 0;
-  min-height: 100vh;
+  min-height: 100dvh;
   display: grid;
-  place-items: center;
-  padding: 2rem;
+  grid-template-rows: auto 1fr auto;
+  padding-inline: var(--space-6);
   background: var(--bg);
   color: var(--fg);
-  font:
-    400 16px/1.6 ui-sans-serif,
-    system-ui,
-    -apple-system,
-    "Segoe UI",
-    sans-serif;
+  font-family: var(--font-prose);
+  font-size: var(--text-body);
+  font-weight: 400;
+  line-height: var(--leading-body);
   -webkit-font-smoothing: antialiased;
 }
 
-main {
-  max-width: 34rem;
+/*
+  One column, one width. The measure is the text column, and the gutter is the body's padding, so
+  `--measure` stays the number of characters it was chosen for rather than that number minus padding.
+*/
+.masthead,
+main,
+.site-footer {
+  width: 100%;
+  max-width: var(--measure);
+  margin-inline: auto;
 }
 
-h1 {
-  margin: 0 0 1.25rem;
-  font-size: clamp(1.75rem, 5vw, 2.5rem);
-  font-weight: 600;
-  letter-spacing: -0.02em;
+/*
+  **The skip link, and it is first in the body so it is first in the tab order.** Off-screen until
+  focused rather than `display: none`, which would take it out of that order and leave the page with
+  no way past the masthead. WCAG 2.4.1 Bypass Blocks.
+*/
+.skip {
+  /*
+    `fixed` rather than `absolute`: an absolutely positioned skip link sits at the top of the
+    *document*, so a reader who tabs into the page after scrolling focuses something they cannot
+    see. Fixed keeps it against the viewport, which is where focus actually is.
+  */
+  position: fixed;
+  z-index: 1;
+  inset-block-start: var(--space-2);
+  inset-inline-start: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--edge);
+  border-radius: var(--radius);
+  background: var(--bg);
+  font-family: var(--font-ui);
+  font-size: var(--text-meta);
+  /* Moved, not hidden: a transform leaves it focusable and in flow order. */
+  transform: translateY(-300%);
 }
 
-hr {
-  border: 0;
-  border-top: 1px solid var(--rule);
-  margin: 1.75rem 0;
+/* `:focus` rather than `:focus-visible` — nothing reaches this link except a keyboard. */
+.skip:focus {
+  transform: none;
 }
 
-p {
-  margin: 0 0 1rem;
+/*
+  The masthead. The wordmark is the site's name doing the job an identity does, so it is set in the
+  interface face rather than the reading one: it is furniture you navigate by, not prose you read.
+  It is not a heading — the page's own `h1` is, and two would leave a screen-reader user with a
+  document outline that starts twice.
+*/
+.masthead {
+  padding-block: var(--space-6) var(--space-8);
+}
+
+.wordmark {
+  display: inline-block;
+  /* With the block padding, the target is comfortably past the 24 CSS px WCAG 2.5.8 asks for. */
+  padding-block: var(--space-2);
   color: var(--muted);
+  font-family: var(--font-ui);
+  font-size: var(--text-meta);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  text-decoration: none;
 }
 
-p.lead {
+.wordmark:hover {
   color: var(--fg);
 }
 
-h2 {
-  margin: 0 0 0.75rem;
-  font-size: 1rem;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
+main {
+  padding-block-end: var(--space-16);
+}
+
+/*
+  **The footer is where the reporting route lives, and it is on every page because the Online Safety
+  Act Codes put it there** — `docs/compliance/code-measures-register.md`, ICU D2 and PCU D2. That is
+  why this is in the root layout rather than on the pages that happen to want it.
+*/
+.site-footer {
+  display: flex;
+  flex-wrap: wrap;
+  /* The row gap keeps two wrapped lines of links apart; the column gap keeps two targets apart. */
+  gap: var(--space-2) var(--space-6);
+  padding-block: var(--space-6) var(--space-8);
+  border-top: 1px solid var(--rule);
   color: var(--muted);
+  font-family: var(--font-ui);
+  font-size: var(--text-meta);
+}
+
+.site-footer a {
+  display: inline-block;
+  padding-block: var(--space-2);
+  color: var(--muted);
+}
+
+.site-footer a:hover {
+  color: var(--fg);
+}
+
+h1,
+h2,
+h3 {
+  margin: 0 0 var(--space-4);
+  line-height: var(--leading-tight);
+  font-weight: 600;
+  /*
+    CSS Text 4 is a Working Draft and says a user agent "may treat this value as `auto` if there are
+    more than ten lines to balance", which is why this is on headings and on nothing else.
+  */
+  text-wrap: balance;
+}
+
+h1 {
+  margin-block-end: var(--space-6);
+  font-size: var(--text-title);
+  letter-spacing: -0.015em;
+}
+
+/* The front page, and nothing else: the one place the product says its own name at full size. */
+h1.headline {
+  font-size: var(--text-display);
+}
+
+h2 {
+  margin-block-start: var(--space-8);
+  font-size: var(--text-heading);
+}
+
+/*
+  **Nothing renders an `h3` yet, and it is here on purpose.**
+  [`content/legal/terms-of-service.md`](../../../../content/legal/terms-of-service.md) already
+  carries four `###` headings, and CAN-32 Roles, takedown, and the Online Safety Act surfaces is
+  what renders them. A heading level left out of this sheet is one that ticket would have to invent
+  a size for, which is the failure ADR-0013 exists to record.
+*/
+h3 {
+  margin-block-start: var(--space-6);
+  font-size: var(--text-lead);
+}
+
+p {
+  margin: 0 0 var(--space-4);
+}
+
+/* The opening sentence of a page, and the only paragraph that takes a size of its own. */
+p.lead {
+  font-size: var(--text-lead);
+}
+
+hr {
+  margin-block: var(--space-8);
+  border: 0;
+  border-top: 1px solid var(--rule);
 }
 
 ul {
@@ -79,60 +251,126 @@ ul {
   list-style: none;
 }
 
+li {
+  padding-block: var(--space-3);
+}
+
 li + li {
   border-top: 1px solid var(--rule);
 }
 
-li {
-  padding: 0.6rem 0;
+/*
+  Inherit the text colour rather than taking a link colour of its own. Every anchor this application
+  renders points at one of its own routes or at its own reporting address — the closed set is in
+  `no-linkification.test.tsx` — so an anchor is navigation furniture rather than a destination, and
+  the underline does the work.
+*/
+a {
+  color: var(--fg);
+}
+
+/* --- The states a page can be in. --- */
+
+/*
+  An empty list is a sentence, not a blank space. Italic and muted so it reads as the page talking
+  about itself rather than as one more entry.
+*/
+.empty {
+  color: var(--muted);
+  font-style: italic;
+}
+
+/*
+  **Something is happening, and it is not a blank screen** — story 35 of CAN-17 v1: the walking
+  skeleton in production, then the founding case. The ring is decoration; the sentence beside it is
+  what a screen reader announces, which is why `working.tsx` gives it `role="status"`.
+*/
+.working {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  color: var(--muted);
+  font-family: var(--font-ui);
+  font-size: var(--text-meta);
+}
+
+.working::before {
+  content: "";
+  width: var(--space-3);
+  height: var(--space-3);
+  border: 2px solid var(--edge);
+  border-block-start-color: var(--focus);
+  border-radius: 50%;
+  animation: turning 900ms linear infinite;
+}
+
+@keyframes turning {
+  to {
+    transform: rotate(1turn);
+  }
+}
+
+/*
+  **The one animation in the sheet, so this is the whole of honouring the preference.** A blanket
+  `*` override with `!important` is the usual shape and would be a rule about animations this
+  application does not have; when it has a second, that one answers here too.
+*/
+@media (prefers-reduced-motion: reduce) {
+  .working::before {
+    animation: none;
+  }
 }
 
 /* --- Forms, and the account line. Hand-written, per ADR-0013. --- */
 
 form p {
-  margin: 0 0 1rem;
+  margin: 0 0 var(--space-4);
 }
 
 label {
   display: block;
-  margin-bottom: 0.35rem;
-  font-size: 0.9rem;
+  margin-block-end: var(--space-1);
+  font-family: var(--font-ui);
+  font-size: var(--text-meta);
   color: var(--fg);
 }
 
+/*
+  `--edge` rather than `--rule`: this border is the only thing that says a control is here, which
+  WCAG 1.4.11 Non-text Contrast holds at 3:1. `min-height` puts both controls past the 24 CSS px
+  WCAG 2.5.8 Target Size (Minimum) asks for, with enough over it to clear the 44 px of 2.5.5 as well.
+*/
 input {
   display: block;
   width: 100%;
-  padding: 0.55rem 0.7rem;
-  border: 1px solid var(--rule);
-  border-radius: 4px;
+  min-height: 2.75rem;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--edge);
+  border-radius: var(--radius);
   background: var(--bg);
   color: var(--fg);
-  font: inherit;
+  font-family: var(--font-ui);
+  font-size: var(--text-body);
 }
 
-input:focus-visible,
-button:focus-visible,
-a:focus-visible {
-  outline: 2px solid var(--fg);
-  outline-offset: 2px;
+button {
+  min-height: 2.75rem;
+  padding: var(--space-2) var(--space-6);
+  border: 1px solid var(--fg);
+  border-radius: var(--radius);
+  background: var(--fg);
+  color: var(--bg);
+  font-family: var(--font-ui);
+  font-size: var(--text-body);
+  cursor: pointer;
 }
 
 .hint {
   display: block;
-  margin-top: 0.3rem;
-  font-size: 0.85rem;
+  margin-block-start: var(--space-1);
   color: var(--muted);
-}
-
-button {
-  padding: 0.55rem 1.1rem;
-  border: 1px solid var(--fg);
-  border-radius: 4px;
-  background: var(--fg);
-  color: var(--bg);
-  font: inherit;
-  cursor: pointer;
+  font-family: var(--font-ui);
+  font-size: var(--text-meta);
 }
 
 /*
@@ -141,30 +379,50 @@ button {
   cannot see the colour.
 */
 .problem {
-  padding: 0.6rem 0.8rem;
+  padding: var(--space-3) var(--space-4);
   border: 1px solid var(--problem);
-  border-radius: 4px;
+  border-radius: var(--radius);
   color: var(--problem);
+}
+
+/* The mirror of `.problem`, in the sheet's ordinary colours because nothing is wrong. */
+.notice {
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--edge);
+  border-radius: var(--radius);
 }
 
 .account {
   margin: 0;
   color: var(--muted);
+  font-family: var(--font-ui);
+  font-size: var(--text-meta);
 }
 
 /*
-  The one link back, on a page that is not the front one. It is the site's name, so it reads as
-  where you are rather than as a control.
+  **Bare `:focus-visible`, so it reaches every interactive element there will ever be** rather than a
+  list of selectors that a new control can be forgotten from. Three CSS pixels and an offset put it
+  past the two-pixel perimeter WCAG 2.4.13 Focus Appearance asks for, and `--focus` clears 3:1
+  against both the page and a filled control — `design-tokens.test.ts` asserts both ratios.
 */
-p.site {
-  margin: 0 0 1.5rem;
+:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
 }
 
 /*
-  Inherit the text colour rather than taking a link colour of its own. Every anchor this application
-  renders points at one of its own routes — the closed set is in `no-linkification.test.tsx` — so an
-  anchor is navigation furniture rather than a destination, and the underline does the work.
+  **In a forced-colours mode the palette above is discarded, and only two things here need saying.**
+  The ring must take a system colour or it takes the text colour and stops being distinguishable from
+  the border beside it; and the spinner's head, which is a border colour doing the work of a shape,
+  needs one for the same reason. Everything else in this sheet is border, text and background, which
+  the mode maps for itself.
 */
-a {
-  color: var(--fg);
+@media (forced-colors: active) {
+  :focus-visible {
+    outline-color: Highlight;
+  }
+
+  .working::before {
+    border-block-start-color: Highlight;
+  }
 }
