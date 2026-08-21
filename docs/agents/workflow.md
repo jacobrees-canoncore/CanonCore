@@ -785,6 +785,17 @@ CANONCORE_E2E_BASE_URL=<preview url> pnpm --filter @canoncore/web test:e2e
 Without that variable it runs against production, which is a check on a deploy that has already
 happened — *After the merge* below, not a gate.
 
+**Four of its tests cannot pass against a bare preview, and that is the database rather than the
+code.** Every preview reads a branch descended from the shared schema-only `preview`, which carries
+**no `story` row at all** ([`../infrastructure.md`](../infrastructure.md) → *The shared preview
+branch*), so anything asserting that a Story renders fails there: both Story tests in
+`apps/web/e2e/story-page.spec.ts`, and — since **CAN-151 Watch the Story route, where a broken policy
+serves 200 with nothing in it** — both in `apps/web/e2e/health.spec.ts`, because `/api/health` now
+answers `500` when it cannot read that Story. **Measured against a preview on 21 August 2026: 4
+failed, 1 passed.** A preview red in exactly those four is the check working, not a broken
+deployment. Run the suite against production, or against a preview whose database has been given the
+rows, and read a failure anywhere else as real.
+
 **One spec in that suite skips unless it is given a second variable, and the skip is the safety.**
 `apps/web/e2e/verification-by-inbox.spec.ts` signs up for real and reads the verification email out of
 Resend's inbound store, so it needs a preview URL *and* a `full_access` Resend key in

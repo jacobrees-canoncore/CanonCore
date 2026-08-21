@@ -2762,6 +2762,16 @@ bought with instead is detection latency**: hourly, so up to an hour, which is t
 ADR-0026 accepted for the database and for the same reason — *The URL-sharing gate* is closed, so
 there is nobody on the other end to be failed.
 
+**Every preview answers `500` here, and that is the check being right rather than a deployment being
+broken.** A preview reads a branch descended from the shared schema-only `preview`, which holds no
+`story` row — *The shared preview branch* below — so the founding Story genuinely is not there.
+Confirmed against the preview for **CAN-151 Watch the Story route, where a broken policy serves 200
+with nothing in it** on 21 August 2026: `/api/health` `500` with no body, `/story/…` `404`, the front
+page carrying *No Story is public yet*, and `/api/alive` `200` beside them. **That is the whole
+failure this check exists to catch, seen in a real deployment**, and it is the reason nothing should
+ever point a monitor at a preview. What it costs is four Playwright tests that cannot pass there:
+[`agents/workflow.md`](agents/workflow.md) → *The gates*.
+
 **It says nothing about whether one reader can see another's rows.** A green check means one public
 Story is readable by a stranger. It would stay green if every private Story were readable by
 everybody, which is the opposite failure and the more serious one. That question is
