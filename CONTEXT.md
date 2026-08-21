@@ -50,18 +50,25 @@ the common noun for the concept, never the title of one particular thing. So "in
 correct and "sorted into the right order" is not.
 
 **These lists are checked rather than remembered.** `scripts/check-docs.ts` reads this section and
-fails a build that uses one of the words below for the concept it is listed against; the table is
-the only place an exception lives, so the check carries no vocabulary of its own. Two rules decide
-whether an occurrence is the banned sense, and what they deliberately do not reach is written
-beside them in [`scripts/lib/doc-checks.ts`](scripts/lib/doc-checks.ts). A phrase here is one where
-the word means something this glossary is not talking about.
+fails a build that uses one of the words below for the concept it is listed against, so the check
+carries no vocabulary of its own. Two rules decide whether an occurrence is the banned sense, and
+each has a reach it does not exceed; both are written beside the code in
+[`scripts/lib/doc-checks.ts`](scripts/lib/doc-checks.ts). It reads every tracked document except
+[`docs/research/`](docs/research/), for the reason *Using these documents* gives above.
+
+**A phrase in the table below is one where the word means something this glossary is not talking
+about, and the table is where every one of them lives.** That includes the proper names the rule
+above exempts: no check can tell "a broadcast order" from "the right order" by looking, so a
+proper name passes by being written here.
 
 | Phrase | Why the word is not the banned one |
 | --- | --- |
 | `broadcast order` | The proper name of one Ordering, which the rule above exempts |
 | `chronological order` | The same, for the other Ordering this project ships |
+| `production order` | The third the glossary names, in Placement's own example. Listed because the rule covers it, not because anything here trips it |
 | `a list of` | An enumeration of things, which is not an authored Ordering over them |
-| `service` | What a Provider is, by this glossary's own entry for one. The ban is on calling a *Source* a service, and a bare use is not evidence of that |
+| `a separate service` | A Provider, which is what both documents using this phrase are naming. The ban is on calling a *Source* one |
+| `a service that speaks` | The opening of Provider's own definition here, quoted by the ADRs that cite it |
 | `a batch id` | The column an Operation carries, named for what it groups |
 | `no title` | The field a Story may lack, not a word for the Story |
 | `one sequence` | TMDB's own single ordering, described from outside |

@@ -575,5 +575,5 @@ test("the same word doing another job passes, which is what keeps the gate worth
   assert.equal(code, 0, output);
   // What it walked, asserted rather than assumed: a pass over an empty document set reads
   // identically to a pass over the repository.
-  assert.match(summary, /\| PASS \| every document uses the glossary's word for the concept \| 1 terms across 5 documents \|/);
+  assert.match(summary, /\| PASS \| every document uses the glossary's word for the concept \| 1 term across 5 documents \|/);
 });

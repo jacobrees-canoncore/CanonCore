@@ -1115,6 +1115,43 @@ test('a table cell is a sentence of its own, because a row is not one', () => {
   )
 })
 
+test('two list items are two registers, and neither lends the other its concept', () => {
+  // A list is one node, so reading it whole would concatenate the items with nothing between them:
+  // the last word of one glued to the first of the next, and either item's concept deciding the
+  // register of the other. Both directions, since the glue cut findings and invented them.
+  const lent = findAvoidedWords(
+    ['- The apex is held as an alias of the record.', '- A Merge is separate.'].join('\n'),
+    glossaryOf(MERGE),
+  )
+  const own = findAvoidedWords(
+    ['- A Merge is held as an alias rather than a rewrite.', '- Something else.'].join('\n'),
+    glossaryOf(MERGE),
+  )
+
+  assert.deepEqual(lent, [], 'one item lent its concept to another')
+  assert.deepEqual(
+    own.map((f) => [f.word, f.line]),
+    [['alias', 1]],
+    'an item carrying both was missed',
+  )
+})
+
+test('a sentence writing the concept in lower case too is out of reach, and this records it', () => {
+  // Not a wish: `docs/adr/0003-…` read "A merge is one person's assertion … held as an alias" and
+  // was fixed by hand for exactly this reason. The register is the term as the glossary writes it,
+  // capitalised, because that is how this repository marks the domain — and matching at any case
+  // was measured instead, at 14 findings over the tree and none of them genuine. The line above it
+  // is the same sentence with the term as the glossary writes it, so the two differ in one letter.
+  const asWritten = "A merge is one person's assertion, held as an alias rather than a rewrite."
+  const asTheGlossaryWritesIt = asWritten.replace('A merge', 'A Merge')
+
+  assert.deepEqual(findAvoidedWords(asWritten, glossaryOf(MERGE)), [])
+  assert.deepEqual(
+    findAvoidedWords(asTheGlossaryWritesIt, glossaryOf(MERGE)).map((f) => f.word),
+    ['alias'],
+  )
+})
+
 test('a word inside a code span is code rather than prose', () => {
   assert.deepEqual(
     findAvoidedWords('A Merge is stored in `an alias` column.', glossaryOf(MERGE)),

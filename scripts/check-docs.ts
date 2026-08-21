@@ -689,7 +689,8 @@ check("every document uses the glossary's word for the concept", () => {
         `concept:\n    - ${wrong.join("\n    - ")}\n    Write the term instead, or record the ` +
         `exception in ${GLOSSARY} → *Language* with the reason beside it.`,
     );
-  return `${glossary.terms.length} terms across ${scope.length} documents`;
+  const terms = glossary.terms.length;
+  return `${terms} term${terms === 1 ? "" : "s"} across ${scope.length} documents`;
 });
 
 const width = Math.max(...results.map((r) => r.name.length));

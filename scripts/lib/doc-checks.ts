@@ -1112,8 +1112,8 @@ export function parseGlossary(markdown: string): Glossary {
 }
 
 /**
- * What the glossary has settled about each of its banned words, which is what decides whether an
- * occurrence can be read as the banned sense at all.
+ * The per-concept scoping, which is what decides whether an occurrence can be read as the banned
+ * sense at all. Every part of it is something the glossary itself has settled.
  *
  * - `owners` — which concepts ban the word. **More than one and it is not checkable**: "collection"
  *   is banned for Ordering, for Catalogue and for Ownership, so the glossary has not said which
@@ -1127,7 +1127,7 @@ export function parseGlossary(markdown: string): Glossary {
  *   separates `canonical` from `entry`, `part` and `source`, which the glossary uses as the head
  *   of a term or as a term outright and which therefore do have one.
  */
-function settled(glossary: Glossary) {
+function scoping(glossary: Glossary) {
   const owners = new Map<string, string[]>();
   for (const t of glossary.terms)
     for (const a of t.avoid) owners.set(a, [...(owners.get(a) ?? []), t.term]);
@@ -1175,7 +1175,10 @@ const anyOf = (words: string[]) => words.map(spaced).join("|");
 const eitherCase = (word: string) => `[${word[0].toLowerCase()}${word[0].toUpperCase()}]${spaced(word.slice(1))}`;
 
 /**
- * One block's prose, in pieces that each know the line they came from.
+ * One block's prose, in pieces that each know the line they came from. A block here is a leaf —
+ * one paragraph or one heading — because two of them are never one sentence: a list's items would
+ * otherwise be concatenated with nothing between them, which both glues the last word of an item
+ * to the first of the next and lets one item's concept decide the register of another's.
  *
  * Three things are not prose and are dropped here rather than filtered later. A code span is code:
  * `0014-shell-providers-and-per-source-retention.md` is a filename, not a sentence calling a
@@ -1253,23 +1256,39 @@ function* sentences(text: string): Generator<{ sentence: string; at: number }> {
  * ("source-specific code"). A sentence that never mentions Merge is not a sentence using `alias`
  * for Merge, whatever else it is doing.
  *
- * **The qualifier rule.** `settled` above has it: a word the glossary uses only to qualify a term
+ * **The qualifier rule.** `scoping` above has it: a word the glossary uses only to qualify a term
  * has no standalone job in the domain, so no register is needed and none is asked for.
  *
- * **What this does not reach**, stated because a gate whose reach is assumed is worse than one
- * whose reach is known. A heading carries no register, so a title using the wrong common noun
- * passes — `docs/adr/0012-…`'s own title did, and was fixed by hand; every heading-scoped rule
- * tried against this repository ran at roughly one genuine finding in thirteen, which is the noise
- * this is built to avoid. A glossary entry's own definition is out too, because `**Term**:` ends a
- * sentence: what a concept *is* — "A named, authored sequence" — is a definition rather than a
- * naming, and the lists ban naming one.
+ * **What the register rule does not reach**, stated because a gate whose reach is assumed is worse
+ * than one whose reach is known. All three follow from the register being one sentence naming the
+ * concept, and each one let a real violation through:
+ *
+ * - **A sentence that names no concept**, whatever kind of block it sits in. A heading is walked
+ *   like any other and one naming a concept *is* checked, but `docs/adr/0012-…`'s own title named
+ *   none, so nothing put `works` in Story's register. Dropping the register for headings was
+ *   measured and refused: every heading-scoped rule tried over this repository ran at roughly one
+ *   genuine finding in thirteen, which is the noise this exists to avoid.
+ * - **A sentence that writes the concept in lower case too.** The register is the term as the
+ *   glossary writes it, capitalised, because that is how this repository marks the domain. So
+ *   `docs/adr/0003-…`'s "A merge is one person's assertion … held as an alias" broke two
+ *   conventions at once and was reached by neither; it was fixed by hand. Matching the term at any
+ *   case was measured instead: 14 findings over this tree, none of them genuine — "a database"
+ *   beside a lower-case "catalogue", "a significant change" beside "operation".
+ * - **A reference across a sentence boundary**: "A Merge is one assertion. It is held as an alias."
+ *
+ * A glossary entry's own definition is out too, because `**Term**:` ends a sentence: what a concept
+ * *is* — "A named, authored sequence" — is a definition rather than a naming, and the lists ban
+ * naming one.
  */
 export function findAvoidedWords(body: string, glossary: Glossary): DomainLanguageFinding[] {
-  const { owners, termWords, qualifiers } = settled(glossary);
+  const { owners, termWords, qualifiers } = scoping(glossary);
   const found: DomainLanguageFinding[] = [];
   const exempt = glossary.exempt.map((phrase) => new RegExp(spaced(phrase), "gi"));
 
-  for (const block of parseMarkdown(body).children) {
+  for (const block of descendants(parseMarkdown(body).children)) {
+    // A paragraph or a heading, wherever it sits — inside a list item, a blockquote, a table cell.
+    // Anything else is either a container of these or not prose at all, a fenced block being both.
+    if (block.type !== "paragraph" && block.type !== "heading") continue;
     const pieces = blockProse(block);
     const text = pieces.map((p) => p.text).join("");
     // Which line a character of that text came from: the piece holding it, plus the wraps before it.
@@ -1291,10 +1310,11 @@ export function findAvoidedWords(body: string, glossary: Glossary): DomainLangua
             if (hit.index <= index && index + length <= hit.index + hit[0].length) return true;
           return false;
         });
-      const report = (hit: { index: number; word: string; quote: string }, rest: Omit<DomainLanguageFinding, "line" | "quote" | "word">) => {
+      const report = (hit: { index: number; word: string; quote: string; term: string; why: string }) => {
         if (allowed(hit.index, hit.word.length)) return;
         found.push({
-          ...rest,
+          term: hit.term,
+          why: hit.why,
           word: hit.word,
           quote: hit.quote.replace(/\s+/g, " ").trim(),
           line: lineAt(at + hit.index),
@@ -1308,13 +1328,13 @@ export function findAvoidedWords(body: string, glossary: Glossary): DomainLangua
           "gi",
         );
         for (const hit of sentence.matchAll(standalone))
-          report(
-            { index: hit.index, word: hit[1], quote: hit[0] },
-            {
-              term: bannedFor,
-              why: `the glossary uses \`${word}\` only to qualify ${qualified}, so it names nothing on its own`,
-            },
-          );
+          report({
+            index: hit.index,
+            word: hit[1],
+            quote: hit[0],
+            term: bannedFor,
+            why: `the glossary uses \`${word}\` only to qualify ${qualified}, so it names nothing on its own`,
+          });
       }
 
       const named = glossary.terms.filter((t) =>
@@ -1334,10 +1354,13 @@ export function findAvoidedWords(body: string, glossary: Glossary): DomainLangua
           for (const hit of sentence.matchAll(naming)) {
             // The frame's own start is the determiner; the word is what the exemptions cover.
             const wordAt = sentence.toLowerCase().indexOf(hit[1].toLowerCase(), hit.index);
-            report(
-              { index: wordAt, word: hit[1], quote: hit[0] },
-              { term, why: `the sentence names ${term}, whose \`_Avoid_\` list holds it` },
-            );
+            report({
+              index: wordAt,
+              word: hit[1],
+              quote: hit[0],
+              term,
+              why: `the sentence names ${term}, whose \`_Avoid_\` list holds it`,
+            });
           }
         }
     }
