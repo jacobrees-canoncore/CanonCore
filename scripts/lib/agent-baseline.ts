@@ -14,7 +14,7 @@
 // pointer in a skill resolves to nothing — silently, in a repository this one cannot see.
 //
 // **Every value below is docs/infrastructure.md -> The Provider repository agent baseline**, and
-// the reasoning is ADR-0028. This module states what the baseline *is*; it does not restate why.
+// the reasoning is ADR-0029. This module states what the baseline *is*; it does not restate why.
 
 import { asRecord, fail } from "./doc-checks.ts";
 

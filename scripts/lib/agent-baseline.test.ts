@@ -13,7 +13,7 @@ import {
 // The pure half of the agent baseline: what the two manifests say, what the register publishes, and
 // how the two disagree. The wiring - reading files, listing skills, existence - is
 // `scripts/check-docs.ts`, and the argument for every value asserted here is
-// docs/infrastructure.md -> The Provider repository agent baseline, reasoned in ADR-0028.
+// docs/infrastructure.md -> The Provider repository agent baseline, reasoned in ADR-0029.
 
 /** The marketplace manifest, as `.claude-plugin/marketplace.json` writes it. */
 const marketplace = JSON.stringify({

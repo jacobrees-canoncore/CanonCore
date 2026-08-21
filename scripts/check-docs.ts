@@ -884,7 +884,7 @@ check("the documented agent baseline matches the manifests", () => {
     REPOSITORY,
   );
   // The payload is what makes the documents travel, and `"./"` is the only source that is this
-  // repository. ADR-0028 -> Why the payload is the whole repository is the argument.
+  // repository. ADR-0029 -> Why the payload is the whole repository is the argument.
   if (baseline.source !== "./")
     problems.push(
       `the marketplace's plugin source is "${baseline.source}" rather than "./", so the payload ` +

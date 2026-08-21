@@ -994,7 +994,7 @@ first Provider was built this way rather than because it was planned that way â€
    work. The chain and the documents it cites arrive there as a Claude Code plugin whose payload is
    this repository, so `CLAUDE.md`, `CODING_STANDARDS.md`, `CONTEXT.md` and the ADRs are all present
    and the skills' pointers resolve â€” against `${CLAUDE_PLUGIN_ROOT}` rather than the working
-   directory ([ADR-0028](../adr/0028-a-provider-reaches-this-practice-as-a-plugin.md)).
+   directory ([ADR-0029](../adr/0029-a-provider-reaches-this-practice-as-a-plugin.md)).
 
    What that costs the Provider is one `.claude/settings.json` of its own and two commands per
    person per machine, which the settings do **not** run for you.

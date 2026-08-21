@@ -894,14 +894,14 @@ baseline is unlike the CI one: an unchecked merge is permanent and a session run
 standards is not.
 
 **It is one Claude Code plugin, and this repository is what it delivers.** The decision, what was
-rejected, and what it costs are [ADR-0028](adr/0028-a-provider-reaches-this-practice-as-a-plugin.md);
+rejected, and what it costs are [ADR-0029](adr/0029-a-provider-reaches-this-practice-as-a-plugin.md);
 this is the register of what is provisioned.
 
 | Part | Shape | How a repository gets it |
 | --- | --- | --- |
 | The four skills, and `CLAUDE.md`, `CODING_STANDARDS.md`, `CONTEXT.md`, `docs/` | Two manifests here — [`.claude-plugin/marketplace.json`](../.claude-plugin/marketplace.json) and [`.claude-plugin/plugin.json`](../.claude-plugin/plugin.json) — whose plugin `source` is `"./"`, so the payload is this repository | That repository's own `.claude/settings.json`, below |
 | The install itself | Not settings, and not reliably automatic | Two commands per person per machine, below |
-| What is true of *that* repository, loaded on every request there | A short `CLAUDE.md` of its own | Written per Provider. It is not a copy of this one — [ADR-0028](adr/0028-a-provider-reaches-this-practice-as-a-plugin.md) → *Consequences* |
+| What is true of *that* repository, loaded on every request there | A short `CLAUDE.md` of its own | Written per Provider. It is not a copy of this one — [ADR-0029](adr/0029-a-provider-reaches-this-practice-as-a-plugin.md) → *Consequences* |
 
 ### What a Provider repository commits, and the commands it does not run
 
@@ -976,7 +976,7 @@ this repository's lockfile is `pnpm-lock.yaml`.
 **`.mcp.json` is in it, and `claude plugin details` reports `MCP servers (1) resend` against what is
 installed.** Two standing rules follow from that and from the payload being the repository root —
 nothing credentialled in `.mcp.json`, and a new root directory can join the payload silently. Both
-are argued in [ADR-0028](adr/0028-a-provider-reaches-this-practice-as-a-plugin.md) → *What this
+are argued in [ADR-0029](adr/0029-a-provider-reaches-this-practice-as-a-plugin.md) → *What this
 costs*, and the first is in [`../CLAUDE.md`](../CLAUDE.md) because it binds an edit made here.
 
 ### Neither manifest names a ref
@@ -1423,7 +1423,7 @@ whatever noticed can mint the replacement, is wrong in one direction only.
 | Preview branch | **One**, named `preview`, `br-calm-flower-zame56ly` — schema-only, shared by every preview deployment, and holding no production row. *The shared preview branch* below is what it is and how it is kept level |
 | Region | `eu-west-2` (London) |
 | Plan | Launch, billed through Vercel. **Five root branches**, of which `main` and `preview` are two ([Neon, schema-only branches](https://neon.com/docs/guides/branching-schema-only), whose *Schema-only branch allowances* section tables it per plan: Free 3, Launch 5, Scale 25) |
-| History retention | **7 days**, `history_retention_seconds: 604800`. Raised from Neon's default 24 hours on 21 August 2026 by **CAN-55 Keep a backup that reaches past Neon's 24-hour history window**, with a `PATCH` and a fresh `GET` to read it back. 7 days is Launch's maximum — *"Up to 7 days"* ([plans](https://neon.com/docs/introduction/plans), read 21 August 2026) — and it is billed at $0.20/GB-month against the write history retained inside the window, on root branches only. The two root branches hold 63 MB between them and the database has fourteen migrations, two Stories and one account in it, so this is worth pennies; **the exact figure has not been read**, because the consumption endpoint is organisation-scoped and this project's key is not — and the API's own `written_data_bytes` is no substitute, since it reads `0` here beside a `data_storage_bytes_hour` that also reads `0` for a database billing $26.48. [ADR-0028](adr/0028-a-nightly-encrypted-backup-off-neon.md) |
+| History retention | **7 days**, `history_retention_seconds: 604800`. Raised from Neon's default 24 hours on 21 August 2026 by **CAN-55 Keep a backup that reaches past Neon's 24-hour history window**, with a `PATCH` and a fresh `GET` to read it back. 7 days is Launch's maximum — *"Up to 7 days"* ([plans](https://neon.com/docs/introduction/plans), read 21 August 2026) — and it is billed at $0.20/GB-month against the write history retained inside the window, on root branches only. The two root branches hold 63 MB between them and the database has fourteen migrations, two Stories and one account in it, so this is worth pennies; **the exact figure has not been read**, because the consumption endpoint is organisation-scoped and this project's key is not — and the API's own `written_data_bytes` is no substitute, since it reads `0` here beside a `data_storage_bytes_hour` that also reads `0` for a database billing $26.48. [ADR-0029](adr/0028-a-nightly-encrypted-backup-off-neon.md) |
 | Compute size | **Autoscaling 0.25–1 CU**, set 21 August 2026 on both computes *and* on the project's `default_endpoint_settings`, so branches created later inherit it. Was a **fixed 1 CU**, minimum and maximum both, which billed four times Neon's own floor for a 70 MB database. Scale-to-zero is 5 minutes, which is Launch's minimum — 1-minute timeouts are Scale-only ([plans](https://neon.com/docs/introduction/plans), read 21 August 2026) |
 | What bounds this bill | **Nothing does, and that is now a finding rather than an open question.** Three controls exist and all three refuse: Vercel's $40 budget excludes Marketplace integrations; `vercel integration resource create-threshold` is auto-recharge for *prepaid* balances and `vercel integration balance neon` answers `No balance information found`; and Neon's own consumption quota is refused with `HTTP 404 — action restricted; reason:"organization is managed by Vercel"`. **The restriction is specific to quotas**, not to project writes — a no-op `PATCH` on the same endpoint in the same minute answered `200`. [ADR-0026](adr/0026-the-database-bill-is-watched-rather-than-capped.md) |
 | Spending notifications | **On, $15**, organisation-wide across `canoncore` and `waveger`. E-mail at 80% and 100%, spending checked every 15 minutes, **alerts only — nothing pauses**. Set 21 August 2026 and read back from a cold reload. It fired immediately, because August's spend stood at $26.48 on Neon's own billing page, forty minutes after Vercel's installation page read $26.28. **The 20 cents between them is not reconciled**, and an earlier version of this row explained it as spend accrued between the reads — which does not survive arithmetic: it would be $0.30 an hour, more than four times the worst month this project has ever been on course for. Two vendors' pages, two figures, no explanation when it was set; that is the alert working, not a misconfiguration. The figure sits below the $24 Vercel platform fee on purpose, so the database cannot become the largest line without an e-mail first |
@@ -1953,7 +1953,7 @@ once it says `verify-full`.
 
 **A `pg_dump` of production every night, encrypted, in a store that is not Neon.** Neon's 7-day
 history window covers a mistake; it does not cover losing the account the window is inside, and that
-is the only thing this buys. [ADR-0028](adr/0028-a-nightly-encrypted-backup-off-neon.md) holds the
+is the only thing this buys. [ADR-0029](adr/0028-a-nightly-encrypted-backup-off-neon.md) holds the
 argument and what it rejected; [`runbook.md`](runbook.md) → *The database has to be restored from a
 backup* is what to do when one is needed.
 
@@ -2033,7 +2033,7 @@ that reports success:
 failures: `scripts/check-docs.ts` compares this section's schedule and retention against the workflow
 and the code, and reads the store to fail when the newest backup is more than 48 hours old. The
 second gates on a push rather than on a clock, which is a real limit and is
-[ADR-0028](adr/0028-a-nightly-encrypted-backup-off-neon.md) → *How a backup that stops is noticed*.
+[ADR-0029](adr/0028-a-nightly-encrypted-backup-off-neon.md) → *How a backup that stops is noticed*.
 
 ## External data source: TMDB
 
