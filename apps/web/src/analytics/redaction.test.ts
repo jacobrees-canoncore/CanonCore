@@ -44,6 +44,16 @@ describe("redactUrl", () => {
   test("drops the event when the URL will not parse", () => {
     expect(redactUrl("not-a-url")).toBeNull();
   });
+
+  // `URL` parses these happily and reports their origin as the string `"null"`, so without a check
+  // they leave here as `"null/*"` — an address-shaped value that is not an address. Nothing a
+  // browser reports as a page URL is one of these; a violation report is where they turn up.
+  test.each(["javascript:alert(1)", "data:text/html,<b>x</b>", "about:blank", "blob:x"])(
+    "drops %s, whose scheme is not the web's",
+    (url) => {
+      expect(redactUrl(url)).toBeNull();
+    },
+  );
 });
 
 /**

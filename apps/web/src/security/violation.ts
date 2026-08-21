@@ -23,6 +23,16 @@ import { redactUrl } from "@/analytics/redaction";
  * differently would be dropped silently — which is the exact failure a report-only phase exists to
  * rule out. The shape is unambiguous, so reading it cannot fail that way.
  *
+ * ## Two kinds of field, and only one of them is an address
+ *
+ * {@link address} reduces the three fields that are URLs, because a URL on this site can be a
+ * credential. The rest are text: capped by {@link fieldLimit} and otherwise kept as sent, except
+ * {@link disposition} which has a closed vocabulary and is held to it. **The cap is not redaction
+ * and is not doing redaction's job** — it bounds what a forged post can write into a log, which is
+ * a different problem, and the fields it bounds are ones no browser fills from a URL. `sample` is
+ * the one worth naming: it is 40 characters of the inline script or style that violated, so it is
+ * page content rather than an address, and reducing it would destroy the only thing it is for.
+ *
  * ## What is deliberately not kept
  *
  * The referrer, because no CSP diagnosis needs it and it is one more URL to reduce. And the line
@@ -40,8 +50,12 @@ export type Violation = {
   readonly source: string | null;
   /** The browser's excerpt of the offending content. */
   readonly sample: string | null;
-  /** `enforce` or `report`, which is how the two policies this application sends are told apart. */
-  readonly disposition: string | null;
+  /**
+   * `enforce` or `report`, which is how the two policies this application sends are told apart —
+   * and `null` from WebKit, which was observed on 21 August 2026 sending neither this field nor
+   * {@link sample}. So an absence here is an engine rather than a fault.
+   */
+  readonly disposition: "enforce" | "report" | null;
 };
 
 /**
@@ -66,6 +80,20 @@ function fields(value: unknown): Record<string, unknown> | null {
 /** A non-empty string, capped. */
 function text(value: unknown): string | null {
   return typeof value === "string" && value !== "" ? value.slice(0, fieldLimit) : null;
+}
+
+/**
+ * Which policy raised this, held to the two values CSP defines for it
+ * ([CSP3 § 5.1](https://www.w3.org/TR/CSP3/#violation-events),
+ * `SecurityPolicyViolationEventDisposition`).
+ *
+ * **A closed vocabulary is checked rather than capped**, which is the rule everywhere else in this
+ * repository and costs one line here. It is also the field a reader leans on hardest: while both
+ * policies are live, `report` and `enforce` are the difference between a violation this deployment
+ * tolerated and one it blocked.
+ */
+function disposition(value: unknown): "enforce" | "report" | null {
+  return value === "enforce" || value === "report" ? value : null;
 }
 
 /**
@@ -105,13 +133,7 @@ const keywordOrScheme = /^[a-z][a-z0-9+.-]*$/;
 function address(value: unknown): string | null {
   const raw = text(value);
   if (raw === null) return null;
-  if (keywordOrScheme.test(raw)) return raw;
-  // Only an HTTP(S) URL is something the redaction can reduce, and by CSP3 § 5.4 it is the only
-  // kind a browser sends here — every other scheme is reported as the bare scheme, which the line
-  // above has already kept. Asking first rather than reading the answer back matters: given
-  // `javascript:…` the redaction returns the string `null/*`, which is neither an address nor a
-  // refusal.
-  return /^https?:\/\//i.test(raw) ? redactUrl(raw) : null;
+  return keywordOrScheme.test(raw) ? raw : redactUrl(raw);
 }
 
 /**
@@ -147,6 +169,6 @@ export function violationFrom(body: string): Violation | null {
     page: address(report["document-uri"]),
     source: address(report["source-file"]),
     sample: text(report["script-sample"]),
-    disposition: text(report["disposition"]),
+    disposition: disposition(report["disposition"]),
   };
 }

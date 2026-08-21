@@ -76,6 +76,13 @@ export function redactUrl(url: string): string | null {
     return null;
   }
 
+  // **Nor does one whose scheme is not the web's.** `origin` is the literal string `"null"` for
+  // every other scheme, so `javascript:alert(1)` would otherwise leave here as `"null/*"` — a
+  // value that is neither an address nor the refusal this function documents itself as returning.
+  // Nothing a browser reports as a page URL is anything but HTTP(S); an address that is comes from
+  // somewhere that was never a page, and there is nothing safe to say about it.
+  if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return null;
+
   // Everything after the path goes, always: no query, no fragment, no credentials.
   return parsed.origin + redactPath(parsed.pathname);
 }

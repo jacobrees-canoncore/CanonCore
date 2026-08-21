@@ -79,9 +79,12 @@
  * read 21 August 2026). So sending both no longer buys coverage from anything — it only switches
  * the working directive off.
  *
- * **Measured, on 21 August 2026.** Serve one page carrying the policy under test, raise a violation
- * in it by appending an `<img>` from a host under `.invalid`, and count what a collector receives
- * over the next 8 seconds. Each engine is the one `@playwright/test` installs:
+ * **Measured, on 21 August 2026.** Serve one page carrying the policy under test — and, in every
+ * arm that names `report-to`, a `Reporting-Endpoints` header declaring that group, without which
+ * the directive would name nothing and the result would be about the harness rather than about the
+ * browser. Raise a violation in the page by appending an `<img>` from a host under `.invalid`, and
+ * count what a collector receives over the next 8 seconds. Each engine is the one
+ * `@playwright/test` installs:
  *
  * | Policy | Chromium 151 | Firefox 153 | WebKit 26.5 |
  * | --- | --- | --- | --- |

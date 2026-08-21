@@ -9,7 +9,8 @@ import { violationFrom } from "./violation";
 const origin = "https://www.canoncore.com";
 
 /**
- * The sharpest case this module exists for. It is invented rather than minted, for the reason `e2e/measurement-on-the-wire.spec.ts` gives about the same address: the
+ * The sharpest case this module exists for. It is invented rather than minted, for the reason
+ * `e2e/measurement-on-the-wire.spec.ts` gives about the same address: the
  * redaction drops the whole query string and cannot tell a live token from an invented one, so a
  * working credential in a test file would buy nothing.
  */
@@ -108,7 +109,16 @@ describe("a report the browser posts", () => {
     },
   );
 
-  test("falls back to the directive Firefox's older spelling supplies", () => {
+  /**
+   * The fallback, and why its value looks different. CSP2 defined the two fields to mean different
+   * things: `effective-directive` is "the name of the policy directive that was violated… even if
+   * that directive does not explicitly appear in the policy", while `violated-directive` is "the
+   * policy directive that was violated, **as it appears in the policy**"
+   * ([CSP2 § 7.1](https://www.w3.org/TR/CSP2/#violation-reports)) — which is why the latter can
+   * carry a source list after the name, as this fixture does. CSP3 § 5.3 sets both to the effective
+   * directive. The resolved name is preferred; either is enough to act on.
+   */
+  test("falls back to the directive as the policy spelled it, which CSP2 defined separately", () => {
     expect(
       violationFrom(deprecated({ "violated-directive": "img-src https://example.com" }))?.directive,
     ).toBe("img-src https://example.com");
