@@ -75,7 +75,8 @@ export function pooledHostOf(host: string): string {
   return compute.endsWith("-pooler") ? host : [`${compute}-pooler`, ...rest].join(".");
 }
 
-export type NeonBranch = {
+/** Not exported: callers pass the Neon API's own rows, which are structurally this. */
+type NeonBranch = {
   readonly id: string;
   readonly name: string;
   readonly protected?: boolean;
@@ -151,6 +152,14 @@ export function sweepPlan(input: SweepInput): SweepPlan {
     // something load-bearing by hand. A sweeper is not the right thing to discover that with.
     if (neonBranch.protected || neonBranch.default) {
       keep.push({ neonBranch, reason: "the Neon branch is protected or default" });
+      continue;
+    }
+    // `neonBranchName` refuses to build `wt/main`, so nothing here creates one — and the guard is
+    // here anyway because a plan entry carries the git branch onward: the caller deletes the *ref*
+    // of an abandoned lane as well as its database, and `main` is the one ref that must never be
+    // reachable by that path. A name somebody made by hand in the Console is all it would take.
+    if (gitBranch === "main") {
+      keep.push({ neonBranch, reason: "`main` is production and is never swept" });
       continue;
     }
     if (!onOrigin.has(gitBranch)) {

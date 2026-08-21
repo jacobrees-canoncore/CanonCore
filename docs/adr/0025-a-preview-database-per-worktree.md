@@ -220,13 +220,16 @@ documented flow produces that, since the hook only runs under `orca worktree cre
   count is bounded by open lanes and that the sweeper is what bounds it.
 - **A quota suspends these too.** A per-project consumption quota suspends every compute in the
   project, so a worktree database can exist and refuse connections. That reads as the degraded case
-  above rather than as an outage, and CAN-144 owns the quota.
-- **What a worktree database costs is its duty cycle, not its existence.** Measured on 21 August
-  2026 under CAN-144: `canoncore`'s `main` compute ran **63.8%** of wall clock because something
-  polls the site every five minutes, while `waveger`, which nothing polls, ran **2.5%**. A branch
-  that only wakes when a person opens its preview scales to zero the rest of the time. **So nothing
-  here may grow a keep-warm, health-check or readiness poll per worktree** — that, and not the
-  number of branches, is what would make this expensive.
+  above rather than as an outage, and **CAN-144 Bound or detect the Neon bill** owns the quota.
+- **What a worktree database costs is its duty cycle, not its existence**, and that was measured
+  rather than reasoned. Under **CAN-144 Bound or detect the Neon bill** on 21 August 2026 the two
+  projects on this Neon organisation were an order of magnitude apart in compute time for one
+  reason: the polled one was awake most of the day and the unpolled one was awake almost none of
+  it. A worktree branch that only wakes when a person opens its preview scales to zero the rest of
+  the time. **So nothing here may grow a keep-warm, health-check or readiness poll per worktree** —
+  that, and not the number of branches, is what would make this expensive. The figures move as the
+  polling does, so they live in that ticket's half of `docs/infrastructure.md` and are deliberately
+  not repeated here.
 - **An abandoned lane leaves a ref on GitHub** until the sweeper takes it. That is new: before this,
   a lane that was opened and never worked left nothing anywhere.
 - **A rebase makes the first push non-fast-forward.** The ref is created at the base commit, so a

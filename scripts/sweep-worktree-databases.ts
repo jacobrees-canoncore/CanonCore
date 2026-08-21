@@ -25,17 +25,20 @@ import { readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 
-import type { EnvironmentVariable, NeonBranch } from "./lib/worktree-database.ts";
+import { NEON_PROJECT, NeonUnavailable, neonBranches, neonRequest } from "./lib/neon-api.ts";
+import type { EnvironmentVariable } from "./lib/worktree-database.ts";
 import { deadVariables, gitBranchOf, sweepPlan } from "./lib/worktree-database.ts";
 
-const NEON_PROJECT = "steep-wave-52467839";
-const NEON_API = "https://console.neon.tech/api/v2";
 const VERCEL_API = "https://api.vercel.com";
 const VERCEL_PROJECT = "canoncore";
 const REPOSITORY = "jacobrees-canoncore/CanonCore";
+
+// The `projectId` Orca gives this repository's worktrees, read from `orca worktree list --json` on
+// 21 August 2026. Orca also emits `repo:<uuid>` for a repository it has no forge remote for, so
+// this is a value to re-read rather than assume — which is why `openWorktreeBranches` below treats
+// "rows exist but none match" as *unknown* rather than as *none open*.
 const ORCA_PROJECT = "github:jacobrees-canoncore/canoncore";
 
-const KEY_FILE = join(homedir(), ".config", "canoncore", "neon-api-key");
 const VERCEL_AUTH = join(homedir(), "Library", "Application Support", "com.vercel.cli", "auth.json");
 const VERCEL_CONFIG = join(homedir(), "Library", "Application Support", "com.vercel.cli", "config.json");
 
@@ -57,23 +60,6 @@ function die(why: string): never {
   process.exit(1);
 }
 
-// --- The two credentials, both machine-local. ---------------------------------------------------
-
-function neonKey(): string {
-  const fromEnvironment = process.env.NEON_API_KEY?.trim();
-  if (fromEnvironment) return fromEnvironment;
-  try {
-    const fromFile = readFileSync(KEY_FILE, "utf8").trim();
-    if (fromFile) return fromFile;
-  } catch {
-    /* absent and unreadable get the same message */
-  }
-  return die(
-    `no Neon API key. Set NEON_API_KEY, or put one in ${KEY_FILE} — ` +
-      "docs/infrastructure.md -> The Neon API key.",
-  );
-}
-
 /**
  * The Vercel CLI's own token, rather than a second permanent secret.
  *
@@ -93,33 +79,42 @@ function vercelAuth(): { token: string; teamId: string } {
       .currentTeam;
     if (!token || !teamId) throw new Error("no token or no current team");
     return { token, teamId };
-  } catch (err) {
+  } catch (error) {
     return die(
-      `could not read the Vercel CLI's own credentials from ${VERCEL_AUTH}: ${(err as Error).message}. ` +
+      `could not read the Vercel CLI's own credentials from ${VERCEL_AUTH}: ${(error as Error).message}. ` +
         "Its format may have moved — docs/adr/0025-a-preview-database-per-worktree.md -> Teardown.",
     );
   }
 }
 
-async function api(url: string, token: string, init: RequestInit = {}): Promise<unknown> {
+async function vercel(url: string, token: string, init: RequestInit = {}): Promise<unknown> {
   const response = await fetch(url, {
     ...init,
     headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json", ...init.headers },
   });
   const body = await response.text();
-  if (!response.ok) die(`${init.method ?? "GET"} ${url} answered ${response.status}: ${body.slice(0, 300)}`);
+  if (!response.ok)
+    die(`${init.method ?? "GET"} ${url} answered ${response.status}: ${body.slice(0, 300)}`);
   return body ? JSON.parse(body) : {};
 }
 
+const neon = async (path: string, init?: RequestInit) => {
+  try {
+    return await neonRequest(path, init);
+  } catch (error) {
+    return die(error instanceof NeonUnavailable ? error.message : String(error));
+  }
+};
+
 // --- What is out there. -------------------------------------------------------------------------
 
-const neon = neonKey();
-
-const neonBranches = (
-  (await api(`${NEON_API}/projects/${NEON_PROJECT}/branches`, neon)) as {
-    branches?: (NeonBranch & { protected?: boolean; default?: boolean })[];
+const branches = await (async () => {
+  try {
+    return await neonBranches();
+  } catch (error) {
+    return die(error instanceof NeonUnavailable ? error.message : String(error));
   }
-).branches ?? [];
+})();
 
 // Fetched first, so `origin/main` and every remote head are current rather than as stale as the
 // last thing this worktree happened to do. A sweeper reading a stale origin would call a branch
@@ -161,16 +156,29 @@ const emptyRemoteBranches = remote
  * The distinction is load-bearing and `sweepPlan` relies on it: an empty list means "no lane is
  * open", `undefined` means "I do not know", and reading the second as the first deletes the
  * database of every lane that has not committed yet.
+ *
+ * **So the emptiness test is applied after the filter, not before it.** `orca` lists every
+ * repository it manages, and this one is identified by a `projectId` string that is Orca's to
+ * change. Rows present with none matching is therefore *unknown* — the filter may simply have
+ * stopped matching — and reading it as "no lane is open" would be the one path where a changed
+ * value degrades toward deleting things. An archived lane is excluded on purpose: archiving is how
+ * a lane is declared finished, and the branch still has to carry no commits to be swept at all.
  */
 function openWorktreeBranches(): string[] | undefined {
   const raw = tryRun("orca", ["worktree", "list", "--json"]);
   if (raw === undefined) return undefined;
   try {
     const parsed = JSON.parse(raw) as { result?: { worktrees?: unknown } };
-    const rows = (parsed.result?.worktrees ?? []) as { projectId?: string; branch?: string }[];
+    const rows = (parsed.result?.worktrees ?? []) as {
+      projectId?: string;
+      branch?: string;
+      isArchived?: boolean;
+    }[];
     if (!Array.isArray(rows) || rows.length === 0) return undefined;
-    return rows
-      .filter((r) => r.projectId === ORCA_PROJECT && typeof r.branch === "string")
+    const mine = rows.filter((r) => r.projectId === ORCA_PROJECT && typeof r.branch === "string");
+    if (mine.length === 0) return undefined;
+    return mine
+      .filter((r) => !r.isArchived)
       .map((r) => r.branch!.replace("refs/heads/", ""));
   } catch {
     return undefined;
@@ -178,7 +186,7 @@ function openWorktreeBranches(): string[] | undefined {
 }
 
 const plan = sweepPlan({
-  neonBranches,
+  neonBranches: branches,
   remoteBranches: remote.map((r) => r.branch),
   emptyRemoteBranches,
   openWorktreeBranches: openWorktreeBranches(),
@@ -202,7 +210,7 @@ const onOrigin = new Set(remote.map((r) => r.branch));
 const sweptBranches = plan.sweep.map((s) => gitBranchOf(s.neonBranch.name)!);
 const { token, teamId } = vercelAuth();
 const environmentRows = (
-  (await api(`${VERCEL_API}/v10/projects/${VERCEL_PROJECT}/env?teamId=${teamId}`, token)) as {
+  (await vercel(`${VERCEL_API}/v10/projects/${VERCEL_PROJECT}/env?teamId=${teamId}`, token)) as {
     envs?: EnvironmentVariable[];
   }
 ).envs ?? [];
@@ -223,9 +231,13 @@ for (const row of goingVariables)
 // The abandoned-lane class leaves a git branch too, and it carries nothing `main` lacks — that is
 // the test that put it in this class — so removing it loses no commit. A branch swept because it
 // was already gone from origin has nothing to remove.
+//
+// `main` is excluded here as well as by every test upstream. It cannot reach this list — nothing
+// names a Neon branch `wt/main` (`neonBranchName` refuses it) and `emptyRemoteBranches` skips it —
+// so this guards against a future edit rather than against today's inputs, which is the point of it.
 const goingRefs = plan.sweep
   .map((s) => gitBranchOf(s.neonBranch.name)!)
-  .filter((b) => onOrigin.has(b));
+  .filter((b) => b !== "main" && onOrigin.has(b));
 for (const branch of goingRefs) console.log(`  DELETE  refs/heads/${branch} on GitHub (carries nothing)`);
 
 const total = plan.sweep.length + goingVariables.length + goingRefs.length;
@@ -239,18 +251,24 @@ if (!apply) {
 }
 
 // --- Apply. -------------------------------------------------------------------------------------
+//
+// **The Vercel variable goes before the Neon branch it names, and the order is a safety property
+// rather than a preference.** Interrupted the other way round — a failed `DELETE`, a shape that
+// moved, the process killed — the variable would be left overriding the fallback with a host that
+// no longer answers, which is the exact state ADR-0025 -> *Teardown* refuses `expires_at` for.
+// Interrupted this way round, the branch is orphaned and the preview falls back to the shared
+// `preview` branch: the next run takes the branch, because the plan is computed from origin rather
+// than from what any earlier run managed to finish.
 
-for (const going of plan.sweep) {
-  await api(`${NEON_API}/projects/${NEON_PROJECT}/branches/${going.neonBranch.id}`, neon, {
-    method: "DELETE",
-  });
-  console.log(`  ✓ deleted Neon branch ${going.neonBranch.name}`);
-}
 for (const row of goingVariables) {
-  await api(`${VERCEL_API}/v9/projects/${VERCEL_PROJECT}/env/${row.id}?teamId=${teamId}`, token, {
+  await vercel(`${VERCEL_API}/v9/projects/${VERCEL_PROJECT}/env/${row.id}?teamId=${teamId}`, token, {
     method: "DELETE",
   });
   console.log(`  ✓ deleted ${row.key} scoped to ${row.gitBranch}`);
+}
+for (const going of plan.sweep) {
+  await neon(`/projects/${NEON_PROJECT}/branches/${going.neonBranch.id}`, { method: "DELETE" });
+  console.log(`  ✓ deleted Neon branch ${going.neonBranch.name}`);
 }
 for (const branch of goingRefs) {
   if (tryRun("gh", ["api", "-X", "DELETE", `repos/${REPOSITORY}/git/refs/heads/${branch}`]) === undefined)

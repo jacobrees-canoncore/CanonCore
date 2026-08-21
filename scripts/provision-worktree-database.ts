@@ -29,26 +29,16 @@
 // `apply-migrations-ahead-of-merge.sh` — has to tell "no database of its own" from "this host".
 
 import { execFileSync } from "node:child_process";
-import { readFileSync } from "node:fs";
-import { homedir } from "node:os";
-import { join } from "node:path";
 
+import type { NeonBranchRow } from "./lib/neon-api.ts";
+import { NEON_PROJECT, NeonUnavailable, neonBranches, neonRequest } from "./lib/neon-api.ts";
 import type { Result } from "./lib/doc-checks.ts";
 import { Skip, explainFailure, skip, tally } from "./lib/doc-checks.ts";
-import {
-  PER_WORKTREE_VARIABLE,
-  neonBranchName,
-  pooledHostOf,
-} from "./lib/worktree-database.ts";
+import { PER_WORKTREE_VARIABLE, neonBranchName, pooledHostOf } from "./lib/worktree-database.ts";
 
-const NEON_PROJECT = "steep-wave-52467839";
 const PARENT_BRANCH = "preview";
 const VERCEL_PROJECT = "canoncore";
 const REPOSITORY = "jacobrees-canoncore/CanonCore";
-const NEON_API = "https://console.neon.tech/api/v2";
-
-/** Where the machine keeps the Neon key. docs/infrastructure.md -> The Neon API key. */
-const KEY_FILE = join(homedir(), ".config", "canoncore", "neon-api-key");
 
 const run = (file: string, args: string[], cwd?: string) =>
   execFileSync(file, args, { cwd, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }).trim();
@@ -63,57 +53,24 @@ function orSkip(file: string, args: string[], why: string, cwd?: string): string
   }
 }
 
-/**
- * The Neon key, from the environment or from the machine's own file.
- *
- * **It is never in this repository and never in a Vercel variable.** It can create and destroy
- * databases, so it lives on the machine that runs the hook and nowhere a deployment can reach —
- * docs/adr/0016-provisioning-plain-api-keys-neon-excepted.md.
- */
-function neonKey(): string {
-  const fromEnvironment = process.env.NEON_API_KEY?.trim();
-  if (fromEnvironment) return fromEnvironment;
-  let fromFile = "";
+/** Everything Neon says it cannot do becomes a SKIP: a lane without a database is a working lane. */
+async function neon(path: string, init?: RequestInit): Promise<unknown> {
   try {
-    fromFile = readFileSync(KEY_FILE, "utf8").trim();
-  } catch {
-    /* absent and unreadable are the same problem here, and get the same message */
+    return await neonRequest(path, init);
+  } catch (error) {
+    return skip(error instanceof NeonUnavailable ? error.message : String(error));
   }
-  if (fromFile) return fromFile;
-  return skip(
-    `no Neon API key. Set NEON_API_KEY, or put one in ${KEY_FILE} — ` +
-      "docs/infrastructure.md -> The Neon API key says which key and how to reissue it",
-  );
 }
-
-async function neon(path: string, init: RequestInit = {}): Promise<unknown> {
-  let response: Response;
-  try {
-    response = await fetch(`${NEON_API}${path}`, {
-      ...init,
-      headers: {
-        Authorization: `Bearer ${neonKey()}`,
-        "Content-Type": "application/json",
-        ...init.headers,
-      },
-    });
-  } catch (err) {
-    if (err instanceof Skip) throw err;
-    return skip(`Neon could not be reached: ${(err as Error).message}`);
-  }
-  const body = await response.text();
-  if (!response.ok)
-    skip(`Neon answered ${response.status} to ${init.method ?? "GET"} ${path}: ${body.slice(0, 200)}`);
-  return body ? JSON.parse(body) : {};
-}
-
-type NeonBranchRow = { id: string; name: string };
-type NeonEndpoint = { host: string; type: string };
 
 async function branches(): Promise<NeonBranchRow[]> {
-  const body = (await neon(`/projects/${NEON_PROJECT}/branches`)) as { branches?: NeonBranchRow[] };
-  return body.branches ?? [];
+  try {
+    return await neonBranches();
+  } catch (error) {
+    return skip(error instanceof NeonUnavailable ? error.message : String(error));
+  }
 }
+
+type NeonEndpoint = { host: string; type: string };
 
 /**
  * The pooled host of a branch's read-write compute.
@@ -128,7 +85,7 @@ async function hostOf(branchId: string): Promise<string> {
   };
   const endpoint = (body.endpoints ?? []).find((e) => e.type === "read_write");
   if (!endpoint) skip(`Neon branch ${branchId} has no read-write compute, so there is no host`);
-  return pooledHostOf(endpoint!.host);
+  return pooledHostOf(endpoint.host);
 }
 
 const worktree = process.env.ORCA_WORKTREE_PATH ?? process.cwd();
@@ -186,7 +143,7 @@ async function ensureNeonBranch(gitBranch: string): Promise<{ host: string; deta
   const created = (await neon(`/projects/${NEON_PROJECT}/branches`, {
     method: "POST",
     body: JSON.stringify({
-      branch: { name: wanted, parent_id: parent!.id },
+      branch: { name: wanted, parent_id: parent.id },
       endpoints: [{ type: "read_write" }],
     }),
   })) as { branch: NeonBranchRow };

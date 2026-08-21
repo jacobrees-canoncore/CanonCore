@@ -192,6 +192,23 @@ test("an unreadable worktree list keeps the abandoned-lane class rather than gue
   assert.match(plan.keep[0]!.reason, /could not be read/);
 });
 
+test("a Neon branch named for `main` is never a candidate, however it got there", () => {
+  // `neonBranchName` refuses to build this name, so nothing here creates it — which is exactly why
+  // it is worth asserting: the guard has to hold for a branch somebody made by hand in the Console,
+  // and the sweeper deletes the *git* ref of an abandoned lane as well as its database.
+  const plan = sweepPlan({
+    neonBranches: [branch("wt/main")],
+    remoteBranches: ["main"],
+    emptyRemoteBranches: ["main"],
+    openWorktreeBranches: [],
+  });
+  assert.deepEqual(
+    plan.sweep.map((s) => s.neonBranch.name),
+    [],
+  );
+  assert.match(plan.keep[0]!.reason, /main/);
+});
+
 // ---------------------------------------------------------------------------
 // The Vercel half. One row in this listing is the fallback every other preview reads.
 // ---------------------------------------------------------------------------

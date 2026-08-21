@@ -1693,6 +1693,20 @@ the state and the two commands.
 > **Two lanes were shown not to collide**, which is the whole point of the arrangement: a migration
 > applied to one worktree's database left the other's journal at 14 rows against 15, without the new
 > table, and both held none of production's rows.
+>
+> **And a real deployment was shown to read it**, which is the assertion that matters because it is
+> the only one made from outside the settings. The preview built from this branch's first push
+> logged, at request time:
+>
+> ```
+> [canoncore] database host ep-cool-salad-zafk7fgl-pooler.c-2.eu-west-2.aws.neon.tech (VERCEL_ENV=preview)
+> ```
+>
+> That is `wt/jacobdrees/can-138`'s own compute — **not** the shared branch's
+> `ep-floral-meadow-za2ibgdu` and **not** production's `ep-aged-moon-zaujrwy4`. **What is still
+> outstanding is the same line from a second provisioned lane**, which needs `orca.yaml` to be on
+> `main` before another lane can inherit the hook, so it belongs to the after-merge check rather
+> than to this change.
 
 **A branch-scoped variable is invisible to the roster check, and must therefore match the documented
 row exactly.** `vercel env ls` prints no git-branch column and
