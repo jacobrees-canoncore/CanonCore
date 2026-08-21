@@ -22,16 +22,15 @@ import { violationFrom } from "@/security/violation";
  *
  * **204, always, and to any body.** A reporting endpoint's answer is never read: CSP3 says of the
  * `report-uri` request that "the result will be ignored"
- * ([§ 5.5](https://www.w3.org/TR/CSP3/#report-violation)), and for the Reporting API a non-2xx
- * only teaches the browser to back off from an endpoint that is working. So a malformed or forged
- * post is dropped silently rather than argued with — there is nobody on the other end to tell.
+ * ([§ 5.5](https://www.w3.org/TR/CSP3/#report-violation)). So a malformed or forged post is dropped
+ * silently rather than argued with — there is nobody on the other end to tell.
  *
  * **It is unauthenticated because it cannot be otherwise**: the browser posts it, not the page, so
  * there is no credential to attach. Anyone who knows this address can therefore make a line
  * appear in a log, and both caps in `violation.ts` are there for that rather than for a browser.
- * The remaining cost is one function invocation per report, which is worth watching if an enforced
- * policy is ever wrong on a busy page —
- * docs/adr/0026-the-database-bill-is-watched-rather-than-capped.md.
+ * The remaining cost is one function invocation per report, against the 1,000,000 a month Hobby
+ * includes (docs/adr/0024-vercel-pro-for-a-spend-cap-rather-than-an-outage.md), which is worth
+ * watching if an enforced policy is ever wrong on a busy page.
  */
 export async function POST(request: Request): Promise<Response> {
   const violation = violationFrom(await request.text());

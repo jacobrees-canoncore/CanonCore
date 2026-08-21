@@ -100,8 +100,8 @@ describe("the headers that are not a policy", () => {
     expect(header("X-Content-Type-Options")).toBe("nosniff");
   });
 
-  // Two of this application's addresses carry a credential in the query string, so a referrer
-  // that left this origin whole would carry one with it.
+  // A referrer that left this origin whole would take a query string with it, and `headers.ts`
+  // says what one of those can be.
   test("tell another site the origin and no more", () => {
     expect(header("Referrer-Policy")).toBe("strict-origin-when-cross-origin");
   });

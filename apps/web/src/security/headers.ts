@@ -65,32 +65,40 @@
  *
  * ## Why `report-to` is not sent alongside it, though every recipe says to send both
  *
- * `report-uri` is deprecated in favour of `report-to`, and the documented compatibility recipe —
- * Sentry's, and the specification's own example — is to send both, on the reasoning that CSP3
- * settles the overlap: "**report-uri only takes effect if report-to is not present**"
- * ([§ 5.5](https://www.w3.org/TR/CSP3/#report-violation)). That override is real, and it is why
- * sending both here would collect **nothing**.
+ * `report-uri` is deprecated in favour of `report-to`, and the documented compatibility recipe is
+ * to send both — Sentry's setup page, and MDN, which says "until `report-to` is broadly supported
+ * you can specify both directives"
+ * ([`report-to`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Content-Security-Policy/report-to)).
+ * It rests on CSP3 settling the overlap: "**report-uri only takes effect if report-to is not
+ * present**… allowing for backwards compatibility with browsers that don't support the new
+ * mechanism" ([§ 5.5](https://www.w3.org/TR/CSP3/#report-violation)).
  *
- * Measured on 21 August 2026 against the Chromium that `@playwright/test` installs, with a violation
- * raised deliberately and a collector counting what arrived:
+ * **That reasoning has expired, and the override is what is left of it.** There is no longer a
+ * browser here that lacks `report-to`: Chrome 70, Firefox 149 and Safari 16.4
+ * ([MDN browser-compat-data](https://github.com/mdn/browser-compat-data/blob/main/http/headers/Content-Security-Policy.json),
+ * read 21 August 2026). So sending both no longer buys coverage from anything — it only switches
+ * the working directive off.
  *
- * | Policy | Reports delivered |
- * | --- | --- |
- * | `report-uri` alone | one, immediately, as `application/csp-report` |
- * | `report-to` alone | none in 120 seconds |
- * | both, over HTTPS | none in 70 seconds |
- * | both, in a headed browser | none in 60 seconds |
+ * **Measured, on 21 August 2026.** Serve one page carrying the policy under test, raise a violation
+ * in it by appending an `<img>` from a host under `.invalid`, and count what a collector receives
+ * over the next 8 seconds. Each engine is the one `@playwright/test` installs:
  *
- * In the last of those a `ReportingObserver` in the page *did* receive the `csp-violation` report,
- * so the policy was evaluated and the report was generated: what did not happen was delivery. And
- * neither Firefox nor Safari implements `report-to` at all, so it buys no coverage they would
- * otherwise lose. Sending it would therefore turn off the one channel that works, in every browser
- * that reads it, in exchange for a channel that delivered nothing in any of the four runs — a
- * report-only phase that reports nowhere, which is the exact failure this ticket was corrected to
- * avoid.
+ * | Policy | Chromium 151 | Firefox 153 | WebKit 26.5 |
+ * | --- | --- | --- | --- |
+ * | `report-uri` alone | **1** | **1** | **1** |
+ * | both directives | 0 | 0 | 1 |
  *
- * **So `report-to` is the thing to revisit, and the trigger is Chrome removing `report-uri`.**
- * Re-run the measurement then rather than reading a recipe.
+ * Longer waits do not rescue the empty cells: `report-to` alone delivered nothing in 120 seconds,
+ * and both together nothing in 70 over HTTPS or 60 in a headed browser — where a `ReportingObserver`
+ * in the page *did* receive the `csp-violation` report, so the policy was evaluated and the report
+ * was generated, and what did not happen was delivery. WebKit is the one engine that reports either
+ * way, which is a reprieve for a third of visitors rather than a reason.
+ *
+ * Sending both would therefore leave a report-only phase reporting nowhere in two engines out of
+ * three — the exact failure this ticket was corrected to avoid, arrived at by following the recipe.
+ *
+ * **So `report-to` is the thing to revisit, and the trigger is a browser dropping `report-uri`.**
+ * Re-run the measurement above then rather than reading a recipe.
  */
 const collector = "/api/csp-report";
 
@@ -143,8 +151,9 @@ type Directive = keyof typeof directives;
  * may carry both headers, and each is evaluated on its own.
  *
  * **It stays in {@link directives} as well**, so that the report-only policy is the exact policy
- * the enforcement commit will promote rather than a subset of it. The cost is a doubled report on
- * the day somebody frames us, which is a day with a bigger problem in it.
+ * the enforcement commit will promote rather than a subset of it — and so that framing is reported
+ * at all. The enforced header carries no `report-uri`, so a block *by it* is never reported; the
+ * report-only policy is what puts the attempt in the log, once.
  */
 const enforcedToday: readonly Directive[] = ["frame-ancestors"];
 
@@ -186,8 +195,8 @@ export const securityHeaders: { key: string; value: string }[] = [
   // waiting for a browser to guess. This says: never guess.
   { key: "X-Content-Type-Options", value: "nosniff" },
   // Same-origin navigations still carry the full address, which is ours already; anything leaving
-  // this site is told the origin and no more. That matters more here than usual, because two of
-  // this application's addresses carry a credential in the query string.
+  // this site is told the origin and no more. It matters more here than usual for the reason
+  // `collector` gives above: a query string on this site can be a credential.
   { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
   { key: "Permissions-Policy", value: permissionsPolicy },
   { key: "Content-Security-Policy", value: serialise(enforcedToday) },

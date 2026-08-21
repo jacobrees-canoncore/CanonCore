@@ -73,6 +73,41 @@ describe("a report the browser posts", () => {
     ).toBe("inline");
   });
 
+  /**
+   * The half that is not about a browser at all. A reporting endpoint cannot be authenticated, so
+   * these are what somebody posting by hand can put in the fields the redaction reduces — and an
+   * address `new URL()` refuses is the case that would otherwise reach the log whole, because the
+   * redaction answers "cannot reduce this" and "this is safe" with the same `null`.
+   */
+  test.each([
+    [
+      "a relative address with a query string",
+      "/reset-password?token=a-token-that-must-not-travel",
+    ],
+    ["a relative address", "/reset-password"],
+    ["something that is not an address at all", "<script>?q=a-value-that-must-not-travel"],
+    ["a scheme with something after it that is not a scheme", "javascript:alert(1)?q=x"],
+  ])("drops %s rather than passing it through", (_, uri) => {
+    const violation = violationFrom(
+      deprecated({ "document-uri": uri, "effective-directive": "img-src" }),
+    );
+
+    expect(violation?.page).toBeNull();
+    expect(JSON.stringify(violation)).not.toContain("must-not-travel");
+  });
+
+  // The exception, and the reason it is safe: neither form can carry a query string, so keeping
+  // them costs nothing and losing them would cost every inline violation its subject.
+  test.each(["inline", "eval", "wasm-eval", "data", "blob", "about"])(
+    "keeps %s, which is a keyword or a bare scheme rather than an address",
+    (keyword) => {
+      expect(
+        violationFrom(deprecated({ "blocked-uri": keyword, "effective-directive": "img-src" }))
+          ?.blocked,
+      ).toBe(keyword);
+    },
+  );
+
   test("falls back to the directive Firefox's older spelling supplies", () => {
     expect(
       violationFrom(deprecated({ "violated-directive": "img-src https://example.com" }))?.directive,

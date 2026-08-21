@@ -5,11 +5,9 @@ import { redactUrl } from "@/analytics/redaction";
  * something safe to keep — **CAN-53 Set the security headers, with the CSP report-only first**.
  *
  * **The browser is what posts a report, so this is the first place anything of ours can touch
- * one.** That is the whole reason the collector is a route on this deployment rather than a
- * vendor's endpoint, and [`headers.ts`](headers.ts) argues it: a report carries the page's URL
- * with its query string intact, and two of this application's addresses put a live credential — in
- * one case an account holder's email address — in that query string. Everything reduced here is
- * reduced *before* it reaches a log, and before it could reach an error reporter later.
+ * one.** [`headers.ts`](headers.ts) argues why that makes a first-party collector the only shape
+ * that can be safe; this is the half that does the work, and it does it *before* anything reaches
+ * a log and before it could reach an error reporter later.
  *
  * ## One body shape, because one directive is sent
  *
@@ -71,24 +69,49 @@ function text(value: unknown): string | null {
 }
 
 /**
+ * The one shape a report field is allowed to take when it is not a URL: a CSP keyword such as
+ * `inline` or `eval`, or a bare scheme name.
+ *
+ * **Both are covered by one pattern because a URL scheme's own grammar covers both** — a scheme is
+ * a letter followed by letters, digits, `+`, `-` or `.`
+ * ([RFC 3986 § 3.1](https://www.rfc-editor.org/rfc/rfc3986#section-3.1)), and every keyword CSP
+ * defines fits inside it. What matters is what the pattern *cannot* match: it admits no `?`, no
+ * `/`, no `:` and no whitespace, so a value that satisfies it cannot be carrying a query string.
+ */
+const keywordOrScheme = /^[a-z][a-z0-9+.-]*$/;
+
+/**
  * A URL reduced to what it may say about itself, reusing the redaction the measurement products
  * already go through so that both answer to one tested rule
  * ([`../analytics/redaction.ts`](../analytics/redaction.ts)).
  *
- * **A value that is not a URL is kept as it is, and that is safe rather than a gap.** CSP reports
- * a blocked resource as a keyword — `inline`, `eval` — or as a bare scheme name where the scheme
- * is not HTTP(S), because [CSP3 § 5.4](https://www.w3.org/TR/CSP3/#strip-url-for-use-in-reports)
- * returns the scheme alone in that case. None of those can carry a query string. Anything else
- * reaching here is a forged post, which {@link fieldLimit} bounds.
+ * **Anything that is not an HTTP(S) URL is dropped, not passed through**, which is that module's
+ * own rule rather than a new one: it returns `null` where "there is nothing safe to report and the
+ * event should be dropped instead". The only exception is {@link keywordOrScheme}, and it is an
+ * exception on proof rather than on trust — CSP reports a blocked resource as a keyword, or as a
+ * bare scheme name where the scheme is not HTTP(S) because
+ * [CSP3 § 5.4](https://www.w3.org/TR/CSP3/#strip-url-for-use-in-reports) returns the scheme alone
+ * in that case, and neither can contain a query string.
  *
- * The cost is that a blocked *third-party* URL keeps its origin and loses its path, since the
- * redaction recognises this application's routes and nothing else. The origin is what a person
+ * **Passing an unrecognised value through would defeat the only job this module has.** A relative
+ * address is the case in point: `new URL()` refuses it, so `/reset-password?token=…` would have
+ * arrived at the log whole. No browser sends one — CSP3 § 5.4 serialises an absolute URL — but
+ * "no browser sends one" is not a property of an endpoint anyone on the internet can post to.
+ *
+ * The remaining cost is that a blocked *third-party* URL keeps its origin and loses its path, since
+ * the redaction recognises this application's routes and nothing else. The origin is what a person
  * acts on, so that is a price worth paying for one rule instead of two.
  */
 function address(value: unknown): string | null {
   const raw = text(value);
   if (raw === null) return null;
-  return redactUrl(raw) ?? raw;
+  if (keywordOrScheme.test(raw)) return raw;
+  // Only an HTTP(S) URL is something the redaction can reduce, and by CSP3 § 5.4 it is the only
+  // kind a browser sends here — every other scheme is reported as the bare scheme, which the line
+  // above has already kept. Asking first rather than reading the answer back matters: given
+  // `javascript:…` the redaction returns the string `null/*`, which is neither an address nor a
+  // refusal.
+  return /^https?:\/\//i.test(raw) ? redactUrl(raw) : null;
 }
 
 /**
