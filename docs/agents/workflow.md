@@ -348,11 +348,20 @@ two whose sources are remote.
 
 **Its baseline is clean rather than ignored, and that is the standing requirement.** A report nobody
 expects to be empty is a report nobody reads, so what the first run found was fixed at the source —
-three `export` keywords on things nothing outside their own module used. `knip.jsonc` carries **no
-ignore list**; what it does carry is two overrides for one workspace, both there to reproduce what
-knip's own Drizzle plugin would have derived if `drizzle.config.ts` could be loaded without a
-credential. That file argues for them, and names what the second one costs: `apps/web/src/db/schema.ts`
-is an entry, so every export in it is exempt rather than only the ones drizzle-kit reaches.
+three `export` keywords on things nothing outside their own module used. What `knip.jsonc` carries
+is two overrides for `apps/web`, both there to reproduce what knip's own Drizzle plugin would have
+derived if `drizzle.config.ts` could be loaded without a credential. That file argues for them, and
+names what the second one costs: `apps/web/src/db/schema.ts` is an entry, so every export in it is
+exempt rather than only the ones drizzle-kit reaches.
+
+**It also carries one ignored binary, `orca`, which is a change of 21 August 2026 and needs
+distinguishing from the case rejected above.** That one was a false positive — knip reading `pnpm -r
+typecheck` as a call to a binary of that name — and a false positive is fixable at the source, which
+is what spelling out `run` did. `orca` is the opposite: the report is *true*. It is the Orca desktop
+app's own CLI, installed with the app, so there is no dependency to resolve it against and no version
+to pin, and `scripts/check-linear-bodies.ts` runs it by name. The only way to silence that without an
+entry is to stop passing the name as a literal, which is gaming the checker rather than answering it.
+`knip.jsonc` argues it there.
 
 When knip reports something new, the default is to delete what it found; an entry in that file is
 the exception and owes a reason beside it.
