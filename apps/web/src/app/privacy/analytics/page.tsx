@@ -46,10 +46,14 @@ export default function CountingVisits() {
         than ours: https://vercel.com/docs/analytics/privacy-policy.
       */}
       <p>
-        Two things run on this site, both provided by Vercel, which hosts it. Web Analytics records
-        that a page was viewed, with the time, the address of the page, the site you arrived from,
-        your country, and your browser, operating system and device type. Speed Insights records how
-        quickly pages drew and responded for you.
+        One thing runs on this site today: Web Analytics, provided by Vercel, which hosts it. It
+        records that a page was viewed, with the time, the address of the page, the site you arrived
+        from, your country, and your browser, operating system and device type.
+      </p>
+      <p>
+        A second, Speed Insights, would record how quickly pages drew and responded for you. It is
+        built into the site but <strong>is not switched on</strong>, so nothing is being collected
+        for it. If that changes, this page changes with it: the switch below governs both.
       </p>
       <p>
         Neither sets a cookie. Vercel identifies a visit by a hash made from the request itself, and

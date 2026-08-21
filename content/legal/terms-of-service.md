@@ -148,8 +148,7 @@ information about the request itself. **It does not carry your IP address, your 
 address or your account.** An error message can quote the text that caused it, so something you
 typed may appear in a report, but nothing in it says who you are.
 
-We count visits using Vercel, who host the service, so that we can see which pages are used and how
-quickly they load. This records that a page was viewed, with the time, the address of the page, the
+We count visits using Vercel, who host the service, so that we can see which pages are used. This records that a page was viewed, with the time, the address of the page, the
 site you arrived from, your country, and your browser, operating system and device type. **No cookie
 is set for it**, and **the address is reduced before it is sent**. A page whose address names a
 story, an ordering or a person never travels with that name in it: at most we are told the kind of page it was, and often only that it was a page on this site. Anything after a question mark is dropped entirely. **The counts are only ever used to improve the service**, and they are
