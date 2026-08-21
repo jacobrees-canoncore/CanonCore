@@ -65,10 +65,16 @@
   // this repository spends `scripts/check-docs.ts` avoiding; it should not be introduced here.
   //
   // **npm-only is the whole surface that automerges.** The other manager in this repository is
-  // `github-actions`, and its pins are major tags — `actions/checkout@v7` — so the only update
-  // Renovate can offer is `v7 -> v8`, a major, which nothing below automerges. Every Actions bump
-  // therefore reaches a human regardless, which is what the article's warning about workflow files
-  // asks for.
+  // `github-actions`, and every pin there is either a major tag — `actions/checkout@v7` — or a
+  // commit digest. From a major tag the only update Renovate can offer is `v7 -> v8`, a major; from
+  // a digest it is a `digest` update. **Neither is a `minor` or a `patch`, and `:automergeMinor`
+  // automerges nothing else**, so every Actions bump reaches a human regardless, which is what the
+  // article's warning about workflow files asks for.
+  //
+  // The one digest is `millionco/react-doctor` in `.github/workflows/frontend.yml`, pinned by
+  // CAN-60 Gate the front end on bytes, budgets and React lint. It is the first third-party Action
+  // here — everything else is `actions/*` or `pnpm/*` — and a mutable major tag on a third party is
+  // a supply-chain decision rather than a default. That workflow argues it beside the pin.
   //
   // **It costs nothing on a security fix.** `vulnerabilityAlerts` defaults to `minimumReleaseAge:
   // null` and `prCreation: "immediate"`, and "security updates bypass any `minimumReleaseAge`

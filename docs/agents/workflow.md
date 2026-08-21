@@ -602,6 +602,55 @@ local gate nobody is told about is no gate. Why each row is where it is:
 [`../infrastructure.md`](../infrastructure.md) → *What this check compares, and what it cannot*, and
 [`triage-labels.md`](triage-labels.md) → *Where this check gates, and where it does not*.
 
+### Two more gates, on pull requests only
+
+**Everything above is `ci.yml`, `on: push`, one job, one required context.
+[`.github/workflows/frontend.yml`](../../.github/workflows/frontend.yml) is a second workflow with
+two jobs, `on: pull_request`, and neither is required by the ruleset.** Added by **CAN-60 Gate the
+front end on bytes, budgets and React lint**.
+
+| Job, and the context it reports | What it asserts |
+| --- | --- |
+| `Lighthouse budgets` | LCP, Total Blocking Time and script bytes, against `maxNumericValue` budgets, five runs a URL, worst run taken. [`apps/web/lighthouserc.cjs`](../../apps/web/lighthouserc.cjs) carries every number and the measurement it came from |
+| `React lint on the diff` | react-doctor's error diagnostics on what the pull request introduced |
+
+**`pull_request` is forced for the second and chosen for the first.** react-doctor's Action is
+*"designed for `pull_request` events; other events scan the full project regardless of `scope`
+setting"* ([Action reference](https://www.react.doctor/docs/reference/github-action-reference.md)),
+so a push-triggered run would gate the whole repository from its first commit — the red-on-arrival
+failure the `pnpm audit` threshold above refuses. Lighthouse could run on a push and does not,
+because five runs across three URLs is four to eight minutes that no branch push needs to pay.
+
+**Neither is a required context, and that is the same rule the ruleset already follows.** A context
+belongs there only if it reports on *every* pull request; these do, but making them required is a
+ruleset edit with a window in which the required context is missing and nothing can merge, bought
+for a gate that `/review-pr` already reads off the pull request. [`../infrastructure.md`](../infrastructure.md)
+→ *The ruleset* is still the only place the **required** contexts are named, and `scripts/check-docs.ts`
+still gates that table against `ci.yml` and the live ruleset. These two are named here and nowhere else.
+
+**`@lhci/cli` is installed on the runner rather than declared in `apps/web`.** It reaches
+`extract-zip` through `lighthouse` → `puppeteer-core`, and `GHSA-jmr9-qjv8-65gv` names every
+published version of that package — its patched range is `>=2.0.2` and `2.0.1` is the newest that
+exists — so as a dependency it would make `pnpm audit --audit-level=high` red for ever with no
+override that could clear it. A globally installed CI tool is in neither the lockfile nor anything
+this repository ships. It is the same shape, and the same `npm i -g`, as `vercel` above.
+
+**react-doctor's Action is pinned to a commit rather than to its `v2` tag**, and it is the first
+third-party Action in this repository — everything else is `actions/*` or `pnpm/*`. It is granted
+`contents: read` and nothing else, with its comment, review-comment and commit-status outputs all
+turned off: each of those needs a write scope handed to a third party, and what the ticket asked for
+is a gate on `error-count` rather than a pull request surface.
+
+**To re-derive the budgets**, from `apps/web`, with a local PostgreSQL carrying the migrations:
+
+```bash
+npx @lhci/cli@0.15.1 autorun
+```
+
+Its numbers move with the machine, so a budget is moved deliberately and the table in
+`lighthouserc.cjs` is re-measured with it. **CAN-89 Give the product a visual identity and a reading
+surface is the change most likely to need that**, because it changes what these pages are.
+
 **Cancellation is scoped to branches other than `main`.** Superseding a run is only safe where a
 later commit replaces the earlier one as the thing being judged, which is true on a branch and false
 on `main`, where every push is its own release and a cancelled run is not a passing one.

@@ -285,9 +285,23 @@ Lighthouse's own variability documentation rates four sources of noise as high i
 "Minimum 2 dedicated cores (4 recommended)", advising against shared-core instances, with "The
 median Lighthouse score of 5 runs is twice as stable as 1 run"
 ([Lighthouse variability](https://github.com/GoogleChrome/lighthouse/blob/main/docs/variability.md)).
-GitHub's `ubuntu-latest` runner is a 2-core shared VM: exactly the minimum, and exactly the shared
-case they warn against. This is why score-threshold gates flake, and why numeric budgets are the
+GitHub's `ubuntu-latest` for a **public** repository is a **4-vCPU**, 16 GB VM, and 2 vCPU with 8 GB
+for a private one
+([GitHub-hosted runners](https://docs.github.com/en/actions/reference/runners/github-hosted-runners));
+this repository is public. Either way they are *shared* vCPUs, which is the case Lighthouse warns
+against, so the conclusion is unchanged: score-threshold gates flake, and numeric budgets are the
 gate worth having.
+
+> **Corrected 21 August 2026, and the correction is late.** This paragraph read "a 2-core shared VM:
+> exactly the minimum" until then. The 16 August verification sweep found that figure wrong and
+> [CAN-116 Make the tracker agree with the 16 August verification sweep](https://linear.app/jacobrees-canoncore/issue/CAN-116)
+> fixed it in the tracker, naming
+> [CAN-117 Make the documents agree with the 16 August verification sweep, and land its synthesis](https://linear.app/jacobrees-canoncore/issue/CAN-117)
+> as the ticket that would fix it here. **CAN-117 closed without doing so**, which is why a stale
+> figure survived a sweep whose whole subject was stale figures — found by
+> **CAN-60 Gate the front end on bytes, budgets and React lint**, which had to read this paragraph
+> to build the gate it argues for. Re-verified from GitHub's own page rather than carried across
+> from the tracker.
 
 **`eslint-config-next` barely lints accessibility.** Unpacking `eslint-config-next@16.3.0`, it does
 depend on `eslint-plugin-jsx-a11y@^6.10.0` but enables **only five rules, all as `warn`, all about
@@ -368,6 +382,36 @@ use)" and Team at $30/month for "Business & commercial use"
 ([licence](https://www.react.doctor/docs/legal/license.md), [pricing](https://www.react.doctor/pricing)).
 This repository is public and MIT-licensed, and Vercel Hobby already requires non-commercial use,
 so the $0 tier applies as things stand.
+
+> **Re-derived 21 August 2026, and the answer no longer depends on the Vercel plan.**
+> [ADR-0024](../adr/0024-vercel-pro-for-a-spend-cap-rather-than-an-outage.md) records that buying Pro
+> removes the non-commercial constraint the sentence above leans on, and requires
+> **CAN-60 Gate the front end on bytes, budgets and React lint** to work the answer out again rather
+> than inherit it. It did, by reading the **licence file itself** rather than the summary of it — and
+> the three sources disagree.
+>
+> `LICENSE` on `millionco/react-doctor@main` is the MIT text with **two** additions, and they are
+> narrower than either summary. Verbatim: *"the following uses require prior written permission from
+> the copyright holder"* — (1) using the software "as training, fine-tuning, or evaluation data, or
+> as input to any automated pipeline for training or improving any machine learning model or AI
+> system", and (2) *"Selling the Software, or offering it to third parties as a paid, hosted, or
+> managed product or service (including any commercial API or SaaS offering) whose value derives
+> entirely or substantially from the Software"*
+> ([LICENSE](https://github.com/millionco/react-doctor/blob/main/LICENSE), read 21 August 2026).
+> **"Large-scale commercial use" appears in the docs page and not in the licence; the $30 tier
+> appears on the pricing page and not in the licence either.**
+>
+> **Running the Action in CI here triggers neither clause, on any plan.** Nothing trains a model on
+> it, and CanonCore is not sold, hosted for third parties, or offered as a service. Separately, on
+> the pricing page's own division, **buying Vercel Pro permits commerciality rather than creating
+> it**: there is no revenue, no donations and no business, so this stays the "Open Source" tier's
+> case. So ADR-0024's cost note **lapses rather than converting to $30 a month**.
+>
+> **What would change it**, and the second is the live one: selling or hosting CanonCore for others,
+> or the vendor changing the `LICENSE` file — which is the document that binds, and which is worth
+> re-reading rather than re-reading the pricing page. The pin in
+> [`.github/workflows/frontend.yml`](../../.github/workflows/frontend.yml) means a licence change
+> cannot arrive without a commit here.
 
 ### What to gate on, and what not to
 

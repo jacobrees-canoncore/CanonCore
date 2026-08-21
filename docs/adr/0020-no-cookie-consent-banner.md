@@ -46,6 +46,14 @@ feature that seemed to require it, by whoever is nearest, and then never removed
 is not "no banner and no obligation" but a specific pair of duties that have to be built into the
 privacy notice rather than bolted on after it exists.
 
+> **The two paragraphs above describe 17 August 2026 and are kept in that tense, because the point
+> they make is about *when* this was decided.** Both halves have since moved.
+> [CAN-24 A signed-in and a signed-out path](https://linear.app/jacobrees-canoncore/issue/CAN-24)
+> brought the session cookie, and **CAN-60 Gate the front end on bytes, budgets and React lint**
+> brought the analytics: `@vercel/analytics` and `@vercel/speed-insights` are in
+> [`apps/web/package.json`](../../apps/web/package.json) as of 21 August 2026. There is still no
+> banner, and what discharges the two conditions instead is named under *Consequences* below.
+
 ## The two limbs
 
 **The sign-in session is strictly necessary.** The ICO's own worked example of the exception is
@@ -144,7 +152,18 @@ in flight now and would otherwise have to be revisited.
 - **CAN-30 GDPR export and erasure's privacy notice carries the storage and access section**, and it
   is not optional prose: it is one of the two conditions the exception rests on.
 - **An opt-out has to exist before analytics do**, so whichever ticket adopts analytics builds the
-  objection route in the same change.
+  objection route in the same change. **That ticket was CAN-60 Gate the front end on bytes, budgets
+  and React lint**, on 21 August 2026, and the route is `/privacy/analytics` — reachable from the
+  front page rather than merely addressable, because an address somebody has to be told is not "an
+  easy way to object". Its three parts are
+  [`apps/web/src/analytics/opt-out.ts`](../../apps/web/src/analytics/opt-out.ts), which holds the
+  objection on the device and never sends it anywhere,
+  [`apps/web/src/analytics/redaction.ts`](../../apps/web/src/analytics/redaction.ts), which is the
+  `beforeSend` redaction this decision makes a condition rather than a refinement, and
+  [`apps/web/src/analytics/analytics.tsx`](../../apps/web/src/analytics/analytics.tsx), which joins
+  them. **The same page carries the analytics half of the information duty**, standing alone until
+  CAN-30 GDPR export and erasure writes the notice it belongs in — the duty attaches to measuring,
+  and measuring did not wait.
 - **CAN-24 Sign in and sign out's cookie stays strictly necessary.** A session cookie doing a second
   job — remembering a preference, carrying a referral — leaves the exception and takes this decision
   with it.

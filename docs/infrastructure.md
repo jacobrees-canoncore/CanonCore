@@ -117,7 +117,7 @@ back, and the first visit is the only one most of them make.
 | --- | --- |
 | Status | **Closed.** Not shared |
 | Condition **met** | [CAN-59 Decide whether the Hobby plan can carry a public service](https://linear.app/jacobrees-canoncore/issue/CAN-59) — decided 20 August 2026, [ADR-0024](adr/0024-vercel-pro-for-a-spend-cap-rather-than-an-outage.md), and **applied on 21 August 2026**: the plan is Pro and Spend Management is set with a pause. *Hosting* below carries the figures |
-| Condition outstanding | [CAN-60 Gate the front end on bytes, budgets and React lint](https://linear.app/jacobrees-canoncore/issue/CAN-60) — the front-end quality gates, once there is a stable application to measure |
+| Condition **met** | [CAN-60 Gate the front end on bytes, budgets and React lint](https://linear.app/jacobrees-canoncore/issue/CAN-60) — the front-end quality gates. Met 21 August 2026: Lighthouse budgets and react-doctor gate every pull request, [`agents/workflow.md`](agents/workflow.md) → *Two more gates, on pull requests only*, and the two measurement products are instrumented with the redaction and the objection route ADR-0020 requires. **What it does not close is the premise**: the budgets were measured against a skeleton, and CAN-89 Give the product a visual identity and a reading surface changes what these pages are |
 | Condition **met** | [CAN-61 Keep the codebase and its dependencies from silting up](https://linear.app/jacobrees-canoncore/issue/CAN-61) — the two hygiene tools whose value scales with codebase age. Met 17 August 2026: knip gates in CI and Renovate owns dependency updates, *Dependency updates* below. The row stays rather than being deleted, so the gate's history reads as conditions met rather than conditions dropped |
 | Condition **dissolved** | **An explicit acceptance of Vercel Hobby's 30-day outage risk**, a condition no ticket owned. [ADR-0024](adr/0024-vercel-pro-for-a-spend-cap-rather-than-an-outage.md) removed the risk rather than accepting it, and the plan moved on **21 August 2026**, so there is nothing left to accept. Recorded rather than deleted, so the gate reads as a risk removed rather than a condition dropped |
 | Recorded here since | 14 August 2026, by **CAN-93 Record the three bands, the two gates and the Later queue convention** |
@@ -148,10 +148,24 @@ that is v1's scope rather than a condition here, and this gate would open withou
 | Framework Preset | Next.js |
 | Include files outside the root directory | On |
 | Node.js version | 24.x |
+| Web Analytics | **On.** `webAnalytics.id` `3fbYLkD1qpY5qrtCaPl0kV7Ba`, no `disabledAt` |
+| Speed Insights | **On.** `speedInsights.id` `EKL37pxaQMvbkLwNUNHVZg1OgPh`, no `disabledAt`, `hasData` `false` |
 
-*Read back with `vercel project inspect canoncore`; the last four rows set by CAN-22 on 11 August
-2026. Preview protection was set on 13 August 2026 and turned off since — the row above records
-the 16 August acceptance.*
+*Read back with `vercel project inspect canoncore`; the Root Directory row and the three under it
+set by CAN-22 on 11 August 2026. Preview protection was set on 13 August 2026 and turned off since —
+the row above records the 16 August acceptance.*
+
+**The last two rows are not `vercel project inspect`'s to report** — it prints neither — and were
+read from `GET /v9/projects/{id}` on 21 August 2026 under **CAN-60 Gate the front end on bytes,
+budgets and React lint**. **Both products were already provisioned**, which is why that ticket
+enabled nothing: what it supplied was the missing half, the two packages and the `beforeSend` that
+makes them lawful here — [`apps/web/src/analytics/analytics.tsx`](../apps/web/src/analytics/analytics.tsx),
+under [ADR-0020](adr/0020-no-cookie-consent-banner.md). `hasData: false` is consistent with that:
+nothing had ever sent an event. **Speed Insights on Hobby is one project, 10,000 events a month and
+a 7-day window, and past the cap "recording pauses until next day"**; Web Analytics is 50,000 events
+a month over a 1-month window with no custom events
+([Speed Insights limits](https://vercel.com/docs/speed-insights/limits-and-pricing),
+[Analytics limits](https://vercel.com/docs/analytics/limits-and-pricing)).
 
 *The plan, the seat count and the fee were read from the live team API on 21 August 2026 by
 **CAN-59 Decide whether the Hobby plan can carry a public service**: `plan: pro`, `planChangedAt`
@@ -286,6 +300,14 @@ dependency** on 16 August 2026.
 
 **`Vercel Preview Comments` is deliberately not required.** Vercel posts it as a third check, but it
 records that a comment was written, not that a deployment succeeded.
+
+**Neither are the two contexts `.github/workflows/frontend.yml` reports**, added by **CAN-60 Gate the
+front end on bytes, budgets and React lint**. They run `on: pull_request`, so unlike the two above
+they report on nothing else — and requiring them would cost a ruleset edit, with the window in which
+a required context is missing and nothing can merge, to gate what `/review-pr` already reads off the
+pull request. They are named in [`agents/workflow.md`](agents/workflow.md) → *Two more gates, on pull
+requests only* and nowhere else, which keeps the table above the only place a **required** context is
+named — the property `scripts/check-docs.ts` gates.
 
 **No approving-review requirement, and no `pull_request` rule at all.** Solo, a required review can
 only block. Requiring a pull request would be a separate decision from the one CAN-40 made, and the
@@ -2108,6 +2130,16 @@ its canonical Version. **Nothing links to it**, and that is deliberate rather th
 `href` built from a row's id is the one change
 [`compliance/illegal-content-risk-assessment.md`](compliance/illegal-content-risk-assessment.md) →
 *Step 4* says must not ship before that assessment is redone, so the page is reached by its address.
+
+**And one page that is about the site rather than about the catalogue**, `/privacy/analytics`, with
+**CAN-60 Gate the front end on bytes, budgets and React lint**. It says what the two measurement
+scripts collect and carries a working switch for turning them off, which are the two conditions
+[ADR-0020](adr/0020-no-cookie-consent-banner.md) attaches to measuring anything without a consent
+banner. **It is the first route linked from the front page since the account pages**, and it is
+linked rather than merely addressable because "an easy way to object" is not satisfied by an address
+somebody would have to be told. It is also the only route in the application that is prerendered
+static, because nothing on it depends on the request; the switch it carries reads the *device*,
+which is why that half is a client component.
 
 **There is still no way for anyone but the operator to put a row here**, which is the sentence *Gate
 one* rests on: nothing in the product creates a record, so an account holds nothing its holder

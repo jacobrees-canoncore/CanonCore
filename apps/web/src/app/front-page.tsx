@@ -54,6 +54,16 @@ export function FrontPage({
           ))}
         </ul>
       )}
+      {/*
+        The objection route ADR-0020 requires, reachable rather than merely existing: "an easy way
+        to object" is not satisfied by an address you would have to be told. Here rather than in a
+        footer on every page because this application has no footer yet, and CAN-89 Give the
+        product a visual identity and a reading surface is what gives it one.
+      */}
+      <hr />
+      <p className="account">
+        <a href="/privacy/analytics">How visits are counted</a>
+      </p>
     </main>
   );
 }

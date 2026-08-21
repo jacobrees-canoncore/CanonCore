@@ -1,0 +1,144 @@
+name: Front end
+
+# `pull_request`, and that is a constraint rather than a preference. react-doctor's `scope: changed`
+# reports only the issues a change introduced, and its own reference says the Action is "designed
+# for `pull_request` events; other events scan the full project regardless of `scope` setting"
+# (https://www.react.doctor/docs/reference/github-action-reference.md). A push-triggered run would
+# therefore gate the whole repository on day one, which is the "red on arrival" failure
+# `docs/agents/workflow.md` -> *The gates* refuses for `pnpm audit`'s threshold.
+#
+# It also keeps Lighthouse's five runs a URL off every branch push. `ci.yml` stays `on: push` and
+# stays the single required context; these two are a second and third context that report on pull
+# requests only, and `docs/infrastructure.md` -> *The ruleset* says why neither is required there:
+# a required context that cannot report on every commit blocks the merge indefinitely.
+on: pull_request
+
+concurrency:
+  group: frontend-${{ github.ref }}
+  cancel-in-progress: true
+
+# Read-only, at the top level, so neither job inherits more than it needs.
+permissions:
+  contents: read
+
+jobs:
+  lighthouse:
+    name: Lighthouse budgets
+    runs-on: ubuntu-latest
+
+    services:
+      # The front page reads the database through row-level security, so it cannot render without
+      # one. Same image and same reasoning as `ci.yml`'s: production is PostgreSQL 17.
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: canoncore_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+
+      # The three roles the migrations and the running application need. `ci.yml` explains why a
+      # container starts without them.
+      - name: Create the application, migration and auth roles
+        run: psql "$SUPERUSER_URL" -f apps/web/src/db/roles.sql
+        env:
+          SUPERUSER_URL: postgresql://postgres:postgres@localhost:5432/canoncore_test
+
+      # Migrate before building, so the server `lhci` starts has a schema and the founding Story to
+      # render. Migration 0002 inserts it, which is what makes `/` a page with content on it rather
+      # than an empty state.
+      - name: Apply Drizzle migrations
+        run: pnpm --filter @canoncore/web db:migrate
+        env:
+          MIGRATION_DATABASE_URL: postgresql://canoncore_migrator:canoncore_migrator@localhost:5432/canoncore_test
+
+      - run: pnpm --filter @canoncore/web run build
+
+      # **Installed here rather than declared in `apps/web`, and that is forced rather than
+      # tidy.** `@lhci/cli` pulls `extract-zip` through `lighthouse` -> `puppeteer-core`, and
+      # `GHSA-jmr9-qjv8-65gv` names every published version of it — the advisory's patched range
+      # is `>=2.0.2` and `2.0.1` is the newest that exists — so as a dependency it makes
+      # `pnpm audit --audit-level=high` red for ever, with no override that could fix it. It also
+      # reaches `tmp <0.2.6`, `GHSA-ph9p-34f9-6g65`, which an override could fix and which does not
+      # change the answer.
+      #
+      # A globally installed CI tool is not in the lockfile and not in anything this repository
+      # ships, so `pnpm audit`'s subject stays what it is meant to be: the dependencies of the
+      # application. `ci.yml` installs `vercel` exactly this way and for the same reason it uses
+      # npm — `pnpm add -g` needs `PNPM_HOME` configured, and npm's global bin is already on a
+      # runner's PATH. The version is pinned here in place of a lockfile pinning it.
+      #
+      # To re-derive the budgets on a laptop, `npx @lhci/cli@0.15.1 autorun` from `apps/web` with
+      # the same four variables set.
+      - run: npm i -g @lhci/cli@0.15.1
+
+      # `lhci autorun` starts the server itself, collects, and asserts. It uploads nothing: with no
+      # `upload` block in `lighthouserc.cjs` it skips that command entirely rather than falling back
+      # to `temporary-public-storage`, which would publish every report to a public bucket. The
+      # config file carries every budget and the measurement each was derived from.
+      #
+      # `BETTER_AUTH_SECRET` is set because `src/auth/auth.ts` refuses to serve without one and `/`
+      # resolves a session on every request. It is a throwaway for a container that is destroyed
+      # with the job, and it signs nothing that outlives the run.
+      - name: Assert the budgets
+        working-directory: apps/web
+        run: lhci autorun
+        env:
+          DATABASE_URL: postgresql://canoncore_app:canoncore_app@localhost:5432/canoncore_test
+          DATABASE_AUTH_USER: canoncore_auth
+          DATABASE_AUTH_PASSWORD: canoncore_auth
+          BETTER_AUTH_SECRET: a-throwaway-secret-for-this-job-only
+
+      # The reports, kept only when something failed. A budget breach says which number moved; it
+      # does not say which resource moved it, and that is in the report.
+      - name: Keep the reports when a budget broke
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: lighthouse-reports
+          path: apps/web/.lighthouseci/
+          retention-days: 7
+
+  react-doctor:
+    name: React lint on the diff
+    runs-on: ubuntu-latest
+    steps:
+      # Pinned to the commit `v2` resolved to on 21 August 2026, rather than to the moving tag.
+      # Every other Action here is `actions/*` or `pnpm/*`; this is the first third-party one, and a
+      # mutable major tag on a third party is a supply-chain decision rather than a default.
+      # `renovate.jsonc` -> the `github-actions` note records that this one is a digest.
+      - uses: millionco/react-doctor@01820bb4fd4d0a4aebcd8df2b2a143a098649cb2 # v2
+        with:
+          # `error` rather than the Action's `none` default, which comments instead of gating.
+          blocking: error
+          # Only what this pull request introduced. The default, stated because it is half of what
+          # makes this job usable on an existing codebase rather than a wall of pre-existing lint.
+          scope: changed
+          # Pinned, per CAN-60 Gate the front end on bytes, budgets and React lint. The default is
+          # `latest`, and this package has shipped over 750 versions since February 2026
+          # (`docs/research/production-readiness-baseline.md` -> *react.doctor*) — so `latest` is a
+          # gate whose rules change under it without a commit here.
+          version: 0.9.12
+          node-version: 24
+          # **All three off, and the job's own pass or fail is the whole signal.** Each of them
+          # needs a write scope granted to a third-party Action — `pull-requests: write` for the
+          # review comments, `issues: write` for the sticky summary, `statuses: write` for the
+          # commit status — and what this ticket asked for is a gate on `error-count`, not a pull
+          # request surface. `contents: read` at the top of this file is therefore all it gets.
+          comment: false
+          review-comments: false
+          commit-status: false
