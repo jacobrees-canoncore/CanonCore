@@ -77,6 +77,7 @@ is what the rule was built on.
 - [Resend's published error table disagrees with its own API on 401](#resends-published-error-table-disagrees-with-its-own-api-on-401)
 - [What the Sentry token was checked against](#what-the-sentry-token-was-checked-against)
 - [No event had reached Sentry when the terms disclosed it](#no-event-had-reached-sentry-when-the-terms-disclosed-it)
+- [Nine dormant Neon projects, and the ninth was the dangerous one](#nine-dormant-neon-projects-and-the-ninth-was-the-dangerous-one)
 
 **DNS**
 - [There is no wildcard record, and one was wrongly recorded](#there-is-no-wildcard-record-and-one-was-wrongly-recorded)
@@ -1636,6 +1637,94 @@ Read 16 August 2026:
 [data collected](https://docs.sentry.io/platforms/javascript/guides/nextjs/data-management/data-collected/),
 [options](https://docs.sentry.io/platforms/javascript/guides/nextjs/configuration/options/)
 and [RequestData](https://docs.sentry.io/platforms/javascript/guides/nextjs/configuration/integrations/requestdata/).
+
+## Nine dormant Neon projects, and the ninth was the dangerous one
+
+**21 August 2026, on CAN-142 Four abandoned Vercel projects still hold readable Postgres
+credentials.** The fourth time a ticket found a live credential in a project nobody was using, after
+CAN-39, CAN-41 and CAN-80. **No project's contents, schema or connection string was read at any
+point** — the names and the sensitivity flag characterise the exposure, and reading a value moves it
+into a session transcript rather than closing it.
+
+**Five Vercel projects were removed**: `canoncore-rebuild`, `canoncore-v5`, `canoncore-v4`,
+`universora`, and `minecraft`, the last unrelated tidying in the same pass. What that closed was
+`DATABASE_URL` and `DATABASE_URL_UNPOOLED` stored **Non-sensitive** on `canoncore-v5` and
+`canoncore-v4`, and the same pair plus a `BETTER_AUTH_SECRET` on `canoncore-rebuild`. A Sensitive
+value cannot be read back by anyone; a Non-sensitive one can, so these were credentials in the
+clear rather than merely credentials that existed.
+
+**The pre-delete check ran first**: only two domains exist on the team, `canoncore.com` and
+`jacobrees.co.uk`, bound to `canoncore` and `portfolio`. Neither belonged to a project being
+removed, so nothing was taken down with them. The deletion is irreversible and a domain attached to
+a project goes with it, which is why that check preceded rather than followed.
+
+**Then nine Neon projects, where the ticket had enumerated eight.** Eight sat in the console-managed
+`Jacob` organisation (`org-square-star-37689785`), which is now empty:
+
+| Project | Id | Last compute active |
+| --- | --- | --- |
+| `canoncore` | `misty-term-03756384` | 4 September 2025 |
+| `canoncore2` | `odd-dawn-98689199` | 4 November 2025 |
+| `canoncore3` | `muddy-violet-70227714` | 15 August 2026 |
+| `canoncore-v3` | `holy-sea-81644570` | 28 July 2026 |
+| `canoncore-v4` | `lingering-recipe-00023196` | 1 July 2026 |
+| `CanonCore` | `blue-dew-39495782` | 29 July 2026 |
+| `canoncore 2026` | `lingering-flower-51555686` | 1 August 2026 |
+| `twitter-media-viewer` | `rapid-feather-86600049` | 2 February 2026 |
+
+**The ninth was in the same organisation as production, under the same name.** `fancy-night-03447155`,
+named `canoncore`, sat in the Vercel-managed organisation `org-silent-cell-49503934` alongside
+production's `steep-wave-52467839` — created 28 December 2025, last active 10 August 2026, the day
+production was created. **A ticket that enumerates one organisation does not enumerate the estate**,
+and this is the row that says so.
+
+**Two rows reading `canoncore` in one organisation is the hazard, because the confirmation string
+does not distinguish them.** Vercel's delete dialog asks for the *database slug*, which is
+`canoncore` for both. What separates them is the resource id, which appears only in the page URL and
+its links. Navigate by id and verify `resource_id` on the page before typing anything.
+
+**It was proved dead on three independent signals before it was touched**: no repository file
+references it, while `steep-wave-52467839` is referenced six times; `vercel integration ls --all`
+showed its store bound to **no Vercel project**, where production's store is bound to `canoncore`;
+and its storage size was effectively empty. A store bound to nothing is the shape an abandoned
+database takes.
+
+### Three platform facts this cost, and the next person will hit them
+
+**The Neon API refuses to delete anything in a Vercel-managed organisation.** `delete_project` on
+`fancy-night-03447155` returned `action restricted; reason:"organization is managed by Vercel"` with
+HTTP 404. The eight in the `Jacob` organisation deleted through the same call without complaint, so
+the restriction is the organisation's ownership rather than the project's state. **A Vercel-managed
+Neon project can only be deleted from the Vercel side**, through *Storage → the resource → Delete
+Database*, which tears down the Vercel store and the Neon project together and leaves no orphaned
+store behind.
+
+**`vercel project rm` rejects `--yes` outright** on CLI 58.7.1 (*"unknown or unexpected option"*),
+and `--non-interactive` — documented as *"when an agent is detected this is the default"* — still
+prompted `Are you sure? (y/N)` and then **exited 0 having deleted nothing**. Only a re-listing tells
+you. Piping the answer is what worked:
+
+```bash
+printf 'y\n' | vercel project rm <name>
+```
+
+**A control reported `[disabled]` by the accessibility tree was live and clickable.** A screenshot of
+the same element settled it. The tree had been read before the page finished hydrating, so `disabled`
+there meant *not yet ready* rather than *not permitted* — read the rendered page before believing a
+disabled control, and never conclude from a single read taken straight after a navigation.
+
+**Verification.** Production served `HTTP 200` on three consecutive requests after the last deletion,
+and `steep-wave-52467839` reported compute activity within the same minute. Two Neon stores remain on
+the team, `canoncore` bound to `canoncore` and `waveger` bound to `waveger`, which is the intended end
+state and is now written down in [`infrastructure.md`](infrastructure.md) → *The estate*.
+
+**What this did not buy is a check.** The affordable one was real — `vercel project ls` and
+`vercel integration ls --all` both run on the `VERCEL_TOKEN` a runner already holds — and it was
+refused on 21 August 2026 because detection is not what failed. All four occurrences were found the
+first time somebody looked; what cost four tickets was that each rediscovered the estate from
+scratch. The register is the answer, and *The estate* carries the argument and the reopening
+condition.
+
 
 ---
 
