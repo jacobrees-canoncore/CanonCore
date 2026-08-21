@@ -5,6 +5,7 @@ import { FrontPage } from "./front-page";
 import { ResetPasswordPage } from "./reset-password/reset-password-page";
 import { SignInPage } from "./sign-in/sign-in-page";
 import { SignUpPage } from "./sign-up/sign-up-page";
+import { StoryPage } from "./story/story-page";
 
 /**
  * **The rendered half of the non-linkification control.** Why the control exists and what the two
@@ -37,12 +38,20 @@ import { SignUpPage } from "./sign-up/sign-up-page";
  * reassessment: [`illegal-content-risk-assessment.md`](../../../../docs/compliance/illegal-content-risk-assessment.md)
  * → *Existing controls relied on* and *Step 4*.
  *
- * **Every surface that renders text belongs in this file**, and five exist today — the two account
- * recovery pages joined with **CAN-31 Email verification and password reset**. CAN-27 Orderings
- * and Placements, and the imported broadcast Ordering brings the Ordering and Story pages, CAN-26
+ * **Every surface that renders text belongs in this file**, and six exist today — the two account
+ * recovery pages joined with **CAN-31 Email verification and password reset**, and the Story page
+ * with **CAN-25 The catalogue: Version, part of, Anchor, canonical version**, which is earlier than
+ * the assessment expected it: that record has the Story page arriving with CAN-27 Orderings and
+ * Placements, and the imported broadcast Ordering, which now brings the Ordering page alone. CAN-26
  * Import a series from TMDB, with the overlay behind it brings a Listed Provider's prose, and
  * CAN-113 Add a Provider by pasting its URL brings a stranger's. Finding 2c of the illegal content
  * assessment names all three, so a surface landing without its case here makes that record false.
+ *
+ * **The Story page is the first surface whose every line is a value from outside** — a title, the
+ * title of what it is part of, a Medium and a runtime — and it is also the first to link anywhere
+ * but an account page. What it links to is `/`, a literal in the page and in the list below, which
+ * is the move Step 4 of the assessment says in terms is *not* the one to watch for. The one that is
+ * — an `href` derived from a value — this file fails whether or not it looks like a link.
  *
  * **CAN-31 Email verification and password reset also adds the one `href` on any of these pages that
  * is not a bare literal**, and it is the case this file exists to catch: `/reset-password`'s form
@@ -60,7 +69,7 @@ const hostile = "https://example.invalid/looks-like-a-link";
  * can be a value a Source supplied, a Provider returned or a person typed, which is exactly the
  * property the finding rests on. A page that wants a new one adds it here first.
  */
-const ownRoutes = ["/sign-in", "/sign-up", "/forgot-password"];
+const ownRoutes = ["/", "/sign-in", "/sign-up", "/forgot-password"];
 
 /** Every `href` the rendered result carries, in the order they appear. */
 function renderedLinks() {
@@ -104,6 +113,37 @@ test("a signed-in reader's own email address is not linkified either", () => {
 
   expect(screen.getByText("someone@example.invalid")).toBeDefined();
   expect(linksWithinOwnRoutes()).toEqual([]);
+});
+
+/**
+ * The founding Story as the page draws it, with a URL where every value a person or a Source could
+ * supply would be: the Story's own title, and the title of the Story it is part of.
+ */
+const hostileStory = {
+  id: "00000000-0000-4000-8000-000000000001",
+  title: hostile,
+  runtimeSeconds: 2700,
+  versions: [
+    { id: "00000000-0000-4000-8000-0000000000b1", medium: "television" as const, runtimeSeconds: 2700 },
+  ],
+  partOf: [{ id: "00000000-0000-4000-8000-000000000002", title: hostile }],
+};
+
+test("the Story page renders every title as text, and links only to the front page", () => {
+  render(<StoryPage story={hostileStory} />);
+
+  // Twice: the heading, and the line naming what this Story is part of. Both are strings that
+  // arrived from outside, and neither is followable.
+  expect(screen.getAllByText(hostile)).toHaveLength(2);
+  expect(linksWithinOwnRoutes()).toEqual(["/"]);
+});
+
+// The same page with nothing on it, which is the render row-level security produces when a policy
+// is wrong: the empty states are prose this repository wrote, so they add no anchor either.
+test("a Story with no Versions and nothing to be part of adds no anchor", () => {
+  render(<StoryPage story={{ ...hostileStory, runtimeSeconds: null, versions: [], partOf: [] }} />);
+
+  expect(linksWithinOwnRoutes()).toEqual(["/"]);
 });
 
 /**

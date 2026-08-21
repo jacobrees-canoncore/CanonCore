@@ -1,8 +1,10 @@
 import { sql } from "drizzle-orm";
+import type { PgTableExtraConfigValue } from "drizzle-orm/pg-core";
 import {
   bigint,
   boolean,
   check,
+  foreignKey,
   index,
   integer,
   interval,
@@ -10,6 +12,7 @@ import {
   pgPolicy,
   pgRole,
   pgTable,
+  primaryKey,
   text,
   timestamp,
   unique,
@@ -56,8 +59,10 @@ export const applicationRole = pgRole("canoncore_app").existing();
  * argument and the three designs it rules out; [`../auth/auth.ts`](../auth/auth.ts) is the code.
  *
  * **It is not a widening of ADR-0005 rule 1.** That rule is about the role *the application*
- * connects as, and `canoncore_app` is untouched: it still holds `SELECT` and nothing else, still
- * has no `BYPASSRLS`, and still reads every row through a policy. This role has no `BYPASSRLS`
+ * connects as, and `canoncore_app` is untouched by *this*: it reads every row through a policy,
+ * has no `BYPASSRLS`, and holds `SELECT` and nothing else on every table but `anchor` — where it
+ * may mint one and do nothing else, which is CAN-25's own decision and reaches none of the tables
+ * below. This role has no `BYPASSRLS`
  * either — what it has is a policy naming it, on five tables and no others, so its reach is written
  * down in this file rather than being a property of the server.
  *
@@ -69,10 +74,73 @@ export const authRole = pgRole("canoncore_auth").existing();
 export const visibility = pgEnum("visibility", ["private", "public"]);
 
 /**
+ * A shared identity carrying no metadata at all — `CONTEXT.md` → *Anchor*, and
+ * [ADR-0003](../../../../docs/adr/0003-no-shared-catalogue.md).
+ *
+ * **One column, and the emptiness is the design rather than a stage it is at.** Separate people's
+ * Stories attach to the same Anchor when they are about the same thing, and a Placement points at
+ * an Anchor rather than at anyone's row — so what two people share is an identity and nothing else.
+ * Because an Anchor holds nothing, there is nothing on it to edit, and therefore nothing to
+ * moderate: no queue, no votes, no trust levels, which is what ADR-0003 buys by refusing a shared
+ * catalogue outright. **A column arriving here is that decision being reversed**, so `rls.test.ts`
+ * pins this table's column list exactly as it pins `source`'s.
+ *
+ * **Deliberately not tenant-scoped, and the emptiness is the reason.** There is nothing on an
+ * Anchor to leak, so there is no cross-tenant read for a policy to fail and none is written: the
+ * two below say *anyone may read one* and *any signed-in reader may mint one*. `rls.test.ts`
+ * records that exclusion with its reason, beside the cross-tenant tests it is the exception to.
+ *
+ * **Never updatable and never deletable, by there being no privilege rather than by a policy.**
+ * Migration 0011 grants `SELECT` and `INSERT` and stops, so an update or a delete is
+ * `permission denied for table anchor` — a loud refusal, where a restrictive policy would give back
+ * the silence ADR-0005 rule 2 is about. A mutable Anchor is the shared record everybody can edit
+ * that this whole shape exists to avoid.
+ */
+export const anchor = pgTable(
+  "anchor",
+  {
+    id: uuid().primaryKey().defaultRandom(),
+  },
+  () => [
+    // Every reader sees every Anchor, signed in or not, which is what a shared identity has to
+    // mean: an Ordering of mine naming an Anchor resolves against whichever records *you* hold.
+    pgPolicy("anchor_readable_by_anyone", {
+      as: "permissive",
+      for: "select",
+      to: applicationRole,
+      using: sql`true`,
+    }),
+
+    // Minting one, and the only write the application role may make anywhere in this schema.
+    //
+    // **The check is that the session user is somebody**, which is the one distinction this table
+    // draws: `session.ts` sets the empty string for a request from nobody, and a transaction that
+    // set nothing at all leaves `current_setting(..., true)` NULL. Neither passes — the empty
+    // string because it is not `<> ''`, and NULL because a comparison with it is NULL, which a
+    // `WITH CHECK` refuses exactly as it refuses false
+    // (https://www.postgresql.org/docs/17/sql-createpolicy.html). So an anonymous reader mints
+    // nothing and any signed-in one may; `rls.test.ts` exercises both branches.
+    pgPolicy("anchor_mintable_by_any_signed_in_reader", {
+      as: "permissive",
+      for: "insert",
+      to: applicationRole,
+      withCheck: sql`${currentSessionUser} <> ''`,
+    }),
+  ],
+);
+
+/**
  * The thing that happened, independent of how anyone consumes it — `CONTEXT.md` → *Story*.
  *
- * Minimal on purpose: an id, a title, an owner and a Visibility are what the row-level security
- * policy needs to be a real one, and everything else a Story will carry is additive.
+ * Four columns are what the row-level security policy needs to be a real one — an id, a title, an
+ * owner and a Visibility — and two more are the catalogue shape: the Anchor every Story carries,
+ * and the optional pointer to the Version whose details best represent it. Everything else a Story
+ * will carry is additive.
+ *
+ * **There is no episode number here, and adding one would reverse a decision**
+ * ([ADR-0002](../../../../docs/adr/0002-orderings-are-separate-from-containment.md)). A position
+ * belongs to a Placement in one Ordering, because the same Story sits in two orderings that
+ * disagree — a column here could hold only one of the answers and would make the other a lie.
  */
 export const story = pgTable(
   "story",
@@ -81,12 +149,83 @@ export const story = pgTable(
     title: text().notNull(),
     ownerId: text("owner_id").notNull(),
     visibility: visibility().notNull().default("private"),
+
+    /**
+     * The Anchor this Story is a record of, minted when the Story is created and never absent —
+     * `CONTEXT.md` → *Anchor*.
+     *
+     * **`notNull` is what makes "every Story carries an Anchor" a fact rather than an intention.**
+     * A Story with no Anchor is invisible to every Ordering and to every other person's records,
+     * because an Anchor is the only thing two people's rows are ever joined on
+     * ([ADR-0003](../../../../docs/adr/0003-no-shared-catalogue.md)) — and a nullable column is one
+     * whose null case somebody has to keep answering for ever after.
+     *
+     * No `on delete` clause, so it is PostgreSQL's default of `no action`: nothing deletes an
+     * Anchor, and an attempt to delete one a Story still points at is refused rather than
+     * cascading into a person's catalogue.
+     */
+    anchorId: uuid("anchor_id")
+      .notNull()
+      .references(() => anchor.id),
+
+    /**
+     * The Version whose details best represent this Story, or nothing — `CONTEXT.md` →
+     * *Canonical version*, and [ADR-0001](../../../../docs/adr/0001-two-levels-story-and-version.md).
+     *
+     * **Nullable on purpose, and the null is the useful state.** It lets a Story state a runtime
+     * and a year without adjudicating which of fifteen releases is the real one; LRM's
+     * representative-expression attribute exists for the same job and permits leaving the source
+     * unidentified. What it is not is a default, a primary or a preferred Version — those are the
+     * words `CONTEXT.md` tells you not to reach for, because each implies the others are lesser.
+     *
+     * The foreign key is composite rather than on this column alone. `story_canonical_version` at
+     * the foot of this table says why.
+     */
+    canonicalVersionId: uuid("canonical_version_id"),
   },
-  (t) => [
+  (t): PgTableExtraConfigValue[] => [
     // What makes the empty string usable as a session user matching nobody, which is what
     // `session.ts` uses it for. No owner can equal it, so an anonymous reader matches the
     // policy's public branch and nothing else.
     check("story_owner_id_not_blank", sql`length(${t.ownerId}) > 0`),
+
+    /**
+     * **The canonical Version has to be a Version of *this* Story**, which a foreign key on
+     * `canonical_version_id` alone cannot say: it would accept any Version in the table, including
+     * somebody else's, and the page would render that Version's runtime under this Story's title.
+     * So the key is the pair, against the matching `unique` on `version`.
+     *
+     * `story.id` is in the key and is never null, and `canonical_version_id` may be — which is
+     * exactly what PostgreSQL's default matching does with it: *"a referencing row need not satisfy
+     * the foreign key constraint if any of its referencing columns are null"*
+     * ([foreign keys](https://www.postgresql.org/docs/17/ddl-constraints.html)). So a Story naming
+     * no canonical Version is not asked to match anything, and `MATCH FULL` — which would demand
+     * that *all* of them be null — is deliberately not what this wants.
+     *
+     * **`no action` rather than `set null`, and the difference matters twice.** PostgreSQL's
+     * column-list form is what would be wanted — `ON DELETE SET NULL ( column_name [, ... ] )`
+     * ([CREATE TABLE](https://www.postgresql.org/docs/17/sql-createtable.html)) — and drizzle
+     * cannot express it: `onDelete` takes one of five `UpdateDeleteAction` strings and no columns
+     * at all (`drizzle-orm/pg-core/foreign-keys.d.ts`, checked at 0.45.2). Plain `set null` would
+     * try to null `story.id` as well and fail, since it is the primary key. So deleting a Version some Story
+     * has named is refused until that Story lets go of it. Deleting the *Story* is unaffected: its
+     * Versions go by the cascade on `version.story_id`, and `no action` is checked at the end of
+     * the statement, by which point the row that referenced them is gone too.
+     *
+     * **This key is also why this callback and `version`'s carry an explicit return type.** The two
+     * tables now name each other — a Version names its Story, a Story names its canonical Version —
+     * and TypeScript follows that circle and infers `any` for both unless something breaks it.
+     * Drizzle documents the column-level form of the same fix, an `AnyPgColumn` return type on a
+     * `references` callback that points back
+     * ([indexes and constraints](https://orm.drizzle.team/docs/indexes-constraints)); the circle
+     * here runs through a foreign key and a policy rather than through one column, so the
+     * annotation goes on the callback that holds them.
+     */
+    foreignKey({
+      name: "story_canonical_version",
+      columns: [t.canonicalVersionId, t.id],
+      foreignColumns: [version.id, version.storyId],
+    }),
 
     // Defining a policy enables row-level security on the table, so there is no separate
     // `.enableRLS()` to forget. `current_setting(..., true)` returns NULL when nothing set it,
@@ -97,6 +236,158 @@ export const story = pgTable(
       for: "select",
       to: applicationRole,
       using: sql`${t.visibility} = 'public' or ${t.ownerId} = ${currentSessionUser}`,
+    }),
+  ],
+);
+
+/**
+ * The form a Version takes — `CONTEXT.md` → *Medium*.
+ *
+ * It belongs to the Version rather than to the Story because a change of form alone is what makes
+ * a new Version ([ADR-0001](../../../../docs/adr/0001-two-levels-story-and-version.md)): the
+ * television Rose and the audiobook of its novelisation are not the same thing to watch.
+ *
+ * The seven the glossary names, as an enum for `former_type`'s reason — a value nobody has agreed
+ * on becomes an `ALTER TYPE` somebody has to write, rather than a string a caller can invent.
+ * **What an open list looks like is *Nature***, which is several things at once and is not this
+ * column: a magazine strip is Medium `comic` and Nature `magazine strip`, and stuffing the second
+ * in here is how the closed set stops being one.
+ */
+export const medium = pgEnum("medium", [
+  "television",
+  "prose",
+  "audio",
+  "comic",
+  "webcast",
+  "game",
+  "stage",
+]);
+
+/**
+ * One specific way a Story can be watched, read or listened to — `CONTEXT.md` → *Version*, and
+ * [ADR-0001](../../../../docs/adr/0001-two-levels-story-and-version.md).
+ *
+ * **Runtime lives here and never on the Story, which is the whole of what two levels buys.**
+ * Versions of one Story are not interchangeable — they differ in length and content, and some cover
+ * only part of it — so a runtime on the Story would be a claim about whichever Version somebody
+ * happened to import first. A Story that wants to state one names a canonical Version instead.
+ *
+ * **Version reason and Nature are not here yet**, and both are additive: each is multi-valued, so
+ * each is a table rather than a column, and neither is read by anything this release renders.
+ */
+export const version = pgTable(
+  "version",
+  {
+    id: uuid().primaryKey().defaultRandom(),
+
+    // Deleting a Story takes its Versions with it: a Version is one way of consuming that Story and
+    // means nothing without it, which is the opposite of the Anchor above.
+    storyId: uuid("story_id")
+      .notNull()
+      .references(() => story.id, { onDelete: "cascade" }),
+
+    medium: medium().notNull(),
+
+    /**
+     * How long this Version runs, and absent for one that has no length in time — a comic and a
+     * prose Version have pages rather than minutes.
+     *
+     * `interval` for `source.retention`'s reason: a duration is what PostgreSQL's duration type is
+     * for, and it holds a three-hour film and a ninety-second webcast without either being a
+     * rounding of the other. **It is read back as a count of seconds rather than as itself**,
+     * because an interval renders as `03:08:00` at one length and `1 day 03:08:00` at another, and
+     * a display that parses both is a display that parses. [`stories.ts`](stories.ts) is where that
+     * happens, and says what the cast in it is for.
+     */
+    runtime: interval(),
+  },
+  (t): PgTableExtraConfigValue[] => [
+    // What `story_canonical_version` references, and the whole of why it exists: a composite
+    // foreign key needs a unique constraint over the same pair, and `id` being a primary key on its
+    // own is not one. It adds no meaning and forbids nothing that was not already forbidden.
+    unique("version_id_with_its_story").on(t.id, t.storyId),
+
+    // A runtime of no time at all is not a length any Version has. **A `null` runtime still
+    // passes**, which is the intended reading rather than a hole: a check constraint "is satisfied
+    // if the check expression evaluates to true or the null value"
+    // (https://www.postgresql.org/docs/17/ddl-constraints.html), and a Version with no runtime is
+    // the ordinary case for half the media in the enum above.
+    check("version_runtime_is_positive", sql`${t.runtime} > interval '0'`),
+
+    // Read on every Story page, and walked by the cascade above when a Story is deleted. A foreign
+    // key constrains the referencing column and indexes nothing — *"the declaration of a foreign key
+    // constraint does not automatically create an index on the referencing columns"*, though *"it is
+    // often a good idea to index the referencing columns too"* because a delete of a referenced row
+    // *"will require a scan of the referencing table"*
+    // (https://www.postgresql.org/docs/17/ddl-constraints.html). `part_of` carries one on `whole_id`
+    // for the same reason, and needs none on `part_id` because the primary key leads with it.
+    index("version_story_id_idx").on(t.storyId),
+
+    // `snapshot`'s shape for `snapshot`'s reason: this policy names no owner. It asks whether the
+    // Story is readable and lets `story`'s own policy answer, so the two can never disagree, and a
+    // Story made public whose Versions stayed private renders as a Story nobody can watch.
+    pgPolicy("version_readable_when_its_story_is", {
+      as: "permissive",
+      for: "select",
+      to: applicationRole,
+      using: sql`exists (select 1 from ${story} where ${story.id} = ${t.storyId})`,
+    }),
+  ],
+);
+
+/**
+ * Unordered containment between Stories — `CONTEXT.md` → *Part of*, and
+ * [ADR-0002](../../../../docs/adr/0002-orderings-are-separate-from-containment.md).
+ *
+ * **Two columns and no third, which is the decision this table holds.** An edge carries no
+ * position, because inventing one for a set that has none would be a lie: Rose is part of Series 1
+ * and Series 1 is part of Doctor Who, while *which episode comes first* is a Placement in an
+ * Ordering and lives nowhere near here. Three standards separate the two mechanisms independently,
+ * and ADR-0002 names them.
+ *
+ * **Recursive and many to many**: a Story may be part of several at once, and a Story that is part
+ * of one may contain others. The primary key is the pair, so the same edge cannot be recorded
+ * twice, and there is no id of its own — an edge is identified by what it joins.
+ *
+ * **A cycle is not prevented, and the bound is worth stating.** What is refused is the one-step
+ * case below; a longer loop would need a recursive check on every write, and nothing here reads
+ * containment transitively yet. The first thing that does — a completeness roll-up over
+ * containment — is what has to decide whether to forbid one or to tolerate it.
+ */
+export const partOf = pgTable(
+  "part_of",
+  {
+    /** The contained Story. Rose, in *Rose is part of Series 1*. */
+    partId: uuid("part_id")
+      .notNull()
+      .references(() => story.id, { onDelete: "cascade" }),
+
+    /** The containing Story. Series 1, in the same sentence. */
+    wholeId: uuid("whole_id")
+      .notNull()
+      .references(() => story.id, { onDelete: "cascade" }),
+  },
+  (t) => [
+    primaryKey({ columns: [t.partId, t.wholeId] }),
+
+    // Nothing is part of itself. It is the one cycle a single row can express, and the only one
+    // this table can refuse without reading the rest of it.
+    check("part_of_is_not_its_own_whole", sql`${t.partId} <> ${t.wholeId}`),
+
+    // The primary key above already indexes `part_id`, which is the leading column and the one a
+    // Story page reads. `whole_id` gets its own for the cascade's sake — a Story being deleted
+    // scans this table for edges naming it.
+    index("part_of_whole_id_idx").on(t.wholeId),
+
+    // Both ends, because an edge is a fact about two Stories: one naming a Story the reader cannot
+    // see would tell them it exists. `version`'s policy delegates for the same reason this one
+    // does — `story`'s policy is the single place the rule is written.
+    pgPolicy("part_of_readable_when_both_its_stories_are", {
+      as: "permissive",
+      for: "select",
+      to: applicationRole,
+      using: sql`exists (select 1 from ${story} where ${story.id} = ${t.partId})
+        and exists (select 1 from ${story} where ${story.id} = ${t.wholeId})`,
     }),
   ],
 );
@@ -221,8 +512,9 @@ export const formerType = pgEnum("former_type", ["story"]);
  * that this table has no title column to grow, which is the accidental reversal that decision names.
  *
  * **Nothing in the application writes one.** The purge does, as `canoncore_migrator` —
- * `purge-source.ts` — because the application role holds `SELECT` and nothing else. What reads one
- * is CAN-111 Decide and build what a dropped Story renders as, which owns the 410.
+ * `purge-source.ts` — because the application role cannot write one: its only write anywhere is the
+ * Anchor mint above. What reads one is CAN-111 Decide and build what a dropped Story renders as,
+ * which owns the 410.
  */
 export const tombstone = pgTable(
   "tombstone",

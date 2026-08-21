@@ -337,10 +337,17 @@ on `main`, where every push is its own release and a cancelled run is not a pass
 **One check is not optional, because its failure mode is silence: every row-level-security-protected
 table the application can read has a test asserting that a cross-tenant read returns zero rows.** A
 misconfigured RLS policy returns an empty result rather than an error, so it is indistinguishable from
-"no data" in the UI and cannot be caught by looking. `story`, `snapshot` and `tombstone` are those tables
-today, and every one of them is tested from
+"no data" in the UI and cannot be caught by looking. `story`, `version`, `part_of`, `snapshot` and
+`tombstone` are those tables today, the middle two having joined with **CAN-25 The catalogue:
+Version, part of, Anchor, canonical version**, and every one of them is tested from
 [`apps/web/src/db/rls.test.ts`](../../apps/web/src/db/rls.test.ts) — one file rather than one per table,
 for the reason that file's own header gives and cites. ADR-0005 rule 2 is what requires it.
+
+**Three of those five name no owner of their own**, and that is the shape to copy rather than a gap:
+`version`, `part_of` and `snapshot` each ask whether the *Story* is readable and let `story`'s policy
+answer, so the rule is written once and two policies cannot drift apart. `part_of` asks it of **both**
+Stories an edge names, because an edge returned on the strength of one end tells its reader that the
+other end exists.
 
 **Since CAN-24 A signed-in and a signed-out path there is a second shape of answer, and it is the
 stronger one.** better-auth's five tables — `user`, `session`, `account`, `verification`, `rate_limit` —
@@ -355,7 +362,7 @@ third role which reads every row of its own five tables and has to —
 [`apps/web/src/auth/auth.ts`](../../apps/web/src/auth/auth.ts) holds the argument. So the tenant question
 is only ever asked of the role every page runs as, and what bounds the other role is asserted separately:
 a fifth tripwire pins what `canoncore_auth` may do to **every** table, because it has no policy at all on
-the four product tables and only the absent grant refuses a write there.
+any of the product tables and only the absent grant refuses a write there.
 
 **A table deliberately left unprotected still owes the gate three tripwires**, because an exclusion
 nothing enforces is indistinguishable from a table somebody forgot: one asserting that every table
@@ -363,6 +370,19 @@ in `public` is classified as protected or not, one asserting the unprotected tab
 column list, and one asserting what the application role may do to every table. `source` is the
 first and the reason it is exempt is
 [ADR-0014](../adr/0014-shell-providers-and-per-source-retention.md) → *Decision 6*.
+
+**`anchor` is not tenant-scoped either, and it is a different case rather than a second `source`.** It
+carries two policies, so row-level security is *on*: anyone may read an Anchor, any signed-in reader may
+mint one, and nobody may change or remove one. What it owes is therefore the column-list tripwire — an
+Anchor carrying no metadata is what [ADR-0003](../adr/0003-no-shared-catalogue.md) rests on, so a column
+arriving there is that decision being reversed — and a test of each policy in **both** directions, which
+is what a table with no cross-tenant question to ask has instead of a cross-tenant test. Its exclusion
+and the reason for it are recorded in `rls.test.ts` beside the cross-tenant tests, which is where a
+reviewer meets them.
+
+**It is also the one table the application role may write to**, which is why the invariant below
+excepts `anchor` by name rather than reading *writes nothing*. It is an `INSERT` and nothing else,
+there and nowhere else, and migration 0011 holds the argument.
 
 **The third is there because the first two were not enough.** Where there is no policy, the grant
 is the only control, and CAN-123 Revoke the application role's write privileges, and decide whether
@@ -452,10 +472,13 @@ the release and by nothing else — [ADR-0019](../adr/0019-ci-owns-the-productio
 preview is now the rehearsal for that migration**, run against a faithful copy of production's schema
 and read by a person before the release runs it for real.
 
-Five invariants are checked on **both** branches, read from the repository and the database rather than
-carried: no table is owned by anything else, neither application role has `BYPASSRLS`, `canoncore_app`
-can write nothing, no table without a policy is reachable by anybody except `source`, and no default
-privilege exists. On `preview` it also requires the journal to match `_journal.json` exactly, and
+Six invariants are checked on **both** branches, read from the repository and the database rather than
+carried: no table is owned by anything else, **no schema, enum or journal object is either**, neither
+application role has `BYPASSRLS`, `canoncore_app` can write nothing but `anchor`, no table without a
+policy is reachable by anybody except `source`, and no default privilege exists. The second is newer
+than the rest and was added because the first passed a branch that could not be migrated at all —
+[`../infrastructure.md`](../infrastructure.md) → *The ownership repair of 21 August 2026* is the
+account, and the short version is that a table check cannot see the schema the table is in. On `preview` it also requires the journal to match `_journal.json` exactly, and
 asserts that `preview` holds **none** of production's `story` rows — a row count rather than a settings
 field, because only a row count would notice the branch having been replaced by a clone. On production
 the journal is allowed to lag and refused only when it is *ahead*, which would mean a migration nothing

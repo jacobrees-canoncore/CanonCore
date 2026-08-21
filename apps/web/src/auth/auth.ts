@@ -51,9 +51,9 @@ import { Pool } from "pg";
  * which is where the argument belongs rather than in this comment: it carries the three rejected
  * designs, what bounds the role, and the five things that will try to reopen it.
  *
- * **`canoncore_app` is unchanged by any of it** — `SELECT` only, no `BYPASSRLS`, every read through
- * a policy. ADR-0005 rule 1 is about that role, and this adds a role beside it rather than widening
- * it.
+ * **`canoncore_app` is unchanged by any of it** — no `BYPASSRLS`, every read through a policy, and
+ * none of these five tables reachable at all. ADR-0005 rule 1 is about that role, and this adds a
+ * role beside it rather than widening it.
  */
 
 /**

@@ -230,6 +230,12 @@ supplied
 gone, title included: today a title has no provenance to prove it was not the Source's, and a purge
 that leaves one behind is not a purge.
 
+**Its Versions and its containment go with it, and its Anchor stays.** The first two go by the
+cascade on the `story` row rather than by any statement the purge makes, so the run does not itemise
+them. What each of those tables is owed, and why the Anchor is the exception, is
+`apps/web/src/db/purge-source.ts` → `howThePurgeTreatsEachTable`; `rls.test.ts` reads all three back
+after a purge.
+
 **It is not undoable, and it is not meant to be.** Undo works on Operations, and `CONTEXT.md`'s
 glossary says in terms that what the product does unbidden — a retention sweep, a purge — is never
 one: an undo buffer holding purged Source content would be the breach again under a friendlier
