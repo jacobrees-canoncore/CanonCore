@@ -27,6 +27,7 @@ is what the rule was built on.
 - [A workflow reading `toJSON(secrets)` is held before any job starts](#a-workflow-reading-tojsonsecrets-is-held-before-any-job-starts)
 - [A test fixture that spawns the CLI writes to the real job summary](#a-test-fixture-that-spawns-the-cli-writes-to-the-real-job-summary)
 - [The same fixture inherited its working directory, and two checks went untested for three days](#the-same-fixture-inherited-its-working-directory-and-two-checks-went-untested-for-three-days)
+- [A concurrent lane reddened `main`, and the merge that failed had not caused it](#a-concurrent-lane-reddened-main-and-the-merge-that-failed-had-not-caused-it)
 - [Waveger: the build ran no migrations, and nobody knew](#waveger-the-build-ran-no-migrations-and-nobody-knew)
 
 **Tools and the harness**
@@ -292,6 +293,47 @@ repository has to say which one every spawn runs in. Both fields, once, in the s
 `cwd`: the three checks that walk a listing now fail when the listing came back empty, because
 *searched nowhere* and *searched and found nothing* are indistinguishable in a report and only one
 of them is a pass.
+
+## A concurrent lane reddened `main`, and the merge that failed had not caused it
+
+**17 August 2026, landing CAN-131 Research where this repository and Orca do not meet, and settle
+the worktree workflow.** [PR #202](https://github.com/jacobrees-canoncore/CanonCore/pull/202)
+touched two files under `docs/research/` and nothing else. Its branch run
+([32026182181](https://github.com/jacobrees-canoncore/CanonCore/actions/runs/32026182181), `bdbfcc2`,
+11:43 UTC) reported `PASS the variable roster matches Vercel — 8 variables agree`. The release run on
+`main` ([32028009220](https://github.com/jacobrees-canoncore/CanonCore/actions/runs/32028009220),
+squash `b684943`, 12:05 UTC) failed 22 minutes later at `node scripts/check-docs.ts`:
+
+```
+FAIL  the variable roster matches Vercel   the roster in docs/infrastructure.md disagrees with `vercel env ls`:
+    - BETTER_AUTH_SECRET is set on Vercel but missing from the roster in docs/infrastructure.md
+    - DATABASE_AUTH_PASSWORD is set on Vercel but missing from the roster in docs/infrastructure.md
+    - DATABASE_AUTH_USER is set on Vercel but missing from the roster in docs/infrastructure.md
+7 passed, 3 skipped, 1 failed  (a skipped check reached no source; it is not a pass)
+```
+
+**Why.** None of the three came from the merge. They had been provisioned on Vercel by a concurrent
+lane working **CAN-24 A signed-in and a signed-out path**, which landed its own roster rows 67
+minutes later as `542187b`. Six of `check-docs`'s checks read live shared state rather than the
+working tree — the branch ruleset, the Linear label roster, the Vercel variable roster, the Actions
+secret roster, the release token's expiry and the repository's security settings — so their answer
+depends on when the run happens rather than on what the commit contains. Three of the six reach a
+runner and three gate locally only, which is what decides whose gate a given change can redden;
+[`agents/workflow.md`](agents/workflow.md) → *The gates* has the table. There was no git
+relationship between the two lanes at all: neither shared a base, and neither touched a file the
+other did.
+
+**What it proves.** Two things, and the second is the one that costs time. **Lane independence in
+git is necessary and not sufficient** — a lane that provisions a variable or edits the ruleset is
+independent of nothing, so it has to be sequenced, or land its roster update in the same change that
+provisions the thing. And **a red `main` from a live-source check is not necessarily the
+merge that turned it red**: read which check failed and against which source before assuming the last
+merge caused it. Here the failure stopped the job at `check-docs`, so the migration and promotion
+steps never ran and production was simply not promoted, which is a different situation from a broken
+deployment.
+
+Whether a check reading live shared state can be a per-branch gate at all is a larger question, and
+is open.
 
 ## Waveger: the build ran no migrations, and nobody knew
 

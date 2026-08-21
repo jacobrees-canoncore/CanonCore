@@ -115,7 +115,8 @@ commits already exist and you are recovering rather than opening a PR.
 
 ```bash
 git fetch origin                                  # refresh the ref the worktree is based on
-orca worktree create --name CAN-11-welcome-email-queue --linear-issue CAN-11
+orca worktree create --name CAN-11-welcome-email-queue \
+  --linear-issue CAN-11 --base-branch origin/main
 ```
 
 **Fetch, never `git switch main`.** The switch fails from inside a worktree, which is where work now
@@ -142,6 +143,97 @@ git branch -f main origin/main                    # put main back where it was
 
 If `main` has already been pushed, stop — that is a different problem, and not one to fix from
 inside a PR command.
+
+### Dispatching a lane, and what one starts with
+
+**The command above opens a worktree you then go and work in. Add `--agent` and `--prompt` and it
+becomes a different act: you dispatch, and leave.**
+
+```bash
+orca worktree create --name CAN-11-welcome-email-queue --linear-issue CAN-11 \
+  --base-branch origin/main --agent claude --prompt "/implement"
+```
+
+That is how every lane since 16 August 2026 has been created, and **several run at once**. Nothing
+inside a lane changes — it still runs `/implement`, then `/draft-pr`, then `/review-pr`, on its
+own branch. What changes is that you are not in it. Four concurrent lanes are demonstrable from
+the pull requests of 16 and 17 August; a fifth is claimed and cannot be proved either way from git,
+because a lane leaves no trace between `worktree create` and `worktree rm`
+([`../research/orca-gaps-and-the-worktree-workflow.md`](../research/orca-gaps-and-the-worktree-workflow.md)
+→ *The lane era is datable, and "thirteen" is exactly right*).
+
+Two commands are worth knowing because nothing else gives the same view. `orca worktree ps` returns
+every lane in one call with its agent's `state`, `prompt`, `lastAssistantMessage` and current
+`toolName`, and `orca worktree set --comment` is where to record why one is stuck — with several
+running, the only cheap way to tell them apart
+([`../research/orca-gaps-and-the-worktree-workflow.md`](../research/orca-gaps-and-the-worktree-workflow.md)
+→ *Every Orca surface, with a verdict*).
+
+**A lane starts with no `node_modules`.** A worktree is a fresh checkout, so nothing carries over,
+and [`orca.yaml`](../../orca.yaml) at the repository root is what pays for it: `scripts.setup` runs
+`pnpm install --frozen-lockfile`, the same command CI runs.
+
+**pnpm covers most of that by itself, and the gap it leaves is one of the gates.**
+`verifyDepsBeforeRun` defaults to `install`, so a missing or stale `node_modules` is installed before
+the command runs — but *"the check runs on `pnpm run` and `pnpm exec` commands"*
+([pnpm settings](https://pnpm.io/settings/build#verifydepsbeforerun)), and the seventh gate step
+invokes `node` directly rather than through `pnpm run`, so pnpm never sees it. In an uninstalled lane
+that step fails with `ERR_MODULE_NOT_FOUND` instead of installing, which is what this lane did before
+`orca.yaml` existed. So the file is not only a declaration: it is what lets a fresh lane run the
+gates as documented.
+
+**Two things about the hook stop a slow first command reading as a broken lane.** Orca takes the file
+from the commit, so no per-machine script or policy has to be set for it to run; and the agent
+starts **concurrently** with the install rather than after it, because the policy that would make it
+wait exists only per machine and cannot be committed
+([`../research/orca-gaps-and-the-worktree-workflow.md`](../research/orca-gaps-and-the-worktree-workflow.md)
+→ *`orca.yaml`: the complete schema, and what it cannot carry*). The concurrency is harmless for
+`pnpm` commands, which is where the qualifier above matters: a second `pnpm install` waits on the
+first rather than corrupting it.
+
+**Nothing gitignored carries over either, and one day that will matter.** There is nothing worth
+copying today — no `.env` file exists here — so no `.worktreeinclude` is committed. The moment
+local work needs one, every lane will silently lack it and fail in a way that looks like broken
+code, and that is the day to add the file.
+[`../research/orca-gaps-and-the-worktree-workflow.md`](../research/orca-gaps-and-the-worktree-workflow.md)
+→ *Recommendation one: commit a four-line `orca.yaml`* has both, with the probe that established
+what shell the hook runs in and that it finds `pnpm` at all.
+
+### A batch is independent in git, and coupled through the platform
+
+**Lanes in flight together must be independent, and independence has two axes.** The first is what
+made the thirteen lanes of 16 and 17 August safe. The second was learnt by getting it wrong.
+
+**In git: always `--base-branch origin/main`.** Never base a lane on an unmerged parent branch. This
+repository squash-merges only, so when the parent lands its work is rewritten into a commit whose
+ancestry does not contain the child's base — the child then carries the parent's whole diff until
+someone runs `git rebase --onto origin/main <old-parent-tip>`, and every review change on the parent
+means doing that again against a base that has moved. The cost is not one conflict, it is a rebase
+per parent revision, paid by whoever is least expecting it. When a ticket cannot start until another
+lands **it waits**, and the tracker's `blocks` relation is the record of that.
+[`../research/orca-gaps-and-the-worktree-workflow.md`](../research/orca-gaps-and-the-worktree-workflow.md)
+→ *Question three: should a lane ever branch off something other than `main`?* has the argument, and
+the six-lanes-behind-one-design-ticket case that is the worst of it.
+
+**Orca's `--parent-worktree` is a different thing, and free.** It records lineage in Orca's own
+graph and moves no git state — `orca worktree create --help`: *"`--no-parent` only affects Orca
+lineage; omit `--base-branch` to use the repo default base, or pass the default base ref explicitly
+for independent top-level work."* That last clause is the recipe above. Group related lanes freely.
+
+**Through the platform: a lane that changes shared state is independent of nothing.** Six of
+`check-docs`'s checks compare a document against a live source rather than against the working tree,
+so their answer turns on when the run happens rather than on what the commit contains. **Where each
+one gates is the table in *The gates* below, and it decides the blast radius.** Three of the six
+reach CI, so a lane that provisions an environment variable, or changes `main`'s ruleset, reddens
+every other lane's gate and `main`'s own release with no git relationship between them at all. The
+other three gate locally only, so a lane that adds a secret, a label or a security setting reddens a
+local run and nothing on a runner.
+
+**Two rules follow, and the incident is the argument for both**
+([incident](../incidents.md#a-concurrent-lane-reddened-main-and-the-merge-that-failed-had-not-caused-it)).
+Sequence a lane that changes shared state, or land its roster update in the same change that
+provisions the thing. And read which check failed, and against which source, before blaming a red
+`main` on the last merge that landed.
 
 ### The local `main` is permanently stale in a worktree
 

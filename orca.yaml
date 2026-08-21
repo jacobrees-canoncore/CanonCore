@@ -1,0 +1,12 @@
+# What a lane needs before it can run anything. Orca runs this on `orca worktree create`, and takes
+# it from the committed file, so nothing has to be set on a machine for it to take effect. The
+# command is the one CI runs (.github/workflows/ci.yml), so a lane and the runner install the same
+# tree.
+#
+# pnpm would cover most of a lane's missing node_modules by itself, but not all of it, and what it
+# misses is one of the gates. docs/agents/workflow.md → *Branches* has both halves with the source
+# for each. That pointer is deliberately the `##` section rather than the subsection inside it:
+# check-docs only guards pointers in tracked `*.md`, so this one cannot be checked and wants the
+# most stable target available.
+scripts:
+  setup: pnpm install --frozen-lockfile
