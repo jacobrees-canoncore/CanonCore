@@ -27,8 +27,19 @@ issues* below for the one case where none applies.
 | `needs-triage`             | `needs-triage`       | Maintainer needs to evaluate this issue  |
 | `needs-info`               | `needs-info`         | Waiting on reporter for more information |
 | `ready-for-agent`          | `ready-for-agent`    | Fully specified, ready for an AFK agent  |
-| `ready-for-human`          | `ready-for-human`    | Requires human implementation            |
+| `ready-for-human`          | `ready-for-human`    | Needs steps a person would click through |
 | `wontfix`                  | `wontfix`            | Will not be actioned                     |
+
+**`ready-for-human` does not mean an agent cannot take it**, and that is a change of 21 August 2026
+rather than the label's original sense. It means the work has steps a person would normally click
+through — a dashboard, a sign-in, a form somewhere with no API. A lane can take those with the
+Playwright MCP driving the browser, so [`/next-lanes`](../../.claude/skills/next-lanes/SKILL.md)
+dispatches such a ticket with a prompt naming both halves, rather than holding it back. **Only one
+such lane may run at a time**, because that browser profile is shared across sessions.
+
+What the label still routes is the *kind* of work, which is what makes it worth keeping apart from
+`ready-for-agent`: a ticket carrying it is one nobody should expect to be finished by writing code
+alone.
 
 **Unmapped:** Linear's `Improvement` maps to no role, so `/triage` will neither apply nor
 interpret it. Use it by hand if you want.

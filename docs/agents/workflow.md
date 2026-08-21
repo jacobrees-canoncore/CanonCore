@@ -339,6 +339,29 @@ Sequence a lane that changes shared state, or land its roster update in the same
 provisions the thing. And read which check failed, and against which source, before blaming a red
 `main` on the last merge that landed.
 
+### How a batch is chosen
+
+**Gate first, order second, and check the batch against itself before dispatching any of it.** The
+procedure is [`/next-lanes`](../../.claude/skills/next-lanes/SKILL.md), which reads the board and
+proposes; the evidence, the measurements and every citation are
+[`../research/choosing-what-to-dispatch-next.md`](../research/choosing-what-to-dispatch-next.md) and
+are not restated here.
+
+Three rules from it are policy rather than evidence, so they live here:
+
+- **The ceiling on lanes in flight is three, and it is policy rather than a derived number**, because
+  no published source gives one and Orca states none. It is a starting value, tuned by observation,
+  and raising it is a deliberate act rather than a convenience.
+- **A lane is refused for what it overlaps with, never for how many are already running.** What
+  predicts a conflict is coupling, and in this repository the overlap that bites is in the documents
+  rather than in `apps/`.
+- **Only one lane at a time may drive the browser**, because the Playwright MCP profile is shared
+  across sessions and a second lane reaching for it gets "Browser is already in use".
+
+**A ticket with no state role that dispatches is not a candidate**, and a `blocked-by` inside `Later`
+is usually a chosen order rather than a real blocker — [`issue-tracker.md`](./issue-tracker.md) →
+*`Later` is a work queue, not a dependency graph* — so leverage is never counted through that band.
+
 ### The local `main` is permanently stale in a worktree
 
 **`main` stays checked out at `/Users/jacobrees/orca/projects/CanonCore` for as long as the project
