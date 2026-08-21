@@ -187,11 +187,11 @@ nothing. No credential to fetch: the workflow below already holds one.
    one of the four routes above. `macos-mail-mcp` reads it; note the standing rule that it may be
    used for nothing but mail this project sent or received.
 2. **The Source's own site**, for a publicly posted notice.
-3. **The credential, by hand — once one exists to try.** No Source credential is held anywhere yet:
-   [`infrastructure.md`](infrastructure.md) → *Where a Source credential lives* records the TMDB
-   token as held nowhere **until `provider-tmdb` exists**, which is what **CAN-101 Create the
-   provider-tmdb repository, and give it the TMDB credential** does. So this step is the procedure
-   for the world after that ticket and cannot be followed before it. Whether the key still answers is the difference between (iv) and an
+3. **The credential, by hand.** [`infrastructure.md`](infrastructure.md) → *Where a Source
+   credential lives* records the TMDB token as held on the `provider-tmdb` Vercel project since
+   21 August 2026, so there is a key to try — but **nothing here consumes it yet**, because
+   **CAN-101 Create the provider-tmdb repository, and give it the TMDB credential** has still to
+   build the Provider that reads it. Whether the key still answers is the difference between (iv) and an
    ordinary outage, and *"TMDB revocation is eventual"* — regenerating our own key left the old one
    answering sixteen minutes later
    ([incident](incidents.md#regenerating-a-tmdb-key-does-not-revoke-the-old-one-promptly)) — so a

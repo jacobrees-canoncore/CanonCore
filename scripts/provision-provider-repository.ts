@@ -275,17 +275,21 @@ step("the dependency graph is on, and has indexed something for the alerts to ma
     );
   // **On is not the same as seeing anything, and the endpoint's status cannot tell them apart.**
   // Why a count of one means no manifest was parsed is `readDependencyGraph`'s, where it is under
-  // test. What it costs here is the point: reporting PASS on it would be that incident's lesson
-  // unlearned one door along — a green tick that cannot tell *nothing is vulnerable* from *nothing
-  // was parsed*. It was `provider-tmdb`'s state on the first run, which is why this exists:
+  // test; what reporting PASS on it would cost is the incident's, cited above. It was
+  // `provider-tmdb`'s state on the first run, which is why this step exists at all:
   // docs/infrastructure.md -> What the first real run showed.
+  //
+  // **A SKIP and not a FAIL, where `check-docs.ts` fails on the identical reading.** Provisioning
+  // meets repositories minutes old, whose graph GitHub has simply not reached: the run succeeded,
+  // no operator action would help, and a FAIL would report their work as broken. `check-docs.ts`
+  // meets one repository, years old, whose graph has been indexing all along.
   if (!graph.indexed)
     skip(
-      "the dependency graph is on and holds nothing but the repository's own entry, so it has " +
-        "indexed no manifest and Dependabot alerts have nothing to match against. Nothing here " +
-        "can make it index — the graph is already on, so there is no setting to flip. Wait for " +
-        "GitHub and re-run this; docs/infrastructure.md -> What the first real run showed has how " +
-        "long it has been seen taking, and what has and has not been tried.",
+      "the dependency graph is on and holds no dependency at all, so it has indexed no manifest " +
+        "and Dependabot alerts have nothing to match against. Nothing here can make it index — the " +
+        "graph is already on, so there is no setting to flip. Wait for GitHub and re-run this; " +
+        "docs/infrastructure.md -> What the first real run showed has how long it stayed this way " +
+        "on the one repository that has met it, and what was and was not tried.",
     );
   return `${graph.packages} packages in the graph`;
 });

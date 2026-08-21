@@ -511,8 +511,10 @@ export function readVulnerabilityAlerts(attempt: Attempt): boolean {
 
 /**
  * The dependency graph, which has no read-back field of its own: it is absent from
- * `security_and_analysis`, and the SBOM endpoint stands in for it — a package count while on, and
- * `404` while off.
+ * `security_and_analysis`, and the SBOM endpoint stands in for it — `404` while off, and a package
+ * count while on, which is **two** readings rather than one. `enabled` is whether it answered;
+ * `indexed` is whether the count is more than the repository's own entry. A graph can be the first
+ * without being the second, and that pair is the whole of why this returns three fields.
  *
  * A `404` is also what an endpoint nobody may read can answer, and telling those apart is the
  * whole difficulty. What separates them sits upstream rather than in the response: reaching this
@@ -537,9 +539,13 @@ export function readVulnerabilityAlerts(attempt: Attempt): boolean {
  * rests on it. [1] describes the `packages` array without saying whether the repository is one of
  * them; what was read is the `SPDXRef-DOCUMENT … DESCRIBES` relationship pointing at a package
  * named for the repository, on `provider-tmdb` and on CanonCore, 21 August 2026 — the first
- * answering `1` package and `totalCount: 0` manifests, the second `781` and `8`. **If it is ever
- * wrong the cost is a SKIP where a PASS was due**, which is the direction to be wrong in: the
- * report says what it could not confirm rather than confirming what it could not read.
+ * answering `1` package and `totalCount: 0` manifests, the second `781` and `8`.
+ *
+ * **What being wrong about it costs is the caller's to decide, and the two callers decided
+ * differently**: `provision-provider-repository.ts` skips, `check-docs.ts` fails. So this is not a
+ * conservative reading that can only under-report — on an established repository a wrong assumption
+ * here is a red check. Each caller says why it chose what it did; what this function owes them is
+ * the reading, not the verdict.
  *
  * [1] https://docs.github.com/en/rest/dependency-graph/sboms
  */

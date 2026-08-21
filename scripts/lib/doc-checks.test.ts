@@ -455,8 +455,9 @@ test('a graph holding only the repository itself is on and has indexed nothing',
   // Two is the boundary: one dependency beside the repository's own entry is a manifest parsed.
   assert.equal(readDependencyGraph({ ok: true, output: '2\n' }).indexed, true)
 
-  // Zero is not a count this endpoint has been seen giving — the self entry is always there — but
-  // if it ever does, it is emptier still rather than a graph to trust.
+  // Zero has never been seen from this endpoint, and the threshold catches it anyway rather than
+  // resting on that. `> 1` is deliberately not `=== 1`: a reading below the self entry is a graph
+  // holding even less, not a special case to pass through.
   assert.equal(readDependencyGraph({ ok: true, output: '0\n' }).indexed, false)
 })
 

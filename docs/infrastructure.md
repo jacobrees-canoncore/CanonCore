@@ -580,19 +580,23 @@ the more useful half, and is below the three.
   well as within one, and **`scripts/lib/provider-baseline.ts` needed no correction** — the payload
   and the composition are both what they said they were.
 - **The update path is proven too, and by accident rather than by design.** A second run the same
-  day found the ruleset already there and took the `PUT` branch instead of the `POST` — `updated
-  ruleset 21142169` — and the read-back after it was the same deep-equal. So re-running provisioning
-  against a repository that already has the baseline is a safe no-op that reports drift, which is
-  what makes it the comparison [`agents/workflow.md`](agents/workflow.md) → *The gates* points at.
-  **What does not exist is a mode that reports without writing, or anything that runs it
-  unprompted**; today it is a command somebody has to think to type.
+  day found the ruleset already there and took the `PUT` branch instead of the `POST`, reporting
+  `updated ruleset 21142169` where the first had reported `created`, and the read-back after it was
+  the same deep-equal. **The evidence is the script's own report and not the API**, which is worth
+  saying because the API cannot corroborate it: `created_at` and `updated_at` are 22 ms apart and
+  `rulesets/21142169/history` holds one version — consistent with a `PUT` that changed nothing,
+  which is exactly what a correct one does. So re-running provisioning against a repository that
+  already carries the baseline is a safe no-op that reports drift. **That is not the same as drift
+  detection**: it writes before it reads, and nothing runs it unprompted, so what it catches is
+  drift somebody already went looking for. **CAN-145 Give the Provider provisioning a report-only
+  mode, and something that runs it** owns both halves.
 - **The `workflow` scope was never needed**, per step 2 above: the first push carried the caller
   over ssh and was accepted.
 
 **The one step that did not pass is the dependency graph, and it failed in a new way.** It was
 **already on** and had **indexed nothing**, so no dashboard step applied and none would have helped.
-The first push landed at 11:10 UTC on 21 August 2026. These were read every minute from 11:12 to
-12:00 — fifty minutes — and **no reading was ever different**:
+The first push landed at 11:10 UTC on 21 August 2026. These were read repeatedly from 11:12 to
+12:12, the last of them **sixty-two minutes after the push**, and **no reading was ever different**:
 
 | Read | Answer | CanonCore, same day |
 | --- | --- | --- |
@@ -607,7 +611,7 @@ than as proof** — an unauthenticated fetch would not be shown an *Enable* butt
 and the Settings page was not read. GitHub's own expectation is that the graph is *"usually populated
 within minutes"* of a push
 ([Configuring the dependency graph](https://docs.github.com/en/code-security/supply-chain-security/understanding-your-software-supply-chain/configuring-the-dependency-graph)),
-which is why fifty of them is worth writing down rather than waiting out quietly. **The next Provider
+which is why sixty-two of them is worth writing down rather than waiting out quietly. **The next Provider
 should expect this**, and the step that reports it now says so rather than reporting a pass.
 
 **It is not the lockfile.** `pnpm` is its own row in
@@ -635,7 +639,10 @@ the count is the repository's own entry alone, and provisioning SKIPs on it rath
 PASS: a green tick that cannot tell *nothing is vulnerable* from *nothing was parsed* is what that
 incident exists to stop. The first run reported `11 passed`; the corrected script reports
 `10 passed, 1 skipped` against the same repository — run, not predicted — and **that is the honest
-number until GitHub indexes it**.
+number until GitHub indexes it**. **The condition itself is
+CAN-146 `provider-tmdb`'s dependency graph is enabled and has indexed nothing**, which owns the
+re-read and the escalation: closing the reporting gap is not closing the condition, and a note in a
+document owns nothing.
 
 **The same hole was open in this repository, and closing it there is half the fix.** The row above
 says `enabled`, a graph holding nothing *is* enabled, so the roster comparison agrees either way —
@@ -829,12 +836,14 @@ documents it.
 
 | Source | Credential | Where it lives now |
 | --- | --- | --- |
-| TMDB | Bearer token, scope `api_read` | **Pending `provider-tmdb`, which does not exist yet.** Removed from the `canoncore` project on 15 August 2026 by **CAN-99 Move the TMDB credential out of the app, atomically with its roster row**. Until that repository exists the token is held nowhere, and is recoverable from [`themoviedb.org/settings/api`](https://www.themoviedb.org/settings/api) — see *External data source: TMDB* below |
+| TMDB | Bearer token, scope `api_read` | **The `provider-tmdb` Vercel project**, as `TMDB_READ_ACCESS_TOKEN`, Sensitive, on Preview and Production — read back with `vercel env ls --project provider-tmdb` on 21 August 2026. It was removed from the `canoncore` project on 15 August 2026 by **CAN-99 Move the TMDB credential out of the app, atomically with its roster row** and held nowhere in between. It is recoverable from [`themoviedb.org/settings/api`](https://www.themoviedb.org/settings/api) — see *External data source: TMDB* below |
 
-**Held nowhere is a real state, and it is recorded rather than tidied away.** A credential whose
-home is unrecorded is the failure this roster exists to prevent; a credential recorded as homeless
-is merely work outstanding. It becomes a row above only if it ever returns to this project, which
-under ADR-0014 it should not.
+**Held nowhere was a real state, and recording it rather than tidying it away is what made the
+change above legible.** A credential whose home is unrecorded is the failure this roster exists to
+prevent; a credential recorded as homeless is merely work outstanding — and the row could be
+corrected the moment the home appeared, because it said where the token was not. **It keeps its
+Holder outside this project**, and becomes a row in the roster above only if it ever returns here,
+which under ADR-0014 it should not.
 
 ### What this check compares, and what it cannot
 
@@ -1522,8 +1531,9 @@ its published terms only, and how long a copy may be kept is a property of the S
 > which puts no *Source* credential in `apps/web`, `TMDB_API_READ_ACCESS_TOKEN` was removed from the
 > `canoncore` Vercel project on 15 August 2026 by **CAN-99 Move the TMDB credential out of the app,
 > atomically with its roster row**, together with its roster row, in one change. **Its destination
-> `provider-tmdb` does not exist yet**, so the token is held nowhere and is reissued from the source
-> named below — *Where a Source credential lives* above records that state.
+> now holds it**: the `provider-tmdb` Vercel project carries it as `TMDB_READ_ACCESS_TOKEN`,
+> Sensitive, on Preview and Production — a different name from the one this project used, and
+> *Where a Source credential lives* above is the row that records it.
 >
 > **What remains here is the account, not the secret.** The table below describes the TMDB account
 > and the registered application, which stay this project's however the credential is held.
