@@ -806,7 +806,8 @@ and *"submitted dependencies will receive Dependabot alerts and Dependabot secur
 is not adopted here and the cost is why**: it would put a submission step in every Provider's shared
 baseline and change what the graph holds from what GitHub detected to what our CI asserted — a gate
 that can be wrong in a new direction, for a format static detection is supposed to handle. It is the
-answer if this turns out to be permanent rather than slow.
+answer if this turns out to be permanent rather than slow — and on the one repository that has met
+it, **it was slow**: the re-read below.
 
 **So the sign that made the incident legible is gone, and that is the correction.** There the graph
 was off and answered `404`. Here it answers `200` with a count, reads as on by every route there is,
@@ -815,11 +816,68 @@ code to catch it by. **`readDependencyGraph` now returns `indexed` beside `enabl
 the count is the repository's own entry alone, and provisioning SKIPs on it rather than reporting
 PASS: a green tick that cannot tell *nothing is vulnerable* from *nothing was parsed* is what that
 incident exists to stop. The first run reported `11 passed`; the corrected script reports
-`10 passed, 1 skipped` against the same repository — run, not predicted — and **that is the honest
-number until GitHub indexes it**. **The condition itself is
+`10 passed, 1 skipped` against the same repository — run, not predicted — and **that was the honest
+number while the graph held nothing**. **The condition itself is
 CAN-146 `provider-tmdb`'s dependency graph is enabled and has indexed nothing**, which owns the
 re-read and the escalation: closing the reporting gap is not closing the condition, and a note in a
 document owns nothing.
+
+**It cleared later the same day, and the re-read is what closed it.** Read at **17:06 UTC on
+21 August 2026**, `dependency-graph/sbom` answered `118` — the repository's own SPDX entry and
+**117 dependencies** — and `dependencyGraphManifests` answered `totalCount: 2`, both `package.json`
+and `pnpm-lock.yaml`, each `parseable: true` and neither over the size limit. Provisioning re-run
+against the same repository reports **`11 passed, 0 skipped, 0 failed`**. That is the same number the
+first run printed before the step could tell a pass from a wait, and this time it is evidence rather
+than a coincidence of shape.
+
+**What the reading cannot say is when**, so what is recorded here is a window and not a duration.
+Nothing read the graph between 12:12 and 17:06, and **a second push landed inside that gap**:
+`provider-tmdb`'s own pull request `#1` merged at **16:41:38 UTC** and registered as a push two
+seconds later, five hours thirty-one minutes after the first. What is indexed is that second push's
+tree rather than the first's — the `package.json` manifest lists `ajv`, `ajv-formats` and `hono`,
+none of which existed at the first commit. So the bounds are the honest form of it: the first push's
+manifests were **unindexed at every reading across the hour from 11:12 to 12:12**, the last of them
+sixty-two minutes after the push; nothing looked at all for the four hours fifty-four that followed;
+and the graph was **current within twenty-five minutes** of the push that came next. **Whether that
+push is what triggered the indexing is precisely what one observation with a push in the middle of it
+cannot settle.** **Pushing again is
+worth trying first on the next Provider**, because it is cheap rather than because it is established.
+
+**And the first commit's lockfile parses**, which *It is not the lockfile* above could only infer
+from a different repository. `dependency-graph/compare/008d3506...64f175eb` — which *"Gets the diff
+of the dependency changes between two commits of a repository, based on the changes to the dependency
+manifests made in those commits"* ([Dependency
+review](https://docs.github.com/en/rest/dependency-graph/dependency-review), read 21 August 2026) —
+reports **six** packages added and none removed: `ajv`, `ajv-formats`, `fast-uri`, `hono`,
+`json-schema-traverse` and `require-from-string`, every one of them attributed to `pnpm-lock.yaml`.
+Had the base parsed as nothing, all **117** would have come back as added — that being
+`pnpm-lock.yaml`'s own `dependenciesCount`, read with the care the next paragraph describes, and the
+`118` above less the repository's SPDX entry. So
+GitHub derived the first commit's dependencies from that lockfile rather than reading it as empty.
+**What that proves is the file and not the moment**: the endpoint's documentation does not say
+whether it parses on demand or reads something already stored, and this was read after the index had
+filled, so it cannot date the parse. What it removes is the last reading on which the empty index
+could have been this repository's fault. **So what was empty was the stored index for the default
+branch, never the manifest.**
+
+**Two of these instruments answer "nothing" for a reason that is not nothing**, which is this
+section's own subject pointed at the tools that read it. `dependenciesCount` answers `0` unless the
+query selects the `dependencies` connection beside it: four runs of each shape on 21 August 2026 gave
+`[0, 0]` every time without it and `[8, 117]` every time with it, so it is the query and not a flake.
+And *with* that connection selected the query can answer `totalCount: 0` and an empty `nodes` because
+it **timed out server-side**, putting the reason in `errors` and a zero in `data` — pointed at
+CanonCore, whose graph holds 787 packages, that is what it did three times running. **The readings
+above are unaffected**: the table's `totalCount: 0` came from the plain query, which is the reliable
+one and still answers `2` here and `9` there. But a re-reader who trusts `data` without reading
+`errors` will be told a full graph is empty. **The REST SBOM endpoint fails more honestly**, `500
+Failed to generate SBOM: Request timed out`, which is why `readDependencyGraph` reads it there and
+why a source out of reach skips rather than fails — `check-docs.ts` was seen doing exactly that,
+`13 passed, 1 skipped` on one run and `14 passed` on the next.
+
+**No support ticket was opened and no toggle was tried**, because both were conditional on it still
+reading `1`. The dashboard step at Settings → Advanced Security → Dependency graph therefore **stays
+untested for this case**, exactly as it was before: the incident that recorded it working was a graph
+that was **off**, and this one never was.
 
 **The same hole was open in this repository, and closing it there is half the fix.** The row above
 says `enabled`, a graph holding nothing *is* enabled, so the roster comparison agrees either way —

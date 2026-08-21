@@ -288,8 +288,11 @@ step("the dependency graph is on, and has indexed something for the alerts to ma
       "the dependency graph is on and holds no dependency at all, so it has indexed no manifest " +
         "and Dependabot alerts have nothing to match against. Nothing here can make it index — the " +
         "graph is already on, so there is no setting to flip. Wait for GitHub and re-run this; " +
-        "docs/infrastructure.md -> What the first real run showed has how long it stayed this way " +
-        "on the one repository that has met it, and what was and was not tried.",
+        "docs/infrastructure.md -> What the first real run showed has how long it was known to " +
+        "last on the one repository that has met it, what bounds that reading, what was and was " +
+        "not tried, and the one cheap thing worth trying next. It is stated there rather than " +
+        "here because it rests on a single observation, and a SKIP message is read as an " +
+        "instruction.",
     );
   return `${graph.packages} packages in the graph`;
 });
