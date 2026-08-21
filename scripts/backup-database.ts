@@ -20,7 +20,6 @@
 // **The decisions this file makes about what a good dump is are in scripts/lib/backup.ts**, which
 // is pure and is where the tests are. Everything here is the I/O: processes, streams and a store.
 
-import { execFileSync } from "node:child_process";
 import { createReadStream, createWriteStream, readFileSync, statSync } from "node:fs";
 import { mkdtemp, rm } from "node:fs/promises";
 import { appendFile } from "node:fs/promises";
@@ -30,9 +29,8 @@ import { Readable } from "node:stream";
 import { pipeline } from "node:stream/promises";
 import { fileURLToPath } from "node:url";
 import { Encrypter } from "age-encryption";
-import { del, head, list, put } from "@vercel/blob";
+import { del, head, put } from "@vercel/blob";
 import {
-  BACKUP_PREFIX,
   EVERY_TABLE_WITH_ROW_COUNT,
   libpqEnvironment,
   RETENTION_DAYS,
@@ -40,8 +38,8 @@ import {
   expiredBackups,
   rowCounts,
   tablesMissingFromDump,
-  type StoredBackup,
 } from "./lib/backup.ts";
+import { postgres, storedBackups } from "./lib/backup-io.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const RECIPIENT_FILE = join(HERE, "backup-recipient.txt");
@@ -63,32 +61,6 @@ function required(name: string): string {
   return value;
 }
 
-/**
- * Run a Postgres client program, with the connection in the environment and nothing on argv.
- *
- * **What it says when it fails is the whole reason this is not two lines inline.** Node's own error
- * for a non-zero exit is `Command failed: pg_dump …` and nothing else, and a nightly job whose
- * failure mail says only that is a job somebody has to reproduce before they can read it. libpq
- * puts every diagnosis on stderr — the host it could not reach, the certificate it would not
- * accept, the relation it was refused — so stderr is captured and becomes the message.
- */
-function postgres(program: string, args: string[], environment: Record<string, string>): string {
-  try {
-    return execFileSync(program, args, {
-      encoding: "utf8",
-      env: { ...process.env, ...environment },
-      maxBuffer: 64 * 1024 * 1024,
-      stdio: ["ignore", "pipe", "pipe"],
-    });
-  } catch (error) {
-    const failure = error as { stderr?: string; status?: number | null; message?: string };
-    const said = failure.stderr?.trim();
-    throw new Error(
-      `${program} exited ${failure.status ?? "abnormally"}${said ? `: ${said}` : ` and said nothing: ${failure.message}`}`,
-    );
-  }
-}
-
 /** The age recipient, from the file that carries it and its argument. */
 function recipient(): string {
   const key = readFileSync(RECIPIENT_FILE, "utf8")
@@ -97,18 +69,6 @@ function recipient(): string {
     .find((line) => line.startsWith("age1"));
   if (!key) throw new Error(`no age recipient in ${RECIPIENT_FILE}`);
   return key;
-}
-
-/** Every backup the store holds, following the cursor rather than reading one page. */
-async function storedBackups(token: string): Promise<StoredBackup[]> {
-  const all: StoredBackup[] = [];
-  let cursor: string | undefined;
-  do {
-    const page = await list({ prefix: BACKUP_PREFIX, cursor, token, limit: 1000 });
-    all.push(...page.blobs.map(({ pathname, uploadedAt, size, url }) => ({ pathname, uploadedAt, size, url })));
-    cursor = page.hasMore ? page.cursor : undefined;
-  } while (cursor);
-  return all;
 }
 
 async function main() {

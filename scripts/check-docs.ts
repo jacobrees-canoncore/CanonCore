@@ -30,6 +30,9 @@
 //  13. backup freshness   -  docs/infrastructure.md  vs  what the backup store actually holds. The
 //                            only one of these that reports on something *not happening*, which is
 //                            how a nightly job stops: silently, and believed until it is needed
+//  14. history window     -  docs/infrastructure.md  vs  Neon's own `history_retention_seconds`.
+//                            The setting a backup does not cover, and the one with no code to go
+//                            stale — so nothing but this would ever read it again
 //
 // Run:  node scripts/check-docs.ts [--verbose]
 //
@@ -47,9 +50,10 @@ import { appendFileSync, readFileSync, existsSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
-import { list } from "@vercel/blob";
 import type { Attempt, Result } from "./lib/doc-checks.ts";
 import { BACKUP_PREFIX, RETENTION_DAYS, freshness } from "./lib/backup.ts";
+import { storedBackups } from "./lib/backup-io.ts";
+import { NEON_PROJECT, NeonUnavailable, neonRequest } from "./lib/neon-api.ts";
 import {
   composeRequiredContext,
   parseDocumentedProviderContext,
@@ -70,6 +74,7 @@ import {
   parseCiJobNames,
   parseDocumentedBackup,
   parseDocumentedContexts,
+  parseDocumentedRetentionSeconds,
   parseDocumentedLabels,
   parseDocumentedLineTarget,
   parseDocumentedReleaseTokens,
@@ -764,8 +769,7 @@ await checkAsync("the backup store holds one no older than the register promises
   const token = process.env.BLOB_READ_WRITE_TOKEN?.trim();
   if (!token) skip("no BLOB_READ_WRITE_TOKEN, so the backup store was not read");
   const documented = parseDocumentedBackup(read(CONTEXT_HOME));
-  const page = await list({ prefix: BACKUP_PREFIX, token, limit: 1000 });
-  const stored = page.blobs.map(({ pathname, uploadedAt, size, url }) => ({ pathname, uploadedAt, size, url }));
+  const stored = await storedBackups(token);
   // A nightly backup plus the whole of the following day before anyone should be told: a run
   // delayed by GitHub's own load, or one taken at 02:17 and read at 09:00 the next morning, is not
   // news. Two nights missed is.
@@ -781,6 +785,43 @@ await checkAsync("the backup store holds one no older than the register promises
             `promises a backup on \`${documented.cron}\`.`,
     );
   return `${stored.length} stored, newest ${Math.round(verdict.ageHours ?? 0)} hours old`;
+});
+
+// ---------------------------------------------------------------------------
+// 14. Neon's history window.
+//
+// **The other half of this ticket, and the half that has no code to go stale — which is exactly why
+// it needed a check.** A backup is a system somebody would notice breaking; a retention setting is
+// one number in a console that nothing here would ever read again. CAN-55's own triage said so
+// while the ticket was still being argued: *"If option one is taken, something should assert the
+// window is what it is supposed to be, for the same reason."*
+//
+// **Locally only, and that is a deliberate consequence of where the key lives.** The Neon API key
+// can create and destroy databases, so docs/infrastructure.md -> The Neon API key keeps it off
+// every runner; a check that reads Neon therefore reports SKIP in CI and compares on a laptop, the
+// same reach as the label roster.
+// ---------------------------------------------------------------------------
+
+await checkAsync("Neon's history window matches the register", async () => {
+  const documented = parseDocumentedRetentionSeconds(read(CONTEXT_HOME));
+  let live: number | undefined;
+  try {
+    const body = (await neonRequest(`/projects/${NEON_PROJECT}`)) as {
+      project?: { history_retention_seconds?: number };
+    };
+    live = body.project?.history_retention_seconds;
+  } catch (error) {
+    if (error instanceof NeonUnavailable) skip(`cannot read the Neon project: ${error.message}`);
+    throw error;
+  }
+  if (live === undefined) skip("Neon answered without a `history_retention_seconds`, so nothing was compared");
+  if (live !== documented)
+    fail(
+      `${CONTEXT_HOME} records a ${documented}-second history window and Neon is set to ${live}. ` +
+        `The window is what a mistake older than one night is recovered from, and nothing else in ` +
+        `this repository would notice it changing.`,
+    );
+  return `${live} seconds, ${live / 86_400} days`;
 });
 
 const width = Math.max(...results.map((r) => r.name.length));

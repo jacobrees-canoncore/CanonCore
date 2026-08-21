@@ -1077,6 +1077,23 @@ export function parseDocumentedBackup(body: string): DocumentedBackup {
 }
 
 /**
+ * The history-retention window the register records, in seconds.
+ *
+ * Read from the machine-readable half of the row rather than from the prose beside it: the row says
+ * "**7 days**" for a person and `history_retention_seconds: 604800` for this, and only the second
+ * can be compared with what Neon answers without a unit conversion nobody would notice being wrong.
+ */
+export function parseDocumentedRetentionSeconds(body: string): number {
+  const found = body.match(/\|\s*History retention\s*\|[^|]*?`history_retention_seconds:\s*(\d+)`/)
+  if (!found)
+    return fail(
+      "no ``| History retention | … `history_retention_seconds: N` … |`` row in the register's " +
+        "*Database* table",
+    )
+  return Number(found[1])
+}
+
+/**
  * The cron expressions a workflow schedules itself on.
  *
  * Parsed off the `- cron:` lines rather than through a YAML reader, which is what every other

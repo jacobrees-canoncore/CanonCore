@@ -11,7 +11,6 @@ import {
   freshness,
   libpqEnvironment,
   restoreList,
-  rowCountDisagreements,
   rowCounts,
   tablesMissingFromDump,
   type StoredBackup,
@@ -248,26 +247,6 @@ test("row counts read back as numbers, whatever psql padded around them", () => 
 
 test("a blank line, a psql notice or a footer is not a table", () => {
   assert.equal(rowCounts("\n(4 rows)\n\n").size, 0);
-});
-
-test("two readings that agree disagree about nothing", () => {
-  assert.deepEqual(rowCountDisagreements(rowCounts(COUNTS), rowCounts(COUNTS)), []);
-});
-
-test("a table restored short, and a table that did not arrive at all, both show up", () => {
-  const restored = rowCounts("public.anchor|9\npublic.story|3\ndrizzle.__drizzle_migrations|14\n");
-  assert.deepEqual(rowCountDisagreements(rowCounts(COUNTS), restored), [
-    "public.story: 9 -> 3",
-    "public.user: 0 -> absent",
-  ]);
-});
-
-test("a zero-row table missing from the restore is a disagreement, not a match", () => {
-  // The case a truthiness test would wave through: 0 rows before and no table after read alike
-  // through `??`, and they are the difference between an empty table and a lost one.
-  assert.deepEqual(rowCountDisagreements(new Map([["public.user", 0]]), new Map()), [
-    "public.user: 0 -> absent",
-  ]);
 });
 
 test("the pooled and unpooled names of one compute are one compute", () => {

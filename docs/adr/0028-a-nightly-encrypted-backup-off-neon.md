@@ -102,8 +102,10 @@ The store is a **private Vercel Blob store** in `lhr1`. Three reasons, and one a
 - **It is inside the only spend cap this project has.** Blob is Vercel's own usage, so it is covered
   by the $40 Spend Management budget that [ADR-0026](0026-the-database-bill-is-watched-rather-than-capped.md)
   records as excluding the Marketplace — and it is *free* in practice: Pro includes 5 GB of storage
-  and 10,000 advanced operations, against 30 files of a few megabytes and about 40 operations a
-  month ([Blob pricing](https://vercel.com/docs/vercel-blob/usage-and-pricing), read 21 August 2026).
+  and 10,000 advanced operations, against 30 files of a few megabytes and a handful of operations a
+  night ([Blob pricing](https://vercel.com/docs/vercel-blob/usage-and-pricing), read 21 August 2026).
+  The register carries the figure and what bounds it rather than a count, because a multipart upload
+  bills one operation per part.
 
 **Private is a property of the store and cannot be changed afterwards** — *"you cannot change it
 after the creation of a blob store"* ([Vercel Blob](https://vercel.com/docs/vercel-blob), read
@@ -132,8 +134,11 @@ its own history, and it costs nothing: nothing in CI has any reason to read a ba
 own reference binary reads an X25519 identity, and a backup has to be openable by whatever tool
 exists on the day it is needed rather than only by the npm package that wrote it. The library's own
 documentation warns that its default `generateIdentity` *"may return a post-quantum hybrid
-identity"* in future, which is exactly why the choice is spelled out in the code rather than left to
-a default.
+identity"* in future, which is exactly why the generating call is named rather than left to a
+default — in [`docs/infrastructure.md`](../infrastructure.md) → *Backups*, which carries the command
+that made this keypair and would make its replacement. **No committed code generates one**: it has
+happened once, and a script for it would be a file nothing runs between now and the day the key is
+compromised.
 
 **The other half of that decision is that losing the identity loses every backup**, and no amount of
 storage redundancy helps. The mitigation is not technical: the identity has to exist somewhere other
@@ -146,7 +151,22 @@ step with a name against it rather than as advice.
 criterion, and it needs more than a job that exits non-zero, because **the ways a nightly job stops
 are mostly not failures**.
 
-- **A run that fails** turns the job red and GitHub mails the repository owner. That is the easy half.
+- **A run that fails** turns the job red and GitHub notifies somebody — but *which* somebody is a
+  rule worth having right, because this repository already records the general form of it as
+  reaching *"whoever triggered the run and nobody else"*
+  ([`docs/infrastructure.md`](../infrastructure.md) → *Where a Provider's failure surfaces*), and a
+  cron run has no human trigger. **Scheduled runs have their own rule**: notifications go to the
+  person who set the schedule up, and *"if a different user updates the cron syntax, in the
+  `schedule` event in the workflow file, subsequent notifications will be sent to that user
+  instead"* — and re-enabling a disabled schedule moves them again, to whoever re-enabled it
+  ([notifications for workflow runs](https://docs.github.com/en/actions/concepts/workflows-and-actions/notifications-for-workflow-runs),
+  read 21 August 2026). Here that resolves to Jacob, who is the only committer.
+  **It has not been watched arriving**, and this repository has been wrong about a notification
+  route before — a failing check was watched reaching the phone and a recovering one never was
+  ([`docs/incidents.md`](../incidents.md#a-failing-check-reaches-the-phone-a-recovering-one-may-not)).
+  Two real failures on 21 August went red without anyone checking an inbox. **So the honest
+  position is that the red run is certain and the mail is inferred**, which is the half of "fails
+  loudly" this design does not rest on.
 - **A run that never happens** sends nothing. GitHub disables a scheduled workflow *"when no
   repository activity has occurred in 60 days"* in a public repository, and *"this event will only
   trigger a workflow run if the workflow file exists on the default branch"*
@@ -164,6 +184,14 @@ are mostly not failures**.
 other check in that file — a document's claim compared to the source that could contradict it — and
 here the document is the specification: the register promises a schedule and a retention, and the
 workflow, the code and the store are each compared to what it promises rather than to one another.
+
+**The history window is checked too, and it was nearly not.** A backup is a system somebody would
+notice breaking; a retention setting is one number in a console that nothing would ever read again.
+This ticket's own triage said so while it was still being argued — *"If option one is taken,
+something should assert the window is what it is supposed to be, for the same reason"* — and the
+corrected criteria dropped it. `check-docs.ts` reads Neon's `history_retention_seconds` and compares
+it with the register. **Locally only**, because the Neon key can create and destroy databases and is
+deliberately on no runner.
 
 **It gates on a push rather than on a clock, and that is a real limit.** Nothing checks freshness on
 a week when nothing is pushed. Closing that properly needs a monitor with a heartbeat, and the

@@ -16,7 +16,6 @@
 // with the other. Production is reached only with `--onto-production`, and the runbook says what to
 // read before typing it.
 
-import { execFileSync } from "node:child_process";
 import { createWriteStream, readFileSync, statSync, writeFileSync } from "node:fs";
 import { mkdtemp, rm } from "node:fs/promises";
 import { homedir, tmpdir } from "node:os";
@@ -25,17 +24,18 @@ import { Readable } from "node:stream";
 import { pipeline } from "node:stream/promises";
 import { parseArgs } from "node:util";
 import { Decrypter } from "age-encryption";
-import { get, list } from "@vercel/blob";
+import { get } from "@vercel/blob";
 import {
   BACKUP_PREFIX,
   EVERY_TABLE_WITH_GUARDS,
   EVERY_TABLE_WITH_ROW_COUNT,
   libpqEnvironment,
-  backupTakenAt,
+  newestBackup,
   computeOf,
   restoreList,
   rowCounts,
 } from "./lib/backup.ts";
+import { postgres, storedBackups } from "./lib/backup-io.ts";
 import { NEON_PROJECT, NeonUnavailable, neonRequest } from "./lib/neon-api.ts";
 
 /** Where the machine keeps the two credentials this needs, and CI holds neither. */
@@ -56,22 +56,6 @@ function credential(variable: string, file: string, what: string): string {
     `no ${what}. Set ${variable}, or put one in ${file} — docs/infrastructure.md -> Backups says ` +
       `where it comes from and how to reissue it.`,
   );
-}
-
-/** Run a Postgres client program, with the connection in the environment and stderr in the error. */
-function postgres(program: string, args: string[], environment: Record<string, string>): string {
-  try {
-    return execFileSync(program, args, {
-      encoding: "utf8",
-      env: { ...process.env, ...environment },
-      maxBuffer: 64 * 1024 * 1024,
-      stdio: ["ignore", "pipe", "pipe"],
-    });
-  } catch (error) {
-    const failure = error as { stderr?: string; status?: number | null; message?: string };
-    const said = failure.stderr?.trim();
-    throw new Error(`${program} exited ${failure.status ?? "abnormally"}${said ? `: ${said}` : ""}`);
-  }
 }
 
 /**
@@ -139,14 +123,12 @@ async function main() {
   const environment = libpqEnvironment(into);
   await refuseProductionUnlessTold(environment.PGHOST, values["onto-production"]);
 
-  // Which backup. Named, or the newest the store holds — pathnames sort chronologically, and the
-  // store lists them in that order, which is why the name carries the time in the first place.
+  // Which backup. Named, or the newest the store holds.
   let pathname = values.pathname;
   if (!pathname) {
-    const page = await list({ prefix: BACKUP_PREFIX, token, limit: 1000 });
-    const ours = page.blobs.filter((blob) => backupTakenAt(blob.pathname) !== undefined);
-    if (ours.length === 0) throw new Error(`the store holds no backup under ${BACKUP_PREFIX}`);
-    pathname = ours.reduce((a, b) => (a.uploadedAt > b.uploadedAt ? a : b)).pathname;
+    const newest = newestBackup(await storedBackups(token));
+    if (!newest) throw new Error(`the store holds no backup under ${BACKUP_PREFIX}`);
+    pathname = newest.pathname;
   }
 
   const workspace = await mkdtemp(join(tmpdir(), "canoncore-restore-"));

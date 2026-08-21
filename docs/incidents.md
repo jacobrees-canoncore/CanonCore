@@ -1283,6 +1283,14 @@ an inference from those two dates rather than something watched happening.
 `CREATE SCHEMA drizzle`, and the fix is one `GRANT` on the scratch branch — `docs/runbook.md` → *The
 database has to be restored from a backup* carries it as a step.
 
+**A `--clean` restore that stops half way leaves the target empty, and that was watched happening
+rather than predicted.** On the same day, pointing the restore at a *live* worktree preview database
+to demonstrate its production refusal stopped at this very privilege — after `pg_restore --clean`
+had already dropped every table and the `drizzle` schema. The branch was repaired by resetting it
+from its parent (`POST /projects/steep-wave-52467839/branches/{id}/restore` with `source_branch_id`
+set to the parent), and **Neon created no `{branch_name}_old_{head_timestamp}` branch** while doing
+so, which its own branch-restore documentation describes. Eight branches before, eight after.
+
 **What it may cost elsewhere has not been tested.**
 [Drizzle's migrator needs `CREATE` on the database before it reads
 anything](#drizzles-migrator-needs-create-on-the-database-before-it-reads-anything), and

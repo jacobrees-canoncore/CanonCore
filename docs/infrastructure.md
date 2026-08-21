@@ -1048,7 +1048,7 @@ having said until then that this project holds no Neon API key.
 | Scope | **Project-scoped to `canoncore`** (`steep-wave-52467839`), not organisation-wide. Created through the Console's *Create new API key* → *Project-scoped*, which offers the project as a field |
 | Where it lives | `~/.config/canoncore/neon-api-key`, mode `600`. `NEON_API_KEY` in the environment overrides it |
 | Where it must never live | This repository, a Vercel variable, a GitHub Actions secret, or any deployment. It can create and destroy databases |
-| Who reads it | [`../scripts/provision-worktree-database.ts`](../scripts/provision-worktree-database.ts) and [`../scripts/sweep-worktree-databases.ts`](../scripts/sweep-worktree-databases.ts). Both report a SKIP and change nothing when it is absent |
+| Who reads it | [`../scripts/provision-worktree-database.ts`](../scripts/provision-worktree-database.ts), [`../scripts/sweep-worktree-databases.ts`](../scripts/sweep-worktree-databases.ts), and since 21 August 2026 [`../scripts/check-docs.ts`](../scripts/check-docs.ts), which compares Neon's history window with the *Database* table above, and [`../scripts/restore-database.ts`](../scripts/restore-database.ts), which asks Neon which compute production runs on so it can refuse to restore onto it. All four report a SKIP, or refuse outright, and change nothing when it is absent |
 | If it is lost | Reissue it in the Neon Console and rewrite the file. Nothing else holds a copy, and a lane with no key falls back to the shared `preview` branch rather than failing |
 
 > **The scope was verified rather than assumed**, on the day it was issued and against the live API:
@@ -1836,7 +1836,7 @@ backup* is what to do when one is needed.
 | What is stored | One file per night: `pg_dump --format=custom` of `neondb` on Neon's `main`, encrypted to the age recipient in [`../scripts/backup-recipient.txt`](../scripts/backup-recipient.txt), at `postgres/<UTC timestamp>.dump.age` |
 | Schedule | `17 2 * * *` — 02:17 UTC nightly, in [`../.github/workflows/backup-database.yml`](../.github/workflows/backup-database.yml). Off the hour on purpose: *"The `schedule` event can be delayed during periods of high loads … High load times include the start of every hour"* ([events that trigger workflows](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows), read 21 August 2026) |
 | Retention | `30 days`, enforced by the job itself after each upload. Vercel Blob has no lifecycle rule, so the deletion is code — and it is code that refuses to delete the newest backup whatever its age, so a stopped schedule or a wrong clock cannot empty the store |
-| Cost | Inside Pro's included allowance and therefore **nothing**: 30 files of a few megabytes against 5 GB of included storage, and about 40 operations a month against 10,000 included ([Blob pricing](https://vercel.com/docs/vercel-blob/usage-and-pricing), read 21 August 2026). Unlike Neon's, this bill is inside the $40 Spend Management budget, because Blob is Vercel's own usage rather than a Marketplace integration |
+| Cost | Inside Pro's included allowance and therefore **nothing**: 30 files of a few megabytes against **5 GB** of included storage, and a few operations a night — an upload, a listing and a read-back, with deletes free — plus one listing per CI push, against **10,000** advanced operations included ([Blob pricing](https://vercel.com/docs/vercel-blob/usage-and-pricing), read 21 August 2026). **The operations figure is bounded rather than counted**: a multipart upload bills one operation per part, so the exact number moves with the dump's size. Unlike Neon's, this bill is inside the $40 Spend Management budget, because Blob is Vercel's own usage rather than a Marketplace integration |
 | Who can read one | **Whoever holds the age identity, and nobody else.** Not the workflow, not CI, not a Vercel deployment |
 
 *Store created 21 August 2026 by **CAN-55 Keep a backup that reaches past Neon's 24-hour history
@@ -1859,6 +1859,25 @@ the record that it does not.
 the Vercel dashboard, copying `BLOB_READ_WRITE_TOKEN` out and disconnecting again. **The identity
 cannot be reissued at all** — a new keypair encrypts future backups and opens none of the old ones,
 so the old identity is kept until the last file encrypted to it has aged out.
+
+**A new keypair is made with the library the scripts already depend on**, so that nothing has to be
+installed to do it. It writes the identity straight to the file rather than printing it, because a
+private key that has been on a terminal has been in a scrollback:
+
+```bash
+cd scripts && node --input-type=module -e '
+import { generateX25519Identity, identityToRecipient } from "age-encryption";
+import { writeFileSync } from "node:fs";
+const identity = await generateX25519Identity();
+writeFileSync(process.env.HOME + "/.config/canoncore/backup-age-key", identity + "\n", { mode: 0o600 });
+console.log(await identityToRecipient(identity));
+'
+```
+
+`generateX25519Identity` rather than `generateIdentity`, deliberately: the library's own
+documentation says the latter *"may return a post-quantum hybrid identity"* in a future version, and
+the stock `age` binary reads X25519. The recipient it prints replaces the one in
+[`../scripts/backup-recipient.txt`](../scripts/backup-recipient.txt).
 
 ### What proves this is a backup rather than a file
 

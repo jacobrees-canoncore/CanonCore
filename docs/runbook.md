@@ -261,9 +261,12 @@ They are both destructive and they answer different failures.
   loses nothing else. It is *"a **complete** overwrite, not a merge or refresh. Everything on your
   current branch, data and schema, is replaced with the contents from the historical source"*
   ([branch restore](https://neon.com/docs/guides/branch-restore), read 21 August 2026) — so it
-  undoes good writes made since the moment you restore to, as well as bad ones. It does keep the
-  state it replaced, as a branch named `{branch_name}_old_{head_timestamp}`, which is the thing that
-  makes it survivable; Neon's documentation does not say how long that is kept.
+  undoes good writes made since the moment you restore to, as well as bad ones. Its documentation
+  says the state it replaced is kept, as a branch named `{branch_name}_old_{head_timestamp}` — but
+  **do not plan on that branch being there**: the one restore this project has performed, resetting
+  a worktree branch from its parent on 21 August 2026, produced **no such branch**, and Neon's
+  documentation does not say how long one is kept either. Treat the overwrite as final and take
+  what you need first.
 - **The damage is older than 7 days, or the Neon account is gone** → the nightly backup, below. It
   is the only thing that survives losing the provider, and it is 24 hours stale at worst.
 
@@ -332,8 +335,17 @@ on seven tables. All thirteen tables came back with production's exact row count
 `public` tables came back with row security, policy counts, both roles' privileges and ownership
 **identical to production's**.
 
-Three failures happened first, and each one is a step above: the wrong role, the missing database
-privilege, and Neon's own catalogue entries. **That third one is why the restore filters the
+**The warning at the top of this section is observed rather than predicted.** Later the same day a
+`--clean` restore was pointed at a *live* worktree preview database to demonstrate the refusal
+above, and stopped at the missing `CREATE` — leaving that database with **no tables and no `drizzle`
+schema**, because `--clean` had already dropped what it then could not put back. It was repaired by
+resetting the branch from its parent, which is the fix for any worktree database:
+`POST /projects/steep-wave-52467839/branches/{id}/restore` with the parent's id as
+`source_branch_id`. **That is the whole argument for the scratch branch**, and it happened to
+somebody who had just written this page.
+
+Three failures happened before the drill worked, and each one is a step above: the wrong role, the
+missing database privilege, and Neon's own catalogue entries. **That third one is why the restore filters the
 archive**: a whole-database dump carries `DEFAULT PRIVILEGES FOR ROLE cloud_admin` and the `public`
 schema's ACL, which belong to Neon rather than to this project and which nothing here may recreate —
 `permission denied to change default privileges`. The restore skips those three entries by owner and

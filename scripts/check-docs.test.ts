@@ -152,6 +152,12 @@ function fixture({
       "| --- | --- |",
       `| Schedule | \`${documentedCron}\` nightly |`,
       `| Retention | \`${documentedRetentionDays} days\`, enforced by the job |`,
+      "",
+      "## Database",
+      "",
+      "| | |",
+      "| --- | --- |",
+      "| History retention | **7 days**, `history_retention_seconds: 604800` |",
     ].join("\n"),
   );
   write(
@@ -265,7 +271,12 @@ function fixture({
     }
   };
 
-  return { run, gitOnly: { PATH: bin } };
+  // **`HOME` and the two credentials are part of the isolation, not decoration.** The child
+  // inherits this process's environment, so a checkout with a Neon key on disk or a blob token
+  // exported would have two checks reaching live services and comparing them against a fixture's
+  // invented register. Pointing `HOME` at the fixture hides `~/.config/canoncore/`, and an empty
+  // string for each token is read as absent — so both report SKIP here whatever the machine holds.
+  return { run, gitOnly: { PATH: bin, HOME: dir, NEON_API_KEY: "", BLOB_READ_WRITE_TOKEN: "" } };
 }
 
 test("a job renamed out from under the register fails the build", () => {

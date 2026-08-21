@@ -74,6 +74,19 @@ export function backupTakenAt(pathname: string): Date | undefined {
 }
 
 /**
+ * The newest backup the store holds, or `undefined` if it holds none of ours.
+ *
+ * One spelling of "the newest", because three places want it and each wants it for a different
+ * reason: the pruner reprieves it, the freshness check judges it, and a restore with no pathname
+ * named restores it. The filter is what keeps anything this project did not write out of all three
+ * answers — see `backupTakenAt`.
+ */
+export function newestBackup(stored: StoredBackup[]): StoredBackup | undefined {
+  const ours = stored.filter((b) => backupTakenAt(b.pathname) !== undefined);
+  return ours.length === 0 ? undefined : ours.reduce((a, b) => (a.uploadedAt > b.uploadedAt ? a : b));
+}
+
+/**
  * Which stored backups are past their retention, and may therefore be deleted.
  *
  * Two guards, and both exist because the failure they prevent destroys the backup history in one
@@ -96,8 +109,8 @@ export function expiredBackups(
   retentionDays = RETENTION_DAYS,
 ): StoredBackup[] {
   const ours = stored.filter((b) => backupTakenAt(b.pathname) !== undefined);
+  const newest = newestBackup(ours);
   if (ours.length <= 1) return [];
-  const newest = ours.reduce((a, b) => (a.uploadedAt > b.uploadedAt ? a : b));
   const cutoff = now.getTime() - retentionDays * 24 * 60 * 60 * 1000;
   return ours.filter((b) => b !== newest && b.uploadedAt.getTime() < cutoff);
 }
@@ -120,9 +133,8 @@ export type Freshness = {
  * docs/adr/0028-a-nightly-encrypted-backup-off-neon.md -> How a backup that stops is noticed.
  */
 export function freshness(stored: StoredBackup[], now: Date, maxAgeHours: number): Freshness {
-  const ours = stored.filter((b) => backupTakenAt(b.pathname) !== undefined);
-  if (ours.length === 0) return { overdue: true };
-  const newest = ours.reduce((a, b) => (a.uploadedAt > b.uploadedAt ? a : b));
+  const newest = newestBackup(stored);
+  if (!newest) return { overdue: true };
   const ageHours = (now.getTime() - newest.uploadedAt.getTime()) / (60 * 60 * 1000);
   return { newest, ageHours, overdue: ageHours > maxAgeHours };
 }
@@ -134,9 +146,13 @@ export function freshness(stored: StoredBackup[], now: Date, maxAgeHours: number
  * `TABLE` (its definition) and `TABLE DATA` (its rows). A dump missing the second for a table that
  * exists is the shape of a backup that restores to an empty database while reporting success.
  *
- * The format is `<id>; <oid> <oid> TABLE DATA <schema> <table> <owner>`
- * (https://www.postgresql.org/docs/17/app-pgrestore.html, read 21 August 2026 — the `-l` option's
- * output "can be used as input to the -L option").
+ * The layout is `<id>; <oid> <oid> TABLE DATA <schema> <table> <owner>`. **That is read off a real
+ * archive rather than out of the documentation**, which says only that `-l` output "can be used as
+ * input to the -L option" and documents no field layout at all
+ * (https://www.postgresql.org/docs/17/app-pgrestore.html, read 21 August 2026). The evidence is the
+ * fixture in `backup.test.ts`, pasted unedited from `pg_restore -l` against the production archive
+ * of 21 August 2026 — so a PostgreSQL release that changed the layout would fail that test rather
+ * than silently changing what a backup is checked for.
  */
 export function dumpedTables(tableOfContents: string): Set<string> {
   const dumped = new Set<string>();
@@ -184,10 +200,11 @@ const NEON_PLATFORM_ROLES = new Set(["cloud_admin", "neon_superuser", "pg_databa
  * opposite is silent and total: an allow list of "our" roles would quietly drop everything owned by
  * a role added after it was written, and a restore that skipped a table reports success.
  *
- * The owner is the last field of an entry line, which is the format `pg_restore -l` documents its
- * output as being usable as `-L` input in
- * (https://www.postgresql.org/docs/17/app-pgrestore.html, read 21 August 2026). Skipped lines are
- * commented rather than removed, so the file that ran is still a readable account of the archive.
+ * The owner is the last field of an entry line, which is observed rather than documented — see
+ * `dumpedTables` above for where the evidence is. **What *is* documented is how a line is skipped**:
+ * lines "can also be commented out by placing a semicolon (`;`) at the start of the line"
+ * (https://www.postgresql.org/docs/17/app-pgrestore.html, read 21 August 2026). They are commented
+ * rather than removed, so the file that ran is still a readable account of the whole archive.
  */
 export function restoreList(tableOfContents: string): { list: string; skipped: string[] } {
   const skipped: string[] = [];
@@ -263,7 +280,13 @@ export const EVERY_TABLE_WITH_GUARDS = `
   order by c.relname
 `;
 
-/** `schema.table|count` lines, as a map. Both scripts print one of these and compare two. */
+/**
+ * `schema.table|count` lines, as a map.
+ *
+ * Both scripts print one of these and neither compares two: the backup logs what production held
+ * and the restore logs what came back, and the comparison is a person's, because the two readings
+ * are minutes or months apart and only a person knows whether the difference is the bug.
+ */
 export function rowCounts(psqlOutput: string): Map<string, number> {
   const counts = new Map<string, number>();
   for (const line of psqlOutput.split("\n")) {
@@ -271,14 +294,6 @@ export function rowCounts(psqlOutput: string): Map<string, number> {
     if (table && count !== undefined && /^\d+$/.test(count)) counts.set(table, Number(count));
   }
   return counts;
-}
-
-/** Tables whose row count differs between two readings, as `table: before -> after`. */
-export function rowCountDisagreements(before: Map<string, number>, after: Map<string, number>): string[] {
-  const tables = [...new Set([...before.keys(), ...after.keys()])].sort();
-  return tables
-    .filter((table) => before.get(table) !== after.get(table))
-    .map((table) => `${table}: ${before.get(table) ?? "absent"} -> ${after.get(table) ?? "absent"}`);
 }
 
 /**
@@ -290,7 +305,7 @@ export function rowCountDisagreements(before: Map<string, number>, after: Map<st
  * dropped: production's string asks for `sslmode=verify-full`, and a backup taken over a connection
  * that verified nothing is a backup of a database nobody proved they were talking to.
  *
- * **`sslrootcert` defaults to `system` under `verify-full`, and that is not a weakening.** `pg` and
+ * **This function supplies `sslrootcert=system` under `verify-full`, and that is not a weakening.** `pg` and
  * libpq disagree about what `verify-full` needs: drizzle's `pg` verifies against Node's bundled
  * roots and needs nothing else, while libpq wants a `root.crt` on disk and refuses without one.
  * `sslrootcert=system` is libpq's own way of saying "use the trust store", and it keeps
