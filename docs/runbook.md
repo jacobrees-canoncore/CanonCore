@@ -103,8 +103,9 @@ the page and fatal for the check, because from then on only this route can see t
      | jq -r '.deployments[] | "\(.url)  \(.meta.githubCommitSha[0:8])  \(.meta.githubCommitMessage | split("\n")[0])"'
    ```
 
-   To confirm which one is serving, `vercel inspect <url>` lists its **Aliases**, and the current one
-   carries `https://www.canoncore.com`.
+   To confirm which one is serving, `vercel inspect <url> --scope jacobreesnew-7380s-projects` lists
+   its **Aliases**, and the current one carries `https://www.canoncore.com`. Both of these take the
+   deployment or project by name, so neither needs the link the fix below does.
 3. **Did anything between the two releases touch the schema?** This is the question that decides
    everything below.
 
@@ -112,67 +113,91 @@ the page and fatal for the check, because from then on only this route can see t
    git diff --name-only <good-sha> <bad-sha> -- apps/web/drizzle
    ```
 
-   **Empty output is the green light.** The rollback is then code-only and loses nothing. Non-empty,
-   read *What this cannot recover* before going any further —
-   [ADR-0027](adr/0027-migrations-are-forward-only-and-a-rollback-moves-code-alone.md) is why the
-   answer is not to reverse the migration.
+   **Empty output is the green light**, and the rollback is code-only. **Non-empty is not a red
+   light** — read the migrations it names, because there are three different answers:
 
-**Fix. One command, and it took two seconds.**
+   | What the migration did | Rolling the code back |
+   | --- | --- |
+   | Added a table, a column, an index — anything purely additive | **Safe.** Old code does not know the new shape exists |
+   | Narrowed, and conformed to the rule | **Safe by construction.** A narrowing is only allowed once the previous release's code has stopped needing the old shape, which is exactly the code you are rolling back to ([ADR-0027](adr/0027-migrations-are-forward-only-and-a-rollback-moves-code-alone.md)) |
+   | Narrowed too early, or the migration *is* the bug | **Not safe, and not what this entry fixes.** *What this cannot recover* below |
+
+   The middle row is the whole return on the rule, so **do not treat "it touched the schema" as a
+   refusal.** What you are checking is whether the narrowing was due — whether the code you are
+   rolling back to still reads the column that went.
+
+**Fix. One command, and it took two seconds — but it has to be run from a linked directory.**
+
+`vercel rollback` and `vercel promote` take a deployment and **no project argument**, so `--scope`
+alone does not tell them which project they mean: from an unlinked directory the CLI searches *that
+directory* for a project and offers to set a new one up, which is the last thing you want at this
+moment. Link first, in the repository checkout. It is idempotent and writes only `.vercel/` and
+`.env.local`, both already ignored here:
 
 ```bash
-vercel rollback <previous-deployment-url> --yes --scope jacobreesnew-7380s-projects
-vercel rollback status --scope jacobreesnew-7380s-projects
+vercel link --project canoncore --team jacobreesnew-7380s-projects --yes
+vercel rollback <previous-deployment-url> --yes
 ```
 
 Then confirm from outside, with the two requests at the top of this file. **Do not confirm from
-`vercel rollback status`** — after an undo it names the deployment you promoted rather than the one
-you rolled back from, so it reports the same shape either way.
-
-**This was run against production on 21 August 2026 rather than reasoned about.** `c6c15d4` was
-rolled back to `9d9f356` and restored, using `/api/alive` as the observable because that route exists
-in the first and not the second: it answered `404` under the rollback and `200` after the restore,
-while `/` and `/api/health` stayed `200` and `/` came back byte-identical. Both commands returned in
-about two seconds. The project had never been rolled back before.
-
-**Two things the rollback changes that nothing warns you about.**
-
-- **It turns off auto-assignment of production domains.** Measured: the project's
-  `autoAssignCustomDomains` went `true` → `false` across the rollback and back to `true` when
-  `vercel promote` restored it. Vercel documents this, but documents its consequence only for *"new
-  pushes to your production branch"* ([Instant Rollback](https://vercel.com/docs/instant-rollback),
-  read 21 August 2026) — a path this repository does not have, because `main` does not deploy from
-  Git. **Do not read that as the warning not applying.** Whether the next CI release re-takes the
-  domain with the flag off is **not tested and not stated anywhere**, so after you merge the fix,
-  check the domain actually moved rather than trusting the green run.
-- **`lastRollbackTarget` stayed `null` throughout**, so it is not the field that tells you whether
-  you are in a rolled-back state. `autoAssignCustomDomains` is. Both are on
-  `GET /v9/projects/prj_BMzP9Dq7Qx3Eev8WwsvVoH5khnaU`.
-
-**Undo it when the fix has landed**, which is also what puts auto-assignment back:
+`vercel rollback status`** — it reports a *pending* rollback, so it answers `No deployment rollback
+in progress` once one has finished, and immediately after an undo it names the deployment you
+promoted rather than the one you rolled back from. It is the one command here that takes a project,
+so it needs no link:
 
 ```bash
-vercel promote <good-deployment-url> --yes --scope jacobreesnew-7380s-projects
+vercel rollback status canoncore --scope jacobreesnew-7380s-projects
+```
+
+**This route has been run end to end**, deliberately and against production, rather than reasoned
+about ([incident](incidents.md#a-rollback-turns-off-auto-assignment-of-production-domains)).
+
+**The one thing to do afterwards that nothing warns you about.** A rollback turns off the project's
+auto-assignment of production domains, so **the next release is not to be trusted to have taken the
+domain** — check it moved rather than reading a green Actions run as proof. Read the flag back:
+
+```bash
+curl -s -H "Authorization: Bearer $VERCEL_TOKEN" \
+  "https://api.vercel.com/v9/projects/prj_BMzP9Dq7Qx3Eev8WwsvVoH5khnaU?teamId=team_fM6JucuEULAiTuHY5TM5h3TP" \
+  | jq '.autoAssignCustomDomains'
+```
+
+`false` means a rollback is still in force. **`lastRollbackTarget` is not the field to read**, and
+neither is `vercel rollback status`; the incident says why both mislead.
+
+**Undo it when the fix has landed**, which is also what puts auto-assignment back. From the same
+linked directory as the rollback, and for the same reason — `promote` takes no project either:
+
+```bash
+vercel promote <good-deployment-url> --yes
 ```
 
 **What this cannot recover.** A procedure that overstates its reach is worse than none, so:
 
-- **A bad migration. This is the big one.** The rollback moves the code and never the schema, there
-  are no down-migrations and there will not be
-  ([ADR-0027](adr/0027-migrations-are-forward-only-and-a-rollback-moves-code-alone.md)). If the bad
-  release narrowed the schema, rolling the code back lands old code on a shape it may not be able to
-  serve, and you have swapped one outage for another. **Fix forward.** The only thing that puts a
-  schema back is a Neon branch restore, which replaces the data too — *The database does not answer*
-  below has the quotation and the refusal.
+- **A migration that is itself the bug. This is the big one.** The rollback moves the code and never
+  the schema, there are no down-migrations and there will not be
+  ([ADR-0027](adr/0027-migrations-are-forward-only-and-a-rollback-moves-code-alone.md)), so a
+  migration that dropped the wrong thing or mangled rows is still dropped and still mangled after the
+  code has gone back. **Fix forward.** The only thing that puts a schema back is a Neon branch
+  restore, which replaces the data too — *The database does not answer* below has the quotation and
+  the refusal.
+- **A narrowing that shipped too early**, meaning one whose release broke the rule that every
+  migration leaves the schema able to serve the previous release's code. Then the rollback lands old
+  code on a shape it cannot serve and you have swapped one outage for another. This is the case check
+  3 exists to find, and the reason the rule is a rule.
 - **Rows the bad release wrote.** Rolling the code back does not unwrite them, and a release that
   corrupted data is not recovered here at all.
 - **Environment variables changed since the target was built.** *"The configuration used for the
-  rolled-back deployment may become stale"* (same page), so a credential rotated after that build
+  rolled-back deployment may become stale"* ([Instant Rollback](https://vercel.com/docs/instant-rollback),
+  read 21 August 2026), so a credential rotated after that build
   does not travel back with it.
 - **Anything outside the deployment** — Neon settings, the ruleset, DNS, the spend budget. None of it
   is in the build, so none of it moves.
 - **More than one release back is a judgement, not a guarantee.** Pro allows rolling back to any
-  deployment previously aliased to production (same page), and every production deployment here
-  reports `isRollbackCandidate: true` on `GET /v6/deployments`. What the repository *guarantees* is
+  deployment previously aliased to production (same page as above), and every production deployment
+  here is eligible
+  ([incident](incidents.md#a-rollback-turns-off-auto-assignment-of-production-domains)). What the
+  repository *guarantees* is
   one release: every migration is required to leave the schema able to serve the previous release's
   code, and nothing promises that two releases back. Going further means running check 3 across the
   whole span.

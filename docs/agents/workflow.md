@@ -911,17 +911,14 @@ once only new code is live. File the narrowing as its own ticket before the wide
 widening is not the risk, forgetting to remove it is. Purely additive changes are unaffected and
 still land in one go.
 
-**That rule has a second reason, and one name.** *Every migration must leave the schema able to serve
+**That rule has a second reason, and one name**: *every migration must leave the schema able to serve
 the previous release's code.* The deploy window above is one place old code meets the new schema; a
-**rollback** is the other, and it is the same meeting held open indefinitely rather than for minutes.
-So the widen-then-narrow shape is what makes a bad release recoverable at all — the code comes back
-by pointing the production domain at the previous deployment, and **the schema never comes back**,
-because migrations here are forward-only and no down-migration exists
-([ADR-0027](../adr/0027-migrations-are-forward-only-and-a-rollback-moves-code-alone.md); the
-procedure is [`../runbook.md`](../runbook.md) → *A release is bad*). **A pull request whose diff adds
-a narrowing discloses it in the body**, and says which release stopped needing the old shape: no gate
-catches this one, because whether a narrowing is premature depends on code that is not in the
-migration file.
+**rollback** is the other, held open indefinitely rather than for minutes — so widen-then-narrow is
+also what makes a bad release recoverable, and it is the whole of what makes it recoverable, because
+the schema is never rolled back
+([ADR-0027](../adr/0027-migrations-are-forward-only-and-a-rollback-moves-code-alone.md)). **So a pull
+request whose diff adds a narrowing discloses it in the body**, and says which release stopped
+needing the old shape.
 
 **Anything the tests structurally cannot see** goes here as it appears, and prefer making each one
 an executable check over leaving it as prose — a rule that lives only in prose is one nobody

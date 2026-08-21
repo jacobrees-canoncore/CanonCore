@@ -16,6 +16,13 @@ Decided and measured on 21 August 2026 by
 The procedure is [`docs/runbook.md`](../runbook.md) → *A release is bad*; this file holds why. The
 release order it recovers from is [ADR-0019](0019-ci-owns-the-production-release.md).
 
+**One of the ticket's premises was already stale, and it is the one that matters here.** It records
+`apps/web/drizzle` as holding *"`0000`, `0001`, `0002` and no down-migrations"*. The absence of
+down-migrations is right; the count is not. There are fourteen, `0000` to `0013`, and `0013` is a
+`SET NOT NULL` — so the repository had already shipped a narrowing to production before anybody asked
+whether a narrowing could be rolled back. That makes this decision a description of what is already
+being done as much as a constraint on what comes next.
+
 ## Contents
 
 - [Two problems that look like one](#two-problems-that-look-like-one)
@@ -55,25 +62,20 @@ to do with Git.**
 > — [Instant Rollback](https://vercel.com/docs/instant-rollback), read 21 August 2026
 
 The criterion is *having served production*, which is exactly what `vercel deploy --prebuilt --prod`
-makes a deployment do. Vercel's own API agrees on this project's own deployments: every one with
-`target: "production"` reports `isRollbackCandidate: true` and every preview reports `false`, read
-from `/v6/deployments` on 21 August 2026. The plan matters too — *"For teams on a Pro or Enterprise
-plan, all deployments previously aliased to a production domain are eligible to roll back. Hobby
-users can roll back to the immediately previous deployment"* (same page) — and this project is on Pro
+makes a deployment do — and Vercel's own API agrees on this project's own deployments
+([incident](../incidents.md#a-rollback-turns-off-auto-assignment-of-production-domains)). The plan
+matters too — *"For teams on a Pro or Enterprise plan, all deployments previously aliased to a
+production domain are eligible to roll back. Hobby users can roll back to the immediately previous
+deployment"* (same page) — and this project is on Pro
 ([ADR-0024](0024-vercel-pro-for-a-spend-cap-rather-than-an-outage.md)).
 
-**Then it was run, because nothing here had ever run it.** Production was rolled from `c6c15d4` to
-`9d9f356` and restored, on 21 August 2026, with `/api/alive` as the observable: that route exists in
-the first and not the second. It answered `404` under the rollback and `200` again after the
-restore, `/` and `/api/health` stayed `200` throughout, and both commands returned in about two
-seconds. The measurement is in the runbook, along with the one thing it exposed that no page says.
-
-**What it exposed:** the rollback flipped the project's `autoAssignCustomDomains` from `true` to
-`false`, and `vercel promote` flipped it back. Vercel documents the behaviour — *"After a rollback,
-Vercel turns off auto-assignment of production domains"* (same page) — but documents its
-consequence only for *"new pushes to your production branch"*, which is a path this project does not
-have. So the warning does not read across, and the runbook makes it a check rather than an
-assumption.
+**Then it was run, because nothing here had ever run it**, and reading the documentation would not
+have been enough: the run found that a rollback turns the project's auto-assignment of production
+domains off, which Vercel documents only in terms of *"new pushes to your production branch"* — a
+path this project does not have. The evidence, the identifiers and the two CLI traps it also settled
+are [`docs/incidents.md`](../incidents.md) →
+*A rollback turns off auto-assignment of production domains*, and the check it produced is the
+runbook's.
 
 ## Why the schema is not rolled back
 
