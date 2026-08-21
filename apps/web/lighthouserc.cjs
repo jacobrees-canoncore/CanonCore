@@ -28,24 +28,37 @@
  *
  * | URL | LCP, worst of 5 | TBT, worst of 5 | script bytes |
  * | --- | --- | --- | --- |
- * | `/` | 2256 ms | 9 ms | 140,411 |
- * | `/sign-in` | 2022 ms | 11 ms | 140,411 |
- * | `/privacy/analytics` | 2068 ms | 9 ms | 141,385 |
- * | `/story/<the founding Story>` | 2254 ms | 8 ms | 140,411 |
+ * | `/` | 2012 ms | 8 ms | 140,587 |
+ * | `/sign-in` | 2066 ms | 10 ms | 140,587 |
+ * | `/privacy/analytics` | 2011 ms | 8 ms | 141,561 |
+ * | `/story/<the founding Story>` | 2169 ms | 9 ms | 140,587 |
  *
  * **What the shell did to the bytes is the opposite of what it looks like it should have.** The
- * front page and `/sign-in` gained 1,576 bytes, and `/privacy/analytics` **lost 1,848** — the
+ * front page and `/sign-in` gained 1,752 bytes, and `/privacy/analytics` **lost 1,672** — the
  * heaviest page in the table is lighter than the heaviest page in the one above it. The masthead
  * link replaced the per-page one, and it is a plain `<a>`, so `next/link` left the application
  * entirely and took its chunk off the two pages that carried it. `src/app/site-header.tsx` holds
  * that trade and the one suppression it costs.
  *
- * **Byte counts are identical across all five runs of a URL; the two timings are not.** Across five
- * collections of this tree on the same idle laptop, worst-run LCP ranged 2010-2256 ms and worst-run
- * TBT 7-12 ms. That spread is the argument both timing budgets below make for themselves,
- * and it is why the job writes what it measured to the run summary on a pass as well as a failure:
- * a budget nobody can see the distance to is one that is either silently loose for ever or about to
- * start flaking. `apps/web/scripts/lighthouse-summary.mts`.
+ * **This table was re-measured once more after CI broke the LCP budget, and that is the number to
+ * understand.** A `loading.tsx` at the root of the app is a Suspense boundary above every page, so
+ * every page's heading was inside one — and Next's own streaming guide says an LCP element inside a
+ * boundary "can't paint until that boundary resolves"
+ * (`next@16.3.0`, `dist/docs/01-app/02-guides/streaming.md`). It measured exactly that: on the
+ * front page, observed LCP ran 438/75/363 ms against a first paint of 146/75/71, where before the
+ * two had been identical on every run. CI's worst run reached **2580 ms** and broke the 2500 ms
+ * budget below. Moving that file to `src/app/story/[id]/`, which is the segment where nothing
+ * renders before the data, put the front page back to observed LCP equalling first paint and the
+ * asserted figure back to a flat 2010-2012. **The budget caught a real regression rather than
+ * flaking**, which is the outcome that justifies the gate.
+ *
+ * **Byte counts are identical across all five runs of a URL; the two timings are not.** This table
+ * is one collection on an idle laptop; across the collections taken while chasing the LCP breach,
+ * worst-run LCP on `/` ranged 2010-2174 ms once the boundary was moved, and TBT 7-12 ms. That
+ * spread is the argument both timing budgets below make for themselves, and it is why the job
+ * writes what it measured to the run summary on a pass as well as a failure: a budget nobody can
+ * see the distance to is one that is either silently loose for ever or about to start flaking.
+ * `apps/web/scripts/lighthouse-summary.mts`.
  *
  * **Two of those five collections exited non-zero, and neither was a budget.** Both were
  * `CHROME_INTERSTITIAL_ERROR` on a single run — "Chrome prevented page load with an interstitial" —
@@ -154,10 +167,12 @@ module.exports = {
       // (https://github.com/GoogleChrome/lighthouse-ci/blob/main/docs/configuration.md).
       aggregationMethod: "pessimistic",
       assertions: {
-        // 2256 ms measured, and the measurement plus any slack worth the name lands above 2500, so
-        // the threshold is what sets this. Against the worst run seen on any collection, 2256 ms,
-        // that leaves 244 ms of headroom — about 10%, quoted off the worst run because that is the
-        // aggregation these assertions use.
+        // 2169 ms measured on the slowest of the four, and the measurement plus any slack worth the
+        // name lands above 2500, so the threshold is what sets this. That leaves 331 ms of headroom
+        // — about 13%, quoted off the worst run because that is the aggregation these assertions
+        // use. **It has already earned its keep**: at 2580 ms it caught the root `loading.tsx`
+        // putting every page's heading inside a Suspense boundary. See *Where the numbers came
+        // from* above.
         //
         // Read it as the script-graph budget it actually is — *What the LCP number is* above — not
         // as half a second of paint time. The pages paint in 63-142 ms.
@@ -195,9 +210,9 @@ module.exports = {
           },
         ],
 
-        // 141,385 bytes measured on the heaviest of the four, identical byte-for-byte across all
+        // 141,561 bytes measured on the heaviest of the four, identical byte-for-byte across all
         // five runs — it is a build output, not a timing — so the slack is 10% rather than the
-        // multiple a noisy metric would need. About 14.6 kB of headroom.
+        // multiple a noisy metric would need. About 14.4 kB of headroom.
         //
         // **This number went down**, from 158,000, because the heaviest page did: see *What the
         // shell did to the bytes* above. A budget left at the old figure after the pages beneath it

@@ -5,7 +5,7 @@ import PageError from "./error";
 import Forbidden from "./forbidden";
 import { ForgotPasswordPage } from "./forgot-password/forgot-password-page";
 import { FrontPage } from "./front-page";
-import Loading from "./loading";
+import Loading from "./story/[id]/loading";
 import NotFound from "./not-found";
 import CountingVisits from "./privacy/analytics/page";
 import { ResetPasswordPage } from "./reset-password/reset-password-page";
