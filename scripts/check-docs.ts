@@ -25,6 +25,14 @@
 //                            were enforced by a reviewer's attention until CAN-129 Enforce the
 //                            glossary's _Avoid_ lists with a check, instead of a reviewer's
 //                            attention
+//  12. backup promises    -  docs/infrastructure.md  vs  the workflow's cron and the retention the
+//                            code enforces
+//  13. backup freshness   -  docs/infrastructure.md  vs  what the backup store actually holds. The
+//                            only one of these that reports on something *not happening*, which is
+//                            how a nightly job stops: silently, and believed until it is needed
+//  14. history window     -  docs/infrastructure.md  vs  Neon's own `history_retention_seconds`.
+//                            The setting a backup does not cover, and the one with no code to go
+//                            stale — so nothing but this would ever read it again
 //
 // Run:  node scripts/check-docs.ts [--verbose]
 //
@@ -43,6 +51,9 @@ import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import type { Attempt, Result } from "./lib/doc-checks.ts";
+import { BACKUP_PREFIX, RETENTION_DAYS, freshness } from "./lib/backup.ts";
+import { storedBackups } from "./lib/backup-io.ts";
+import { NEON_PROJECT, NeonUnavailable, neonRequest } from "./lib/neon-api.ts";
 import {
   composeRequiredContext,
   parseDocumentedProviderContext,
@@ -61,7 +72,9 @@ import {
   expiryDay,
   parseActionsSecrets,
   parseCiJobNames,
+  parseDocumentedBackup,
   parseDocumentedContexts,
+  parseDocumentedRetentionSeconds,
   parseDocumentedLabels,
   parseDocumentedLineTarget,
   parseDocumentedReleaseTokens,
@@ -75,6 +88,7 @@ import {
   parseUncheckedVariables,
   parseVercelEnv,
   parseVercelTokens,
+  parseWorkflowCrons,
   pointerResolves,
   readDependencyGraph,
   readVulnerabilityAlerts,
@@ -98,6 +112,7 @@ const ALWAYS_LOADED = "CLAUDE.md";
 const GLOSSARY = "CONTEXT.md";
 const PROVIDER_CALLER = "docs/provider-baseline/ci.yml";
 const PROVIDER_WORKFLOW = ".github/workflows/provider-ci.yml";
+const BACKUP_WORKFLOW = ".github/workflows/backup-database.yml";
 
 const results: Result[] = [];
 const read = (p: string) => readFileSync(join(ROOT, p), "utf8");
@@ -105,6 +120,25 @@ const read = (p: string) => readFileSync(join(ROOT, p), "utf8");
 function check(name: string, fn: () => string | void) {
   try {
     results.push({ name, status: "PASS", detail: fn() ?? "" });
+  } catch (err) {
+    results.push({
+      name,
+      status: err instanceof Skip ? "SKIP" : "FAIL",
+      detail: (err as Error).message,
+    });
+  }
+}
+
+/**
+ * The same contract as `check`, for one whose source is reached with `await`.
+ *
+ * It exists rather than `check` becoming async because every other check here is a subprocess or a
+ * file read, and making all fourteen return promises to serve one would put the ordering of the
+ * report — which is the order a reader meets the checks in — at the mercy of remembering to await.
+ */
+async function checkAsync(name: string, fn: () => Promise<string | void>) {
+  try {
+    results.push({ name, status: "PASS", detail: (await fn()) ?? "" });
   } catch (err) {
     results.push({
       name,
@@ -691,6 +725,118 @@ check("every document uses the glossary's word for the concept", () => {
     );
   const terms = glossary.terms.length;
   return `${terms} term${terms === 1 ? "" : "s"} across ${scope.length} document${scope.length === 1 ? "" : "s"}`;
+});
+
+// ---------------------------------------------------------------------------
+// 12. The nightly backup.
+//
+// **A backup is believed, which is why it is checked from outside the job that takes it.** A run
+// that goes red sends mail; a run that never happens sends nothing, and the two ways this schedule
+// stops without failing are both silent — GitHub disables a scheduled workflow after 60 days of
+// repository inactivity, and a schedule only ever runs from the default branch, so an edit that has
+// not merged changes nothing while reading as if it had.
+//
+// So there are two checks. The first is local and always runs: the register promises a schedule and
+// a retention, and both are compared against the things that actually implement them. The second
+// reads the store and is the one that can say a backup exists, so it needs the credential and
+// reports SKIP without it.
+//
+// **What the second one costs is a read-write token in this job**, and that is argued rather than
+// waved through: this job already holds `MIGRATION_DATABASE_URL`, which can drop every table it is
+// backing up, and an account-scoped `VERCEL_TOKEN`. A token that can delete backups adds nothing a
+// compromised run of this job could not already do, and it buys the only thing that notices a
+// backup that stopped happening.
+// ---------------------------------------------------------------------------
+
+check("the backup's schedule and retention match what the register promises", () => {
+  const documented = parseDocumentedBackup(read(CONTEXT_HOME));
+  const scheduled = parseWorkflowCrons(read(BACKUP_WORKFLOW));
+  if (!scheduled.includes(documented.cron))
+    fail(
+      `${CONTEXT_HOME} promises a backup on \`${documented.cron}\` and ${BACKUP_WORKFLOW} is ` +
+        `scheduled on ${scheduled.length ? scheduled.map((c) => `\`${c}\``).join(", ") : "nothing"}. ` +
+        `A register describing a schedule nothing runs is the failure a backup is most believed through.`,
+    );
+  if (documented.retentionDays !== RETENTION_DAYS)
+    fail(
+      `${CONTEXT_HOME} promises ${documented.retentionDays} days of backups and ` +
+        `scripts/lib/backup.ts keeps ${RETENTION_DAYS}. The code is what deletes them.`,
+    );
+  return `\`${documented.cron}\`, kept ${documented.retentionDays} days`;
+});
+
+await checkAsync("the backup store holds one no older than the register promises", async () => {
+  const token = process.env.BLOB_READ_WRITE_TOKEN?.trim();
+  if (!token) skip("no BLOB_READ_WRITE_TOKEN, so the backup store was not read");
+  const documented = parseDocumentedBackup(read(CONTEXT_HOME));
+  const stored = await storedBackups(token);
+  const verdict = freshness(stored, new Date(), documented.maxAgeHours);
+  if (verdict.overdue) {
+    // **A schedule that has never existed cannot have stopped.** A workflow runs on a schedule only
+    // from the default branch, so between writing this job and merging it there is a window in
+    // which no backup can happen and every push would fail on one not having. That is not a
+    // detector working; it is a detector that would block the merge that arms it. So an overdue
+    // backup is a finding only once the workflow is actually on `main` - asked here rather than
+    // assumed, and a question GitHub cannot answer is itself a reason to skip rather than to fail.
+    const landed = attempt("gh", [
+      "api",
+      `repos/${REPOSITORY}/contents/${BACKUP_WORKFLOW}?ref=main`,
+      "--jq",
+      ".name",
+    ]);
+    if (!landed.ok)
+      skip(
+        `nothing is overdue: ${BACKUP_WORKFLOW} is not on the default branch, so no schedule has ` +
+          `ever run - gh said ${explainFailure(landed.output)}`,
+      );
+    fail(
+      verdict.newest
+        ? `the newest backup is ${Math.round(verdict.ageHours ?? 0)} hours old, and ` +
+            `${CONTEXT_HOME} promises one on \`${documented.cron}\`. Two nights missed means the ` +
+            `schedule has stopped rather than slipped — the workflow may have been disabled for ` +
+            `inactivity, or the run is failing.`
+        : `the backup store holds nothing under \`${BACKUP_PREFIX}\`, and ${CONTEXT_HOME} ` +
+            `promises a backup on \`${documented.cron}\`.`,
+    );
+  }
+  return `${stored.length} stored, newest ${Math.round(verdict.ageHours ?? 0)} hours old`;
+});
+
+// ---------------------------------------------------------------------------
+// 14. Neon's history window.
+//
+// **The other half of this ticket, and the half that has no code to go stale — which is exactly why
+// it needed a check.** A backup is a system somebody would notice breaking; a retention setting is
+// one number in a console that nothing here would ever read again. CAN-55's own triage said so
+// while the ticket was still being argued: *"If option one is taken, something should assert the
+// window is what it is supposed to be, for the same reason."*
+//
+// **Locally only, and that is a deliberate consequence of where the key lives.** The Neon API key
+// can create and destroy databases, so docs/infrastructure.md -> The Neon API key keeps it off
+// every runner; a check that reads Neon therefore reports SKIP in CI and compares on a laptop, the
+// same reach as the label roster.
+// ---------------------------------------------------------------------------
+
+await checkAsync("Neon's history window matches the register", async () => {
+  const documented = parseDocumentedRetentionSeconds(read(CONTEXT_HOME));
+  let live: number | undefined;
+  try {
+    const body = (await neonRequest(`/projects/${NEON_PROJECT}`)) as {
+      project?: { history_retention_seconds?: number };
+    };
+    live = body.project?.history_retention_seconds;
+  } catch (error) {
+    if (error instanceof NeonUnavailable) skip(`cannot read the Neon project: ${error.message}`);
+    throw error;
+  }
+  if (live === undefined) skip("Neon answered without a `history_retention_seconds`, so nothing was compared");
+  if (live !== documented)
+    fail(
+      `${CONTEXT_HOME} records a ${documented}-second history window and Neon is set to ${live}. ` +
+        `The window is what a mistake older than one night is recovered from, and nothing else in ` +
+        `this repository would notice it changing.`,
+    );
+  return `${live} seconds, ${live / 86_400} days`;
 });
 
 const width = Math.max(...results.map((r) => r.name.length));

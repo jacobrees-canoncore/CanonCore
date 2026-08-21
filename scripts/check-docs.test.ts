@@ -5,6 +5,7 @@ import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import { cpSync, mkdirSync, mkdtempSync, readFileSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
+import { RETENTION_DAYS } from "./lib/backup.ts";
 
 // Seam B: the CLI's contract with CI — what it exits with, and what it prints. The parsing
 // underneath is `lib/doc-checks.test.ts`; this file only cares about the report.
@@ -59,6 +60,13 @@ function fixture({
   // smallest thing check 11 can read. A case that wants a violation writes the document that
   // carries it rather than rewriting this.
   glossaryTerms = ["**Merge**:", "One person's assertion that two Anchors are the same thing.", "_Avoid_: Deduplicate, alias, combine"],
+  // The backup's two promises and the two things that implement them, for the same reason again:
+  // check 12 compares a register row to a workflow and to a constant, so a case that wants to break
+  // it needs to move one side without rewriting the register.
+  scheduledCron = "17 2 * * *",
+  documentedCron = "17 2 * * *",
+  documentedRetentionDays = RETENTION_DAYS,
+  tolerance = true,
 }: {
   jobName: string;
   documentedContext: string;
@@ -70,6 +78,10 @@ function fixture({
   providerCalledJob?: string;
   documentedProviderContext?: string;
   glossaryTerms?: string[];
+  scheduledCron?: string;
+  documentedCron?: string;
+  documentedRetentionDays?: number;
+  tolerance?: boolean;
 }): Fixture {
   const dir = mkdtempSync(join(tmpdir(), "check-docs-"));
   const write = (rel: string, body: string) => {
@@ -86,6 +98,11 @@ function fixture({
   write(
     ".github/workflows/provider-ci.yml",
     ["name: Provider baseline", "on: workflow_call", "jobs:", `  ${providerCalledJob}:`, "    steps:", "      - run: pnpm run test"].join("\n"),
+  );
+  // Read by path like the two above, so a fixture without it fails every case on a missing file.
+  write(
+    ".github/workflows/backup-database.yml",
+    ["name: Back up the database", "on:", "  schedule:", `    - cron: "${scheduledCron}"`, "jobs:", "  backup:", "    steps:", "      - run: echo"].join("\n"),
   );
   write(
     "docs/provider-baseline/ci.yml",
@@ -130,6 +147,20 @@ function fixture({
       "| Setting | State | Read back by |",
       "| --- | --- | --- |",
       ...securityRows,
+      "",
+      "## Backups",
+      "",
+      "| | |",
+      "| --- | --- |",
+      `| Schedule | \`${documentedCron}\` nightly |`,
+      `| Retention | \`${documentedRetentionDays} days\`, enforced by the job |`,
+      ...(tolerance ? ["| Checked within | `48 hours` |"] : []),
+      "",
+      "## Database",
+      "",
+      "| | |",
+      "| --- | --- |",
+      "| History retention | **7 days**, `history_retention_seconds: 604800` |",
     ].join("\n"),
   );
   write(
@@ -243,7 +274,12 @@ function fixture({
     }
   };
 
-  return { run, gitOnly: { PATH: bin } };
+  // **`HOME` and the two credentials are part of the isolation, not decoration.** The child
+  // inherits this process's environment, so a checkout with a Neon key on disk or a blob token
+  // exported would have two checks reaching live services and comparing them against a fixture's
+  // invented register. Pointing `HOME` at the fixture hides `~/.config/canoncore/`, and an empty
+  // string for each token is read as absent — so both report SKIP here whatever the machine holds.
+  return { run, gitOnly: { PATH: bin, HOME: dir, NEON_API_KEY: "", BLOB_READ_WRITE_TOKEN: "" } };
 }
 
 test("a job renamed out from under the register fails the build", () => {
@@ -335,10 +371,18 @@ test("a listing that came back empty fails rather than passing over nothing", ()
   const { run, gitOnly } = fixture({
     jobName: "the register's context",
     documentedContext: "the register's context",
-    // The Provider baseline's called workflow is hidden with them: it is a tracked `.yml` outside
-    // both allowed sets, so leaving it in the index would give the two scans one file to search
-    // and the vacuous-pass this case is about would no longer be vacuous.
-    untracked: ["docs/", "CLAUDE.md", "CONTEXT.md", ".github/workflows/provider-ci.yml"],
+    // The Provider baseline's called workflow is hidden with them, and the backup workflow with it:
+    // both are tracked `.yml` outside every allowed set, so leaving either in the index would give
+    // the two scans one file to search and the vacuous-pass this case is about would no longer be
+    // vacuous. Anything else tracked and outside those sets has to join this list for the same
+    // reason — which is what adding the backup workflow found.
+    untracked: [
+      "docs/",
+      "CLAUDE.md",
+      "CONTEXT.md",
+      ".github/workflows/provider-ci.yml",
+      ".github/workflows/backup-database.yml",
+    ],
   });
   const { code, output } = run(gitOnly);
 
@@ -576,4 +620,66 @@ test("the same word doing another job passes, which is what keeps the gate worth
   // What it walked, asserted rather than assumed: a pass over an empty document set reads
   // identically to a pass over the repository.
   assert.match(summary, /\| PASS \| every document uses the glossary's word for the concept \| 1 term across 5 documents \|/);
+});
+
+test("a register promising a schedule the workflow does not run fails", () => {
+  // The failure this pair exists for: prose that describes a nightly backup, and a workflow that
+  // was moved, disabled or never scheduled. A backup is believed through its documentation, so the
+  // documentation is the side that gets compared rather than the side that gets trusted.
+  const { run, gitOnly } = fixture({
+    jobName: "the register's context",
+    documentedContext: "the register's context",
+    scheduledCron: "17 2 * * *",
+    documentedCron: "0 3 * * *",
+  });
+  const { code, output } = run(gitOnly);
+
+  assert.equal(code, 1, output);
+  assert.match(output, /^FAIL {2}the backup's schedule and retention match what the register promises/m);
+  assert.match(output, /promises a backup on `0 3 \* \* \*`.*is scheduled on `17 2 \* \* \*`/s);
+});
+
+test("a register promising a retention the code does not keep fails", () => {
+  const { run, gitOnly } = fixture({
+    jobName: "the register's context",
+    documentedContext: "the register's context",
+    documentedRetentionDays: RETENTION_DAYS + 60,
+  });
+  const { code, output } = run(gitOnly);
+
+  assert.equal(code, 1, output);
+  assert.match(output, /promises \d+ days of backups and .*keeps 30\. The code is what deletes them\./s);
+});
+
+test("a workflow with no schedule at all fails rather than reading as agreement", () => {
+  // An empty list is the case a `includes` check waves through if it is written the other way
+  // round, and it is the shape of a schedule someone commented out.
+  const { run, gitOnly } = fixture({
+    jobName: "the register's context",
+    documentedContext: "the register's context",
+    scheduledCron: "",
+  });
+  const { code, output } = run(gitOnly);
+
+  assert.equal(code, 1, output);
+  assert.match(output, /^FAIL {2}the backup's schedule and retention match what the register promises/m);
+  // The reason matters as much as the verdict: "scheduled on nothing" is what distinguishes a
+  // workflow with no schedule from one whose schedule merely disagrees.
+  assert.match(output, /is scheduled on nothing/);
+});
+
+test("a register with no tolerance row fails rather than the check inventing one", () => {
+  // The number a build fails on and the number a person reads have to be the same number, which is
+  // the whole reason it is a row rather than a constant. Deleting the row must not silently restore
+  // a default — so the fixture writes a register without it.
+  const { run, gitOnly } = fixture({
+    jobName: "the register's context",
+    documentedContext: "the register's context",
+    tolerance: false,
+  });
+  const { code, output } = run(gitOnly);
+
+  assert.equal(code, 1, output);
+  assert.match(output, /^FAIL {2}the backup's schedule and retention match what the register promises/m);
+  assert.match(output, /Checked within/);
 });

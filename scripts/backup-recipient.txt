@@ -1,0 +1,16 @@
+# The age recipient every nightly database backup is encrypted to.
+#
+# **This is a public key and belongs in this repository.** It can encrypt and it cannot decrypt, so
+# the job that writes the backups cannot read one back — which is the point: the credential that
+# could read every user's e-mail address and password hash out of the store is not in CI, not in a
+# Vercel variable and not here.
+#
+# The identity that opens these files is on Jacob's machine at ~/.config/canoncore/backup-age-key,
+# mode 600, and must also be somewhere that survives losing it — docs/infrastructure.md -> Backups.
+# It is an X25519 identity rather than the post-quantum hybrid the same library also offers,
+# deliberately: it is what the stock `age` binary reads, and a backup has to be openable by whatever
+# tool exists when it is needed.
+#
+# Replacing it re-keys nothing already written. Every backup taken before the change stays readable
+# only by the old identity, so the old one is kept until the last file encrypted to it has aged out.
+age1caxp3v2mvvlwenqk4emw52r9e0jl0ndhn4v4w9crldsyk9hl4pusy9epqk

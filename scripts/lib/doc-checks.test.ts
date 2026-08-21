@@ -14,6 +14,7 @@ import {
   parseActionsSecrets,
   parseCiJobNames,
   parseDocumentedReleaseTokens,
+  parseDocumentedRetentionSeconds,
   parseDocumentedSecuritySettings,
   parseSecretNames,
   parseSecurityAndAnalysis,
@@ -1238,4 +1239,24 @@ test('a qualifier use the glossary exempts passes with its reason recorded there
     ),
     [],
   )
+})
+
+test("the history window is read from the row's machine-readable half", () => {
+  const register = [
+    "| | |",
+    "| --- | --- |",
+    "| History retention | **7 days**, `history_retention_seconds: 604800`. Raised on 21 August |",
+  ].join("\n")
+  assert.equal(parseDocumentedRetentionSeconds(register), 604_800)
+})
+
+test("a register with no such row fails rather than defaulting to a window", () => {
+  // Defaulting would make deleting the row the cheapest way to pass a check about the row.
+  assert.throws(() => parseDocumentedRetentionSeconds("| Plan | Launch |"), /History retention/)
+})
+
+test("the prose figure beside it is not what gets compared", () => {
+  // "7 days" and 604800 can disagree, and only one of them is what Neon answers with.
+  const wrong = "| History retention | **30 days**, `history_retention_seconds: 604800` |"
+  assert.equal(parseDocumentedRetentionSeconds(wrong), 604_800)
 })

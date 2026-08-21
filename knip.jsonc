@@ -32,12 +32,19 @@
       // `sweep-worktree-databases.ts` is run from `/review-pr`. Both are reached from prose and a
       // YAML key knip has no plugin for, so both read as files nothing uses.
       //
+      // `restore-database.ts` is the fifth, and it is a file nothing may ever run automatically:
+      // restoring a backup needs the age identity, which is on a laptop and in no workflow by
+      // design (docs/adr/0028-a-nightly-encrypted-backup-off-neon.md). `backup-database.ts` is not
+      // here because the GitHub Actions plugin finds it in `backup-database.yml`, the same way it
+      // finds `check-docs.ts`.
+      //
       // This declares entry points rather than suppressing a report. A genuinely dead file added
       // to this workspace later is still reported, which an `ignore` entry would have stopped.
       "entry": [
         "provision-provider-repository.ts",
         "check-linear-bodies.ts",
         "provision-worktree-database.ts",
+        "restore-database.ts",
         "sweep-worktree-databases.ts"
       ],
 

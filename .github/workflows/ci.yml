@@ -125,11 +125,20 @@ jobs:
       # npm rather than pnpm: `pnpm add -g` needs PNPM_HOME configured, npm's global bin is
       # already on a runner's PATH. If the install or the token fails, the check reports SKIP
       # with the reason rather than failing the build.
+      #
+      # `BLOB_READ_WRITE_TOKEN` is here for the one check that reports on something *not* happening:
+      # a nightly backup that stopped. A run that fails sends mail; a schedule that was disabled for
+      # inactivity, or that never merged, sends nothing — so the store is read from here, on every
+      # push. That the token can also delete backups is argued where the check is written and in
+      # docs/adr/0028-a-nightly-encrypted-backup-off-neon.md: this job already holds
+      # `MIGRATION_DATABASE_URL`, which can drop every table the backup is of, so it adds nothing to
+      # what a compromised run could do.
       - run: npm i -g vercel@58
       - run: node scripts/check-docs.ts --verbose
         env:
           GH_TOKEN: ${{ github.token }}
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          BLOB_READ_WRITE_TOKEN: ${{ secrets.BLOB_READ_WRITE_TOKEN }}
 
       # --- The release. `main` only, and only once everything above is green. ---
       #

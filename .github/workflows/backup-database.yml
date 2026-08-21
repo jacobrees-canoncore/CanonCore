@@ -1,0 +1,99 @@
+# The nightly backup of the production database, encrypted and put somewhere that is not Neon.
+#
+# **Why it exists when Neon restores 7 days**: a history window covers a mistake and does not cover
+# losing the account the window is inside. docs/adr/0028-a-nightly-encrypted-backup-off-neon.md
+# holds the argument; docs/infrastructure.md -> Backups holds what is provisioned.
+#
+# **This workflow cannot read what it writes.** It encrypts to the public age recipient in
+# scripts/backup-recipient.txt, and the identity that opens a backup is on a laptop and in no
+# secret here. So the two credentials below buy the ability to write backups and delete expired
+# ones, and no ability to read a row of anybody's data.
+#
+# Deliberately not a job in ci.yml and deliberately not a required status check: it never runs on a
+# push, and docs/infrastructure.md -> The ruleset holds the one job that reports a context.
+name: Back up the database
+
+on:
+  # 02:17 rather than 02:00 on purpose. *"The `schedule` event can be delayed during periods of high
+  # loads of GitHub Actions workflow runs. High load times include the start of every hour"*, and
+  # the fix the same page gives is to *"schedule your workflow to run at a different time of the
+  # hour"* (https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows,
+  # read 21 August 2026).
+  #
+  # **Two things about a schedule are worth knowing before trusting it, and both are on that page.**
+  # It runs only from the default branch — *"This event will only trigger a workflow run if the
+  # workflow file exists on the default branch"* — so a change here is not live until it merges. And
+  # *"In a public repository, scheduled workflows are automatically disabled when no repository
+  # activity has occurred in 60 days"*, which is the one way this job stops without failing. What
+  # notices that is not this file: `scripts/check-docs.ts` reads the store on every push and fails
+  # when the newest backup is older than docs/infrastructure.md says it should be.
+  schedule:
+    - cron: "17 2 * * *"
+  workflow_dispatch:
+
+# A second run while one is in flight would race the same pathname and the same prune. Nothing is
+# cancelled: a backup half-taken is not a backup, and the next night's run is not a retry of it.
+concurrency:
+  group: backup-database
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  backup:
+    name: back up the database
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+
+      # The runner ships PostgreSQL 16.15 (`ubuntu-latest` is Ubuntu 24.04 —
+      # https://github.com/actions/runner-images, read 21 August 2026) and production is 17.10, and
+      # *"pg_dump cannot dump from PostgreSQL servers newer than its own major version; it will
+      # refuse to even try, rather than risk making an invalid dump"*
+      # (https://www.postgresql.org/docs/17/app-pgdump.html, read 21 August 2026). So the client
+      # comes from PostgreSQL's own apt repository rather than from the image.
+      #
+      # **Installing it is not enough, and `pg_dump --version` does not tell you so.** On Debian and
+      # Ubuntu these names are `pg_wrapper`, which picks a real binary per invocation rather than
+      # being one (https://manpages.debian.org/testing/postgresql-client-common/pg_wrapper.1.en.html).
+      # Run 32511782776 measured what that costs: after installing 17.11, `pg_dump --version`
+      # printed **16.15**, the dump it then took against the 17.10 server was written by 17 anyway,
+      # and `pg_restore --list` — which is given a file and no connection, so it has no server to
+      # take a version from — refused it with `unsupported version (1.16) in file header`. A
+      # version printed by a wrapper is not the version that ran.
+      #
+      # So the directory goes on PATH and all three are printed. Three, because the failure above
+      # was one of them disagreeing with the other two.
+      - name: Install the PostgreSQL 17 client
+        run: |
+          curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc \
+            | sudo gpg --dearmor -o /etc/apt/trusted.gpg.d/pgdg.gpg
+          echo "deb https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" \
+            | sudo tee /etc/apt/sources.list.d/pgdg.list > /dev/null
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client-17
+          echo /usr/lib/postgresql/17/bin >> "$GITHUB_PATH"
+
+      - name: Say which client will actually run
+        run: pg_dump --version && pg_restore --version && psql --version
+
+      # `MIGRATION_DATABASE_URL` is `canoncore_migrator`, which owns every table — and an owner
+      # bypasses row security, which is what makes a complete dump possible at all. A role holding
+      # `SELECT` and no policy would dump the schema and none of the rows; pg_dump refuses that
+      # outright rather than doing it quietly (*"If the user does not have sufficient privileges to
+      # bypass row security, then an error is thrown"*, same page), which is why this reuses the
+      # migration credential rather than minting a fourth role for backups.
+      - name: Dump, encrypt, store and prune
+        run: node scripts/backup-database.ts
+        env:
+          MIGRATION_DATABASE_URL: ${{ secrets.MIGRATION_DATABASE_URL }}
+          BLOB_READ_WRITE_TOKEN: ${{ secrets.BLOB_READ_WRITE_TOKEN }}
