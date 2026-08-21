@@ -1811,6 +1811,60 @@ rather than the gap the check would have filled.
 
 # DNS
 
+## Thirteen preview branches on the sibling project, three of them billing
+
+**Found and cleared on 21 August 2026 under CAN-144 Bound or detect the Neon bill, which the Vercel
+spend cap excludes.** The `waveger` Neon project — a different product of the same owner, in the
+same Vercel-managed Neon organisation and therefore on the same bill — held **thirteen branches**.
+Twelve were preview branches with `creation_source: "vercel"` and `init_source: "parent-data"`,
+created between 6 and 8 August by the integration's per-deployment branching, most untouched since
+10 or 11 August, three of them **archived**.
+
+**Launch includes ten branches per project, so three were billing** at $1.50 per branch-month,
+prorated hourly. That is most of the gap between what `canoncore`'s own compute explained and what
+Vercel's installation page charged: compute across all four computes came to about $19.2 against a
+`$26.28` installation total.
+
+**This is what [ADR-0023](adr/0023-one-shared-schema-only-preview-branch.md) spared `canoncore`**,
+and the comparison is the argument. Same organisation, same plan, same fortnight: the project with
+per-deployment branching switched **on** and nothing sweeping it reached thirteen branches; the
+project that switched it **off** on CAN-79 had two. Nothing in the integration deletes them on a
+schedule — Vercel's default deployment retention is six months, so a branch outlives the pull
+request that made it by about that long.
+
+**What was done:** preview branching switched off on the `waveger` connection first, so nothing
+could recreate them, then the twelve deleted. `main` and its 39.6 MB were untouched and the
+deployment still served afterwards. **The order matters** — deleting first would have left the
+integration free to recreate a branch before the switch landed.
+
+## A mis-aimed click on the add-ons page offers to enable a paid product
+
+**21 August 2026, under CAN-144 Bound or detect the Neon bill, which the Vercel spend cap
+excludes.** Turning off the `Observability Plus` add-on took two attempts. The first click, aimed at
+its row by an accessibility reference, landed on the row above and opened a dialog headed
+**Speed Insights** — *"Add at least one project to enable Speed Insights on"*. That product is $10
+per project per month and [`infrastructure.md`](infrastructure.md) → *Hosting* records it as
+deliberately off. It was cancelled, and Speed Insights was confirmed still off afterwards.
+
+**Why it happened, and why it will happen again.** On the team billing page the add-on rows sit one
+click apart, each with an unlabelled control: the checkboxes carry no `aria-label`, so a reference
+resolved from the page's accessibility tree does not distinguish `Speed Insights` from
+`Observability Plus`. Nothing about the click was ambiguous to the page; it was ambiguous to the
+caller.
+
+**What to do instead.** Read the row's own text back before clicking, and read the resulting
+dialog's heading before confirming it — the dialog is the only place either product names itself
+unambiguously. The one that turns a product *off* is headed `Turn off …` and says
+*"Your team is currently utilizing …"*; the one that turns a product *on* asks for projects.
+
+**And a second lesson from the same page.** The Build Machines section has a `Save` button that stays
+**disabled** while its own selection is staged through a dialog, and a *different*, always-enabled
+`Save` belongs to `Deployment Retention Policy` further down. Pressing the enabled one to "save the
+build machine change" would have applied an unrelated retention change and not the intended one. The
+build machine default was in fact set through its dialog's **Set as Default**, and an earlier attempt
+was lost by navigating away before confirming — the same two-step shape as
+[Spend Management saving in two steps](#spend-management-saves-in-two-steps-and-abandoning-the-second-discards-it).
+
 ## There is no wildcard record, and one was wrongly recorded
 
 **10 August 2026.** An earlier revision of `docs/infrastructure.md` recorded a wildcard `* ALIAS` to

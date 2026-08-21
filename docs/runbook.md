@@ -11,7 +11,9 @@ file is only what to *do*, so an entry that stops being actionable should be del
 qualified.
 
 **Detection is one bit wide, and it arrives as a push notification.** UptimeRobot checks this site
-every five minutes and can tell you only that a check failed. Which URL it checks is a monitor
+**every hour** — it was every five minutes until 21 August 2026, and
+[ADR-0026](adr/0026-the-database-bill-is-watched-rather-than-capped.md) is why it is not — and it
+can tell you only that a check failed. Which URL it checks is a monitor
 setting, so [`infrastructure.md`](infrastructure.md) → *Uptime monitoring: UptimeRobot* is the one
 place that says; the URL everything below assumes is
 [`/api/health`](../apps/web/src/app/api/health/route.ts). Turning that one bit into a cause is what
@@ -384,6 +386,23 @@ moving. The first sign of a bad deployment loop or a crawler is the 50% notifica
 budget is $20 — small enough that arriving late costs little, which is the whole point of setting the
 budget below what would be tolerable.
 
-**What no threshold covers at all: the database.** The $40 bounds Vercel's metered resources and
-explicitly not Marketplace integrations, and Neon is one — [`infrastructure.md`](infrastructure.md) →
-*Database*. Nothing warns you about that bill.
+**The database is covered by a different threshold, on the other vendor, and nothing pauses.** The
+$40 bounds Vercel's metered resources and explicitly not Marketplace integrations, and Neon is one.
+Since 21 August 2026 Neon's own **spending notification at $15** covers it instead:
+
+| Threshold | Reaches | Of what |
+| --- | --- | --- |
+| 80%, 100% | E-mail, to the organisation's admins | The **$15 Neon spending threshold**, across `canoncore` *and* `waveger` |
+
+**Read that row differently from the five above it.** Every Vercel row ends in something that
+happens — a pause, an SMS. This one ends in an e-mail and nothing else. **There is no cap to reach
+for**: Vercel's budget excludes Marketplace spend, its resource threshold is auto-recharge for
+prepaid balances, and Neon's own consumption quota is refused outright for a Vercel-managed
+organisation. [ADR-0026](adr/0026-the-database-bill-is-watched-rather-than-capped.md) has all three
+refusals with the response each gives.
+
+**So if this one fires, nothing is protecting you and the spend continues.** What to do is a
+spending decision rather than a runbook one, but the two levers that actually move the figure are
+the compute floor and how often anything asks the database a question —
+[`infrastructure.md`](infrastructure.md) → *Database* holds both, and the second is the one that
+caused the bill this threshold was bought to watch.
