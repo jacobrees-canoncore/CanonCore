@@ -2902,7 +2902,7 @@ change added the states a route can be in and had none of — `loading`, `error`
 **`forbidden` and `unauthorized` are experimental at Next 16.3.0** and need the
 `experimental.authInterrupts` opt-in that `next.config.ts` now carries; nothing calls either
 function yet, so what exists is the design rather than a reachable page —
-[ADR-0029](adr/0029-the-visual-identity.md) → *The two states nothing calls yet* is why it is on
+[ADR-0030](adr/0030-the-visual-identity.md) → *The two states nothing calls yet* is why it is on
 before anything reaches it. The values the shell is drawn in are that same ADR.
 
 **There is still no way for anyone but the operator to put a row here**, which is the sentence *Gate

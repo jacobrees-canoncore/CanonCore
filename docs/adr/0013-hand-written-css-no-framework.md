@@ -47,7 +47,7 @@ requirements" and rules out speculative abstraction by name.
 step, no plugin and no configuration file.
 [CAN-89 Give the product a visual identity and a reading surface](https://linear.app/jacobrees-canoncore/issue/CAN-89)
 extends that sheet directly; it does not have to replace it first. **It has since done so, and the
-values it chose are [ADR-0029](0029-the-visual-identity.md)** — including the reason for the measure
+values it chose are [ADR-0030](0030-the-visual-identity.md)** — including the reason for the measure
 that *Two constraints recorded here* below asks for.
 
 ## Deferring is nearly free, which is what makes deferring right

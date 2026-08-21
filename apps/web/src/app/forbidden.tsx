@@ -8,7 +8,7 @@ import { Interruption } from "./interruption";
  *
  * **Nothing calls `forbidden()` yet**, and turning an experimental flag on for a page nothing can
  * reach sits against `CLAUDE.md` → *Engineering principles* rather than beside it.
- * [ADR-0029](../../../../docs/adr/0029-the-visual-identity.md) → *The two states nothing calls yet*
+ * [ADR-0030](../../../../docs/adr/0030-the-visual-identity.md) → *The two states nothing calls yet*
  * is what decides it, and what would reverse it.
  * CAN-32 Roles, takedown, and the Online Safety Act surfaces brings the first roles there is
  * anything to be forbidden by.

@@ -5,7 +5,7 @@
   `design-tokens.test.ts` fails if the two disagree in either direction.** That module says why the
   values exist twice at all: `global-error.tsx` renders without this sheet, and the Open Graph image
   CAN-57 Make a public Ordering discoverable and shareable will draw is satori, which reads no
-  custom properties. ADR-0029 argues each choice; nothing below restates it.
+  custom properties. ADR-0030 argues each choice; nothing below restates it.
 
   Two conventions worth knowing before reading further. **Roles, not shades**: a colour is named for
   the job it does, so `--rule` and `--edge` are different tokens because a separator and a control's
@@ -413,7 +413,7 @@ button {
   **Bare `:focus-visible`, so it reaches every interactive element there will ever be** rather than a
   list of selectors that a new control can be forgotten from. The width and the offset are tokens
   because `global-error.tsx` has to draw the same ring from its own sheet, and because they are what
-  ADR-0029's WCAG 2.4.13 Focus Appearance claim rests on: three CSS pixels past a two-pixel
+  ADR-0030's WCAG 2.4.13 Focus Appearance claim rests on: three CSS pixels past a two-pixel
   perimeter. `--focus` clears 3:1 against both the page and a filled control —
   `design-tokens.test.ts` asserts both ratios.
 */
