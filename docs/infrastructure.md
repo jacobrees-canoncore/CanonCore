@@ -924,6 +924,8 @@ for its own credentials**; the pointer here is *Where a Source credential lives*
 | `SENTRY_AUTH_TOKEN` | Vercel | Production, Preview | Sensitive | Organisation auth token, scope `org:ci`, for source-map upload |
 | `MIGRATION_DATABASE_URL` | GitHub Actions secret | — | — | The migration role's connection string, which has to ask for `sslmode=verify-full`. Not in Vercel: migrations run in Actions, not in the build. **Two workflows consume it**: `ci.yml`'s migration step, and `purge-source.yml`, which is dispatched by hand and holds the credential so that an operator under a licence deadline has none to fetch — [`runbook.md`](runbook.md) → *A Source's licence terminates* |
 | `NEON_API_KEY` | This machine | — | — | **Project-scoped**, Neon, for the worktree databases — *The Neon API key* below. Held in a file on the machine that runs the setup hook and in no deployment, so no reader here can check it, and it appears on every `check-docs` run as unchecked rather than silently absent |
+| `TMDB_READ_ACCESS_TOKEN` | provider-tmdb | Production, Preview | Sensitive | **TMDB's bearer token, and the one Source credential this estate holds.** It is not in the `canoncore` project and must not return there — [ADR-0014](adr/0014-shell-providers-and-per-source-retention.md#decision-1--the-app-is-a-shell). **Its Holder names the repository and deliberately not `Vercel`**, which is the trap *What this check compares, and what it cannot* below describes: that filter is a case-sensitive substring test, so `Vercel (provider-tmdb)` would be compared against the `canoncore` project, fail against a project that correctly does not hold it, and leave the unchecked list at the same moment. Checked by [`provider-tmdb`'s own copy](https://github.com/jacobrees-canoncore/provider-tmdb/blob/main/scripts/check-docs.ts) against its own project, which read `2 variables agree` on 21 August 2026 |
+| `CANONCORE_ACCESS_TOKEN` | provider-tmdb | Production, Preview | Sensitive | **What a caller presents to reach `provider-tmdb`, and not a *Source* credential** — it authenticates a consumer to our own Provider, in the same class as `DATABASE_URL` ([`CODING_STANDARDS.md`](../CODING_STANDARDS.md)). Set 21 August 2026 by **CAN-152 Implement the Provider contract in provider-tmdb, and close its endpoint**, which is what closes that endpoint. **The application does not hold it yet**: nothing here calls a Provider until [CAN-113 Add a Provider by pasting its URL](https://linear.app/jacobrees-canoncore/issue/CAN-113), and because a Sensitive value cannot be read back, giving the application its half means setting a fresh value on **both** projects rather than copying this one |
 | `VERCEL_TOKEN` | GitHub Actions secret | — | — | **Account-scoped, and it has to be.** Two steps of `ci.yml` consume it: the `node scripts/check-docs.ts --verbose` run, and **Build and promote the production deployment**. A *project*-scoped token fails both, and fails them differently. Replaced 14 August 2026, **expires 14 August 2027** — *Why this one is account-scoped* below holds the identity, the expiry and the scope, and `scripts/check-docs.ts` compares that expiry against Vercel on every run, in CI as well as locally |
 
 **Two `NEON_*` variables, and they are ours rather than the integration's.** All sixteen the
@@ -1013,6 +1015,14 @@ documents it.
 | Source | Credential | Where it lives now |
 | --- | --- | --- |
 | TMDB | Bearer token, scope `api_read` | **The `provider-tmdb` Vercel project**, as `TMDB_READ_ACCESS_TOKEN`, Sensitive, on Preview and Production — read back with `vercel env ls --project provider-tmdb` on 21 August 2026. It was removed from the `canoncore` project on 15 August 2026 by **CAN-99 Move the TMDB credential out of the app, atomically with its roster row** and held nowhere in between. It is recoverable from [`themoviedb.org/settings/api`](https://www.themoviedb.org/settings/api) — see *External data source: TMDB* below |
+
+**And that Provider now uses it.** Until 21 August 2026 the row above recorded a credential sitting
+in a project that served nothing. **CAN-152 Implement the Provider contract in provider-tmdb, and
+close its endpoint** is what reads it: the repository serves version 1 of the contract, closes its
+endpoint against `CANONCORE_ACCESS_TOKEN`, and derives `liveness` from TMDB's daily ID exports.
+**What still does not exist is the deployment** — [CAN-150 provider-tmdb is provisioned on GitHub and
+unwired on Vercel, so nothing deploys](https://linear.app/jacobrees-canoncore/issue/CAN-150) owns
+that, so the code is written and running nowhere.
 
 **Held nowhere was a real state, and recording it rather than tidying it away is what made the
 change above legible.** A credential whose home is unrecorded is the failure this roster exists to
@@ -1121,13 +1131,19 @@ rather than one checker reaching across an estate.
 **So the third row of the first table is the blind spot, and it is named rather than left silent.**
 `parseUncheckedVariables` reports every documented row neither source reaches, in the check's detail
 line. A bare local run prints only `PASS` and the check's name, for this check as for every other, so
-**pass `--verbose` when you are asking what the roster actually covers**. Today nothing is in it, and
-the first thing that will be is the TMDB token once `provider-tmdb` holds it:
+**pass `--verbose` when you are asking what the roster actually covers**.
 
-```
-PASS  the variable roster matches Vercel        8 variables agree
-PASS  the secret roster matches GitHub Actions  2 secrets agree
-```
+**It is no longer empty.** This section used to say the first entry would be the TMDB token once
+`provider-tmdb` held it, and since **CAN-152 Implement the Provider contract in provider-tmdb, and
+close its endpoint** that is what it holds — together with `CANONCORE_ACCESS_TOKEN`, the credential
+that closes that endpoint. Both are unchecked *here* by design and checked *there*, by that
+repository's own copy of this script against its own project, which read `2 variables agree` on
+21 August 2026.
+
+**Unchecked here is the honest word for it, and it is not the same as unchecked anywhere.** The
+arrangement is one checker per project rather than one checker walking an estate — so what this run
+reports is the boundary of its own reach, and following the row to the repository it names is how a
+reader gets the rest.
 
 **And a green CI run says which halves it compared, without anyone opening a log.** `check-docs`
 writes its whole report to the job summary, so the run's own page carries every check, its result and

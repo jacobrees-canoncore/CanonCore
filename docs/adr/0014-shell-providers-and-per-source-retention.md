@@ -381,9 +381,27 @@ So the test is not "did the fetch fail". It is:
 - **Present in today's export, fetch failed** → transient. Do not drop. Retry, and let the row expire
   on the clock if it never succeeds.
 - **Absent from today's export** — *amended 16 August 2026*: "the export" means the **union of the
-  main and `adult_*` export sets**, because the main files exclude adult titles entirely (verified:
-  all 1,233,086 rows of one day's movie export are `adult:false`), and reading them alone would
-  silently drop every adult work ADR-0012 deliberately catalogues. **Episodes and seasons appear in
+  main and `adult_*` export sets**, because the main files exclude adult titles entirely, and
+  reading them alone would silently drop every adult work ADR-0012 deliberately catalogues.
+
+  > **The reason is disjointness, and an implementer told to look for a flag would not find one.**
+  > This bullet first argued the exclusion from the movie export, "all 1,233,086 rows of one day's
+  > movie export are `adult:false`" — true of that file, and misleading as a general rule, because
+  > **the TV export carries no `adult` key at all**. Somebody checking for zero `adult:true` rows
+  > there finds no such field and could reasonably conclude the premise was mistaken.
+  >
+  > **Measured on 21 August 2026 against the 20 August files**, under CAN-101 Create the
+  > provider-tmdb repository, and give it the TMDB credential: `tv_series_ids` holds **229,524**
+  > ids, `adult_tv_series_ids` holds **2,310**, and the overlap between them is **0**. The sets are
+  > disjoint, so the main file answers `false` for every adult title — for the reason that they are
+  > in a different file entirely, never because a flag reads false. That is the stronger argument
+  > and it is the one to keep.
+  >
+  > **It is an empirical fact about the files rather than a documented guarantee.** TMDB's own
+  > [daily ID exports](https://developer.themoviedb.org/docs/daily-id-exports) page says the exports
+  > carry "the adult, video and popularity values", which is true of the movie file and not the TV
+  > one — so nothing here survives TMDB changing the format, and what notices that is
+  > `provider-tmdb`'s own tests rather than this paragraph. **Episodes and seasons appear in
   no export at all**: their liveness derives from the parent series — the series absent from the
   union means its episodes are gone with it; the series present while an episode's refresh 404s is
   settled against the live season listing, one call, absent-there meaning genuinely deleted. With

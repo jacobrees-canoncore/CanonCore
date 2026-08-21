@@ -962,6 +962,60 @@ than merely going quiet, and each breaks in the direction that reads as fine:
   deployment, so whether it holds that credential, and whether a closed Provider should admit a
   throwaway host at all, is a decision on the Provider's side that **nothing has taken yet**.
 
+### Working in one, end to end
+
+The bullets above are what breaks. This is the order that works, and it is written down because the
+first Provider was built this way rather than because it was planned that way —
+**CAN-152 Implement the Provider contract in provider-tmdb, and close its endpoint**, 21 August 2026.
+
+1. **Two tickets before any code**, per the first bullet above. What is worth adding to it is where
+   the line falls: the Provider's ticket owns its repository, and the one here owns whatever this
+   repository has to say about it — usually a roster row and the documents that describe it.
+
+2. **Clone it beside the others and tell Orca**, or the lane has no card, no comment and no
+   `--current` for the tracker CLI:
+
+   ```bash
+   git clone git@github.com:jacobrees-canoncore/<provider>.git ~/orca/projects/<provider>
+   orca repo add --path ~/orca/projects/<provider> --json           # note the repo id it returns
+   orca worktree create --repo id:<repoId> --name can-<n> --linear-issue CAN-<n> --no-parent --json
+   ```
+
+   `--no-parent` because the Provider's lane is not a child of this one, and `--linear-issue` because
+   the link is worktree metadata rather than something inferred from the branch name.
+
+3. **Run the session from a checkout of *this* repository, and write into the Provider's worktree by
+   absolute path.** That is the part with no mechanism behind it yet: the engineering skills and the
+   standards they cite all live here, and **a plugin carries skills but carries no documents**, so a
+   session started inside a Provider checkout has neither `CODING_STANDARDS.md` nor `CONTEXT.md` nor
+   the ADRs, and the skills' relative pointers resolve to nothing.
+   **CAN-153 Give every Provider repository an agent baseline, as CAN-107 gave it a CI one** owns
+   closing that; until it lands, working from here is what keeps the standards in reach.
+
+4. **Running the gates the second bullet names is on you, before you commit.** Nothing here runs
+   them, and together they report the one composed status check that repository's ruleset requires
+   by name, so a red one is found in the pull request rather than on your machine.
+
+   **`build` is not a formality there, and the first Provider proved it.** A module the deployed
+   entry point imported two levels down pulled in the contract validator, so the shipped code
+   depended on `ajv` and `yaml` — devDependencies a production build does not install. **The tests
+   passed throughout**, because a test run installs everything, so `build` was the only gate that
+   could see it. That Provider now carries a test pinning the case, which is the right place for it
+   — but the test exists because `build` found it first.
+
+5. **A Provider's own documents check runs on a laptop, not in its CI.** The shared baseline passes
+   no secrets — [`../provider-baseline/ci.yml`](../provider-baseline/ci.yml) has neither a
+   `secrets:` line nor an `env:` one — so anything comparing a roster against Vercel has no
+   credential there.
+   Split it: what needs no credential goes in `pnpm run test` and gates on every push; what does is a
+   command a person runs. [`../infrastructure.md`](../infrastructure.md) → *Where a Source credential
+   lives* is why each Provider checks its own project rather than one checker walking an estate.
+
+6. **Landing is `/draft-pr` and `/review-pr` as usual, and two of their assumptions are this
+   repository's.** They wait on the contexts a ruleset names — two here, one there — and `/review-pr`
+   knows about a migration that has to reach the preview branch first, which a Provider has no
+   equivalent of. Read the Provider's own ruleset rather than assuming this one's.
+
 **Land the contract side first, then the consumer**, which is the widening rule above one repository
 further out. The contract evolves additive-only, because someone may be self-hosting our Provider on
 their own schedule
