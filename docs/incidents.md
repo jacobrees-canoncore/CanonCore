@@ -1308,11 +1308,23 @@ migrator against exactly these branches.
 migration, because the `drizzle` schema already exists there — so it proves the refusal while
 changing nothing, which is what made testing it from inside an unrelated ticket reasonable.
 
-**So applying a migration ahead of merge fails on every worktree branch and on `preview`**, and has
-done since the schema-only `preview` branch was created on 17 August 2026. Nothing in this ticket
-fixes it: the fix is a `GRANT` that has to be decided for every branch that exists and every one
-created after, which is [ADR-0025](adr/0025-a-preview-database-per-worktree.md)'s territory rather
-than a backup's. Recorded here, and owed a ticket.
+**So applying a migration ahead of merge failed on every worktree branch and on `preview`**, and had
+done since the schema-only `preview` branch was created on 17 August 2026 — for five days, silently,
+because nothing had needed to create a schema on one of those branches in between.
+
+**Fixed the same day, on Jacob's decision, rather than deferred to a ticket**, with
+`GRANT CREATE ON DATABASE neondb TO canoncore_migrator` on `preview` and on the six `wt/` branches
+that predated it. All eight branches, `main` included, then read
+`has_database_privilege('canoncore_migrator', 'neondb', 'CREATE') = true`, and the statement quoted
+above answers `CREATE SCHEMA` where it had answered `permission denied`.
+
+**The fix survives the next worktree, which was the reason to have doubted it.** A worktree branch is
+a `parent-data` child of `preview`, and **a child inherits the grant** — established by experiment
+rather than assumed: a throwaway branch created from `preview` immediately after the grant read
+`true`, and was deleted. So the six were the whole backlog and `orca.yaml`'s hook needs no change.
+**Note the asymmetry that caused this in the first place**: the schema-only `preview` branch did
+*not* inherit the same grant from `main`, and a `parent-data` child does. Nothing here reads a
+database-level `GRANT` back, so a future schema-only branch would arrive without it again.
 
 ## A `SET LOCAL` custom setting reverts to the empty string, not to NULL
 

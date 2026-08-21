@@ -1528,7 +1528,12 @@ the preview mechanism had been quietly making an exception to.
 
 `canoncore_migrator` also holds **`CREATE` on the database `neondb`**, granted 14 August 2026 by
 CAN-23 One Story from Neon, behind row-level security and read back with
-`has_database_privilege`. That is the privilege to create a *schema*,
+`has_database_privilege`. **On `main` alone until 21 August 2026**, when CAN-55 Keep a backup that
+reaches past Neon's 24-hour history window found that neither `preview` nor any worktree branch had
+it and that applying a migration ahead of merge had therefore been failing since 17 August
+([incident](incidents.md#canoncore_migrator-has-create-on-the-database-on-main-alone)). It was
+granted on all seven that day, and a `parent-data` child inherits it, so branches created later
+arrive with it. That is the privilege to create a *schema*,
 and Drizzle's migrator needs it before it will read its own journal
 ([incident](incidents.md#drizzles-migrator-needs-create-on-the-database-before-it-reads-anything)).
 `canoncore_app` has neither that nor `CREATE` on `public`, which is unchanged.

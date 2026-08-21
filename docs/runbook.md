@@ -300,14 +300,18 @@ script refuses production for that reason and needs `--onto-production` to be to
      "https://console.neon.tech/api/v2/projects/steep-wave-52467839/branches"
    ```
 
-2. **Give the migration role `CREATE` on the database, on that branch.** Production has this and a
-   new branch does not — measured on 21 August 2026: `has_database_privilege('canoncore_migrator',
-   'neondb', 'CREATE')` is true on `main` and false on `preview` and on every worktree branch. The
-   restore needs it to recreate the `drizzle` schema, and without it stops at `permission denied for
-   database neondb`. Connected as `neondb_owner`:
+2. **Check the migration role has `CREATE` on the database, and grant it if not.** The restore needs
+   it to recreate the `drizzle` schema, and without it stops at `permission denied for database
+   neondb` — which is how this was found on 21 August 2026, when `preview` and every worktree branch
+   lacked it
+   ([incident](incidents.md#canoncore_migrator-has-create-on-the-database-on-main-alone)). **Every
+   branch that exists now has it**, and a `parent-data` child inherits it from `preview`, so this
+   step should read `t` and pass straight through. A branch made `schema-only` would not inherit it.
+   Connected as `neondb_owner`:
 
    ```sql
-   GRANT CREATE ON DATABASE neondb TO canoncore_migrator;
+   SELECT has_database_privilege('canoncore_migrator', 'neondb', 'CREATE');
+   GRANT CREATE ON DATABASE neondb TO canoncore_migrator;  -- only if that answered f
    ```
 
 3. **Restore, as `canoncore_migrator` and not as `neondb_owner`.** The migration role owns every
@@ -348,7 +352,8 @@ which on a database this had just emptied it was not. **That is the whole argume
 somebody who had just written this page.
 
 Three failures happened before the drill worked, and each one is a step above: the wrong role, the
-missing database privilege, and Neon's own catalogue entries. **That third one is why the restore filters the
+missing database privilege — **since fixed on every branch**, so step 2 is now a check rather than a
+grant — and Neon's own catalogue entries. **That third one is why the restore filters the
 archive**: a whole-database dump carries `DEFAULT PRIVILEGES FOR ROLE cloud_admin` and the `public`
 schema's ACL, which belong to Neon rather than to this project and which nothing here may recreate —
 `permission denied to change default privileges`. The restore skips those three entries by owner and
