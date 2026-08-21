@@ -913,6 +913,89 @@ with one context instead of two; every comparison in it is under test in
 workflow files' shape in
 [`scripts/provider-baseline-workflows.test.ts`](../scripts/provider-baseline-workflows.test.ts).
 
+### How a Provider deploys
+
+**From Git, on every branch including its own `main`** — the opposite of what
+[ADR-0019](adr/0019-ci-owns-the-production-release.md) does to this repository, and that ADR applied
+rather than an exception to it. Its premise is a migration that has to precede the promotion, and a
+Provider has no database and no schema: there is nothing to order, so there is nothing for a release
+job to hold the stopwatch on. Actions promotion would buy nothing, and would put a `VERCEL_TOKEN` in
+a Provider's secrets to buy it with — in a repository whose whole credential story is that the
+Source key lives in the Vercel project and never in Actions.
+
+**The baseline does not provision any of this**, and that is unchanged: *The Provider repository
+baseline* above is two artefacts and one dashboard step, none of which is a deployment. What is now
+decided is what a Provider should do once it has one. Settled on
+[CAN-150 provider-tmdb is provisioned on GitHub and unwired on Vercel, so nothing deploys](https://linear.app/jacobrees-canoncore/issue/CAN-150),
+21 August 2026, against the first Provider to have a project at all.
+
+**Half of ADR-0019 does travel, and it is the runner-up rather than the decision.** A dashboard
+setting *"cannot be reviewed, and cannot be restored by anyone reading this repository"*, so what
+makes a Provider's build correct goes in its own `vercel.json`: `framework`, and `regions`. Both
+*"override"* the Project Settings value
+([vercel.json](https://vercel.com/docs/project-configuration/vercel-json), read 21 August 2026), so
+neither has to be a row that exists nowhere but a register.
+
+| | |
+| --- | --- |
+| In the Provider's `vercel.json` | The framework preset, and the function region |
+| A project setting, with no file that can assert it | Deployment protection, and the Git connection itself |
+| Not set at all | `git.deploymentEnabled`. Its default is every branch, which is what is wanted |
+
+**The Git connection is a GitHub step before it is a Vercel one, and that is the part with a human
+in it.** The Vercel GitHub App is installed on `jacobrees-canoncore` with
+`repository_selection: selected` (*Hosting* above), so a new Provider repository is invisible to it
+until it is added — `vercel git connect` fails with *"Make sure there aren't any typos and that you
+have access to the repository if it's private"*, which reads like a typo and is a permission.
+**There is a REST route and it is not reachable from here**: `PUT
+/user/installations/{id}/repositories/{repo_id}` needs a user access token *created for that app*,
+and `gh`'s is not one however many scopes it carries — it answers `403` *"You do not have permission
+to modify this app"* to an account that is an organisation owner. So it is the App's own settings
+page, and the next Provider should expect the same step.
+
+#### The two ways a Provider's first deployment builds green and serves nothing
+
+Both were found by running `vercel build` against `provider-tmdb` rather than reasoning about it, on
+21 August 2026 under **CAN-160 Make provider-tmdb's first deployment serve the contract rather than
+`public/`**. Neither is specific to that Provider, and the first reaches any of them.
+
+- **With no framework preset the project is not unconfigured, it is "Other"** — Output Directory
+  *"`public` if it exists, or `.`"*. A Provider has a `public/`, because
+  [ADR-0009](adr/0009-external-source-tmdb.md)'s attribution obligation needs a logo served without a
+  credential. So the deployment publishes the logo as a static site and answers `404` to every
+  contract path.
+- **The Hono preset takes the first entry point it finds rather than preferring `index`.** It detects
+  `app`, `index` and `server`, at the root or under `src/`, in six extensions
+  ([Hono on Vercel](https://vercel.com/docs/frameworks/backend/hono), read 21 August 2026) — and
+  `provider-tmdb` had `src/app.ts` beside `src/index.ts`, one holding the routes and one the deployed
+  entry point. The build printed `Multiple entrypoints found: src/app.ts, src/index.ts. Using
+  src/app.ts.`, reported `status: ok`, and wrote a function whose handler was a module exporting no
+  application at all. **The invariant that catches it is not "the entry point is on the list"**,
+  which was true throughout: it is that nothing else is, and `deployment.test.ts` there holds it.
+
+**A third is loud rather than silent, and is worth knowing before it is met.** Vercel's builder
+compiles the traced entry point **without resolving `@types/node`**, so the fetch globals are absent
+and a bare `Response` binds to whatever else is in scope — in `provider-tmdb`'s case Hono's own
+exported `interface Response`, giving six `TS2339`s that `pnpm typecheck` cannot reproduce. Adding
+`WebWorker` to `lib` is what fixed it, and is closer to a function's real global surface than `DOM`.
+**A Provider's `typecheck` gate passing says nothing about whether it builds on Vercel**, and
+`vercel build` cannot join the shared baseline: that workflow passes no secrets, and the command
+needs a token. It belongs beside `scripts/check-docs.ts` as a command a person runs.
+
+**`Vercel` is still not in any Provider's ruleset**, and *What the gate runs, and what it deliberately
+does not* above says why: it joins one only when that Provider has been seen reporting it, which is
+the same rule that governs every other required context here. Connecting Git is what makes a
+Provider a candidate rather than a hypothetical, and adding the context afterwards is nobody's
+ticket yet.
+
+**One of the two rows in the table above is asserted rather than observed, and the distinction is the
+usual one.** `framework` is confirmed from the build: `vercel build` writes
+`config: {zeroConfig: true, framework: "hono"}` into `builds.json` and reports
+`detectedFramework: {status: "skipped"}`, which is detection standing down because the file named it.
+**`regions` appears nowhere in `.vercel/output`**, because it is applied when a deployment is created
+rather than when one is built — so nothing local can show it taking, and the first deployment's own
+function region is what settles it.
+
 ### Where a Provider's failure surfaces
 
 A Provider that fails silently looks to the application like a Source with nothing to say, which is

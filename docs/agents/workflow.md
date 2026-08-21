@@ -997,7 +997,12 @@ than merely going quiet, and each breaks in the direction that reads as fine:
   be*. The baseline's own provisioning runs in the same direction and refuses to require a context
   no run has been seen reporting, which is **CAN-40 Give main a ruleset that refuses an unchecked
   merge**'s lesson rather than a new one. **The deployment is still per-Provider and the baseline
-  does not provision it** — nor the monitor that would say it had gone.
+  does not provision it** — nor the monitor that would say it had gone. **What a Provider's
+  deployment should be is settled even though provisioning it is not automated**: from Git, on every
+  branch, with its framework preset and function region in its own `vercel.json` rather than in
+  project settings — [`../infrastructure.md`](../infrastructure.md) → *How a Provider deploys*, which
+  also holds the GitHub App grant that has to happen first and the two ways a first deployment builds
+  green and serves nothing.
 - **A preview only reaches a Provider that admits it.** `provider-tmdb` and `provider-tardis-wiki`
   are closed endpoints — one because the key is ours, one because the permission is
   ([ADR-0014](../adr/0014-shell-providers-and-per-source-retention.md#decision-3--reachability-splits-by-credential-in-three-classes))
