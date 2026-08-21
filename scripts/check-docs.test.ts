@@ -76,9 +76,9 @@ function fixture({
   pluginSkills = ["./.claude/skills"],
   enabledPlugin = "canoncore-engineering@canoncore",
   skillPayloadPath = "CLAUDE.md",
-  // The three copies of the founding Story's id. Three parameters rather than one, because the
-  // check that compares them fails in two different ways — a copy that disagrees and a copy that
-  // is gone — and a case has to be able to produce each without rewriting the register.
+  // The four copies of the founding Story's id. One parameter each rather than one between them,
+  // because the check that compares them fails in two different ways — a copy that disagrees and a
+  // copy that is gone — and a case has to be able to produce each without rewriting the register.
   seededStory = "00000000-0000-4000-8000-000000000001",
   checkedStory = "00000000-0000-4000-8000-000000000001",
   recordedStory = "**The health check reads the Story `00000000-0000-4000-8000-000000000001`**",
@@ -206,14 +206,15 @@ function fixture({
       "| | |",
       "| --- | --- |",
       "| History retention | **7 days**, `history_retention_seconds: 604800` |",
+      "",
       "## The Story the health check reads",
       "",
       recordedStory,
     ].join("\n"),
   );
-  // The other two copies of that id: the migration that inserts the row and the module that asks
-  // for it. Both are read by path rather than through the document set, so a fixture without them
-  // fails every case on a missing file rather than on what the case is about.
+  // Two more copies of that id: the migration that inserts the row and the module that asks for it.
+  // Both are read by path rather than through the document set, so a fixture without them fails
+  // every case on a missing file rather than on what the case is about.
   write(
     "apps/web/drizzle/0002_the_founding_story.sql",
     [`INSERT INTO "story" ("id", "title") VALUES ('${seededStory}', 'Rose');`].join("\n"),

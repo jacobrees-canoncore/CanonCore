@@ -86,6 +86,10 @@ same connection pool, so a database outage takes it to a 500 as well. **`/` at 2
 `/api/health` is at 503 means the page has stopped depending on the database** — which is fine for
 the page and fatal for the check, because from then on only this route can see the outage.
 
+**`/` at 200 while `/api/health` is at 500 means the opposite, and is the ordinary reading of that
+row**: both still depend on the database, and the front page answering `200` with nothing on it is
+the failure the `500` exists to report rather than a second problem.
+
 ## A release is bad
 
 **Symptom. Three shapes, and only one of them reaches the phone.**
@@ -225,8 +229,9 @@ vercel promote <good-deployment-url> --yes
 
 **Symptom.** `/api/health` answers `500` with an **empty body**, which is ours and not Vercel's —
 *Triage* above is what tells the two apart. The site is up and PostgreSQL is answering it; what
-failed is the read the public page makes. Nothing else here has this shape: every other entry has
-something not answering.
+failed is the read the public page makes. **One other entry has this shape** — *The database has to
+be restored from a backup*, where everything answers and the rows are wrong — and the two are told
+apart by which request is unhappy: this one is reached because `/api/health` went red on its own.
 
 **What the alert means.** The check asks for one public Story as a reader with no account, through
 row-level security, exactly as the page does
@@ -282,7 +287,11 @@ A policy or a grant is only ever changed by a migration.
   forward: a migration that restores what the last one changed, landed through the ordinary gates.
 - **The row was removed by accident.** Same answer, for the same reason: a new migration that puts
   it back. Migration 0002 will not do it again — it is in the journal, so the release does not run
-  it a second time.
+  it a second time. **A migration is the fix for this row alone**, because migrations 0002 and 0012
+  define it completely, so there is nothing to recover. **If whatever removed it took other rows
+  with it** — the *Check* above names a purge, and a purge is rarely one row — those are not defined
+  by any migration, and [The database has to be restored from a backup](#the-database-has-to-be-restored-from-a-backup)
+  is the entry for them.
 - **The row was removed on purpose**, because a Source's licence ended or because real rows have
   replaced the founding fixture. **Then the alert is right and the check is what is out of date.**
   Choose the row it should read and change it in all four places

@@ -1263,11 +1263,11 @@ test("the prose figure beside it is not what gets compared", () => {
 })
 
 // --- The Story the health check reads -----------------------------------------------------------
-// One row in production decides whether the uptime alert fires, and three files have to agree
-// about which row it is. What this reader has to survive is the two files that carry several uuids
-// apiece: taking whichever came first would compare the wrong ones and report agreement.
+// One row in production decides whether the uptime alert fires, and four files have to agree about
+// which row it is. What this reader has to survive is the files that carry several uuids apiece:
+// taking whichever came first would compare the wrong ones and report agreement.
 
-/** The three files as they really are, trimmed to the lines this reader looks at. */
+/** The four files as they really are, trimmed to the lines this reader looks at. */
 const MIGRATION = [
   '-- The one Story the public URL renders.',
   'INSERT INTO "story" ("id", "title", "owner_id", "visibility")',
