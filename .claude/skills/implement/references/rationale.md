@@ -54,15 +54,15 @@ Upstream's line is *"Commit your work to the current branch"*, and `CLAUDE.md`
 described this skill as stopping there. Both are right about the normal case and
 neither covers the one that recurs here: an acceptance criterion that asks a gate
 to *fail the job* can only be met by a run on GitHub, so the push happens inside
-this skill: on **CAN-54 Fail a push that adds a known-vulnerable dependency** the
-first such commit was the remote head for ten hours, across the end of a session.
-The sharper half is what a push like that leaves behind, because a skill that
-stops at the commit has nothing to say about moving it on
+this skill, as it did on **CAN-54 Fail a push that adds a known-vulnerable
+dependency**. The sharper half is what such a push leaves behind: a commit broken
+on purpose, sitting as the remote head, because a skill that stops at the commit
+has nothing to say about moving it on
 ([workflow.md](../../../../docs/agents/workflow.md) → *When `/implement` may
 push*, and `docs/incidents.md` → *The audit gate was proved by a critical
-advisory, then reverted*, which is where that measurement lives). The push
-happens where this skill runs, so the bound has to be stated here; the argument
-stays in workflow.md.
+advisory, then reverted*, which measures how long it sat). The push happens where
+this skill runs, so the bound has to be stated here; the argument stays in
+workflow.md.
 
 ## Why the docs-lookup line was added
 

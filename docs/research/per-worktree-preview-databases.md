@@ -602,7 +602,9 @@ Recorded as findings, because a guess dressed as a fact is the failure this sect
    worktree creation and the agent starts concurrently (`DEFAULT_SETUP_AGENT_STARTUP_POLICY =
    'start-immediately'`), so ordering against the *first push* is safe by hours; ordering against an
    agent that runs `git push` in its first seconds is not guaranteed by anything read. No such workflow
-   exists here, and `/implement` stops at the commit.
+   exists here: `/implement` may now push before `/draft-pr`, but only for evidence a run on GitHub
+   alone can produce (`docs/agents/workflow.md` → *When `/implement` may push*), which is a push that
+   comes after the work it is evidence about rather than in the agent's first seconds.
 8. **Whether the Neon Vercel integration would interact with manually-created child branches.** `Create
    Database Branch For Deployment → Preview` is off, so nothing should. Re-ticking it remains, as
    ADR-0023 says, *"the one regression here with no automated guard"* — and under this design it would

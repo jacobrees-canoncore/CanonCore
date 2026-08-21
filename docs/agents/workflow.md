@@ -398,12 +398,13 @@ The loop above gives the push to `/draft-pr`, and `/implement` stops at the comm
 overrides that, and only one: a fact the acceptance criteria ask for that nothing but a run on
 GitHub can produce.**
 
-Such facts exist because **the gate is GitHub's copy of those checks, not yours**, which *The
-gates*, below, argues and does not need repeating here. What follows from it is this: a criterion
-phrased as *fails the job* is asking for a run id, and no amount of local work satisfies it.
-**CAN-54 Fail a push that adds a known-vulnerable dependency** was exactly that criterion, and
-`docs/incidents.md` → *The audit gate was proved by a critical advisory, then reverted* is what its
-push produced, down to what a local exit code would not have shown.
+Such facts exist because **the gate is GitHub's copy of those checks, not yours** — *The gates*,
+below, for the general form of that, and `docs/incidents.md` → *The audit gate was proved by a
+critical advisory, then reverted* for the sharper one this exception turns on, which is what a local
+exit code cannot show about a step's position in the job. What follows is this: a criterion phrased
+as *fails the job* is asking for a run id, and no amount of local work satisfies it. **CAN-54 Fail a
+push that adds a known-vulnerable dependency** was exactly that criterion, and that entry is what
+its push produced.
 
 **Name the fact and where it will be read, before pushing.** A run id and the statuses of the steps
 in it is the shape it has taken so far, and a check-run's own record is the other thing this
@@ -426,9 +427,9 @@ is still sitting on it.
 
 **On CAN-54 Fail a push that adds a known-vulnerable dependency the branch sat there for ten hours,
 across the end of a session** (`docs/incidents.md` → *The audit gate was proved by a critical
-advisory, then reverted*). Nothing is scheduled to move such a commit on, which is the general
-point: `/implement` is documented as stopping at the commit, so what replaces it is a later session
-choosing to, and a session that has ended chooses nothing.
+advisory, then reverted*). Nothing in the loop is scheduled to move such a commit on, which is the
+general point: the next push after it is `/draft-pr`'s, nothing says when that runs, and a session
+that has ended runs nothing at all.
 
 **What that costs is not the merge.** `main`'s ruleset refuses a branch whose checks are red
 whatever made them red, so nothing bad can land. It is that the branch stops being readable: a red
@@ -439,17 +440,18 @@ as long as the head is that commit — deploys the broken state.
 
 So, in this order and in the same session:
 
-- **Read the run, write the evidence down, then commit the undo and push it.** The undo push needs
-  no justification of its own; it is the second half of the push the exception already allowed, and
-  it is not `/draft-pr`'s to make. Leaving it for `/draft-pr` is what parks the branch, since
-  nothing says when that gets run.
-- **Prove the undo rather than asserting it.** `git diff <the commit before the experiment> -- <the
-  files it touched>` returns nothing when the reversal is complete. That commit is the base, not
-  `origin/main`: a ticket that legitimately changes one of the same files would read as a failed
-  undo against `main` while being perfectly undone. The two coincided on CAN-54 Fail a push that
-  adds a known-vulnerable dependency, which is why that entry can say *"byte-identical to `main`
-  again"*. A dependency experiment touches a manifest and a lockfile, and the lockfile is the half
-  that gets forgotten.
+- **Read the run and write the evidence down**, before touching the branch. That is the only thing
+  the push was for, and it is the step a session with the fix in mind skips.
+- **Commit the undo, and prove it before pushing it rather than after.** `git diff <the commit
+  before the experiment> HEAD -- <the files it touched>` returns nothing when the reversal is
+  complete. That commit is the base, not `origin/main`: a ticket that legitimately changes one of
+  the same files would read as a failed undo against `main` while being perfectly undone. The two
+  coincided on CAN-54 Fail a push that adds a known-vulnerable dependency, which is why that entry
+  can say *"byte-identical to `main` again"*. A dependency experiment touches a manifest and a
+  lockfile, and the lockfile is the half that gets forgotten — pushed unproved, an incomplete undo
+  is discovered as the remote head, which is the state this whole section exists to prevent.
+- **Then push it.** The undo push needs no justification of its own; it is the second half of the
+  push the exception already allowed, and it is not `/draft-pr`'s to make.
 - **If the run cannot be read before the session ends, the branch still does not stay there.** Put
   it back on the last good commit and force it, then run the experiment again next session. It costs
   minutes to repeat; a branch nobody can read costs whoever finds it next, and that is usually a
