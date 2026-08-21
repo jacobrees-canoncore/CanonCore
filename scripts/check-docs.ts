@@ -36,6 +36,9 @@
 //  15. agent baseline     -  docs/infrastructure.md  vs  the two plugin manifests and the skills
 //                            directory they publish, plus every `${CLAUDE_PLUGIN_ROOT}` path a
 //                            skill names, none of which resolves in this checkout
+//  16. founding Story     -  docs/infrastructure.md  vs  the migration that inserts the row
+//                            /api/health reads  vs  the module that names it, since CAN-151 Watch
+//                            the Story route, where a broken policy serves 200 with nothing in it
 //
 // Run:  node scripts/check-docs.ts [--verbose]
 //
@@ -92,6 +95,7 @@ import {
   parseDocumentedSecuritySettings,
   parseDocumentedVariables,
   parseGlossary,
+  readFoundingStory,
   findAvoidedWords,
   parseLinearLabels,
   parseSecretNames,
@@ -126,6 +130,8 @@ const PROVIDER_WORKFLOW = ".github/workflows/provider-ci.yml";
 const BACKUP_WORKFLOW = ".github/workflows/backup-database.yml";
 const MARKETPLACE_MANIFEST = ".claude-plugin/marketplace.json";
 const PLUGIN_MANIFEST = ".claude-plugin/plugin.json";
+const FOUNDING_STORY_MIGRATION = "apps/web/drizzle/0002_the_founding_story.sql";
+const HEALTH_CHECK = "apps/web/src/db/health.ts";
 
 const results: Result[] = [];
 const read = (p: string) => readFileSync(join(ROOT, p), "utf8");
@@ -924,6 +930,48 @@ check("every ${CLAUDE_PLUGIN_ROOT} path a skill names resolves", () => {
       `paths that resolve to nothing in the payload:\n${missing.map((m) => `    - ${m}`).join("\n")}`,
     );
   return `${named} path${named === 1 ? "" : "s"} across ${skills.length} skills`;
+});
+
+// ---------------------------------------------------------------------------
+// 16. The Story `/api/health` reads.
+//
+// The check that watches production now depends on one row, which no code creates: it is there
+// because migration 0002 inserts it. That makes the id a thing three files have to agree about —
+// the migration, the module that asks for it, and docs/infrastructure.md -> The Story the health
+// check reads, which is the record CAN-151 Watch the Story route, where a broken policy serves 200
+// with nothing in it required.
+//
+// **The register is the copy this check exists for.** The other two are code, and
+// `apps/web/src/db/health.test.ts` already compares them on every test run. What nothing else could
+// catch is somebody tidying away the paragraph that explains why a production alert turns on a
+// fixture — after which the alert still fires and nobody can say what it means.
+//
+// Local files throughout, so it can never skip.
+// ---------------------------------------------------------------------------
+
+check("the Story the health check reads has one agreed id", () => {
+  const copies = readFoundingStory({
+    "the migration that inserts it": read(FOUNDING_STORY_MIGRATION),
+    "the health check that reads it": read(HEALTH_CHECK),
+    "the register that records it": read(CONTEXT_HOME),
+  });
+  const lost = copies.filter((c) => "missing" in c);
+  if (lost.length)
+    fail(
+      `the founding Story's id is no longer written where this check reads it:\n    - ` +
+        lost.map((c) => `${c.what}: ${"missing" in c ? c.missing : ""}`).join("\n    - ") +
+        `\n    The check in ${HEALTH_CHECK} depends on that row, so its id needs a record ` +
+        `somebody would meet before deleting it.`,
+    );
+  const ids = new Set(copies.map((c) => ("id" in c ? c.id : "")));
+  if (ids.size !== 1)
+    fail(
+      `three files name the founding Story and they disagree:\n    - ` +
+        copies.map((c) => `${c.what}: \`${"id" in c ? c.id : ""}\``).join("\n    - ") +
+        `\n    The migration is the source. A check asking for a row that is not there answers ` +
+        `500 and pages the phone every hour.`,
+    );
+  return `\`${[...ids][0]}\` in ${copies.length} files`;
 });
 
 const width = Math.max(...results.map((r) => r.name.length));

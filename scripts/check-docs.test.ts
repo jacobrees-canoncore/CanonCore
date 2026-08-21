@@ -76,6 +76,12 @@ function fixture({
   pluginSkills = ["./.claude/skills"],
   enabledPlugin = "canoncore-engineering@canoncore",
   skillPayloadPath = "CLAUDE.md",
+  // The three copies of the founding Story's id. Three parameters rather than one, because the
+  // check that compares them fails in two different ways — a copy that disagrees and a copy that
+  // is gone — and a case has to be able to produce each without rewriting the register.
+  seededStory = "00000000-0000-4000-8000-000000000001",
+  checkedStory = "00000000-0000-4000-8000-000000000001",
+  recordedStory = "**The health check reads the Story `00000000-0000-4000-8000-000000000001`**",
 }: {
   jobName: string;
   documentedContext: string;
@@ -97,6 +103,9 @@ function fixture({
   pluginSkills?: string[];
   enabledPlugin?: string;
   skillPayloadPath?: string;
+  seededStory?: string;
+  checkedStory?: string;
+  recordedStory?: string;
 }): Fixture {
   const dir = mkdtempSync(join(tmpdir(), "check-docs-"));
   const write = (rel: string, body: string) => {
@@ -195,7 +204,21 @@ function fixture({
       "| | |",
       "| --- | --- |",
       "| History retention | **7 days**, `history_retention_seconds: 604800` |",
+      "## The Story the health check reads",
+      "",
+      recordedStory,
     ].join("\n"),
+  );
+  // The other two copies of that id: the migration that inserts the row and the module that asks
+  // for it. Both are read by path rather than through the document set, so a fixture without them
+  // fails every case on a missing file rather than on what the case is about.
+  write(
+    "apps/web/drizzle/0002_the_founding_story.sql",
+    [`INSERT INTO "story" ("id", "title") VALUES ('${seededStory}', 'Rose');`].join("\n"),
+  );
+  write(
+    "apps/web/src/db/health.ts",
+    [`export const foundingStory = "${checkedStory}";`].join("\n"),
   );
   write(
     "docs/agents/triage-labels.md",
@@ -423,13 +446,14 @@ test("a listing that came back empty fails rather than passing over nothing", ()
   const { run, gitOnly } = fixture({
     jobName: "the register's context",
     documentedContext: "the register's context",
-    // The Provider baseline's called workflow is hidden with them, and the backup workflow with it:
-    // both are tracked `.yml` outside every allowed set, so leaving either in the index would give
-    // the two scans one file to search and the vacuous-pass this case is about would no longer be
-    // vacuous. `.claude/` goes for the same reason on the other side: a `SKILL.md` is tracked
-    // markdown, so a listing still holding one is not an empty listing at all. Anything else
-    // tracked and outside those sets has to join this list — which is what adding the backup
-    // workflow found, and then the skills directory.
+    // The Provider baseline's called workflow is hidden with them, and so are the backup workflow,
+    // `.claude/` and the module holding the founding Story's id: each is a tracked file outside
+    // every allowed set, so leaving any of them in the index would give the scans something to
+    // search and the vacuous pass this case is about would no longer be vacuous. `.claude/` is
+    // there for the same reason on the other side — a `SKILL.md` is tracked markdown, so a listing
+    // still holding one is not an empty listing at all. Anything else tracked and outside those
+    // sets has to join this list, which is what adding the backup workflow found, then the skills
+    // directory, then `health.ts`.
     untracked: [
       "docs/",
       "CLAUDE.md",
@@ -437,6 +461,7 @@ test("a listing that came back empty fails rather than passing over nothing", ()
       ".github/workflows/provider-ci.yml",
       ".github/workflows/backup-database.yml",
       ".claude/",
+      "apps/web/src/db/health.ts",
     ],
   });
   const { code, output } = run(gitOnly);
@@ -704,6 +729,39 @@ test("a document using an `_Avoid_` word for the concept it is listed against fa
   assert.match(output, /^FAIL {2}every document uses the glossary's word for the concept/m);
   assert.match(output, /0003-no-shared-catalogue\.md:3 → "an alias"/);
   assert.match(output, /`alias` is on Merge's `_Avoid_` list/);
+});
+
+test("a founding Story recorded nowhere fails the build", () => {
+  // The record CAN-151 Watch the Story route, where a broken policy serves 200 with nothing in it
+  // required, and the reason this check exists rather than only the test beside `health.ts`. The
+  // production alert turns on one row; a repository that has quietly stopped saying which row, or
+  // why, still fires the alert and can no longer explain it.
+  const { run, gitOnly } = fixture({
+    jobName: "the register's context",
+    documentedContext: "the register's context",
+    recordedStory: "The health check reads a Story.",
+  });
+  const { code, output } = run(gitOnly);
+
+  assert.equal(code, 1, output);
+  assert.match(output, /^FAIL {2}the Story the health check reads has one agreed id/m);
+  assert.match(output, /the register that records it: no line reading/);
+});
+
+test("a founding Story the check asks for and no migration inserts fails the build", () => {
+  // The other half, and the one that would be silent in production rather than loud: the check
+  // would ask for a row nothing had ever created, answer 500 and page the phone every hour.
+  const { run, gitOnly } = fixture({
+    jobName: "the register's context",
+    documentedContext: "the register's context",
+    checkedStory: "00000000-0000-4000-8000-00000000dead",
+  });
+  const { code, output } = run(gitOnly);
+
+  assert.equal(code, 1, output);
+  assert.match(output, /^FAIL {2}the Story the health check reads has one agreed id/m);
+  assert.match(output, /three files name the founding Story and they disagree/);
+  assert.match(output, /the health check that reads it: `00000000-0000-4000-8000-00000000dead`/);
 });
 
 test("the same word doing another job passes, which is what keeps the gate worth having", () => {

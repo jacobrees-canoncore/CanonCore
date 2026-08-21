@@ -2632,7 +2632,7 @@ repointing this monitor at that route is the one step of it no agent can take, a
 | Account | `jacobreesnew@gmail.com`, display name `Jacob Rees` |
 | Sign-in | Google. The same address as the Sentry account, which signs in through GitHub instead |
 | Plan | **Free 50**. No payment method, no billing info, **0 SMS/voice credits** |
-| Free-tier limits | **5-minute interval is a floor, not a fixed value** — the control offers 15s, 30s, 1m, 5m, 30m, 1h, 12h and 24h, and only the options *below* 5 minutes are paid-gated (read from the live edit form, 21 August 2026). 3-month log retention, 1 status page. **The monitor count is unresolved**: this row said 50, and the dashboard shows `0 / 1` beside the list. Not established either way, and it is settled the moment a second monitor is added |
+| Free-tier limits | **5-minute interval is a floor, not a fixed value** — the control offers 15s, 30s, 1m, 5m, 30m, 1h, 12h and 24h, and only the options *below* 5 minutes are paid-gated (read from the live edit form, 21 August 2026). 3-month log retention, 1 status page. **The monitor count is unresolved against the account and settled against the published plan**: [UptimeRobot's pricing page](https://uptimerobot.com/pricing/) states **50 monitors** on Free and lists **keyword monitoring** among the types it includes (read 21 August 2026), while this account's dashboard shows `0 / 1` beside the list. The published number is what a second monitor would be bought against and the dashboard is what would refuse it, so this is settled the moment one is added and not before |
 | Monitor | id `803731762`, `https://www.canoncore.com`, HTTP/S, **checked every hour** since 21 August 2026 — read back as *"Checked every hour"* off a cold reload, uptime history unbroken. It was every 5 minutes, and that interval was what kept the database compute awake 63.8% of wall clock: the front page reads Postgres per request and Neon's scale-to-zero timeout is also 5 minutes, so each poll restarted the clock. [ADR-0026](adr/0026-the-database-bill-is-watched-rather-than-capped.md) |
 | The request | `HEAD`, follows redirections, IPv4 first, 30-second timeout, up on 2xx and 3xx |
 | Check location | One, auto-selected by UptimeRobot. Observed: North America |
@@ -2707,13 +2707,57 @@ Then the check is live, and what to do when it fires is [`runbook.md`](runbook.m
 
 | Route | Reaches the database? | Polled by |
 | --- | --- | --- |
-| [`/api/health`](../apps/web/src/app/api/health/route.ts) | **Yes** — three asks before it answers anything but 200 | Nothing yet. Monitor `803731762` still polls `/`; *The repoint* above is the outstanding step |
+| [`/api/health`](../apps/web/src/app/api/health/route.ts) | **Yes, and it reads a Story rather than asking whether a connection can be opened** — three asks before it answers anything but 200, and two different failing codes. *The Story the health check reads* below | Nothing yet. Monitor `803731762` still polls `/`; *The repoint* above is the outstanding step |
 | [`/api/alive`](../apps/web/src/app/api/alive/route.ts) | **No, and its test asserts so** against the file's own source | Nothing. Added 21 August 2026 for the second monitor [ADR-0026](adr/0026-the-database-bill-is-watched-rather-than-capped.md) wants, which is blocked on the monitor-count question above |
 
 **Neither is polled by anything today**, which is worth stating plainly rather than leaving to be
 inferred from two "outstanding" notes: the only monitor points at the front page, hourly. **And
 `/api/alive` must never be pointed at *instead of* `/api/health`** — it reaches no database, so it
 would report green straight through a total database failure.
+
+### The Story the health check reads
+
+**The health check reads the Story `00000000-0000-4000-8000-000000000001`**, as a reader with no
+account, through the same policies the public page at `/story/00000000-0000-4000-8000-000000000001`
+reads it through. It is inserted by
+[migration 0002](../apps/web/drizzle/0002_the_founding_story.sql) and given the rest of its shape by
+[migration 0012](../apps/web/drizzle/0012_anchors_and_the_founding_storys_catalogue.sql); nothing in
+the product creates it, so it exists because a migration says so and for no other reason.
+
+**Why this row is here rather than only in the code.** The check now depends on a specific row, and
+a dependency that lives in one file is one nobody re-reads before deleting the thing it depends on.
+So the id is written in three places and the three are compared:
+[`health.ts`](../apps/web/src/db/health.ts) asks for it, the migration inserts it, and this row is
+the record. [`health.test.ts`](../apps/web/src/db/health.test.ts) ties the first to the second and
+`scripts/check-docs.ts` ties both to this one, so deleting this paragraph reddens a build. Added by
+**CAN-151 Watch the Story route, where a broken policy serves 200 with nothing in it**.
+
+**What happens if the row itself goes.** `/api/health` answers `500` and the phone rings within the
+hour, for ever, until somebody decides what the check should read instead. That is the intended
+failure and not a defect: a check whose subject can be removed without anybody noticing is the
+condition this ticket existed to end. [`runbook.md`](runbook.md) → *The Story cannot be read* is
+what to do about it, and it covers the deliberate case as well as the accidental one.
+
+**Nothing polls it yet, for the same reason nothing polls the route at all**: monitor `803731762`
+still points at the front page, and *The repoint, and why it is a human step* above is the
+outstanding step. Until that is done this is a check the repository makes and nobody outside runs.
+
+**This check costs no monitor of its own, and that is what makes it affordable.** It is not a second
+thing to poll; it is a different question asked by the check that already runs. A monitor of its own
+would have to reach the database on its own schedule, and
+[ADR-0026](adr/0026-the-database-bill-is-watched-rather-than-capped.md) is the account of what that
+costs — a Neon compute bills for the five-minute window each wake opens, so the price is set by how
+often something knocks. The published free plan would carry a second monitor (*Free-tier limits*
+above, where the account's own dashboard disagrees); the point is that none is needed. **What it is
+bought with instead is detection latency**: hourly, so up to an hour, which is the same limit
+ADR-0026 accepted for the database and for the same reason — *The URL-sharing gate* is closed, so
+there is nobody on the other end to be failed.
+
+**It says nothing about whether one reader can see another's rows.** A green check means one public
+Story is readable by a stranger. It would stay green if every private Story were readable by
+everybody, which is the opposite failure and the more serious one. That question is
+[`rls.test.ts`](../apps/web/src/db/rls.test.ts)'s and stays there — ADR-0005 rule 2, and
+[`agents/workflow.md`](agents/workflow.md) → *The gates* is where it is required.
 
 ## The estate
 

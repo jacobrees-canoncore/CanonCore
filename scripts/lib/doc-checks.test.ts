@@ -31,6 +31,7 @@ import {
   resolvePointer,
   findAvoidedWords,
   parseGlossary,
+  readFoundingStory,
 } from './doc-checks.ts'
 
 // `vercel env ls` as it actually prints: OSC 8 hyperlinks around each environment name, one row
@@ -1259,4 +1260,89 @@ test("the prose figure beside it is not what gets compared", () => {
   // "7 days" and 604800 can disagree, and only one of them is what Neon answers with.
   const wrong = "| History retention | **30 days**, `history_retention_seconds: 604800` |"
   assert.equal(parseDocumentedRetentionSeconds(wrong), 604_800)
+})
+
+// --- The Story the health check reads -----------------------------------------------------------
+// One row in production decides whether the uptime alert fires, and three files have to agree
+// about which row it is. What this reader has to survive is the two files that carry several uuids
+// apiece: taking whichever came first would compare the wrong ones and report agreement.
+
+/** The three files as they really are, trimmed to the lines this reader looks at. */
+const MIGRATION = [
+  '-- The one Story the public URL renders.',
+  'INSERT INTO "story" ("id", "title", "owner_id", "visibility")',
+  "VALUES (",
+  "  '00000000-0000-4000-8000-000000000001',",
+  "  'Rose',",
+  "  'founding-operator',",
+  "  'public'",
+  ');',
+].join('\n')
+
+const HEALTH = [
+  '/** The Story the check reads. */',
+  'export const foundingStory = "00000000-0000-4000-8000-000000000001";',
+].join('\n')
+
+const REGISTER = [
+  '### The Story the health check reads',
+  '',
+  '**The health check reads the Story `00000000-0000-4000-8000-000000000001`**, as a reader with',
+  'no account.',
+].join('\n')
+
+const copies = (over: Partial<Parameters<typeof readFoundingStory>[0]> = {}) =>
+  readFoundingStory({
+    'the migration that inserts it': MIGRATION,
+    'the health check that reads it': HEALTH,
+    'the register that records it': REGISTER,
+    ...over,
+  })
+
+test('the three copies of the founding Story are read as one id', () => {
+  assert.deepEqual(copies(), [
+    { what: 'the migration that inserts it', id: '00000000-0000-4000-8000-000000000001' },
+    { what: 'the health check that reads it', id: '00000000-0000-4000-8000-000000000001' },
+    { what: 'the register that records it', id: '00000000-0000-4000-8000-000000000001' },
+  ])
+})
+
+test('a file naming several uuids yields the one its own marker stands beside', () => {
+  // Migration 0012's shape: an Anchor, a second Story and a Version, all written the same way, and
+  // only one of them inside an `INSERT INTO "story"`. A reader taking the first uuid it saw would
+  // take the Anchor's and report agreement with a file that had drifted.
+  const withOthers = [
+    "INSERT INTO \"anchor\" (\"id\") VALUES ('00000000-0000-4000-8000-0000000000a1');",
+    MIGRATION,
+    "INSERT INTO \"version\" (\"id\") VALUES ('00000000-0000-4000-8000-0000000000b1');",
+  ].join('\n')
+
+  assert.deepEqual(copies({ 'the migration that inserts it': withOthers })[0], {
+    what: 'the migration that inserts it',
+    id: '00000000-0000-4000-8000-000000000001',
+  })
+})
+
+test('a copy that disagrees is reported as itself rather than as an absence', () => {
+  // The two failures need different repairs — retype an id, or restore a paragraph — so they have
+  // to arrive as different answers.
+  const drifted = HEALTH.replace('000000000001', '00000000dead')
+
+  assert.deepEqual(copies({ 'the health check that reads it': drifted })[1], {
+    what: 'the health check that reads it',
+    id: '00000000-0000-4000-8000-00000000dead',
+  })
+})
+
+test('a record deleted from the register is an absence with its own remedy', () => {
+  // The copy this check exists for. The marker is a whole sentence rather than the id alone,
+  // because what has to survive is the paragraph saying why a production alert turns on a row.
+  const [, , register] = copies({
+    'the register that records it': 'The health check reads a Story, and that is all it does.',
+  })
+
+  assert.deepEqual(register, {
+    what: 'the register that records it',
+    missing: 'no line reading **The health check reads the Story `…`** was found',
+  })
 })
