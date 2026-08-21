@@ -61,6 +61,27 @@ a development inconvenience, and today it is not even that: work here is solo wi
 a time, which [`docs/infrastructure.md`](../infrastructure.md) → *The ruleset* already relies on when
 it declines strict status checks.
 
+> **That last sentence is false, and it is the only part of this ADR that is.**
+> [ADR-0025](0025-a-preview-database-per-worktree.md) gives every Orca worktree a database of its
+> own, and the premise is why. Lanes have been dispatched in parallel since 16 August 2026: six
+> worktrees were open at once on 17 August, and five on 21 August while that decision was taken. So
+> "solo with one branch open at a time" describes how this repository was worked before the sentence
+> was written, not after.
+>
+> **Two concurrent previews sharing a database is also worse than "a development inconvenience",
+> for a reason this ADR could not have known.** `drizzle-kit migrate` compares timestamps against a
+> single high-water mark, so of two lanes sharing one database the one whose migration is *older*
+> has it skipped **permanently**, with `drizzle-kit` reporting success — a green check over a preview
+> running somebody else's schema. That is the failure shape this repository is otherwise built to
+> refuse, and it is the argument that carried ADR-0025 rather than the shared rows.
+>
+> **Everything else here stands and was re-confirmed**, from stronger sources than the ones cited:
+> per-deployment binding and schema-only branching really are exclusive, the integration's branches
+> really are always `parent-data`, and Vercel really has no endpoint that hands a value to a running
+> build — established by enumerating its whole OpenAPI surface. **The shared `preview` branch is
+> not replaced**: it is the parent every worktree database is a child of, and the fallback any
+> preview without one still reads.
+
 ## Why the other two shapes lost
 
 Both keep per-branch or per-deployment isolation, and both pay for it somewhere that matters more.
@@ -122,6 +143,11 @@ retention, which by 17 August 2026 was fifty-odd live clones of production
 One shared branch has no per-deployment lifecycle, so there is no expiry to choose, no pull-request
 close hook to write, and nothing to forget.
 
+> **[ADR-0025](0025-a-preview-database-per-worktree.md) buys that cost back deliberately**, and this
+> paragraph is why it buys it with a sweeper written in the same change rather than a follow-up
+> ticket. A per-worktree branch has a lifecycle again; what is different is that it is keyed to a
+> git branch that can be read from `origin`, rather than to a deployment nothing enumerates.
+
 ## What this does to ADR-0016
 
 **It removes the reason [ADR-0016](0016-provisioning-plain-api-keys-neon-excepted.md) gave for the one
@@ -151,6 +177,10 @@ the application of that rule to Neon that has expired.
 - **A second person landing work.** Two concurrent previews sharing a database is the accepted cost,
   and it is accepted because of how this repository is worked, not because it is harmless. The answer
   then is one of the rejected shapes above, and the root-branch allowance is the first thing to check.
+  **This happened, and it was parallel lanes rather than a second person** —
+  [ADR-0025](0025-a-preview-database-per-worktree.md). Both halves of the instruction turned out
+  right: the answer was the first rejected shape, and the allowance was the first thing checked. It
+  does not bind, because a child of `preview` is not a root branch.
 - **The Vercel dashboard and the `neon` MCP**, both of which present preview branching as a feature to
   enable. Re-ticking `Preview` does not break a preview: the webhook's per-deployment value overrides
   ours silently, so previews would go back to reading clones of production and everything would appear

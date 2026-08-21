@@ -17,6 +17,32 @@ push, so a branch-scoped Vercel variable can exist before the first deployment i
 `drizzle-kit migrate` decides what to apply by comparing timestamps against a single high-water mark,
 so two worktrees sharing one database can silently and permanently skip one of their migrations.
 
+> **Corrected 21 August 2026, when this was built.** The first half of that headline is wrong, and
+> the way it is wrong is worth keeping rather than editing away. **Vercel refuses a branch-scoped
+> variable for a git branch that is not on the connected repository** — `POST
+> /v10/projects/canoncore/env` answers `BAD_REQUEST` / `branch_not_found`, read against the API
+> directly and not only through the CLI. So Orca's timing is necessary and **not sufficient**: the
+> variable cannot exist before the branch does, and the push that creates the branch is the push that
+> creates the first deployment. Every section below that reasons from "the race is dissolved because
+> Orca is early" inherits this error.
+>
+> **What this document did not do is check that the write it was designing would be accepted**, and
+> that is the general lesson in it: it established the *timing* requirement from Vercel's own
+> documentation and then treated meeting the timing as meeting the requirement. The remedy is one
+> API call, and it was available the whole time.
+>
+> **The design survives, by creating the branch on GitHub without pushing to it.** `gh api …
+> git/refs` fires GitHub's `create` event rather than `push`, so Vercel starts no build; the branch
+> exists, the variable is accepted, and the first real push already reads the worktree's own
+> database. [ADR-0025](../adr/0025-a-preview-database-per-worktree.md) holds the design as built.
+>
+> **Three of the seven open questions at the end are now answered**, and two of the answers differ
+> from what this document expected — see *What could not be established from a primary source*,
+> where each is marked.
+>
+> The second half of the headline — the Drizzle hazard — was confirmed and is what carried the
+> decision.
+
 ## Contents
 
 - [The answer, in one paragraph](#the-answer-in-one-paragraph)
@@ -571,13 +597,21 @@ policies do travel with a branch. One variable per worktree, eleven left alone.
 
 Recorded as findings, because a guess dressed as a fact is the failure this section exists to prevent.
 
-1. **That a schema-only branch may have child branches at all.** Neon's schema-only page has no
+1. **ANSWERED 21 August 2026: yes.** A child of `preview` read back with `parent_id` set,
+   `parent_lsn`, `parent_timestamp` and `init_source: parent-data` — an ordinary child, not a root
+   branch, so it spends the ten-branch total allowance and not the five-root one. *The question as
+   it stood:* **That a schema-only branch may have child branches at all.** Neon's schema-only page has no
    limitations section forbidding it and calls such branches *"independent root branches, just like the
    `production` branch"*, and the API's List-branches text says a project may contain children branched
    *"from `main` or from another branch"*. Both point the same way; neither states it. **Not checked by
    experiment**, because this was research and creating a branch is a change. One
    `POST /projects/steep-wave-52467839/branches` with `parent_id: br-calm-flower-zame56ly` settles it.
-2. **That a child of `preview` contains no row.** It follows directly from the documented copy-on-write
+2. **ANSWERED 21 August 2026, and not as expected.** It contains no *production* row — `story`
+   read `0` against production's `2` — but it inherits `preview`'s own accumulated rows, which were
+   two `user` rows, both at `mail.canoncore.com` and so this project's own test mailboxes rather
+   than personal data. It also inherits ownership and the fourteen-row journal, so it is migratable
+   from the first run. **"Contains no row" was the wrong expectation; "contains no production row"
+   is the true one.** *The question as it stood:* **That a child of `preview` contains no row.** It follows directly from the documented copy-on-write
    definition applied to a parent with no rows, and it is the safest possible inference here, but it was
    not observed. The check is `select count(*) from story` on the new branch, which is the criterion
    `docs/infrastructure.md` already insists on: *"the criterion is a row count, not a settings field"*.
@@ -586,7 +620,11 @@ Recorded as findings, because a guess dressed as a fact is the failure this sect
    `preview` branch, created as schema-only, reads back as `parent-schema` with no `parent_id`, so the
    response cannot distinguish them. If `parent-schema` yields a true child, the design gets simpler and
    drops its dependence on `preview`. Unresolved.
-4. **Whether `expires_at` works on this organisation.** Neon's guide documents it with no availability
+4. **ANSWERED 21 August 2026: it works.** A branch created with `expiresAt` read back
+   `expires_at` and `ttl_interval_seconds: 22412`, so the OpenAPI specification's Early Access
+   caveat does not bind this organisation and the guide is the current source. It is still not used,
+   for two reasons that are not availability — [ADR-0025](../adr/0025-a-preview-database-per-worktree.md)
+   → *Teardown*. *The question as it stood:* **Whether `expires_at` works on this organisation.** Neon's guide documents it with no availability
    caveat; Neon's OpenAPI specification says *"Access to this feature is currently limited to
    participants in the Early Access Program"* on every field. Two primary sources, in direct conflict,
    both current as of 17 August 2026. The recommended design therefore does not depend on it.
