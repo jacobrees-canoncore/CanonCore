@@ -1,0 +1,148 @@
+name: Front end
+
+# **`docs/agents/workflow.md` -> *Two more gates, on pull requests only* owns the decisions that
+# outlive this file, and this file points there rather than repeating them** — the arrangement
+# `ci.yml` already has with the same document. What is decided here and nowhere else is local to a
+# run: the concurrency group, the artifact retention, and the throwaway secret the server needs. Four are argued there: why the trigger is `pull_request` rather than
+# `push`, why neither job is a required context, why `@lhci/cli` is installed on the runner instead
+# of declared as a dependency, and why the react-doctor Action is pinned to a digest and granted no
+# write scope. What is repeated below is only what a reader needs at the line they are looking at.
+on: pull_request
+
+concurrency:
+  group: frontend-${{ github.ref }}
+  cancel-in-progress: true
+
+# Read-only, at the top level, so neither job inherits more than it needs.
+permissions:
+  contents: read
+
+jobs:
+  lighthouse:
+    name: Lighthouse budgets
+    runs-on: ubuntu-latest
+
+    services:
+      # The front page reads the database through row-level security, so it cannot render without
+      # one. Same image and same reasoning as `ci.yml`'s: production is PostgreSQL 17.
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: canoncore_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+
+      # The three roles the migrations and the running application need. `ci.yml` explains why a
+      # container starts without them.
+      - name: Create the application, migration and auth roles
+        run: psql "$SUPERUSER_URL" -f apps/web/src/db/roles.sql
+        env:
+          SUPERUSER_URL: postgresql://postgres:postgres@localhost:5432/canoncore_test
+
+      # Migrate before building, so the server `lhci` starts has a schema and the founding Story to
+      # render. Migration 0002 inserts it, which is what makes `/` a page with content on it rather
+      # than an empty state.
+      - name: Apply Drizzle migrations
+        run: pnpm --filter @canoncore/web db:migrate
+        env:
+          MIGRATION_DATABASE_URL: postgresql://canoncore_migrator:canoncore_migrator@localhost:5432/canoncore_test
+
+      - run: pnpm --filter @canoncore/web run build
+
+      # Installed rather than declared as a dependency, which is forced rather than tidy: it
+      # reaches an advisory no override can clear. The version is pinned here in place of a
+      # lockfile pinning it. Argued in workflow.md, which names the advisory.
+      - run: npm i -g @lhci/cli@0.15.1
+
+      # `lhci autorun` starts the server itself, collects, and asserts. `lighthouserc.cjs` carries
+      # every budget, the measurement each was derived from, and why nothing is uploaded anywhere.
+      #
+      # `BETTER_AUTH_SECRET` is set because `src/auth/auth.ts` refuses to serve without one and `/`
+      # resolves a session on every request. It is a throwaway for a container that is destroyed
+      # with the job, and it signs nothing that outlives the run.
+      - name: Assert the budgets
+        working-directory: apps/web
+        run: lhci autorun
+        env:
+          DATABASE_URL: postgresql://canoncore_app:canoncore_app@localhost:5432/canoncore_test
+          DATABASE_AUTH_USER: canoncore_auth
+          DATABASE_AUTH_PASSWORD: canoncore_auth
+          BETTER_AUTH_SECRET: a-throwaway-secret-for-this-job-only
+
+      # Always, including on a pass: `lhci assert` prints numbers only when one breaks, so without
+      # this a green run says nothing about how much headroom is left. The script says why that
+      # matters here.
+      - name: Say what it measured
+        if: always()
+        working-directory: apps/web
+        run: node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/lighthouse-summary.mts
+
+      # The reports, kept only when something failed. A budget breach says which number moved; it
+      # does not say which resource moved it, and that is in the report.
+      - name: Keep the reports when a budget broke
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: lighthouse-reports
+          path: apps/web/.lighthouseci/
+          retention-days: 7
+          # **Without this the upload succeeds and uploads nothing.** `.lighthouseci` is a
+          # dot-directory, and the action ignores "any file beginning with `.` or files within
+          # folders beginning with `.`" unless told otherwise — it warns rather than failing, so the
+          # first run of this gate reported a successful upload and produced zero artifacts.
+          include-hidden-files: true
+
+  react-doctor:
+    name: React lint on the diff
+    runs-on: ubuntu-latest
+    # `contents: read` is inherited; `pull-requests: read` closes a silent degradation of
+    # `scope: changed`. Read, never write. Argued in workflow.md.
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      # **Not optional, and not the Action's own doing: it is a composite that never checks the
+      # repository out.** Without this it scans an empty workspace and fails for a reason unrelated
+      # to the diff. `fetch-depth: 0` because `scope: changed` needs the base branch. Both argued in
+      # workflow.md, which is also where the evidence for each is.
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      # The commit `v2` resolved to on 21 August 2026, rather than the moving tag. Why a digest
+      # here and a major tag everywhere else is in workflow.md; that it is the one digest in this
+      # repository, and what that does to automerge, is in `renovate.jsonc`.
+      - uses: millionco/react-doctor@01820bb4fd4d0a4aebcd8df2b2a143a098649cb2 # v2
+        with:
+          # `error` rather than the Action's `none` default, which comments instead of gating.
+          blocking: error
+          # Only what this pull request introduced. The default, stated because it is half of what
+          # makes this job usable on an existing codebase rather than a wall of pre-existing lint.
+          scope: changed
+          # Pinned, per CAN-60 Gate the front end on bytes, budgets and React lint. The default is
+          # `latest`, and this package has shipped over 750 versions since February 2026
+          # (`docs/research/production-readiness-baseline.md` -> *react.doctor*) — so `latest` is a
+          # gate whose rules change under it without a commit here.
+          version: 0.9.12
+          node-version: 24
+          # All three off. Each needs a write scope granted to a third-party Action —
+          # `pull-requests: write`, `issues: write`, `statuses: write` — and the job's own pass or
+          # fail is the whole signal this ticket asked for. Argued in workflow.md.
+          comment: false
+          review-comments: false
+          commit-status: false

@@ -12,7 +12,7 @@ yet reachable. Which Code measures that leaves not in effect is recorded in
 > remove this box before publishing. The dates and the reporting address were filled by
 > [CAN-44 Make the Online Safety Act records live, and create the reporting address](https://linear.app/jacobrees-canoncore/issue/CAN-44).
 
-Last updated: 16 August 2026
+Last updated: 21 August 2026
 
 CanonCore is a service for keeping a catalogue of stories, the versions of them you can watch or read,
 and orderings you write yourself. It is run by one person in the United Kingdom.
@@ -148,10 +148,19 @@ information about the request itself. **It does not carry your IP address, your 
 address or your account.** An error message can quote the text that caused it, so something you
 typed may appear in a report, but nothing in it says who you are.
 
-We are telling you both of these here because it is easy to assume otherwise.
+We count visits using Vercel, who host the service, so that we can see which pages are used. This records that a page was viewed, with the time, the address of the page, the
+site you arrived from, your country, and your browser, operating system and device type. **No cookie
+is set for it**, and **the address is reduced before it is sent**. A page whose address names a
+story, an ordering or a person never travels with that name in it: at most we are told the kind of page it was, and often only that it was a page on this site. Anything after a question mark is dropped entirely. **The counts are only ever used to improve the service**, and they are
+never joined to your account.
 
-`[ ]` *Link the privacy notice here once it exists (CAN-30 GDPR export and erasure), and move both
-disclosures above into it: they sit in the terms only because no notice exists yet.*
+**You can tell us not to count your visits**, and the page at `/privacy/analytics` says exactly what
+is collected and carries the switch for turning it off. It is linked from the front page.
+
+We are telling you all three of these here because it is easy to assume otherwise.
+
+`[ ]` *Link the privacy notice here once it exists (CAN-30 GDPR export and erasure), and move all
+three disclosures above into it: they sit in the terms only because no notice exists yet.*
 
 ## Changes to these terms
 

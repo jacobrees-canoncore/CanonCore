@@ -82,8 +82,10 @@ pnpm --filter @canoncore/web dev
 
 The gates are `test`, `typecheck`, `lint` and `build`, which run in GitHub Actions on every push;
 the ruleset on `main` requires that job and the Vercel deployment by name, so nothing reaches
-production without passing. The Playwright suite runs against deployed environments by hand,
-deliberately outside CI. See [`docs/agents/workflow.md`](docs/agents/workflow.md).
+production without passing. Two more run on pull requests only — Lighthouse budgets on load metrics
+and script bytes, and React lint on what the diff introduced. The Playwright suite runs against
+deployed environments by hand, deliberately outside CI. See
+[`docs/agents/workflow.md`](docs/agents/workflow.md).
 
 ## How this repository is built
 

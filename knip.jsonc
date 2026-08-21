@@ -64,7 +64,17 @@
       // schemas rather than something this override introduces. Naming the file here reproduces
       // the plugin's output exactly; it does not widen it.
       "drizzle": { "config": [] },
-      "entry": ["drizzle.config.ts", "src/db/schema.ts"]
+
+      // The third is `lighthouserc.cjs`, added by CAN-60 Gate the front end on bytes, budgets and
+      // React lint, and it is here for a plainer reason than the two above: knip ships no plugin
+      // for Lighthouse CI, and `lhci` finds its configuration by looking for a file of that name
+      // rather than by anything importing it (`@lhci/utils/src/lighthouserc.js` holds the list of
+      // ten names it tries). So nothing in the repository references it and knip is right that
+      // nothing does.
+      //
+      // An entry rather than an ignore, for the reason the `scripts` block above gives: this file
+      // is a root of the graph, so what it reaches stays analysed.
+      "entry": ["drizzle.config.ts", "src/db/schema.ts", "lighthouserc.cjs"]
     }
   }
 }

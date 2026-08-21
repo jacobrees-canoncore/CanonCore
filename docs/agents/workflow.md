@@ -567,7 +567,9 @@ acceptable, and the three ways it fails quietly, is
 [`../infrastructure.md`](../infrastructure.md) → *Dependency updates*.
 
 **All of them run in one Actions job, in that order, so the first failure stops the rest.** That job
-is the single check a pull request reports and one of the two contexts `main`'s ruleset requires;
+is one of the two contexts `main`'s ruleset requires, and the only one this repository emits — *Two
+more gates, on pull requests only* below adds two that report on pull requests and are deliberately
+not required;
 [`docs/infrastructure.md`](../infrastructure.md) → *The ruleset* is the only document that names it,
 and `scripts/check-docs.ts` fails the build if that name and `ci.yml` ever disagree. Requiring the
 three commands as three contexts would require names nothing emits, which is worse than requiring
@@ -601,6 +603,67 @@ a green tick, exactly like a pass — and the two rows above that gate locally d
 local gate nobody is told about is no gate. Why each row is where it is:
 [`../infrastructure.md`](../infrastructure.md) → *What this check compares, and what it cannot*, and
 [`triage-labels.md`](triage-labels.md) → *Where this check gates, and where it does not*.
+
+### Two more gates, on pull requests only
+
+**Everything above is `ci.yml`, `on: push`, one job, one required context.
+[`.github/workflows/frontend.yml`](../../.github/workflows/frontend.yml) is a second workflow with
+two jobs, `on: pull_request`, and neither is required by the ruleset.** Added by **CAN-60 Gate the
+front end on bytes, budgets and React lint**.
+
+| Job, and the context it reports | What it asserts |
+| --- | --- |
+| `Lighthouse budgets` | LCP, Total Blocking Time and script bytes, against `maxNumericValue` budgets, five runs a URL, worst run taken — except TBT, which takes the median because the worst of five on a shared runner is its cold start rather than the page. [`apps/web/lighthouserc.cjs`](../../apps/web/lighthouserc.cjs) carries every number, the measurement it came from, and that argument |
+| `React lint on the diff` | react-doctor's error diagnostics on what the pull request introduced |
+
+**`pull_request` is forced for the second and chosen for the first.** react-doctor's Action is
+*"designed for `pull_request` events; other events scan the full project regardless of `scope`
+setting"* ([Action reference](https://www.react.doctor/docs/reference/github-action-reference.md)),
+so a push-triggered run would gate the whole repository from its first commit — the red-on-arrival
+failure the `pnpm audit` threshold above refuses. Lighthouse could run on a push and does not,
+because five runs across three URLs is four to eight minutes that no branch push needs to pay.
+
+**Neither is a required context, and that is the same rule the ruleset already follows.** A context
+belongs there only if it reports on *every* pull request; these do, but making them required is a
+ruleset edit with a window in which the required context is missing and nothing can merge, bought
+for a gate that `/review-pr` already reads off the pull request. [`../infrastructure.md`](../infrastructure.md)
+→ *The ruleset* is still the only place the **required** contexts are named, and `scripts/check-docs.ts`
+still gates that table against `ci.yml` and the live ruleset. These two are named here and nowhere else.
+
+**`@lhci/cli` is installed on the runner rather than declared in `apps/web`.** It reaches
+`extract-zip` through `lighthouse` → `puppeteer-core`, and `GHSA-jmr9-qjv8-65gv` names every
+published version of that package — its patched range is `>=2.0.2` and `2.0.1` is the newest that
+exists — so as a dependency it would make `pnpm audit --audit-level=high` red for ever with no
+override that could clear it. A globally installed CI tool is in neither the lockfile nor anything
+this repository ships. It is the same shape, and the same `npm i -g`, as `vercel` above.
+
+**react-doctor's Action is pinned to a commit rather than to its `v2` tag**, and it is the first
+third-party Action in this repository — everything else is `actions/*` or `pnpm/*`. Its comment,
+review-comment and commit-status outputs are all turned off, because each needs a write scope handed
+to a third party and the job's own pass or fail is the whole gate the ticket asked for. What it does
+get is `pull-requests: read`, for the reason in the next paragraph.
+
+**Two things about that Action are not on the tin, and both were found by a review rather than by
+reading its documentation.** It is a composite whose first step is `actions/setup-node`: **it does
+not check the repository out**, so without an `actions/checkout` of our own it scans an empty
+workspace and exits with `ProjectNotFoundError: No React project found` — red on arrival for a reason
+unrelated to the diff. And the checkout must be `fetch-depth: 0`, because `scope: changed` compares
+against the base branch and a shallow one cannot reach it; the Action's own
+`silence-missing-baseline-warning` input documents that case and names this as "the real remedy".
+**The failure it guards is silent rather than loud** — the fallback is a scan of every issue in the
+changed files rather than only the introduced ones, reported through a pull request comment that is
+turned off here. `pull-requests: read` gives the intermediate `pulls.listFiles` fallback something to
+use; `fetch-depth: 0` is what stops it being needed.
+
+**To re-derive the budgets**, from `apps/web`, with a local PostgreSQL carrying the migrations:
+
+```bash
+npx @lhci/cli@0.15.1 autorun
+```
+
+Its numbers move with the machine, so a budget is moved deliberately and the table in
+`lighthouserc.cjs` is re-measured with it. **CAN-89 Give the product a visual identity and a reading
+surface is the change most likely to need that**, because it changes what these pages are.
 
 **Cancellation is scoped to branches other than `main`.** Superseding a run is only safe where a
 later commit replaces the earlier one as the thing being judged, which is true on a branch and false

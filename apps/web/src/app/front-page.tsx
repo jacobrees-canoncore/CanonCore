@@ -54,6 +54,24 @@ export function FrontPage({
           ))}
         </ul>
       )}
+      {/*
+        The objection route ADR-0020 requires, reachable rather than merely existing: "an easy way
+        to object" is not satisfied by an address you would have to be told. Here rather than in a
+        footer on every page because this application has no footer yet, and CAN-89 Give the
+        product a visual identity and a reading surface is what gives it one.
+
+        **A plain anchor, like the two above it, and react-doctor's `nextjs-no-a-element` is
+        knowingly accepted here.** The rule is right in general — a plain `<a>` costs client-side
+        navigation and prefetching — and wrong on this page, which the byte budget CAN-60 Gate the
+        front end on bytes, budgets and React lint added is what showed: `next/link` here took this
+        page from 139,219 to 147,620 script bytes, measured both ways on 21 August 2026. That is
+        8,401 bytes on the page a stranger loads, to soft-navigate one link most of them will never
+        follow. `story-page.tsx` uses `Link` because it is a page you arrive at from another.
+      */}
+      <hr />
+      <p className="account">
+        <a href="/privacy/analytics">How visits are counted</a>
+      </p>
     </main>
   );
 }

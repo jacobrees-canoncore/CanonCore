@@ -29,6 +29,18 @@ import jsxA11y from "eslint-plugin-jsx-a11y";
  */
 export default [
   {
+    // **The same glob `eslint-config-next` registers the plugin for**, and it is copied rather
+    // than widened for a reason CAN-60 Gate the front end on bytes, budgets and React lint found
+    // the hard way. In `apps/web` the running plugin is the copy that config registers, and it
+    // registers it for `**/*.{js,jsx,mjs,ts,tsx,mts,cts}` — note the absence of `.cjs`. Naming
+    // these rules for *every* file therefore names them for files no plugin is registered on, and
+    // ESLint refuses the whole run: "A configuration object specifies rule `jsx-a11y/alt-text`,
+    // but could not find plugin `jsx-a11y`". Adding `apps/web/lighthouserc.cjs` was enough to do
+    // it, and the failure is the whole lint job rather than that one file.
+    //
+    // Nothing is lost by the narrowing: every rule here is about JSX, and the extensions it drops
+    // are the ones this repository uses for configuration rather than for components.
+    files: ["**/*.{js,jsx,mjs,ts,tsx,mts,cts}"],
     rules: {
       // `eslint-config-next@16.3.0` depends on this plugin but enables six of its rules, all
       // at `warn`: five about ARIA attribute validity, plus `alt-text`. The plugin's own

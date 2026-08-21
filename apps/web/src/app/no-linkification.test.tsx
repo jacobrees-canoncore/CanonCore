@@ -2,6 +2,7 @@ import { render, screen } from "@testing-library/react";
 import { expect, test } from "vitest";
 import { ForgotPasswordPage } from "./forgot-password/forgot-password-page";
 import { FrontPage } from "./front-page";
+import CountingVisits from "./privacy/analytics/page";
 import { ResetPasswordPage } from "./reset-password/reset-password-page";
 import { SignInPage } from "./sign-in/sign-in-page";
 import { SignUpPage } from "./sign-up/sign-up-page";
@@ -38,8 +39,9 @@ import { StoryPage } from "./story/story-page";
  * reassessment: [`illegal-content-risk-assessment.md`](../../../../docs/compliance/illegal-content-risk-assessment.md)
  * → *Existing controls relied on* and *Step 4*.
  *
- * **Every surface that renders text belongs in this file**, and six exist today — the two account
- * recovery pages joined with **CAN-31 Email verification and password reset**, and the Story page
+ * **Every surface that renders text belongs in this file**, and seven exist today — the two account
+ * recovery pages joined with **CAN-31 Email verification and password reset**, the counting-visits
+ * page with **CAN-60 Gate the front end on bytes, budgets and React lint**, and the Story page
  * with **CAN-25 The catalogue: Version, part of, Anchor, canonical version**, which is earlier than
  * the assessment expected it: that record has the Story page arriving with CAN-27 Orderings and
  * Placements, and the imported broadcast Ordering, which now brings the Ordering page alone. CAN-26
@@ -69,7 +71,7 @@ const hostile = "https://example.invalid/looks-like-a-link";
  * can be a value a Source supplied, a Provider returned or a person typed, which is exactly the
  * property the finding rests on. A page that wants a new one adds it here first.
  */
-const ownRoutes = ["/", "/sign-in", "/sign-up", "/forgot-password"];
+const ownRoutes = ["/", "/sign-in", "/sign-up", "/forgot-password", "/privacy/analytics"];
 
 /** Every `href` the rendered result carries, in the order they appear. */
 function renderedLinks() {
@@ -97,7 +99,7 @@ test("the front page renders a URL as text, and links only to its own routes", (
   render(<FrontPage stories={[{ id: "00000000-0000-4000-8000-000000000001", title: hostile }]} />);
 
   expect(screen.getByRole("listitem").textContent).toBe(hostile);
-  expect(linksWithinOwnRoutes()).toEqual(["/sign-in", "/sign-up"]);
+  expect(linksWithinOwnRoutes()).toEqual(["/sign-in", "/sign-up", "/privacy/analytics"]);
 });
 
 // The signed-in front page, which is a different render: it draws a sign-out form and an email
@@ -112,7 +114,7 @@ test("a signed-in reader's own email address is not linkified either", () => {
   );
 
   expect(screen.getByText("someone@example.invalid")).toBeDefined();
-  expect(linksWithinOwnRoutes()).toEqual([]);
+  expect(linksWithinOwnRoutes()).toEqual(["/privacy/analytics"]);
 });
 
 /**
@@ -218,6 +220,25 @@ test.each(surfaces.map((surface) => [surface.name, surface] as const))(
     expect(linksWithinOwnRoutes()).toEqual(surface.links);
   },
 );
+
+/**
+ * The objection route ADR-0020 requires, which is the seventh surface and the first that is
+ * outside the table above rather than in it.
+ *
+ * **Not in `surfaces` because it has no refusal to render.** Every entry there is driven twice,
+ * once plain and once with a refusal sentence, and that second pass is the point of the table: a
+ * refusal is the one string on an account page that arrives from a request. This page reads
+ * nothing from a request at all, so it would be an entry the second pass could only skip.
+ *
+ * **It still owes the exact-set assertion**, which is what this is, because that is the claim the
+ * compliance finding rests on and it is asserted over every surface rather than over the risky
+ * ones.
+ */
+test("the counting-visits page links only to the front page", () => {
+  render(<CountingVisits />);
+
+  expect(linksWithinOwnRoutes()).toEqual(["/"]);
+});
 
 /**
  * **The notice a *successful* action comes back with, which is a second string arriving from a

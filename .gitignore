@@ -38,5 +38,12 @@ apps/web/CLAUDE.md
 test-results/
 playwright-report/
 
+# Lighthouse CI's collected reports, written wherever `lhci` is run from. One directory per run
+# holding a full LHR per URL per run — five runs a URL, per `lighthouserc.cjs` — so it is both
+# large and stale the moment the build changes. The numbers that matter are asserted by the run
+# and the ones a budget was derived from are written down in `lighthouserc.cjs`, so nothing here
+# is the record of anything.
+.lighthouseci/
+
 # macOS
 .DS_Store
