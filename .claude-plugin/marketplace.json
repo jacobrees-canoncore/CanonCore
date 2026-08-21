@@ -1,0 +1,12 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "canoncore",
+  "description": "The one plugin every CanonCore Provider repository installs.",
+  "owner": { "name": "CanonCore", "url": "https://github.com/jacobrees-canoncore" },
+  "plugins": [
+    {
+      "name": "canoncore-engineering",
+      "source": "./"
+    }
+  ]
+}
