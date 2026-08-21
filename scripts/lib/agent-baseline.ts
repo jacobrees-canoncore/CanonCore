@@ -16,7 +16,7 @@
 // **Every value below is docs/infrastructure.md -> The Provider repository agent baseline**, and
 // the reasoning is ADR-0028. This module states what the baseline *is*; it does not restate why.
 
-import { fail } from "./doc-checks.ts";
+import { asRecord, fail } from "./doc-checks.ts";
 
 /** What the two manifests say, once they have been read as the shape they must have. */
 export type AgentBaseline = {
@@ -33,15 +33,10 @@ export type AgentBaseline = {
 /** The plugin id as a settings file has to spell it. One place composes it; everything uses this. */
 export const pluginId = (baseline: AgentBaseline) => `${baseline.plugin}@${baseline.marketplace}`;
 
-const asRecord = (value: unknown): Record<string, unknown> | undefined =>
-  typeof value === "object" && value !== null && !Array.isArray(value)
-    ? (value as Record<string, unknown>)
-    : undefined;
-
-function json(source: string, what: string): Record<string, unknown> {
+function json(body: string, what: string): Record<string, unknown> {
   let parsed: unknown;
   try {
-    parsed = JSON.parse(source);
+    parsed = JSON.parse(body);
   } catch (err) {
     return fail(`the ${what} is not valid JSON: ${(err as Error).message}`);
   }
@@ -128,13 +123,18 @@ export type ProviderSettings = { marketplace: string; repo: string; enabledPlugi
  * been read.
  */
 export function parseDocumentedProviderSettings(body: string): ProviderSettings {
-  const fence = body.match(/```json\n(\{[\s\S]*?"enabledPlugins"[\s\S]*?)\n```/);
-  if (!fence)
+  // Every fenced block, then the one that is the settings block — rather than one regex reaching
+  // from the first fence to the word it is looking for, which spans any fence between the two and
+  // then fails as "not valid JSON", naming everything except the reason.
+  const fences = [...body.matchAll(/```json\n([\s\S]*?)\n```/g)].map((hit) => hit[1]);
+  const blocks = fences.filter((fence) => fence.includes('"enabledPlugins"'));
+  if (blocks.length !== 1)
     return fail(
-      "docs/infrastructure.md carries no `json` fence containing `enabledPlugins`. The register " +
-        "publishes the block a Provider repository commits, and this check reads it back.",
+      `docs/infrastructure.md carries ${blocks.length} \`json\` fences containing ` +
+        "`enabledPlugins`, and the register publishes exactly one — the block a Provider " +
+        "repository commits, which this check reads back.",
     );
-  const settings = json(fence[1], "documented Provider settings block");
+  const settings = json(blocks[0], "documented Provider settings block");
 
   const markets = asRecord(settings.extraKnownMarketplaces);
   const names = Object.keys(markets ?? {});

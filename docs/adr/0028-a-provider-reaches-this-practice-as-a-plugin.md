@@ -106,30 +106,27 @@ as well as in prefix, and every pointer would have needed rewriting rather than 
 
 - **This repository's `.mcp.json` is part of the payload, and cannot be excluded.** `.mcp.json` at
   the plugin root is a default component path, and `plugin.json`'s own `mcpServers` field is
-  *"in addition to"* it rather than instead of it, so there is no manifest field that suppresses it.
-  `claude plugin details` reports `MCP servers (1) resend` against the installed plugin. It costs no
-  always-on tokens and carries no credential — the Resend server is OAuth and signs in per session
-  ([`docs/agents/tooling.md`](../agents/tooling.md) → *Which servers are project scope and which are
-  user scope*) — so the price is a server a Provider has no use for being offered there. **The rule
-  that falls out is the real cost**: nothing credentialled may ever be added to this repository's
-  `.mcp.json` while this arrangement stands, because it would be published into every Provider
-  repository's session.
+  *"in addition to"* it rather than instead of it, so no manifest field suppresses it. Today that
+  costs a Provider one server it has no use for, no always-on tokens and no credential — Resend is
+  OAuth and signs in per session ([`docs/agents/tooling.md`](../agents/tooling.md) → *Which servers
+  are project scope and which are user scope*). **The rule that falls out is the real cost**:
+  nothing credentialled may ever be added to this repository's `.mcp.json` while this arrangement
+  stands, because it would be published into every Provider repository's session.
 - **A directory added at this repository's root can join the payload silently.** `agents/`,
   `commands/`, `hooks/hooks.json`, `output-styles/` and `.lsp.json` are default component paths at a
   plugin root. None exists here today; one created for an unrelated reason would start travelling
   without anything saying so.
-- **A person still runs two commands per machine.** The eight lines declare the marketplace and
-  enable the plugin, and that is all they do: *"adding the marketplace doesn't install plugins that
-  come from an external source, on any path that loads plugins"*
+- **The eight lines declare and install nothing, so a person still runs two commands per machine.**
+  *"Adding the marketplace doesn't install plugins that come from an external source, on any path
+  that loads plugins"*
   ([Discover and install plugins](https://code.claude.com/docs/en/discover-plugins), read
   21 August 2026), measured to be exactly so. Claude Code names the install line itself, so this is
-  a prompt rather than a trap — but the fetch it needs is not always automatic either, and the
-  register gives both commands rather than the documented happy path. **The baseline is not fully
-  automatic, and saying it were would be the useful half of a wrong claim.**
-- **`@main` on both ends, so a bad edit here reaches every Provider at once.** The same trade the CI
-  baseline took, for the same reason: a fix reaches them all without six pull requests. The
-  marketplace source accepts a `ref` and the plugin source accepts a `ref` and a `sha`, so pinning
-  is available if this ever bites.
+  a prompt rather than a trap — but the fetch it needs did not always happen either, so the register
+  gives both commands rather than the documented happy path. **The baseline is not fully automatic,
+  and saying it were would be the comfortable half of a wrong claim.**
+- **Neither manifest names a ref, so a bad edit here reaches every Provider at once.** The same
+  trade the CI baseline took, for the same reason: a fix reaches them all without six pull requests.
+  What pinning is available on each end, if this ever bites, is the register's.
 - **The skills carry a Provider-shaped paragraph each**, which every CanonCore session also loads.
   Measured at ~231 tokens always-on for all four together, unchanged by this decision, because the
   additions are in bodies rather than descriptions.

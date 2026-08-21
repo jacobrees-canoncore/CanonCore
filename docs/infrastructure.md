@@ -965,42 +965,35 @@ MCP servers (1)  resend  (tool schemas resolved at runtime; not counted)
 Always-on:  ~231 tok   added to every session
 ```
 
-### What is in the payload, and the two things that follow from it
+### What is in the payload
 
-The plugin's `source` is `"./"`, so the installed copy is this repository: **3.8 MB, read back from
-the cache on 21 August 2026** from a `github` source, holding `CLAUDE.md`, `CODING_STANDARDS.md`,
-`CONTEXT.md`, `docs/` and `.claude/skills/` as well as `apps/`, `packages/` and `scripts/`, which
-are inert. No dependency install runs: Claude Code installs a plugin's Node packages only when the
-plugin root holds a `package.json` **and** a `bun.lock`, `bun.lockb`, `npm-shrinkwrap.json` or
-`package-lock.json` ([Plugins reference](https://code.claude.com/docs/en/plugins-reference), read
-21 August 2026), and this repository's lockfile is `pnpm-lock.yaml`.
+The plugin's `source` is `"./"`, so the installed copy is this repository. **Read back from the cache
+on 21 August 2026**, from a `github` source: **3.8 MB**, holding `CLAUDE.md`, `CODING_STANDARDS.md`,
+`CONTEXT.md`, `docs/` and `.claude/skills/`, plus `apps/`, `packages/` and `scripts/`, which are
+inert. **No `node_modules`**: a plugin's Node packages install only where its root holds a
+`package.json` **and** a `bun.lock`, `bun.lockb`, `npm-shrinkwrap.json` or `package-lock.json`
+([Plugins reference](https://code.claude.com/docs/en/plugins-reference), read 21 August 2026), and
+this repository's lockfile is `pnpm-lock.yaml`.
 
-Two things follow, and both are rules rather than observations:
+**`.mcp.json` is in it, and `claude plugin details` reports `MCP servers (1) resend` against what is
+installed.** Two standing rules follow from that and from the payload being the repository root —
+nothing credentialled in `.mcp.json`, and a new root directory can join the payload silently. Both
+are argued in [ADR-0028](adr/0028-a-provider-reaches-this-practice-as-a-plugin.md) → *What this
+costs*, and the first is in [`../CLAUDE.md`](../CLAUDE.md) because it binds an edit made here.
 
-- **Nothing credentialled may go in [`.mcp.json`](../.mcp.json).** It sits at the plugin root, which
-  is a default component path, and no manifest field suppresses it — `plugin.json`'s `mcpServers` is
-  *"in addition to"* it. `claude plugin details` reports `MCP servers (1) resend` against what is
-  installed, so anything added there is published into every Provider repository's session.
-  The Resend server is safe there because it is OAuth and holds no key
-  ([`agents/tooling.md`](agents/tooling.md) → *Which servers are project scope and which are user
-  scope*).
-- **A directory created at this repository's root can join the payload silently.** `agents/`,
-  `commands/`, `hooks/hooks.json`, `output-styles/` and `.lsp.json` are the other default component
-  paths. None exists here; one added for an unrelated reason would start travelling with no warning.
+### Neither manifest names a ref
 
-### Why `@main` on both ends, and what pins it if that goes wrong
+Both the marketplace and the plugin resolve this repository's default branch, which is the same trade
+[*Why the `uses:` reference works*](#why-the-uses-reference-works-and-what-would-break-it) takes for
+the CI baseline. **Pinning is available if that ever bites, and the two pin differently**: a
+marketplace source takes `ref` and not `sha`; a plugin source takes `ref` **and** `sha`, and the
+`sha` wins when both are set ([Create a plugin marketplace](https://code.claude.com/docs/en/plugin-marketplaces),
+read 21 August 2026).
 
-Neither manifest names a ref, so both the marketplace and the plugin resolve to this repository's
-default branch — the same trade [*Why the `uses:` reference works*](#why-the-uses-reference-works-and-what-would-break-it)
-takes for the CI baseline, and for the same reason: a fix reaches every Provider at once instead of
-through six pull requests, and so does a mistake.
-
-**Pinning is available on both, and they pin differently.** A marketplace source takes `ref` — a
-branch or tag — and not `sha`; a plugin source takes `ref` **and** `sha`, and the `sha` wins when
-both are set ([Create a plugin marketplace](https://code.claude.com/docs/en/plugin-marketplaces),
-read 21 August 2026). The marketplace `ref` is also what makes this arrangement testable before it
-merges: `claude plugin marketplace add jacobrees-canoncore/CanonCore@<branch>` writes the `ref` into
-the entry, which is how the whole chain above was proved from a branch rather than after landing it.
+**The marketplace `ref` is also how this was proved before it merged.**
+`claude plugin marketplace add jacobrees-canoncore/CanonCore@<branch>` writes the `ref` into the
+entry, so every row above was measured against a branch — which is the one thing about this
+arrangement that the committed form has still not demonstrated for itself.
 
 ### What holds it together
 

@@ -15,7 +15,7 @@
 // docs/agents/workflow.md -> The gates.
 
 import type { WorkflowJob } from "./doc-checks.ts";
-import { fail, parseWorkflowJobs } from "./doc-checks.ts";
+import { asRecord, fail, parseWorkflowJobs } from "./doc-checks.ts";
 
 type Rule = {
   type: string;
@@ -35,9 +35,6 @@ export type Ruleset = {
 const BASELINE_SCRIPTS = ["test", "typecheck", "lint", "build"];
 
 const REQUIRED_RULES = ["required_linear_history", "non_fast_forward", "required_status_checks"];
-
-const asRecord = (value: unknown): Record<string, unknown> | undefined =>
-  typeof value === "object" && value !== null ? (value as Record<string, unknown>) : undefined;
 
 const str = (value: unknown): string | undefined => (typeof value === "string" ? value : undefined);
 

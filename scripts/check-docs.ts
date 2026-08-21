@@ -904,10 +904,11 @@ check("the documented agent baseline matches the manifests", () => {
 
 check("every ${CLAUDE_PLUGIN_ROOT} path a skill names resolves", () => {
   const baseline = parseManifests(read(MARKETPLACE_MANIFEST), read(PLUGIN_MANIFEST));
+  const roots = skillRoots(baseline);
   const skills = source("git", ["ls-files", "*/SKILL.md"], "cannot list tracked files")
     .split("\n")
     .filter(Boolean)
-    .filter((path) => skillRoots(baseline).some((root) => path.startsWith(`${root}/`)));
+    .filter((path) => roots.some((root) => path.startsWith(`${root}/`)));
   if (!skills.length)
     fail("`git ls-files \"*/SKILL.md\"` matched no skill under the manifest's own skills paths");
 

@@ -89,7 +89,22 @@ test("the register's own settings block is read back, not trusted", () => {
 test("a document carrying no such block fails rather than reporting agreement", () => {
   assert.throws(
     () => parseDocumentedProviderSettings("# Infrastructure\n\nNothing here.\n"),
-    /carries no `json` fence/,
+    /carries 0 `json` fences/,
+  );
+});
+
+test("a second settings block is refused rather than silently preferring one", () => {
+  // A register growing a second such fence is how this check would come to read a block nobody
+  // meant. It also pins the fence scan: the earlier regex reached from the first fence to the word
+  // it wanted, spanning the fence between them, and failed as "not valid JSON".
+  assert.throws(() => parseDocumentedProviderSettings(`${documented}\n\n${documented}`), /carries 2 `json` fences/);
+});
+
+test("an unrelated json fence before the block does not confuse the scan", () => {
+  const other = ["```json", JSON.stringify({ some: "other example" }, null, 2), "```"].join("\n");
+  assert.equal(
+    parseDocumentedProviderSettings(`${other}\n\n${documented}`).marketplace,
+    "canoncore",
   );
 });
 

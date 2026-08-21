@@ -206,6 +206,6 @@ database and releases. That, the recovery, and the one push it may make: `docs/a
 It counts only when the review read the *committed* change, not the staged one. A second round follows
 any commit the first produced, then the PR discloses. `docs/agents/workflow.md` → *The review runs once*.
 
-All four are in `.claude/skills/`; run `/draft-pr` and `/review-pr` from their own bodies. A Provider repository installs that directory rather than copying it, and what the chain does differently there is `docs/agents/workflow.md` → *Work that spans two repositories*.
+`/implement`, `/code-review`, `/draft-pr` and `/review-pr` are in `.claude/skills/`; run the last two from their own bodies. A Provider repository installs that directory rather than copying it, and what the chain does differently there is `docs/agents/workflow.md` → *Work that spans two repositories*.
 
 **Run the grill and the implementation in separate sessions.** Why, the plugin token costs, how the chain is declared, and when `/wayfinder` replaces `/to-spec`: `docs/agents/tooling.md`.
