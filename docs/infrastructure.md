@@ -256,6 +256,14 @@ redaction as a function, and a function cannot be asked whether anything left th
 deployment**, by driving a deployment with Playwright and reading the outbound request bodies, then
 reading back what Vercel holds. Times are UTC.
 
+**The two deployments it was run against, so the runs tie to code rather than to a date.** Production
+was `dpl_6qKMxW3nueEDFFqAjHhBeTBc6fsR`, built from `dfa48b3` — **CAN-60 Gate the front end on bytes,
+budgets and React lint**'s merge — and created at 13:27:00.091, which is the deployment every "after
+the production deployment" below counts from. The preview was
+`dpl_DccG4etidPznRRappLmKKeSw7Yzd` at `canoncore-or5wgzl5o-jacobreesnew-7380s-projects.vercel.app`,
+built from `dcded8f`, that branch's tip before the squash: `git diff dcded8f dfa48b3 -- apps/web
+packages` is **empty**, so the preview served the same application code production did.
+
 | What was asked | What was seen |
 | --- | --- |
 | Does a Story page arrive as its shape? | **Yes.** `https://www.canoncore.com/story/00000000-0000-4000-8000-000000000001` at 13:57:35 sent `o: "https://www.canoncore.com/story/*"` and `dp: "/story/*"`. Vercel reports `/story/*` under both `requestPath` and `route`, and that visit moved production from 2 pageviews to 3. **The identifier is in no field of the body** |
@@ -295,27 +303,34 @@ not a latest-receipt stamp.
 > nit. Corrected in the same change:
 > [`apps/web/src/app/privacy/analytics/page.tsx`](../apps/web/src/app/privacy/analytics/page.tsx) now
 > says the measurements are sent and that the objection stops them. **The terms of service needed no
-> change** — they describe the visit counting only and claim nothing about Speed Insights.
+> change**, and the reason is theirs rather than an omission: they claim nothing about Speed Insights,
+> and they send the reader to `/privacy/analytics` for what *"exactly … is collected"* — so correcting
+> that page is what makes the terms' own sentence true again. `content/legal/` is therefore untouched,
+> which is what keeps this clear of the rule that such an edit needs the illegal-content assessment
+> redone before it ships.
 
-**Both products redact the route as well as the URL, and only one of the two goes through
-`beforeSend`.** One Speed Insights request carried six samples — `FCP`, `TTFB`, `LCP`, `FID`, `INP`,
-`CLS` — and every one of them named the page twice, as `route: "/story/*"` and
+**Each product names the page twice, and only one of those two namings goes through `beforeSend`** —
+the route travels beside the URL and never reaches the hook, which is the distinction
+[`redaction.ts`](../apps/web/src/analytics/redaction.ts) draws and not one between the two vendors,
+both of which are given the hook. One Speed Insights request carried six samples — `FCP`, `TTFB`,
+`LCP`, `FID`, `INP`, `CLS` — and every one of them named the page as `route: "/story/*"` and
 `href: ".../story/*"`. That is the surface
 [`apps/web/src/analytics/analytics.tsx`](../apps/web/src/analytics/analytics.tsx) exists to close.
 
 > **What nearly made all of this unobservable, and would have looked like success.** Both
-> `/_vercel/insights/script.js` and `/_vercel/speed-insights/script.js` carry the same two lines,
-> read off the live scripts on 21 August 2026 — the first at the top of the bundle, the second just
-> inside the body that would otherwise install the handlers:
+> `/_vercel/insights/script.js` and `/_vercel/speed-insights/script.js` refuse an automated browser
+> before reading anything. The predicate is byte-identical in the two and only its minified binding
+> differs — `t` in Web Analytics, `r` in Speed Insights — read off the live scripts on 21 August 2026:
 >
 > ```js
 > function t(){return!!(navigator.webdriver||navigator.userAgent.includes("Headless"))}
-> if(t())return;
+> if(t())return;   // and `r` for the same two lines in the Speed Insights bundle
 > ```
 >
-> So a browser they refuse sends **nothing**, and every "the token did not leak" check passes on an
-> empty set. **A browser driven by the Playwright *test runner* is such a browser by default**, which
-> is what this spec had to be built around; the flag that clears it is named in
+> So a browser they refuse sends **nothing**, which is worse than a failure: an assertion that a token
+> did not leak holds over no requests at all. **A browser driven by the Playwright *test runner* is
+> such a browser by default**, which is what this spec had to be built around; the flag that clears it,
+> and the guard that turns an empty set into a red test, are in
 > [`apps/web/e2e/measurement-on-the-wire.spec.ts`](../apps/web/e2e/measurement-on-the-wire.spec.ts).
 >
 > **The `playwright` MCP server the ticket prescribes is not affected**, and an earlier draft of this
@@ -331,11 +346,10 @@ above against whatever deployment it is pointed at, and fails loudly when no pag
 of passing on nothing. It is off the gate with the rest of the Playwright suite
 ([ADR-0017](adr/0017-testing-stack.md)) and its header says how to run it.
 
-**One reading tool's default is worth knowing**: the `vercel` MCP's `get_web_analytics` returned
-**production only** unless the query filtered on `environment eq 'preview'` — the same window queried
-both ways on 21 August 2026 gave three production paths unfiltered and five preview paths filtered,
-with the preview rows absent from the first. So a preview run read back without that filter looks
-like a run that sent nothing.
+**The tool that reads this back has a default that hides a preview run**, and it is the same
+narrowing that document already records for the same server:
+[`agents/tooling.md`](agents/tooling.md) → *The `vercel` MCP answers for one project, and a Provider
+is another*.
 
 **What this does not settle stays unsettled.** Real INP and full-session CLS need field traffic and
 the URL is deliberately not shared — *The URL-sharing gate* above. What is settled is that the pipe

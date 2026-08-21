@@ -19,9 +19,10 @@ import { expect, test, type Page } from "@playwright/test";
  *
  * ## Why one launch flag decides whether this file tests anything at all
  *
- * **Both scripts drop any browser that reports automation, before they read anything else.**
- * Identical guard in `/_vercel/insights/script.js` and `/_vercel/speed-insights/script.js`, read off
- * the live scripts on 21 August 2026:
+ * **Both scripts drop any browser that reports automation, before they read anything else.** The
+ * predicate is byte-identical in `/_vercel/insights/script.js` and `/_vercel/speed-insights/script.js`
+ * and only its minified binding differs — `t` in the first, `r` in the second — read off the live
+ * scripts on 21 August 2026:
  *
  * ```js
  * function t(){return!!(navigator.webdriver||navigator.userAgent.includes("Headless"))}
@@ -65,7 +66,7 @@ import { expect, test, type Page } from "@playwright/test";
  * and the redaction cannot tell a live token from an invented one — it drops everything after the
  * path. Minting a real token to assert the same code path would put a working credential in a test
  * file. It was checked once by hand with a live token instead, and `docs/infrastructure.md` →
- * *Hosting* records that run.
+ * *What the two measurement products were observed doing* records that run.
  */
 
 // The one flag this file cannot run without: its whole subject is a script that refuses an
@@ -119,6 +120,15 @@ type Vital = { readonly type: string; readonly route: string; readonly href: str
 /** What one page load sent, with the raw bodies kept so an assertion can search the whole of them. */
 type Sent = { readonly pageviews: Pageview[]; readonly vitals: Vital[]; readonly bodies: string[] };
 
+/** The body as JSON, or nothing — see {@link watchMeasurement} for why this may not throw. */
+function parsedOrNull<Shape>(body: string): Shape | null {
+  try {
+    return JSON.parse(body) as Shape;
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Watch both products for the rest of this page's life.
  *
@@ -129,17 +139,22 @@ type Sent = { readonly pageviews: Pageview[]; readonly vitals: Vital[]; readonly
 async function watchMeasurement(page: Page): Promise<Sent> {
   const sent: Sent = { pageviews: [], vitals: [], bodies: [] };
 
+  // **Neither handler may throw.** A request listener throws into Playwright's event loop rather
+  // than into a test, so a body that will not parse would surface as an unhandled rejection instead
+  // of a red assertion. An unreadable body is recorded and left unparsed; the floors below then fail
+  // on the count, which is a legible failure.
   page.on("request", (request) => {
     if (!/\/_vercel\/insights\/view$/.test(request.url())) return;
     const body = request.postData() ?? "";
     sent.bodies.push(body);
-    sent.pageviews.push(JSON.parse(body) as Pageview);
+    const parsed = parsedOrNull<Pageview>(body);
+    if (parsed) sent.pageviews.push(parsed);
   });
 
   await page.route("**/_vercel/speed-insights/vitals*", async (route) => {
     const body = route.request().postDataBuffer()?.toString("utf8") ?? "";
     sent.bodies.push(body);
-    sent.vitals.push(...((JSON.parse(body) as { metrics: Vital[] }).metrics ?? []));
+    sent.vitals.push(...(parsedOrNull<{ metrics?: Vital[] }>(body)?.metrics ?? []));
     await route.continue();
   });
 
