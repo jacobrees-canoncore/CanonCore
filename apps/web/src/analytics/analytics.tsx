@@ -44,9 +44,22 @@ import { beforeSend } from "./before-send";
 import { redactPath } from "./redaction";
 
 export function Measurement() {
-  // The one value both vendors are given for the page, already reduced. `path` is passed as well
-  // as `route` because the script builds the reported URL out of it — so what `beforeSend`
-  // receives is already safe, and redacts to itself.
+  // The one value both vendors are given for the page, already reduced. `path` is passed as well as
+  // `route` because the script builds the reported URL out of it.
+  //
+  // **It only clears the query string when it uses that path, which is the half a reading of this
+  // got wrong.** From the same live script, the function that builds the reported URL:
+  //
+  //     function e(e){let t=location.href;if(e){let n=new URL(t);
+  //       if(n.pathname!==e)return n.pathname=e,n.search="",n.href}   // substituted: query dropped
+  //       return t}                                                   // unchanged: query kept
+  //
+  // So for `/story/<id>`, where the reduced path differs, the URL is rebuilt and arrives at
+  // `beforeSend` already safe. For every member of `staticPaths` it does *not* differ, so what
+  // `beforeSend` receives is `location.href` whole — query string included. **`beforeSend` is
+  // therefore the only thing that removes a password-reset token from `/reset-password`**, which is
+  // the case ADR-0020 calls the sharpest, and it is load-bearing rather than a second line.
+  // Confirmed against a deployment on 21 August 2026: `docs/infrastructure.md` → *Hosting*.
   const route = redactPath(usePathname());
 
   return (

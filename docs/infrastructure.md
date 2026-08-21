@@ -149,18 +149,27 @@ that is v1's scope rather than a condition here, and this gate would open withou
 | Framework Preset | Next.js |
 | Include files outside the root directory | On |
 | Node.js version | 24.x |
-| Web Analytics | **On**, enabled 21 August 2026 on the tier included in Pro. **Not** the `Web Analytics Plus` add-on, which the enable dialog offers at $10 a month and which was declined |
-| Speed Insights | **Off**, and deliberately. $10 per project per month on Pro, for a product whose subject is field traffic there is none of — the note below has the figures and what turning it on would buy |
+| Web Analytics | **On**, enabled 21 August 2026 on the tier included in Pro. **Not** the `Web Analytics Plus` add-on, which the enable dialog offers at $10 a month and which was declined. What it has been observed receiving is *What the two measurement products were observed doing* below |
+| Speed Insights | **Off**, and deliberately. $10 per project per month on Pro, for a product whose subject is field traffic there is none of — the note below has the figures and what turning it on would buy. **It is nonetheless receiving data**, which the same section records |
 
 *Read back with `vercel project inspect canoncore`; the Root Directory row and the three under it
 set by CAN-22 A page on a public URL, deployed, with CI, on 11 August 2026. Preview protection was set on 13 August 2026 and turned off since —
 the row above records the 16 August acceptance.*
 
-**The last two rows are not `vercel project inspect`'s to report, and the API cannot answer them
-either.** `GET /v9/projects/{id}` returns `webAnalytics: {id}` and `speedInsights: {id, hasData}`
-and **nothing that says whether either is enabled** — no `enabledAt`, no `disabledAt`, no status.
-The ids are there while the products are off. So these two rows were read from the dashboard, on
-21 August 2026 under **CAN-60 Gate the front end on bytes, budgets and React lint**.
+**The last two rows are not `vercel project inspect`'s to report**, so they were read from the
+dashboard on 21 August 2026 under **CAN-60 Gate the front end on bytes, budgets and React lint**.
+`GET /v9/projects/{id}` returns a `webAnalytics` and a `speedInsights` object, and **the ids in them
+are present while a product is off**, so an id settles nothing about whether one is running.
+
+> **One field does answer it, and this document said it did not.** The paragraph above used to state
+> that the API returns "nothing that says whether either is enabled — no `enabledAt`, no
+> `disabledAt`, no status". That was read when **both products were off**, and with one of each it
+> is false: the live API on 21 August 2026 returned `webAnalytics: {id, enabledAt: 1787315619366,
+> hasData: true}` against `speedInsights: {id, hasData: true, dataReceivedAt: 1787318907512}` — an
+> `enabledAt` on the product that is on, and none on the product that is not. **One reading of each
+> state is not a rule**, which is why this is recorded as what was seen rather than as how the field
+> behaves; the dashboard stays the source for these two rows. Found by
+> **CAN-147 Verify the analytics redaction and opt-out against a real deployment**.
 
 **That distinction cost this project a wrong record and a wrong instruction**, and is why it is
 written down rather than left as a lookup: the same ticket first recorded both products as *On*, on
@@ -235,6 +244,74 @@ Recorded rather than deleted, because earlier documents cite it as live.
 The Vercel GitHub App is installed on `jacobrees-canoncore`, scoped to this one repository, and
 installing it displaced nothing
 ([incident](incidents.md#installing-the-vercel-github-app-on-a-second-org-displaced-nothing)).
+
+### What the two measurement products were observed doing
+
+**Everything in the two rows above says what was switched on. This says what was received**, which
+is a different claim and the only one that discharges
+[ADR-0020](adr/0020-no-cookie-consent-banner.md)'s conditions:
+[`apps/web/src/analytics/redaction.test.ts`](../apps/web/src/analytics/redaction.test.ts) proves the
+redaction as a function, and a function cannot be asked whether anything left the browser. Checked on
+**21 August 2026** under **CAN-147 Verify the analytics redaction and opt-out against a real
+deployment**, by driving a deployment with Playwright and reading the outbound request bodies, then
+reading back what Vercel holds. Times are UTC.
+
+| What was asked | What was seen |
+| --- | --- |
+| Does a Story page arrive as its shape? | **Yes.** `https://www.canoncore.com/story/00000000-0000-4000-8000-000000000001` at 13:57:35 sent `o: "https://www.canoncore.com/story/*"` and `dp: "/story/*"`. Vercel reports `/story/*` under both `requestPath` and `route`, and that visit moved production from 2 pageviews to 3. **The identifier is in no field of the body** |
+| Does anything after a question mark arrive? | **No.** `https://www.canoncore.com/?canary-b4332512=1` at 13:57:29 was sent as `o: "https://www.canoncore.com/"` and is recorded as `/`. The canary string appears in no recorded path |
+| Does `/reset-password` record its token? | **No**, and it was asked with a live one — see below |
+| Does the objection work on a deployment? | **Yes.** With it recorded, two further page loads produced **no request at all** from either product; withdrawing it on the same page brought the pageview straight back |
+| Has `speedInsights.hasData` flipped? | **Yes**, to `true`, `dataReceivedAt` 13:28:27.512 — **87 seconds after** the production deployment of 13:27:00.091 |
+
+**The reset token was real, and that is the point of it.** On the preview, a reset was requested
+through `/forgot-password` for an account already in the shared preview branch; better-auth wrote a
+`reset-password:` row expiring one hour later, and the browser was driven to `/reset-password?token=`
+with that value, where the page rendered *Choose a new password* — so the token was carried and
+honoured. At 13:54:32 what left the browser was `o: ".../reset-password"` and `dp: "/reset-password"`,
+and Vercel records `/reset-password`. **The value is deliberately not written here**; it expired at
+14:53. A preview rather than production because the account is one a preview may hold and production
+may not — *The shared preview branch* below, and
+[`apps/web/e2e/verification-by-inbox.spec.ts`](../apps/web/e2e/verification-by-inbox.spec.ts) records
+the same bound.
+
+**`hasData` is a fact about the pipe and not about the product, which is sharper than it looks.**
+Speed Insights is **off** — never purchased — and it is receiving data anyway: the browser's own
+`/_vercel/speed-insights/vitals` request was captured going out from production at 13:57. So the row
+above saying *Off* and this section saying *receiving* are both true, and neither implies the other.
+**And `dataReceivedAt` is a first-receipt stamp rather than a latest-receipt one**: production vitals
+demonstrably left the browser at 13:57:29 and the field still read 13:28:27.512 when the API was read
+again at 13:58.
+
+**Both products redact the route as well as the URL, and only one of the two goes through
+`beforeSend`.** One Speed Insights request carried six samples — `FCP`, `TTFB`, `LCP`, `FID`, `INP`,
+`CLS` — and every one of them named the page twice, as `route: "/story/*"` and
+`href: ".../story/*"`. That is the surface
+[`apps/web/src/analytics/analytics.tsx`](../apps/web/src/analytics/analytics.tsx) exists to close.
+
+> **What nearly made all of this unobservable, and would have looked like success.** Both scripts
+> open with `if(navigator.webdriver||navigator.userAgent.includes("Headless"))return;` — read off the
+> live `/_vercel/insights/script.js` and `/_vercel/speed-insights/script.js` on 21 August 2026 —
+> so a browser they refuse sends **nothing**, and every "the token did not leak" check passes on an
+> empty set. **A default Playwright run is such a browser.** The ticket's own plan, *drive it with
+> `playwright` and read it back with `vercel`*, therefore does not work as written; what makes it
+> work is the launch flag named in
+> [`apps/web/e2e/measurement-on-the-wire.spec.ts`](../apps/web/e2e/measurement-on-the-wire.spec.ts),
+> which is the same flag the `playwright` MCP server already launches Chrome with.
+
+**This is now a spec rather than only a record**, so the next change to the redaction is checked
+rather than re-verified by hand: `measurement-on-the-wire.spec.ts` asserts the three wire claims
+above against whatever deployment it is pointed at, and fails loudly when no pageview arrives instead
+of passing on nothing. It is off the gate with the rest of the Playwright suite
+([ADR-0017](adr/0017-testing-stack.md)) and its header says how to run it.
+
+**One reading tool's default is worth knowing**: the `vercel` MCP's `get_web_analytics` returns
+**production only** unless the query filters on `environment eq 'preview'`, so a preview run read
+back without that filter looks like a run that sent nothing.
+
+**What this does not settle stays unsettled.** Real INP and full-session CLS need field traffic and
+the URL is deliberately not shared — *The URL-sharing gate* above. What is settled is that the pipe
+works and that what goes down it is redacted.
 
 ### `main` does not deploy from Git
 
