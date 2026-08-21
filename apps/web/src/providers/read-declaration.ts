@@ -27,7 +27,17 @@ export const contractVersion = "v1";
 const deadlineMilliseconds = 10_000;
 
 export type ProviderRead =
-  | { readonly ok: true; readonly declaration: CapabilityDeclaration }
+  | {
+      readonly ok: true;
+      /**
+       * The address this read used, normalised. Handed back rather than left to the caller to
+       * work out again: it is what the declaration must be stored against, and a caller
+       * normalising a second time is a second implementation of the rule that decides whether two
+       * spellings are one Provider.
+       */
+      readonly providerBaseUrl: string;
+      readonly declaration: CapabilityDeclaration;
+    }
   | { readonly ok: false; readonly refused: string };
 
 /**
@@ -41,7 +51,11 @@ export type ProviderRead =
 export function normaliseProviderUrl(pasted: string): { url: string } | { refused: string } {
   let parsed: URL;
   try {
-    parsed = new URL(pasted.trim());
+    // No `trim` — the URL parser removes *"any leading and trailing C0 control or space"* itself
+    // (https://url.spec.whatwg.org/#concept-basic-url-parser), so one here would be a second
+    // implementation of a rule that is already applied. Checked against Node 24 on 21 August 2026,
+    // and `normaliseProviderUrl` is asserted on a padded address for that reason.
+    parsed = new URL(pasted);
   } catch {
     return { refused: `${pasted} is not a URL.` };
   }
@@ -61,10 +75,23 @@ export function normaliseProviderUrl(pasted: string): { url: string } | { refuse
 /**
  * Read what a Provider declares, or say why it could not be read.
  *
- * **Every failure here fails the Source closed.** Nothing is stored, nothing is assumed and no
- * previous declaration is left standing as though this read had not happened: a Provider that cannot
- * be read has told the application nothing, and the safe reading of nothing is that it serves
- * nothing.
+ * **Every failure here fails the Source closed, and what that means depends on whether one is
+ * already held.** For a Source nothing has declared yet, it is literal: nothing is stored, nothing
+ * is assumed, and a Source with no declaration serves nothing at all. For one already recorded, the
+ * declaration in force **stays in force** and this read changes nothing — not even `read_at`.
+ *
+ * **That is the conservative answer rather than the lazy one**, and the alternative is worse in both
+ * directions. A Provider that cannot be read has said nothing new, and nothing new is not a
+ * statement that the Source's terms have changed: the contract says in terms that a `503` *"is never
+ * evidence that anything was deleted"*, and an outage, a bad deploy and a revoked credential all
+ * look like this. Dropping to *serves nothing* on any of them would blank a catalogue on a network
+ * blip. What a stored declaration does is **constrain**, so leaving it standing withholds at least
+ * as much as replacing it with silence would — and values that can never be refreshed are dropped by
+ * their retention rather than by a failed read (CAN-103 Refresh Snapshots before their Source's
+ * retention expires, and drop what cannot be refreshed).
+ *
+ * `docs/runbook.md` → *A Provider's declaration is read or re-read* is where an operator reads this
+ * back, and it says the same thing in one line: whatever was held is exactly as it was.
  */
 export async function readDeclaration(providerBaseUrl: string): Promise<ProviderRead> {
   const base = normaliseProviderUrl(providerBaseUrl);
@@ -110,7 +137,7 @@ export async function readDeclaration(providerBaseUrl: string): Promise<Provider
     };
   }
 
-  return { ok: true, declaration: parsed.declaration };
+  return { ok: true, providerBaseUrl: base.url, declaration: parsed.declaration };
 }
 
 /**

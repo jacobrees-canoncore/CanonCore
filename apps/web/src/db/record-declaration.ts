@@ -90,6 +90,16 @@ export async function recordDeclaration(
     livenessEvidence: declaration.liveness?.evidence ?? null,
   };
 
+  // One shape for all three outcomes, so a member cannot be right on one path and forgotten on
+  // another — the three differ in two fields and agreed on the other three by copying.
+  const record = (outcome: Outcome, sourceId: string, snapshotsWithheld = 0): DeclarationRecord => ({
+    sourceId,
+    providerBaseUrl,
+    declaredId: declaration.source.id,
+    outcome,
+    snapshotsWithheld,
+  });
+
   return database.transaction(async (transaction) => {
     // `for update` on the Source's own row, so a second read of the same Provider running at the
     // same time cannot interleave between the comparison below and the write that depends on it.
@@ -111,13 +121,7 @@ export async function recordDeclaration(
         .values({ providerBaseUrl, declaredId: declaration.source.id, ...declared })
         .returning({ id: source.id });
 
-      return {
-        sourceId: written.id,
-        providerBaseUrl,
-        declaredId: declaration.source.id,
-        outcome: "recorded",
-        snapshotsWithheld: 0,
-      };
+      return record("recorded", written.id);
     }
 
     if (held.declaredAt > declaration.declaredAt) {
@@ -138,13 +142,7 @@ export async function recordDeclaration(
         .set({ readAt: sql`now()` })
         .where(eq(source.id, held.id));
 
-      return {
-        sourceId: held.id,
-        providerBaseUrl,
-        declaredId: declaration.source.id,
-        outcome: "unchanged",
-        snapshotsWithheld: 0,
-      };
+      return record("unchanged", held.id);
     }
 
     await transaction
@@ -160,12 +158,6 @@ export async function recordDeclaration(
       .from(snapshot)
       .where(and(eq(snapshot.sourceId, held.id), ne(snapshot.sourceDeclaredAt, declaration.declaredAt)));
 
-    return {
-      sourceId: held.id,
-      providerBaseUrl,
-      declaredId: declaration.source.id,
-      outcome: "superseded",
-      snapshotsWithheld: withheld,
-    };
+    return record("superseded", held.id, withheld);
   });
 }

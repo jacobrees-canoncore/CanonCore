@@ -99,6 +99,20 @@ test("the three published examples are all of them, so none is quietly dropped",
   ]);
 });
 
+test.each([
+  ["source.name", { source: { id: "example", name: "", url: "https://example.invalid" } }],
+  ["licence.name", { licence: { spdx: "", name: "", url: "https://example.invalid", shareAlike: false } }],
+  ["a restriction", { restrictions: [""] }],
+  ["a notice", { attribution: { required: true, notices: [{ text: "", conditions: "" }], link: "https://example.invalid" } }],
+  ["a term", { classification: { vocabulary: [{ term: "", label: "", suppressesArtwork: true }] } }],
+  ["liveness evidence", { liveness: { confirmsDeletion: false, evidence: "" } }],
+])("an empty %s is accepted, because the contract accepts it", (_name, member) => {
+  // The YAML is normative and this application's schema is not, so a member the contract leaves as a
+  // bare `string` is one a conformant Provider may send empty. Refusing it would fail a whole Source
+  // over a blank credit line — and an earlier version of this schema did, on ten members.
+  expect(parseDeclaration({ ...minimal, ...member }).ok).toBe(true);
+});
+
 test("a member this application does not know about is ignored rather than refused", () => {
   // The contract is additive-only, so a consumer that refused an unrecognised member would break on
   // its next revision. Ignored means dropped: it is not stored, and nothing is honoured on it.

@@ -16,7 +16,7 @@
 // `../src/providers/read-declaration.ts` and `../src/db/record-declaration.ts`.
 import { Client } from "pg";
 import { recordDeclaration } from "../src/db/record-declaration.ts";
-import { normaliseProviderUrl, readDeclaration } from "../src/providers/read-declaration.ts";
+import { readDeclaration } from "../src/providers/read-declaration.ts";
 import { refusalsInForce } from "../src/providers/refusals.ts";
 
 const url = process.env.MIGRATION_DATABASE_URL;
@@ -36,12 +36,7 @@ if (!pasted) {
   );
 }
 
-// Normalised before the read as well as inside it, so that what is stored against the row is the
-// same address the read used and the report names it once.
-const provider = normaliseProviderUrl(pasted);
-if ("refused" in provider) throw new Error(provider.refused);
-
-const read = await readDeclaration(provider.url);
+const read = await readDeclaration(pasted);
 
 // A declaration that cannot be read fails the Source closed: nothing is written, and whatever was
 // held stays exactly as it was. A non-zero exit is what says so to whoever ran this.
@@ -52,7 +47,9 @@ if (!read.ok) {
   const client = new Client({ connectionString: url });
   await client.connect();
   try {
-    const record = await recordDeclaration(client, provider.url, read.declaration);
+    // The address the read actually used, taken from the read rather than worked out again here:
+    // deciding whether two spellings are one Provider is one rule, in one place.
+    const record = await recordDeclaration(client, read.providerBaseUrl, read.declaration);
 
     // Printed rather than returned, because the run's own log is the record of what was stored.
     console.info(`${record.outcome} — ${read.declaration.source.name}`);

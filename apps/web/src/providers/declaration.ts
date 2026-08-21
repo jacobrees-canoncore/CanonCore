@@ -151,6 +151,20 @@ export type ParsedDeclaration =
   | { readonly ok: false; readonly refused: string };
 
 /**
+ * **This schema narrows what the contract accepts in exactly two places, and both are below.**
+ *
+ * Everywhere else it accepts precisely what `Capabilities` accepts, empty strings included: the YAML
+ * file is normative and this is not, so a member it leaves as a bare `string` is one a conformant
+ * Provider may send empty — and refusing that would fail a whole Source over a blank credit line. An
+ * earlier version of this file put a minimum length on ten such members, which is the mistake worth
+ * naming rather than quietly reversing: a consumer's opinion about what is useful is not the
+ * contract.
+ *
+ * The two narrowings are `url` and `retention` immediately below, each because accepting what the
+ * contract permits would cost more than refusing a Provider does.
+ */
+
+/**
  * Every URL a declaration carries is `http` or `https` and nothing else.
  *
  * Not because any of them is followed — none is; the surface renders them as text and
@@ -162,14 +176,14 @@ export type ParsedDeclaration =
 const url = z.url({ protocol: /^https?$/ });
 
 const notice = z.object({
-  text: z.string().min(1),
-  conditions: z.string().min(1).optional(),
+  text: z.string(),
+  conditions: z.string().optional(),
 });
 
 const logo = z.object({
   url,
-  alt: z.string().min(1),
-  conditions: z.string().min(1).optional(),
+  alt: z.string(),
+  conditions: z.string().optional(),
 });
 
 /**
@@ -215,9 +229,9 @@ const retention = z.union([
  * removes.
  */
 const classificationTerm = z.object({
-  term: z.string().min(1),
-  label: z.string().min(1).optional(),
-  description: z.string().min(1).optional(),
+  term: z.string(),
+  label: z.string().optional(),
+  description: z.string().optional(),
   suppressesArtwork: z.boolean(),
 });
 
@@ -235,18 +249,18 @@ const declaration = z.object({
     // The contract's own pattern. It is what makes the identifier safe to compare, and it is
     // compared only within one Provider — see `SourceIdentity.id`.
     id: z.string().regex(/^[a-z0-9][a-z0-9-]*$/),
-    name: z.string().min(1),
+    name: z.string(),
     url,
   }),
   retention,
   licence: z.object({
-    spdx: z.string().min(1),
-    name: z.string().min(1),
+    spdx: z.string(),
+    name: z.string(),
     url,
     shareAlike: z.boolean(),
   }),
   attribution,
-  restrictions: z.array(z.string().min(1)),
+  restrictions: z.array(z.string()),
   // The three optional blocks. Each is absent where the Provider does not do that thing, and
   // `.optional()` is what keeps that distinguishable from a declaration that does it and found
   // nothing to say — `refusals.ts` turns each absence into its own refusal.
@@ -256,7 +270,7 @@ const declaration = z.object({
     .optional(),
   orderings: z.object({ canonical: z.boolean() }).optional(),
   liveness: z
-    .object({ confirmsDeletion: z.boolean(), evidence: z.string().min(1).optional() })
+    .object({ confirmsDeletion: z.boolean(), evidence: z.string().optional() })
     .optional(),
 });
 

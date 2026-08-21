@@ -46,6 +46,8 @@ describe("the address a Provider is reached at", () => {
     ["https://example.invalid", "https://example.invalid"],
     ["https://example.invalid/", "https://example.invalid"],
     ["https://example.invalid///", "https://example.invalid"],
+    // Padded, which nothing here strips: the URL parser removes leading and trailing spaces itself,
+    // and this case is what says so rather than a `trim` that would have hidden it.
     ["  https://example.invalid  ", "https://example.invalid"],
     ["https://example.invalid/providers/tmdb", "https://example.invalid/providers/tmdb"],
     ["https://example.invalid/providers/tmdb/", "https://example.invalid/providers/tmdb"],
@@ -69,6 +71,16 @@ describe("the address a Provider is reached at", () => {
     await readDeclaration("https://example.invalid/");
 
     expect(calls).toEqual([`https://example.invalid/${contractVersion}/capabilities`]);
+  });
+
+  test("the read hands back the address it used, so nothing normalises it a second time", async () => {
+    // What the declaration is stored against has to be the address that was read, and deciding
+    // whether two spellings are one Provider is one rule in one place.
+    answering(asJson(declaration));
+
+    const read = await readDeclaration("https://example.invalid/providers/one/");
+
+    expect(read.ok === true && read.providerBaseUrl).toBe("https://example.invalid/providers/one");
   });
 });
 

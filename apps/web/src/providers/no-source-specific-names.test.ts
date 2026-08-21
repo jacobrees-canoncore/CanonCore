@@ -33,10 +33,16 @@ const thisFile = "src/providers/no-source-specific-names.test.ts";
  * rather than about one module: a Source's field name written into a page, a column or a query would
  * be the same failure, and a search scoped to the files that were written with the rule in mind
  * would only ever pass.
+ *
+ * **And `scripts/`, which is on this path and is not under `src`.** The operator command that reads
+ * a declaration lives there, so a scan that stopped at `src` would leave the one file that actually
+ * speaks to a Provider unread.
  */
-const application = readdirSync(join(root, "src"), { recursive: true, encoding: "utf8" })
-  .map((entry) => join("src", entry))
-  .filter((file) => /\.tsx?$/.test(file) && file !== thisFile);
+const application = ["src", "scripts"].flatMap((directory) =>
+  readdirSync(join(root, directory), { recursive: true, encoding: "utf8" })
+    .map((entry) => join(directory, entry))
+    .filter((file) => /\.(mts|tsx?)$/.test(file) && file !== thisFile),
+);
 
 /**
  * `adult` is TMDB's field name, and the criterion names it.
@@ -53,6 +59,7 @@ test("the search reaches the whole application, so a clean result means somethin
   expect(application.length).toBeGreaterThan(30);
   expect(application).toContain(join("src", "providers", "declaration.ts"));
   expect(application).toContain(join("src", "app", "sources", "sources-page.tsx"));
+  expect(application).toContain(join("scripts", "read-declaration.mts"));
 });
 
 test("the pattern finds the word where it is a field name, and not where it is a path", () => {
