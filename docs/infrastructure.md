@@ -22,6 +22,7 @@ changes, it is evidence and does not belong here.
 - [Hosting](#hosting)
 - [The repository, and what `main` refuses](#the-repository-and-what-main-refuses)
 - [The Provider repository baseline](#the-provider-repository-baseline)
+- [The Provider repository agent baseline](#the-provider-repository-agent-baseline)
 - [Environment variables](#environment-variables)
 - [Database](#database)
 - [Backups](#backups)
@@ -882,6 +883,123 @@ been the same homeless scope **CAN-107 Give every Provider repository a CI basel
 flagged when it found supply-chain scanning assumed to live in **CAN-61 Keep the codebase and its
 dependencies from silting up**. It has to be settled before a monitor is pointed at anything, which
 is why it is not blocked by the deployment it will watch.
+
+## The Provider repository agent baseline
+
+The section above gives a Provider repository this project's *gates*. This one gives it the
+*practice* behind them — the four engineering skills, and the documents they are written against.
+Built by **CAN-153 Give every Provider repository an agent baseline, as CAN-107 gave it a CI one**
+on 21 August 2026, after `provider-tmdb` existed rather than before it, which is the one way this
+baseline is unlike the CI one: an unchecked merge is permanent and a session run without the
+standards is not.
+
+**It is one Claude Code plugin, and this repository is what it delivers.** The decision, what was
+rejected, and what it costs are [ADR-0028](adr/0028-the-engineering-practice-reaches-a-provider-repository-as-a-plugin.md);
+this is the register of what is provisioned.
+
+| Part | Shape | How a repository gets it |
+| --- | --- | --- |
+| The four skills, and `CLAUDE.md`, `CODING_STANDARDS.md`, `CONTEXT.md`, `docs/` | Two manifests here — [`.claude-plugin/marketplace.json`](../.claude-plugin/marketplace.json) and [`.claude-plugin/plugin.json`](../.claude-plugin/plugin.json) — whose plugin `source` is `"./"`, so the payload is this repository | Eight lines of that repository's own `.claude/settings.json`, below |
+| The install itself | Not settings, and not automatic | One `claude plugin install` per person per machine, below |
+| What is true of *that* repository, loaded on every request there | A short `CLAUDE.md` of its own | Written per Provider. It is not a copy of this one — [ADR-0028](adr/0028-the-engineering-practice-reaches-a-provider-repository-as-a-plugin.md) → *Consequences* |
+
+### The eight lines, and the command they do not run
+
+A Provider repository commits exactly this, and nothing else changes hands:
+
+```json
+{
+  "extraKnownMarketplaces": {
+    "canoncore": {
+      "source": { "source": "github", "repo": "jacobrees-canoncore/CanonCore" }
+    }
+  },
+  "enabledPlugins": { "canoncore-engineering@canoncore": true }
+}
+```
+
+**Those lines add the marketplace and they do not install the plugin.** Claude Code adds a
+marketplace declared this way *"once a team member trusts the repository folder"*, and separately:
+*"adding the marketplace doesn't install plugins that come from an external source, on any path that
+loads plugins ... Until then, Claude Code reports the plugin as not installed and shows the
+`claude plugin install` command to run"*
+([Discover and install plugins](https://code.claude.com/docs/en/discover-plugins), read
+21 August 2026). So each person runs this once per machine:
+
+```bash
+claude plugin install canoncore-engineering@canoncore --scope project
+```
+
+**Both halves were measured rather than read**, on 21 August 2026, from a directory holding nothing
+but those eight lines and with every trace of the marketplace and its cache removed first:
+
+| Step | What was observed |
+| --- | --- |
+| A session there, folder **not** trusted | Nothing fetched. No marketplace clone, no cache entry, and the plugin's skills absent from the session |
+| The same session, folder trusted | `~/.claude/plugins/marketplaces/canoncore` appeared — the marketplace added itself. **No cache entry**, and the skills still absent |
+| `claude plugin install …` after it | Installed, `.claude/settings.json` unchanged in content, and a session there then listed `canoncore-engineering:code-review` |
+
+The last row is the whole inventory a model sees, and that is correct rather than a partial load:
+`draft-pr`, `implement` and `review-pr` all carry `disable-model-invocation`, so they never appear
+in a model's own list and only a person fires them. **`claude plugin details` is the reading that
+shows all four**, and it is the evidence to ask for:
+
+```
+Skills (4)  code-review, draft-pr, implement, review-pr
+MCP servers (1)  resend  (tool schemas resolved at runtime; not counted)
+Always-on:  ~231 tok   added to every session
+```
+
+### What is in the payload, and the two things that follow from it
+
+The plugin's `source` is `"./"`, so the installed copy is this repository: **3.8 MB, read back from
+the cache on 21 August 2026** from a `github` source, holding `CLAUDE.md`, `CODING_STANDARDS.md`,
+`CONTEXT.md`, `docs/` and `.claude/skills/` as well as `apps/`, `packages/` and `scripts/`, which
+are inert. No dependency install runs: Claude Code installs a plugin's Node packages only when the
+plugin root holds a `package.json` **and** a `bun.lock`, `bun.lockb`, `npm-shrinkwrap.json` or
+`package-lock.json` ([Plugins reference](https://code.claude.com/docs/en/plugins-reference), read
+21 August 2026), and this repository's lockfile is `pnpm-lock.yaml`.
+
+Two things follow, and both are rules rather than observations:
+
+- **Nothing credentialled may go in [`.mcp.json`](../.mcp.json).** It sits at the plugin root, which
+  is a default component path, and no manifest field suppresses it — `plugin.json`'s `mcpServers` is
+  *"in addition to"* it. `claude plugin details` reports `MCP servers (1) resend` against what is
+  installed, so anything added there is published into every Provider repository's session.
+  The Resend server is safe there because it is OAuth and holds no key
+  ([`agents/tooling.md`](agents/tooling.md) → *Which servers are project scope and which are user
+  scope*).
+- **A directory created at this repository's root can join the payload silently.** `agents/`,
+  `commands/`, `hooks/hooks.json`, `output-styles/` and `.lsp.json` are the other default component
+  paths. None exists here; one added for an unrelated reason would start travelling with no warning.
+
+### Why `@main` on both ends, and what pins it if that goes wrong
+
+Neither manifest names a ref, so both the marketplace and the plugin resolve to this repository's
+default branch — the same trade [*Why the `uses:` reference works*](#why-the-uses-reference-works-and-what-would-break-it)
+takes for the CI baseline, and for the same reason: a fix reaches every Provider at once instead of
+through six pull requests, and so does a mistake.
+
+**Pinning is available on both, and they pin differently.** A marketplace source takes `ref` — a
+branch or tag — and not `sha`; a plugin source takes `ref` **and** `sha`, and the `sha` wins when
+both are set ([Create a plugin marketplace](https://code.claude.com/docs/en/plugin-marketplaces),
+read 21 August 2026). The marketplace `ref` is also what makes this arrangement testable before it
+merges: `claude plugin marketplace add jacobrees-canoncore/CanonCore@<branch>` writes the `ref` into
+the entry, which is how the whole chain above was proved from a branch rather than after landing it.
+
+### What holds it together
+
+`scripts/check-docs.ts` compares this section against the manifests and the skills directory on
+every run, for the same reason the composed status check context is checked: what a Provider
+repository loads is decided by four strings — `canoncore`, `canoncore-engineering`, the `source`
+and the `skills` path — and none of them is anywhere near the documents that describe them.
+A rename here breaks every Provider repository's session at once, and nothing in a Provider
+repository would report why.
+
+**Every `${CLAUDE_PLUGIN_ROOT}` path in a skill body is checked too.** Those paths resolve against
+the payload rather than against the working directory, so nothing else in this repository would ever
+notice one going stale: a moved document leaves the skill pointing at a file that exists here and
+not there.
 
 ## Environment variables
 

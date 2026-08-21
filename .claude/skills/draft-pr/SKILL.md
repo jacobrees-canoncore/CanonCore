@@ -13,6 +13,12 @@ argument or a piece of evidence lives, for when a step surprises you:
 
 `WS=ad2669ec-93a5-4ce1-97fa-c7d9247a1452` throughout.
 
+**In a Provider repository two things differ, and the steps below hold otherwise.** The pointers'
+root is `${CLAUDE_PLUGIN_ROOT}` rather than the working directory, because this skill arrived as a
+Claude Code plugin. And the issue step 3 finds is that repository's own: one ticket per repository is the rule,
+since two pull requests carrying one identifier both drive it and the first to merge closes it
+(`docs/agents/workflow.md` → *Work that spans two repositories*).
+
 ## Steps
 
 1. **Refuse to run on `main`.** `git branch --show-current`. If it is `main`, stop — there would be

@@ -67,6 +67,15 @@ function fixture({
   documentedCron = "17 2 * * *",
   documentedRetentionDays = RETENTION_DAYS,
   tolerance = true,
+  // The agent baseline's four strings and the one payload path a skill names. Parameters for the
+  // same reason as the Provider baseline's above: the check that compares them is what a case has
+  // to be able to break, and breaking it by rewriting the register would take the rest with it.
+  marketplaceName = "canoncore",
+  pluginName = "canoncore-engineering",
+  pluginSource = "./",
+  pluginSkills = ["./.claude/skills"],
+  enabledPlugin = "canoncore-engineering@canoncore",
+  skillPayloadPath = "CLAUDE.md",
 }: {
   jobName: string;
   documentedContext: string;
@@ -82,6 +91,12 @@ function fixture({
   documentedCron?: string;
   documentedRetentionDays?: number;
   tolerance?: boolean;
+  marketplaceName?: string;
+  pluginName?: string;
+  pluginSource?: string;
+  pluginSkills?: string[];
+  enabledPlugin?: string;
+  skillPayloadPath?: string;
 }): Fixture {
   const dir = mkdtempSync(join(tmpdir(), "check-docs-"));
   const write = (rel: string, body: string) => {
@@ -141,6 +156,25 @@ function fixture({
       "",
       `**The required context is \`${documentedProviderContext}\`**, composed from the caller and`,
       "the workflow it calls rather than written down twice.",
+      "",
+      "## The Provider repository agent baseline",
+      "",
+      "The block a Provider repository commits, read back by the check rather than trusted:",
+      "",
+      "```json",
+      JSON.stringify(
+        {
+          extraKnownMarketplaces: {
+            [marketplaceName]: {
+              source: { source: "github", repo: "jacobrees-canoncore/CanonCore" },
+            },
+          },
+          enabledPlugins: { [enabledPlugin]: true },
+        },
+        null,
+        2,
+      ),
+      "```",
       "",
       "## Dependency and secret scanning",
       "",
@@ -213,6 +247,24 @@ function fixture({
       "| `alias record` | DNS's own word, not this glossary's |",
       "",
       ...glossaryTerms,
+    ].join("\n"),
+  );
+  // The two manifests and one skill under the path they publish. Read by path rather than through
+  // the document set, so a fixture without them fails every case on a missing file.
+  write(
+    ".claude-plugin/marketplace.json",
+    JSON.stringify({ name: marketplaceName, plugins: [{ name: pluginName, source: pluginSource }] }),
+  );
+  write(".claude-plugin/plugin.json", JSON.stringify({ name: pluginName, skills: pluginSkills }));
+  write(
+    ".claude/skills/implement/SKILL.md",
+    [
+      "---",
+      "name: implement",
+      "description: A skill.",
+      "---",
+      "",
+      `The standards are \`\${CLAUDE_PLUGIN_ROOT}/${skillPayloadPath}\`.`,
     ].join("\n"),
   );
   for (const [rel, body] of Object.entries(documents)) write(rel, body);
@@ -310,7 +362,7 @@ test("a register that agrees with the workflow passes, and unreachable sources o
   // What the two document checks actually walked, asserted rather than assumed. A pass over an
   // empty set is what this suite reported for as long as the child inherited its directory, and
   // the count is printed only in the summary and under `--verbose`.
-  assert.match(summary, /\| PASS \| every relative link and anchor resolves \| 4 documents \|/);
+  assert.match(summary, /\| PASS \| every relative link and anchor resolves \| 5 documents \|/);
   assert.match(summary, /\| PASS \| every "file → \*Section\*" pointer resolves \| 2 pointers resolve \|/);
 });
 
@@ -374,14 +426,17 @@ test("a listing that came back empty fails rather than passing over nothing", ()
     // The Provider baseline's called workflow is hidden with them, and the backup workflow with it:
     // both are tracked `.yml` outside every allowed set, so leaving either in the index would give
     // the two scans one file to search and the vacuous-pass this case is about would no longer be
-    // vacuous. Anything else tracked and outside those sets has to join this list for the same
-    // reason — which is what adding the backup workflow found.
+    // vacuous. `.claude/` goes for the same reason on the other side: a `SKILL.md` is tracked
+    // markdown, so a listing still holding one is not an empty listing at all. Anything else
+    // tracked and outside those sets has to join this list — which is what adding the backup
+    // workflow found, and then the skills directory.
     untracked: [
       "docs/",
       "CLAUDE.md",
       "CONTEXT.md",
       ".github/workflows/provider-ci.yml",
       ".github/workflows/backup-database.yml",
+      ".claude/",
     ],
   });
   const { code, output } = run(gitOnly);
@@ -394,6 +449,10 @@ test("a listing that came back empty fails rather than passing over nothing", ()
   // over a repository it never opened. Its own source is still on disk and still parses, which is
   // exactly how a vacuous pass here would look like a real one.
   assert.match(output, /^FAIL {2}every document uses the glossary's word for the concept {2,}.*no tracked markdown/m);
+  // The fifth, and the one whose vacuous pass would be a Provider repository's problem rather than
+  // this one's: with no skill in the listing there is no payload path to resolve, and a clean
+  // report would mean the skills had stopped naming any.
+  assert.match(output, /^FAIL {2}every \$\{CLAUDE_PLUGIN_ROOT\} path a skill names resolves {2,}.*matched no skill/m);
 });
 
 test("a register naming two live release tokens fails before it reaches Vercel", () => {
@@ -574,6 +633,55 @@ test("the composed Provider context written out a second time fails the build", 
   assert.match(output, /docs\/agents\/workflow\.md \("baseline \/ gates"\)/);
 });
 
+test("a plugin renamed here but not in the register fails the build", () => {
+  // The failure no Provider repository can see: the id in its own `.claude/settings.json` is the
+  // register's, so a rename here leaves every one of them enabling something that no longer exists
+  // — and the repository that renamed it reports nothing, because nothing here uses the string.
+  const { run, gitOnly } = fixture({
+    jobName: "the register's context",
+    documentedContext: "the register's context",
+    pluginName: "canoncore-chain",
+  });
+  const { code, output } = run(gitOnly);
+
+  assert.equal(code, 1, output);
+  assert.match(output, /^FAIL {2}the documented agent baseline matches the manifests/m);
+  assert.match(output, /enables "canoncore-engineering@canoncore" and the manifests compose "canoncore-chain@canoncore"/);
+});
+
+test("a payload that is no longer this repository fails the build", () => {
+  // The one that fails by installing. With the source a subdirectory the plugin still installs and
+  // still carries its skills; what stops travelling is CLAUDE.md, CODING_STANDARDS.md, CONTEXT.md
+  // and docs/, so every pointer those skills resolve against the payload silently resolves to
+  // nothing — in a repository this checkout cannot see.
+  const { run, gitOnly } = fixture({
+    jobName: "the register's context",
+    documentedContext: "the register's context",
+    pluginSource: "./plugin",
+  });
+  const { code, output } = run(gitOnly);
+
+  assert.equal(code, 1, output);
+  assert.match(output, /^FAIL {2}the documented agent baseline matches the manifests/m);
+  assert.match(output, /stops travelling/);
+});
+
+test("a skill naming a payload path that has moved fails the build", () => {
+  // Check 7 follows relative markdown links; this is not one, and it resolves against a copy of
+  // this repository rather than against it. So a document moved here leaves the skill pointing at
+  // a file that is present in every checkout and absent from every payload.
+  const { run, gitOnly } = fixture({
+    jobName: "the register's context",
+    documentedContext: "the register's context",
+    skillPayloadPath: "docs/CODING_STANDARDS.md",
+  });
+  const { code, output } = run(gitOnly);
+
+  assert.equal(code, 1, output);
+  assert.match(output, /^FAIL {2}every \$\{CLAUDE_PLUGIN_ROOT\} path a skill names resolves/m);
+  assert.match(output, /docs\/CODING_STANDARDS\.md/);
+});
+
 test("a document using an `_Avoid_` word for the concept it is listed against fails the build", () => {
   // The rule CODING_STANDARDS.md → Domain language states, enforced by a reviewer's attention
   // until CAN-129 Enforce the glossary's _Avoid_ lists with a check, instead of a reviewer's
@@ -619,7 +727,7 @@ test("the same word doing another job passes, which is what keeps the gate worth
   assert.equal(code, 0, output);
   // What it walked, asserted rather than assumed: a pass over an empty document set reads
   // identically to a pass over the repository.
-  assert.match(summary, /\| PASS \| every document uses the glossary's word for the concept \| 1 term across 5 documents \|/);
+  assert.match(summary, /\| PASS \| every document uses the glossary's word for the concept \| 1 term across 6 documents \|/);
 });
 
 test("a register promising a schedule the workflow does not run fails", () => {

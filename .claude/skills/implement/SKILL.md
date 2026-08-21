@@ -6,6 +6,14 @@ disable-model-invocation: true
 
 Implement the work described by the user in the spec or tickets.
 
+**Every path named here is relative to the CanonCore repository root.** In CanonCore that is the
+working directory. In a Provider repository this skill arrived as a Claude Code plugin, so the root is
+`${CLAUDE_PLUGIN_ROOT}` — and `${CLAUDE_PLUGIN_ROOT}/CLAUDE.md` and
+`${CLAUDE_PLUGIN_ROOT}/CODING_STANDARDS.md` are the standards to write to, because neither is in the
+repository you are working in. Read both before writing code there, along with that repository's own
+`CLAUDE.md`, which says what is different about it (`docs/agents/workflow.md` → *Work that spans two
+repositories*).
+
 When the work is a ticket, read it and its comments first — `orca linear issue --current --comments --json` — then the ADRs and docs for the area.
 
 Use /tdd where possible, at pre-agreed seams.
