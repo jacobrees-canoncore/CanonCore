@@ -26,6 +26,7 @@ which starts by saying so.
 - [Triage: two requests](#triage-two-requests)
 - [A release is bad](#a-release-is-bad)
 - [The database does not answer](#the-database-does-not-answer)
+- [The database has to be restored from a backup](#the-database-has-to-be-restored-from-a-backup)
 - [Spend Management paused the production deployment](#spend-management-paused-the-production-deployment)
 - [A Source's licence terminates](#a-sources-licence-terminates)
 - [What warns you before a pause](#what-warns-you-before-a-pause)
@@ -250,6 +251,107 @@ being refused, so nothing answered before Vercel gave up on the function.
 > *billed* rather than cut off ([Neon plans](https://neon.com/docs/introduction/plans), read 16
 > August 2026). So a suspended compute here means a payment or subscription problem — the
 > subscription is Vercel's, through the marketplace integration — and never a busy week.
+
+## The database has to be restored from a backup
+
+**This is the last entry to reach for, and the first question is which of two mechanisms you want.**
+They are both destructive and they answer different failures.
+
+- **The damage is inside 7 days and Neon is fine** → Neon's own instant restore, which is faster and
+  loses nothing else. It is *"a **complete** overwrite, not a merge or refresh. Everything on your
+  current branch, data and schema, is replaced with the contents from the historical source"*
+  ([branch restore](https://neon.com/docs/guides/branch-restore), read 21 August 2026) — so it
+  undoes good writes made since the moment you restore to, as well as bad ones. It does keep the
+  state it replaced, as a branch named `{branch_name}_old_{head_timestamp}`, which is the thing that
+  makes it survivable; Neon's documentation does not say how long that is kept.
+- **The damage is older than 7 days, or the Neon account is gone** → the nightly backup, below. It
+  is the only thing that survives losing the provider, and it is 24 hours stale at worst.
+
+**Neither is the answer to a bad release**, which is *A release is bad* above: that moves code and
+never the schema ([ADR-0027](adr/0027-migrations-are-forward-only-and-a-rollback-moves-code-alone.md)).
+And neither is the answer to a database that is not answering — *The database does not answer*.
+
+**What you need before you start.** Both live on Jacob's machine and in no workflow, deliberately:
+`~/.config/canoncore/backup-age-key` (the only thing that can decrypt a backup) and
+`~/.config/canoncore/blob-read-write-token`. [`infrastructure.md`](infrastructure.md) → *Backups*
+says where they come from. **Without the age identity there is no restore at all**, and nothing else
+in this file changes that.
+
+### Restoring into a scratch branch, which is where you always start
+
+**Never restore straight onto production, even when production is what you mean to fix.** A
+`--clean` restore drops each object before recreating it, and one that stops half way has already
+dropped what it did not put back — so a failure leaves the target worse than it found it. The
+script refuses production for that reason and needs `--onto-production` to be told otherwise.
+
+1. **Make a branch to restore into**, as a child of `preview` rather than of `main` — a child of
+   `main` starts as a copy of production, so every row you are trying to prove arrived would already
+   be there.
+
+   ```bash
+   curl -s -X POST -H "Authorization: Bearer $(cat ~/.config/canoncore/neon-api-key)" \
+     -H "Content-Type: application/json" \
+     -d '{"branch":{"parent_id":"br-calm-flower-zame56ly","name":"restore-drill"},"endpoints":[{"type":"read_write"}]}' \
+     "https://console.neon.tech/api/v2/projects/steep-wave-52467839/branches"
+   ```
+
+2. **Give the migration role `CREATE` on the database, on that branch.** Production has this and a
+   new branch does not — measured on 21 August 2026: `has_database_privilege('canoncore_migrator',
+   'neondb', 'CREATE')` is true on `main` and false on `preview` and on every worktree branch. The
+   restore needs it to recreate the `drizzle` schema, and without it stops at `permission denied for
+   database neondb`. Connected as `neondb_owner`:
+
+   ```sql
+   GRANT CREATE ON DATABASE neondb TO canoncore_migrator;
+   ```
+
+3. **Restore, as `canoncore_migrator` and not as `neondb_owner`.** The migration role owns every
+   table, and only an owner may drop a policy: as `neondb_owner` the restore stops at `must be owner
+   of relation version`, having already dropped part of the schema. Neon will hand you either role's
+   connection string — `role_name=canoncore_migrator` on the `connection_uri` endpoint.
+
+   ```bash
+   export RESTORE_DATABASE_URL='postgresql://canoncore_migrator:…'
+   node scripts/restore-database.ts                       # the newest backup
+   node scripts/restore-database.ts --pathname postgres/2026-08-21T02-17-00Z.dump.age
+   ```
+
+4. **Compare what it printed with the source.** It prints every table's row count and then the
+   guards — row security, policy count, what each application role may do, and the owner. The row
+   counts belong against the ones the backup's own workflow run logged; the guards belong against
+   [`infrastructure.md`](infrastructure.md) → *Roles*. **A restore nobody compared has only proved
+   that `pg_restore` exits zero.**
+
+5. **Delete the branch when you are done with it.** It holds a full copy of production.
+
+### What this was proved against, and the three things that bit
+
+**Performed on 21 August 2026 under CAN-55 Keep a backup that reaches past Neon's 24-hour history
+window**, restoring a real production backup into a branch of `preview` whose own contents differed
+on seven tables. All thirteen tables came back with production's exact row counts, and the twelve
+`public` tables came back with row security, policy counts, both roles' privileges and ownership
+**identical to production's**.
+
+Three failures happened first, and each one is a step above: the wrong role, the missing database
+privilege, and Neon's own catalogue entries. **That third one is why the restore filters the
+archive**: a whole-database dump carries `DEFAULT PRIVILEGES FOR ROLE cloud_admin` and the `public`
+schema's ACL, which belong to Neon rather than to this project and which nothing here may recreate —
+`permission denied to change default privileges`. The restore skips those three entries by owner and
+prints each one it skipped.
+
+### Restoring production itself
+
+Only after a scratch restore has succeeded, and only with the flag:
+
+```bash
+RESTORE_DATABASE_URL='…production…' node scripts/restore-database.ts --onto-production
+```
+
+**Read *A release is bad* first.** If the code that will meet this schema is not the code the backup
+was taken under, restoring the data is half a recovery: migrations are forward-only, so a schema
+from the past meets today's release with no way back
+([ADR-0027](adr/0027-migrations-are-forward-only-and-a-rollback-moves-code-alone.md)). Decide which
+release is running before you replace the schema underneath it.
 
 ## Spend Management paused the production deployment
 

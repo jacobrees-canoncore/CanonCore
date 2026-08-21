@@ -25,6 +25,11 @@
 //                            were enforced by a reviewer's attention until CAN-129 Enforce the
 //                            glossary's _Avoid_ lists with a check, instead of a reviewer's
 //                            attention
+//  12. backup promises    -  docs/infrastructure.md  vs  the workflow's cron and the retention the
+//                            code enforces
+//  13. backup freshness   -  docs/infrastructure.md  vs  what the backup store actually holds. The
+//                            only one of these that reports on something *not happening*, which is
+//                            how a nightly job stops: silently, and believed until it is needed
 //
 // Run:  node scripts/check-docs.ts [--verbose]
 //
@@ -42,7 +47,9 @@ import { appendFileSync, readFileSync, existsSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
+import { list } from "@vercel/blob";
 import type { Attempt, Result } from "./lib/doc-checks.ts";
+import { BACKUP_PREFIX, RETENTION_DAYS, freshness } from "./lib/backup.ts";
 import {
   composeRequiredContext,
   parseDocumentedProviderContext,
@@ -61,6 +68,7 @@ import {
   expiryDay,
   parseActionsSecrets,
   parseCiJobNames,
+  parseDocumentedBackup,
   parseDocumentedContexts,
   parseDocumentedLabels,
   parseDocumentedLineTarget,
@@ -75,6 +83,7 @@ import {
   parseUncheckedVariables,
   parseVercelEnv,
   parseVercelTokens,
+  parseWorkflowCrons,
   pointerResolves,
   readDependencyGraph,
   readVulnerabilityAlerts,
@@ -98,6 +107,7 @@ const ALWAYS_LOADED = "CLAUDE.md";
 const GLOSSARY = "CONTEXT.md";
 const PROVIDER_CALLER = "docs/provider-baseline/ci.yml";
 const PROVIDER_WORKFLOW = ".github/workflows/provider-ci.yml";
+const BACKUP_WORKFLOW = ".github/workflows/backup-database.yml";
 
 const results: Result[] = [];
 const read = (p: string) => readFileSync(join(ROOT, p), "utf8");
@@ -105,6 +115,25 @@ const read = (p: string) => readFileSync(join(ROOT, p), "utf8");
 function check(name: string, fn: () => string | void) {
   try {
     results.push({ name, status: "PASS", detail: fn() ?? "" });
+  } catch (err) {
+    results.push({
+      name,
+      status: err instanceof Skip ? "SKIP" : "FAIL",
+      detail: (err as Error).message,
+    });
+  }
+}
+
+/**
+ * The same contract as `check`, for one whose source is reached with `await`.
+ *
+ * It exists rather than `check` becoming async because every other check here is a subprocess or a
+ * file read, and making all thirteen return promises to serve one would put the ordering of the
+ * report — which is the order a reader meets the checks in — at the mercy of remembering to await.
+ */
+async function checkAsync(name: string, fn: () => Promise<string | void>) {
+  try {
+    results.push({ name, status: "PASS", detail: (await fn()) ?? "" });
   } catch (err) {
     results.push({
       name,
@@ -691,6 +720,67 @@ check("every document uses the glossary's word for the concept", () => {
     );
   const terms = glossary.terms.length;
   return `${terms} term${terms === 1 ? "" : "s"} across ${scope.length} document${scope.length === 1 ? "" : "s"}`;
+});
+
+// ---------------------------------------------------------------------------
+// 12. The nightly backup.
+//
+// **A backup is believed, which is why it is checked from outside the job that takes it.** A run
+// that goes red sends mail; a run that never happens sends nothing, and the two ways this schedule
+// stops without failing are both silent — GitHub disables a scheduled workflow after 60 days of
+// repository inactivity, and a schedule only ever runs from the default branch, so an edit that has
+// not merged changes nothing while reading as if it had.
+//
+// So there are two checks. The first is local and always runs: the register promises a schedule and
+// a retention, and both are compared against the things that actually implement them. The second
+// reads the store and is the one that can say a backup exists, so it needs the credential and
+// reports SKIP without it.
+//
+// **What the second one costs is a read-write token in this job**, and that is argued rather than
+// waved through: this job already holds `MIGRATION_DATABASE_URL`, which can drop every table it is
+// backing up, and an account-scoped `VERCEL_TOKEN`. A token that can delete backups adds nothing a
+// compromised run of this job could not already do, and it buys the only thing that notices a
+// backup that stopped happening.
+// ---------------------------------------------------------------------------
+
+check("the backup's schedule and retention match what the register promises", () => {
+  const documented = parseDocumentedBackup(read(CONTEXT_HOME));
+  const scheduled = parseWorkflowCrons(read(BACKUP_WORKFLOW));
+  if (!scheduled.includes(documented.cron))
+    fail(
+      `${CONTEXT_HOME} promises a backup on \`${documented.cron}\` and ${BACKUP_WORKFLOW} is ` +
+        `scheduled on ${scheduled.length ? scheduled.map((c) => `\`${c}\``).join(", ") : "nothing"}. ` +
+        `A register describing a schedule nothing runs is the failure a backup is most believed through.`,
+    );
+  if (documented.retentionDays !== RETENTION_DAYS)
+    fail(
+      `${CONTEXT_HOME} promises ${documented.retentionDays} days of backups and ` +
+        `scripts/lib/backup.ts keeps ${RETENTION_DAYS}. The code is what deletes them.`,
+    );
+  return `\`${documented.cron}\`, kept ${documented.retentionDays} days`;
+});
+
+await checkAsync("the backup store holds one no older than the register promises", async () => {
+  const token = process.env.BLOB_READ_WRITE_TOKEN?.trim();
+  if (!token) skip("no BLOB_READ_WRITE_TOKEN, so the backup store was not read");
+  const documented = parseDocumentedBackup(read(CONTEXT_HOME));
+  const page = await list({ prefix: BACKUP_PREFIX, token, limit: 1000 });
+  const stored = page.blobs.map(({ pathname, uploadedAt, size, url }) => ({ pathname, uploadedAt, size, url }));
+  // A nightly backup plus the whole of the following day before anyone should be told: a run
+  // delayed by GitHub's own load, or one taken at 02:17 and read at 09:00 the next morning, is not
+  // news. Two nights missed is.
+  const verdict = freshness(stored, new Date(), 48);
+  if (verdict.overdue)
+    fail(
+      verdict.newest
+        ? `the newest backup is ${Math.round(verdict.ageHours ?? 0)} hours old, and ` +
+            `${CONTEXT_HOME} promises one on \`${documented.cron}\`. Two nights missed means the ` +
+            `schedule has stopped rather than slipped — the workflow may have been disabled for ` +
+            `inactivity, or the run is failing.`
+        : `the backup store holds nothing under \`${BACKUP_PREFIX}\`, and ${CONTEXT_HOME} ` +
+            `promises a backup on \`${documented.cron}\`.`,
+    );
+  return `${stored.length} stored, newest ${Math.round(verdict.ageHours ?? 0)} hours old`;
 });
 
 const width = Math.max(...results.map((r) => r.name.length));

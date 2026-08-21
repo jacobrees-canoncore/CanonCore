@@ -24,6 +24,7 @@ changes, it is evidence and does not belong here.
 - [The Provider repository baseline](#the-provider-repository-baseline)
 - [Environment variables](#environment-variables)
 - [Database](#database)
+- [Backups](#backups)
 - [External data source: TMDB](#external-data-source-tmdb)
 - [Transactional email: Resend](#transactional-email-resend)
 - [Reporting address](#reporting-address)
@@ -923,7 +924,9 @@ for its own credentials**; the pointer here is *Where a Source credential lives*
 | `SENTRY_DSN` | Vercel | Production, Preview | Sensitive | Also recorded under *Error reporting* below, since a DSN is not a secret |
 | `SENTRY_AUTH_TOKEN` | Vercel | Production, Preview | Sensitive | Organisation auth token, scope `org:ci`, for source-map upload |
 | `MIGRATION_DATABASE_URL` | GitHub Actions secret | — | — | The migration role's connection string, which has to ask for `sslmode=verify-full`. Not in Vercel: migrations run in Actions, not in the build. **Two workflows consume it**: `ci.yml`'s migration step, and `purge-source.yml`, which is dispatched by hand and holds the credential so that an operator under a licence deadline has none to fetch — [`runbook.md`](runbook.md) → *A Source's licence terminates* |
+| `BLOB_READ_WRITE_TOKEN` | GitHub Actions secret | — | — | **The backup store's read-write token.** Two consumers: `backup-database.yml`, which writes a backup nightly, and `ci.yml`'s `check-docs` step, which reads the store to notice a backup that stopped happening. It cannot decrypt anything — *Backups* above. A second copy is on the machine, since an Actions secret cannot be read back and a restore needs one |
 | `NEON_API_KEY` | This machine | — | — | **Project-scoped**, Neon, for the worktree databases — *The Neon API key* below. Held in a file on the machine that runs the setup hook and in no deployment, so no reader here can check it, and it appears on every `check-docs` run as unchecked rather than silently absent |
+| The age identity | This machine | — | — | **The only thing that can read a backup**, at `~/.config/canoncore/backup-age-key`, mode `600`. Never in this repository, a Vercel variable, an Actions secret or any deployment — the public half is committed instead, so the nightly job encrypts and cannot decrypt. It appears here as unchecked rather than absent, and *Backups* above holds why it needs a second copy that this repository cannot verify |
 | `TMDB_READ_ACCESS_TOKEN` | provider-tmdb | Production, Preview | Sensitive | **TMDB's bearer token, and the one Source credential this estate holds.** It is not in the `canoncore` project and must not return there — [ADR-0014](adr/0014-shell-providers-and-per-source-retention.md#decision-1--the-app-is-a-shell). **Its Holder names the repository and deliberately not `Vercel`**, which is the trap *What this check compares, and what it cannot* below describes: that filter is a case-sensitive substring test, so `Vercel (provider-tmdb)` would be compared against the `canoncore` project, fail against a project that correctly does not hold it, and leave the unchecked list at the same moment. Checked by [`provider-tmdb`'s own copy](https://github.com/jacobrees-canoncore/provider-tmdb/blob/main/scripts/check-docs.ts) against its own project, which read `2 variables agree` on 21 August 2026 |
 | `CANONCORE_ACCESS_TOKEN` | provider-tmdb | Production, Preview | Sensitive | **What a caller presents to reach `provider-tmdb`, and not a *Source* credential** — it authenticates a consumer to our own Provider, in the same class as `DATABASE_URL` ([`CODING_STANDARDS.md`](../CODING_STANDARDS.md)). Set 21 August 2026 by **CAN-152 Implement the Provider contract in provider-tmdb, and close its endpoint**, which is what closes that endpoint. **The application does not hold it yet**: nothing here calls a Provider until [CAN-113 Add a Provider by pasting its URL](https://linear.app/jacobrees-canoncore/issue/CAN-113), and because a Sensitive value cannot be read back, giving the application its half means setting a fresh value on **both** projects rather than copying this one |
 | `VERCEL_TOKEN` | GitHub Actions secret | — | — | **Account-scoped, and it has to be.** Two steps of `ci.yml` consume it: the `node scripts/check-docs.ts --verbose` run, and **Build and promote the production deployment**. A *project*-scoped token fails both, and fails them differently. Replaced 14 August 2026, **expires 14 August 2027** — *Why this one is account-scoped* below holds the identity, the expiry and the scope, and `scripts/check-docs.ts` compares that expiry against Vercel on every run, in CI as well as locally |
@@ -1296,6 +1299,7 @@ whatever noticed can mint the replacement, is wrong in one direction only.
 | Preview branch | **One**, named `preview`, `br-calm-flower-zame56ly` — schema-only, shared by every preview deployment, and holding no production row. *The shared preview branch* below is what it is and how it is kept level |
 | Region | `eu-west-2` (London) |
 | Plan | Launch, billed through Vercel. **Five root branches**, of which `main` and `preview` are two ([Neon, schema-only branches](https://neon.com/docs/guides/branching-schema-only), whose *Schema-only branch allowances* section tables it per plan: Free 3, Launch 5, Scale 25) |
+| History retention | **7 days**, `history_retention_seconds: 604800`. Raised from Neon's default 24 hours on 21 August 2026 by **CAN-55 Keep a backup that reaches past Neon's 24-hour history window**, with a `PATCH` and a fresh `GET` to read it back. 7 days is Launch's maximum — *"Up to 7 days"* ([plans](https://neon.com/docs/introduction/plans), read 21 August 2026) — and it is billed at $0.20/GB-month against the write history retained inside the window, on root branches only. The two root branches held 63 MB between them and the project reported `written_data_bytes: 0` for the period, so this is worth pennies; **the exact figure has not been read**, because the consumption endpoint is organisation-scoped and this project's key is not. [ADR-0028](adr/0028-a-nightly-encrypted-backup-off-neon.md) |
 | Compute size | **Autoscaling 0.25–1 CU**, set 21 August 2026 on both computes *and* on the project's `default_endpoint_settings`, so branches created later inherit it. Was a **fixed 1 CU**, minimum and maximum both, which billed four times Neon's own floor for a 70 MB database. Scale-to-zero is 5 minutes, which is Launch's minimum — 1-minute timeouts are Scale-only ([plans](https://neon.com/docs/introduction/plans), read 21 August 2026) |
 | What bounds this bill | **Nothing does, and that is now a finding rather than an open question.** Three controls exist and all three refuse: Vercel's $40 budget excludes Marketplace integrations; `vercel integration resource create-threshold` is auto-recharge for *prepaid* balances and `vercel integration balance neon` answers `No balance information found`; and Neon's own consumption quota is refused with `HTTP 404 — action restricted; reason:"organization is managed by Vercel"`. **The restriction is specific to quotas**, not to project writes — a no-op `PATCH` on the same endpoint in the same minute answered `200`. [ADR-0026](adr/0026-the-database-bill-is-watched-rather-than-capped.md) |
 | Spending notifications | **On, $15**, organisation-wide across `canoncore` and `waveger`. E-mail at 80% and 100%, spending checked every 15 minutes, **alerts only — nothing pauses**. Set 21 August 2026 and read back from a cold reload. It fired immediately, because August's spend stood at $26.48 on Neon's own billing page, forty minutes after Vercel's installation page read $26.28. **The 20 cents between them is not reconciled**, and an earlier version of this row explained it as spend accrued between the reads — which does not survive arithmetic: it would be $0.30 an hour, more than four times the worst month this project has ever been on course for. Two vendors' pages, two figures, no explanation when it was set; that is the alert working, not a misconfiguration. The figure sits below the $24 Vercel platform fee on purpose, so the database cannot become the largest line without an e-mail first |
@@ -1815,6 +1819,72 @@ deliberate: a request-time refusal would put an outage behind a value no gate ca
 string `pg` 8 still honours. The one signal is negative and expires — `pg-connection-string` emits
 a SECURITY WARNING into the runtime log for as long as a string says `require`, and nothing at all
 once it says `verify-full`.
+
+## Backups
+
+**A `pg_dump` of production every night, encrypted, in a store that is not Neon.** Neon's 7-day
+history window covers a mistake; it does not cover losing the account the window is inside, and that
+is the only thing this buys. [ADR-0028](adr/0028-a-nightly-encrypted-backup-off-neon.md) holds the
+argument and what it rejected; [`runbook.md`](runbook.md) → *The database has to be restored from a
+backup* is what to do when one is needed.
+
+| | |
+| --- | --- |
+| Store | `canoncore-backups`, `store_W2O9TBBm2VGVypAe`, Vercel Blob, region `lhr1` (London) |
+| Access | **Private**, so a read needs the token and the URL alone is not enough. Checked rather than assumed on 21 August 2026: a `GET` of a stored blob's own URL with no credential answered **`403 Forbidden`**, and the same object read back with the token. **Access is fixed at creation** — *"you cannot change it after the creation of a blob store"* ([Vercel Blob](https://vercel.com/docs/vercel-blob), read 21 August 2026) — so a public store cannot be tightened later, only replaced |
+| Connected to | **No project, deliberately.** Connecting one writes `BLOB_READ_WRITE_TOKEN` into that project's environments, which would give the running application a credential that can delete every backup, for no reader. The store was created connected to `canoncore`'s Development environment to mint the token, the value was copied out, and the variable was removed — and the token was confirmed still working afterwards, so the connection is not what keeps it alive |
+| What is stored | One file per night: `pg_dump --format=custom` of `neondb` on Neon's `main`, encrypted to the age recipient in [`../scripts/backup-recipient.txt`](../scripts/backup-recipient.txt), at `postgres/<UTC timestamp>.dump.age` |
+| Schedule | `17 2 * * *` — 02:17 UTC nightly, in [`../.github/workflows/backup-database.yml`](../.github/workflows/backup-database.yml). Off the hour on purpose: *"The `schedule` event can be delayed during periods of high loads … High load times include the start of every hour"* ([events that trigger workflows](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows), read 21 August 2026) |
+| Retention | `30 days`, enforced by the job itself after each upload. Vercel Blob has no lifecycle rule, so the deletion is code — and it is code that refuses to delete the newest backup whatever its age, so a stopped schedule or a wrong clock cannot empty the store |
+| Cost | Inside Pro's included allowance and therefore **nothing**: 30 files of a few megabytes against 5 GB of included storage, and about 40 operations a month against 10,000 included ([Blob pricing](https://vercel.com/docs/vercel-blob/usage-and-pricing), read 21 August 2026). Unlike Neon's, this bill is inside the $40 Spend Management budget, because Blob is Vercel's own usage rather than a Marketplace integration |
+| Who can read one | **Whoever holds the age identity, and nobody else.** Not the workflow, not CI, not a Vercel deployment |
+
+*Store created 21 August 2026 by **CAN-55 Keep a backup that reaches past Neon's 24-hour history
+window**; settings read back with `vercel blob get-store` on the same day.*
+
+### The two credentials, and the one that has no second copy
+
+| Credential | Where it lives | What it can do |
+| --- | --- | --- |
+| `BLOB_READ_WRITE_TOKEN` | A GitHub Actions secret, **and** `~/.config/canoncore/blob-read-write-token` on Jacob's machine, mode `600` | Write a backup, list the store, delete one. **Not** decrypt anything |
+| The age identity | `~/.config/canoncore/backup-age-key` on Jacob's machine, mode `600`, **and nowhere else yet** | Decrypt any backup ever taken |
+
+**The identity is the single point of failure in this design, and it is a human step to fix.** Losing
+that file makes every stored backup permanently unreadable — no amount of storage redundancy helps,
+because the ciphertext is the only thing that was ever stored. **It has to exist somewhere that
+survives losing the laptop**: a password manager entry is enough, and until one exists this row is
+the record that it does not.
+
+**Reissuing either is different work.** The token is minted by connecting the store to a project in
+the Vercel dashboard, copying `BLOB_READ_WRITE_TOKEN` out and disconnecting again. **The identity
+cannot be reissued at all** — a new keypair encrypts future backups and opens none of the old ones,
+so the old identity is kept until the last file encrypted to it has aged out.
+
+### What proves this is a backup rather than a file
+
+**A dump nobody has restored is a file**, so one was restored. What happened, and what to repeat:
+[`runbook.md`](runbook.md) → *The database has to be restored from a backup*.
+
+Three things the nightly run refuses to do quietly, each because the failure they prevent is one
+that reports success:
+
+- **A dump missing rows.** pg_dump *"will set row_security to off … If the user does not have
+  sufficient privileges to bypass row security, then an error is thrown"*
+  ([pg_dump](https://www.postgresql.org/docs/17/app-pgdump.html), read 21 August 2026). The
+  connecting role is `canoncore_migrator`, which owns every table and so bypasses row security by
+  ownership rather than by attribute — *Roles* above.
+- **A dump missing a table.** Every table `pg_class` reports is compared against the dump's own table
+  of contents, and a table with no `TABLE DATA` entry fails the job. `pg_class` rather than
+  `information_schema`, because the latter hides what the role cannot read and would leave both sides
+  of that comparison equally short.
+- **An upload that did not land.** The stored object's length is read back and compared with what was
+  sent. The job cannot decrypt what it wrote, so a length is the strongest thing it can honestly say.
+
+**And two checks watch from outside the job**, because the ways a nightly job stops are mostly not
+failures: `scripts/check-docs.ts` compares this section's schedule and retention against the workflow
+and the code, and reads the store to fail when the newest backup is more than 48 hours old. The
+second gates on a push rather than on a clock, which is a real limit and is
+[ADR-0028](adr/0028-a-nightly-encrypted-backup-off-neon.md) → *How a backup that stops is noticed*.
 
 ## External data source: TMDB
 

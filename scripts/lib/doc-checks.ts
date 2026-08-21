@@ -1052,6 +1052,41 @@ export const pointerResolves = (section: string, titles: string[]) =>
   titles.some((t) => t === section || t.startsWith(section));
 
 
+// --- The nightly backup's promises ---------------------------------------------------------------
+
+/** What the register says the backup does, in the two numbers a reader would act on. */
+export type DocumentedBackup = { cron: string; retentionDays: number }
+
+/**
+ * The schedule and the retention the register promises, read from its own *Backups* rows.
+ *
+ * **The register is the specification here, and that is deliberate rather than convenient.** A
+ * backup is believed by whoever reads the document, so the document is what the store, the workflow
+ * and the code are all compared against — rather than each of the three being compared to one of
+ * the others while the sentence a person actually reads drifts free of all of them.
+ *
+ * Both are matched inside backticks, so the check reads a value the document renders as code rather
+ * than a number that happens to appear in a sentence about it.
+ */
+export function parseDocumentedBackup(body: string): DocumentedBackup {
+  const schedule = body.match(/\|\s*Schedule\s*\|[^|]*?`([\d*/,\-\s]+)`/)
+  if (!schedule) return fail("no `| Schedule | … `cron` … |` row in the register's *Backups* table")
+  const retention = body.match(/\|\s*Retention\s*\|[^|]*?`(\d+) days`/)
+  if (!retention) return fail("no ``| Retention | … `N days` … |`` row in the register's *Backups* table")
+  return { cron: schedule[1].trim(), retentionDays: Number(retention[1]) }
+}
+
+/**
+ * The cron expressions a workflow schedules itself on.
+ *
+ * Parsed off the `- cron:` lines rather than through a YAML reader, which is what every other
+ * workflow reader here does — the shape is one line and a quoted string, and a parser is a
+ * dependency this file would carry for that alone.
+ */
+export function parseWorkflowCrons(workflow: string): string[] {
+  return [...workflow.matchAll(/^\s*-\s*cron:\s*["']([^"']+)["']/gm)].map((m) => m[1].trim())
+}
+
 // --- The glossary's `_Avoid_` lists -------------------------------------------------------------
 
 /** One glossary entry: the concept's own word, what it says, and what its `_Avoid_` list bans. */
