@@ -61,9 +61,16 @@ on 21 August 2026 — 63 MB between them. Every worktree database is a child of 
 contributes nothing to this line.
 
 **What is billed is the write history retained inside the window, and this project barely writes.**
-The API reported `written_data_bytes: 0` for the project across the current billing period. Seven
-days of a write rate near zero is a small fraction of a gigabyte, so the change is worth pennies a
+The evidence for that is what the database *is* rather than a counter: 63 MB across both root
+branches, fourteen migrations, two Stories, one user account, and no Provider has ever written a
+Snapshot. Seven days of that is a small fraction of a gigabyte, so the change is worth pennies a
 month against a database line that was $26.48 in August.
+
+**The obvious counter — the API's own `written_data_bytes` — is not usable here, and saying why
+matters more than the number.** It reads `0` for this project, and so does `data_storage_bytes_hour`
+for a 63 MB database that billed $26.48; a field that reads zero for storage everyone can see is a
+field that is not being populated for this organisation, not a measurement of nothing. **A zero from
+an API is a reading only once you know it is not a non-reading**, and this one is not.
 
 **The exact figure has not been read, and saying so is the point.** The consumption endpoint that
 would give it is organisation-scoped, and the key this project holds is scoped to the project — it
@@ -243,10 +250,12 @@ deliberately not the ticket that spends that slot.
 - **The nightly job holds the migration role's connection string**, which is the credential that can
   drop every table it is backing up. It was already in this repository's Actions secrets for the
   release, and this is a second consumer rather than a new exposure.
-- **`scripts/check-docs.ts` now reads a store**, so it carries a thirteenth check that skips without
-  the token — and CI holds a token that can delete backups. That is argued where it is granted: a
-  compromised run of that job already holds the migration credential and an account-scoped Vercel
-  token, so it adds nothing to the blast radius and buys the only detector of a schedule that stopped.
+- **`scripts/check-docs.ts` now reads a store and an API**, in three checks rather than the ten it
+  carried: what the register promises against the workflow and the code, what the store actually
+  holds, and Neon's own history window. Two of them skip without a credential — and CI holds a token
+  that can delete backups. That is argued where it is granted: a compromised run of that job already
+  holds the migration credential and an account-scoped Vercel token, so it adds nothing to the blast
+  radius and buys the only detector of a schedule that stopped.
 - **A restore is a human action on a machine**, because the identity is. Nothing automated can
   perform one, including anything that has taken over CI.
 - **The backup holds personal data with a 30-day life**, which no document currently describes to a

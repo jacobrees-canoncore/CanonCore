@@ -1288,8 +1288,13 @@ rather than predicted.** On the same day, pointing the restore at a *live* workt
 to demonstrate its production refusal stopped at this very privilege — after `pg_restore --clean`
 had already dropped every table and the `drizzle` schema. The branch was repaired by resetting it
 from its parent (`POST /projects/steep-wave-52467839/branches/{id}/restore` with `source_branch_id`
-set to the parent), and **Neon created no `{branch_name}_old_{head_timestamp}` branch** while doing
-so, which its own branch-restore documentation describes. Eight branches before, eight after.
+set to the parent). **Neon created no `{branch_name}_old_{head_timestamp}` branch** — eight branches
+before, eight after — and the first version of this entry read that as the documented preservation
+failing. **It is not**: on the API the backup branch is the `preserve_under_name` parameter, which
+that call omitted, and which is required only when a branch has children or is restored to its own
+history. The console creates one automatically; a raw `POST` creates one when asked and never
+otherwise. **The observation was right and the lesson drawn from it was wrong**, which is what the
+second review round found.
 
 **What it may cost elsewhere has not been tested.**
 [Drizzle's migrator needs `CREATE` on the database before it reads

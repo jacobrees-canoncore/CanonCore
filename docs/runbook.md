@@ -261,12 +261,14 @@ They are both destructive and they answer different failures.
   loses nothing else. It is *"a **complete** overwrite, not a merge or refresh. Everything on your
   current branch, data and schema, is replaced with the contents from the historical source"*
   ([branch restore](https://neon.com/docs/guides/branch-restore), read 21 August 2026) — so it
-  undoes good writes made since the moment you restore to, as well as bad ones. Its documentation
-  says the state it replaced is kept, as a branch named `{branch_name}_old_{head_timestamp}` — but
-  **do not plan on that branch being there**: the one restore this project has performed, resetting
-  a worktree branch from its parent on 21 August 2026, produced **no such branch**, and Neon's
-  documentation does not say how long one is kept either. Treat the overwrite as final and take
-  what you need first.
+  undoes good writes made since the moment you restore to, as well as bad ones. **The state it
+  replaced is kept only if something asks for it.** From the console that is automatic, as a branch
+  named `{branch_name}_old_{head_timestamp}`; **from the API it is the `preserve_under_name`
+  parameter, and omitting it preserves nothing** — required when a branch has children or is being
+  restored to its own history, and optional, so silently absent, when it is not. A reset of a
+  worktree branch from its parent on 21 August 2026 passed no such name and produced no such branch,
+  which is the parameter working rather than the guarantee failing. Neon's documentation does not
+  say how long a preserved branch is kept.
 - **The damage is older than 7 days, or the Neon account is gone** → the nightly backup, below. It
   is the only thing that survives losing the provider, and it is 24 hours stale at worst.
 
@@ -341,7 +343,8 @@ above, and stopped at the missing `CREATE` — leaving that database with **no t
 schema**, because `--clean` had already dropped what it then could not put back. It was repaired by
 resetting the branch from its parent, which is the fix for any worktree database:
 `POST /projects/steep-wave-52467839/branches/{id}/restore` with the parent's id as
-`source_branch_id`. **That is the whole argument for the scratch branch**, and it happened to
+`source_branch_id` — and `preserve_under_name` too if the state being replaced is worth keeping,
+which on a database this had just emptied it was not. **That is the whole argument for the scratch branch**, and it happened to
 somebody who had just written this page.
 
 Three failures happened before the drill worked, and each one is a step above: the wrong role, the

@@ -597,9 +597,10 @@ too little — a required context that never reports blocks every merge for ever
 **A seventh step checks the documents against the sources they describe**, `node scripts/check-docs.ts`
 — the required contexts, the label roster, the variable roster, the Actions secrets, the release
 token's expiry, the repository's security settings, the Provider baseline's composed context,
-every cross-document pointer, `CLAUDE.md` against its own line target, and every tracked document
-against the glossary's own `_Avoid_` lists. **Not all of it reaches CI, and the difference is not
-an oversight:**
+every cross-document pointer, `CLAUDE.md` against its own line target, every tracked document
+against the glossary's own `_Avoid_` lists, the nightly backup's schedule and retention, what the
+backup store actually holds, and Neon's history window. **Not all of it reaches CI, and the
+difference is not an oversight:**
 
 | Check | Where it gates | Why |
 | --- | --- | --- |

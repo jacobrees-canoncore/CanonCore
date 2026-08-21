@@ -66,6 +66,7 @@ function fixture({
   scheduledCron = "17 2 * * *",
   documentedCron = "17 2 * * *",
   documentedRetentionDays = RETENTION_DAYS,
+  tolerance = true,
 }: {
   jobName: string;
   documentedContext: string;
@@ -80,6 +81,7 @@ function fixture({
   scheduledCron?: string;
   documentedCron?: string;
   documentedRetentionDays?: number;
+  tolerance?: boolean;
 }): Fixture {
   const dir = mkdtempSync(join(tmpdir(), "check-docs-"));
   const write = (rel: string, body: string) => {
@@ -152,6 +154,7 @@ function fixture({
       "| --- | --- |",
       `| Schedule | \`${documentedCron}\` nightly |`,
       `| Retention | \`${documentedRetentionDays} days\`, enforced by the job |`,
+      ...(tolerance ? ["| Checked within | `48 hours` |"] : []),
       "",
       "## Database",
       "",
@@ -663,4 +666,20 @@ test("a workflow with no schedule at all fails rather than reading as agreement"
   // The reason matters as much as the verdict: "scheduled on nothing" is what distinguishes a
   // workflow with no schedule from one whose schedule merely disagrees.
   assert.match(output, /is scheduled on nothing/);
+});
+
+test("a register with no tolerance row fails rather than the check inventing one", () => {
+  // The number a build fails on and the number a person reads have to be the same number, which is
+  // the whole reason it is a row rather than a constant. Deleting the row must not silently restore
+  // a default — so the fixture writes a register without it.
+  const { run, gitOnly } = fixture({
+    jobName: "the register's context",
+    documentedContext: "the register's context",
+    tolerance: false,
+  });
+  const { code, output } = run(gitOnly);
+
+  assert.equal(code, 1, output);
+  assert.match(output, /^FAIL {2}the backup's schedule and retention match what the register promises/m);
+  assert.match(output, /Checked within/);
 });

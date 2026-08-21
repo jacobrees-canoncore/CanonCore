@@ -1054,8 +1054,8 @@ export const pointerResolves = (section: string, titles: string[]) =>
 
 // --- The nightly backup's promises ---------------------------------------------------------------
 
-/** What the register says the backup does, in the two numbers a reader would act on. */
-export type DocumentedBackup = { cron: string; retentionDays: number }
+/** What the register says the backup does, in the three numbers a reader would act on. */
+export type DocumentedBackup = { cron: string; retentionDays: number; maxAgeHours: number }
 
 /**
  * The schedule and the retention the register promises, read from its own *Backups* rows.
@@ -1073,7 +1073,15 @@ export function parseDocumentedBackup(body: string): DocumentedBackup {
   if (!schedule) return fail("no `| Schedule | … `cron` … |` row in the register's *Backups* table")
   const retention = body.match(/\|\s*Retention\s*\|[^|]*?`(\d+) days`/)
   if (!retention) return fail("no ``| Retention | … `N days` … |`` row in the register's *Backups* table")
-  return { cron: schedule[1].trim(), retentionDays: Number(retention[1]) }
+  // The tolerance is read rather than carried in the check, for the same reason as the other two:
+  // the sentence a person reads and the number a build fails on have to be the same number.
+  const age = body.match(/\|\s*Checked within\s*\|[^|]*?`(\d+) hours`/)
+  if (!age) return fail("no ``| Checked within | … `N hours` … |`` row in the register's *Backups* table")
+  return {
+    cron: schedule[1].trim(),
+    retentionDays: Number(retention[1]),
+    maxAgeHours: Number(age[1]),
+  }
 }
 
 /**
@@ -1087,8 +1095,7 @@ export function parseDocumentedRetentionSeconds(body: string): number {
   const found = body.match(/\|\s*History retention\s*\|[^|]*?`history_retention_seconds:\s*(\d+)`/)
   if (!found)
     return fail(
-      "no ``| History retention | … `history_retention_seconds: N` … |`` row in the register's " +
-        "*Database* table",
+      "no ``| History retention | … `history_retention_seconds: N` … |`` row in the register",
     )
   return Number(found[1])
 }

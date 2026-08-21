@@ -133,7 +133,7 @@ function check(name: string, fn: () => string | void) {
  * The same contract as `check`, for one whose source is reached with `await`.
  *
  * It exists rather than `check` becoming async because every other check here is a subprocess or a
- * file read, and making all thirteen return promises to serve one would put the ordering of the
+ * file read, and making all fourteen return promises to serve one would put the ordering of the
  * report — which is the order a reader meets the checks in — at the mercy of remembering to await.
  */
 async function checkAsync(name: string, fn: () => Promise<string | void>) {
@@ -770,11 +770,25 @@ await checkAsync("the backup store holds one no older than the register promises
   if (!token) skip("no BLOB_READ_WRITE_TOKEN, so the backup store was not read");
   const documented = parseDocumentedBackup(read(CONTEXT_HOME));
   const stored = await storedBackups(token);
-  // A nightly backup plus the whole of the following day before anyone should be told: a run
-  // delayed by GitHub's own load, or one taken at 02:17 and read at 09:00 the next morning, is not
-  // news. Two nights missed is.
-  const verdict = freshness(stored, new Date(), 48);
-  if (verdict.overdue)
+  const verdict = freshness(stored, new Date(), documented.maxAgeHours);
+  if (verdict.overdue) {
+    // **A schedule that has never existed cannot have stopped.** A workflow runs on a schedule only
+    // from the default branch, so between writing this job and merging it there is a window in
+    // which no backup can happen and every push would fail on one not having. That is not a
+    // detector working; it is a detector that would block the merge that arms it. So an overdue
+    // backup is a finding only once the workflow is actually on `main` - asked here rather than
+    // assumed, and a question GitHub cannot answer is itself a reason to skip rather than to fail.
+    const landed = attempt("gh", [
+      "api",
+      `repos/${REPOSITORY}/contents/${BACKUP_WORKFLOW}?ref=main`,
+      "--jq",
+      ".name",
+    ]);
+    if (!landed.ok)
+      skip(
+        `nothing is overdue: ${BACKUP_WORKFLOW} is not on the default branch, so no schedule has ` +
+          `ever run - gh said ${explainFailure(landed.output)}`,
+      );
     fail(
       verdict.newest
         ? `the newest backup is ${Math.round(verdict.ageHours ?? 0)} hours old, and ` +
@@ -784,6 +798,7 @@ await checkAsync("the backup store holds one no older than the register promises
         : `the backup store holds nothing under \`${BACKUP_PREFIX}\`, and ${CONTEXT_HOME} ` +
             `promises a backup on \`${documented.cron}\`.`,
     );
+  }
   return `${stored.length} stored, newest ${Math.round(verdict.ageHours ?? 0)} hours old`;
 });
 
