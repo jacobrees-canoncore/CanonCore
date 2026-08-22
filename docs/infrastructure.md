@@ -913,6 +913,121 @@ with one context instead of two; every comparison in it is under test in
 workflow files' shape in
 [`scripts/provider-baseline-workflows.test.ts`](../scripts/provider-baseline-workflows.test.ts).
 
+### How a Provider deploys
+
+**From Git, on every branch including its own `main`** — the opposite of what
+[ADR-0019](adr/0019-ci-owns-the-production-release.md) does to this repository, and that ADR applied
+rather than an exception to it. Its premise is a migration that has to precede the promotion, and a
+Provider has no database and no schema: there is nothing to order, so there is nothing for a release
+job to hold the stopwatch on. Actions promotion would buy nothing, and would put a `VERCEL_TOKEN` in
+a Provider's secrets to buy it with — in a repository whose whole credential story is that the
+Source key lives in the Vercel project and never in Actions.
+
+**The baseline does not provision any of this**, and that is unchanged: *The Provider repository
+baseline* above is two artefacts and one dashboard step, none of which is a deployment. What is now
+decided is what a Provider should do once it has one. Settled on
+[CAN-150 provider-tmdb is provisioned on GitHub and unwired on Vercel, so nothing deploys](https://linear.app/jacobrees-canoncore/issue/CAN-150),
+21 August 2026, against the first Provider to have a project at all.
+
+**Half of ADR-0019 does travel, and it is the runner-up rather than the decision.** A dashboard
+setting *"cannot be reviewed, and cannot be restored by anyone reading this repository"*, so what
+makes a Provider's build correct goes in its own `vercel.json`: `framework`, and `regions`. Both
+*"override"* the Project Settings value
+([vercel.json](https://vercel.com/docs/project-configuration/vercel-json), read 21 August 2026), so
+neither has to be a row that exists nowhere but a register.
+
+| | |
+| --- | --- |
+| In the Provider's `vercel.json` | The framework preset, and the function region |
+| A project setting, with no file that can assert it | Deployment protection, and the Git connection itself |
+| Not set at all | `git.deploymentEnabled`. Its default is every branch, which is what is wanted |
+
+**The Git connection is a GitHub step before it is a Vercel one, and that is the part with a human
+in it.** The Vercel GitHub App is installed on `jacobrees-canoncore` with
+`repository_selection: selected` (*Hosting* above), so a new Provider repository is invisible to it
+until it is added — `vercel git connect` fails with *"Make sure there aren't any typos and that you
+have access to the repository if it's private"*, which reads like a typo and is a permission.
+**There is a REST route and it is not reachable from here**: `PUT
+/user/installations/{id}/repositories/{repo_id}` needs a user access token *created for that app*,
+and `gh`'s is not one however many scopes it carries — it answers `403` *"You do not have permission
+to modify this app"* to an account that is an organisation owner. So it is the App's own settings
+page, a person's passkey, and about a minute; **it was done for `provider-tmdb` on 21 August 2026**,
+and `vercel git connect` succeeded on the next attempt. The next Provider should expect the same step.
+
+#### What is true of the first Provider today
+
+**`provider-tmdb`, project `prj_JFaCr6WJQ7NEwUX4FBYcliXeTOdi`**, on the account *Hosting* above
+names. Its own roster is
+[that repository's `docs/infrastructure.md`](https://github.com/jacobrees-canoncore/provider-tmdb/blob/main/docs/infrastructure.md),
+and this section deliberately does not restate it — *Where a Source credential lives* below is why
+one checker reads one project. **Two things about it belong here rather than there**, because they
+are estate facts a sweep of this account would otherwise have to rediscover:
+
+- **Vercel Authentication was turned off**, 21 August 2026, read back as `ssoProtection: null`. It
+  had been at the platform's default, `all_except_custom_domains` — which covers the production URL
+  wherever there is no custom domain, and there is none here. **A Provider's caller is a server
+  holding a bearer token, not a person who can complete an SSO round trip**, so left on it would
+  have refused the application rather than an attacker. What closes that endpoint is
+  `CANONCORE_ACCESS_TOKEN` in the Provider's own application code; the platform wall was never what
+  was guarding it. **`canoncore` holds the same posture**, read the same day and the same way:
+  `vercel project protection canoncore` answers `ssoProtection: null`. *Hosting* above records only
+  the Preview half of that, and dates it 16 August 2026 — so this is the estate agreeing with itself
+  rather than a new exception, though the two rows were read through different commands.
+- **It deploys, and the deployment serves the contract.** Linked 21 August 2026, and the first push
+  after it answered `401` with `content-type: application/problem+json` at `/v1/capabilities` while
+  `/logo.svg` answered `200` — which is the function running rather than `public/` published as a
+  static site, the failure two paragraphs below. It ran in `lhr1`. **That Provider's own register
+  holds the readings**, and *What the first deployment settled* there also records the one thing
+  worth carrying to the next Provider: the first deployment took the production alias off a branch
+  that was not `main`, for a reason one observation cannot establish.
+
+#### The two ways a Provider's first deployment builds green and serves nothing
+
+Both were found by running `vercel build` against `provider-tmdb` rather than reasoning about it, on
+21 August 2026 under **CAN-160 Make provider-tmdb's first deployment serve the contract rather than
+`public/`**. Neither is specific to that Provider, and the first reaches any of them.
+
+- **With no framework preset the project is not unconfigured, it is "Other"** — Output Directory
+  *"`public` if it exists, or `.`"*. A Provider has a `public/`, because
+  [ADR-0009](adr/0009-external-source-tmdb.md)'s attribution obligation needs a logo served without a
+  credential. So the deployment publishes the logo as a static site and answers `404` to every
+  contract path.
+- **The Hono preset takes the first entry point it finds rather than preferring `index`.** It detects
+  `app`, `index` and `server`, at the root or under `src/`, in six extensions
+  ([Hono on Vercel](https://vercel.com/docs/frameworks/backend/hono), read 21 August 2026) — and
+  `provider-tmdb` had `src/app.ts` beside `src/index.ts`, one holding the routes and one the deployed
+  entry point. The build printed `Multiple entrypoints found: src/app.ts, src/index.ts. Using
+  src/app.ts.`, reported `status: ok`, and wrote a function whose handler was a module exporting no
+  application at all. **The invariant that catches it is not "the entry point is on the list"**,
+  which was true throughout: it is that nothing else is, and `deployment.test.ts` there holds it.
+
+**A third is loud rather than silent, and is worth knowing before it is met.** Vercel's builder
+compiles the traced entry point **without resolving `@types/node`**, so the fetch globals are absent
+and a bare `Response` binds to whatever else is in scope — in `provider-tmdb`'s case Hono's own
+exported `interface Response`, giving six `TS2339`s that `pnpm typecheck` cannot reproduce. Adding
+`WebWorker` to `lib` is what fixed it, and is closer to a function's real global surface than `DOM`.
+**A Provider's `typecheck` gate passing says nothing about whether it builds on Vercel**, and
+`vercel build` cannot join the shared baseline: that workflow passes no secrets, and the command
+needs a token. It belongs beside `scripts/check-docs.ts` as a command a person runs.
+
+**`Vercel` is still not in any Provider's ruleset, and for the first time it could be.** *What the
+gate runs, and what it deliberately does not* above says the bar: a context joins a ruleset only once
+that repository has been seen reporting it, which is the rule that governs every other required
+context here. **`provider-tmdb` has now been seen** — `GET /repos/…/commits/{sha}/status` answers
+`context: "Vercel"`, `state: "success"` on a commit pushed after the Git connection, alongside a
+`Vercel Preview Comments` check run from the same app. So it is a candidate rather than a
+hypothetical, and requiring it is nobody's ticket yet.
+
+**Both rows in the table above are now observed, and they had to be observed differently.**
+`framework` is confirmed from the build: `vercel build` writes
+`config: {zeroConfig: true, framework: "hono"}` into `builds.json` and reports
+`detectedFramework: {status: "skipped"}`, which is detection standing down because the file named it.
+**`regions` appears nowhere in `.vercel/output`** — it is applied when a deployment is created rather
+than when one is built — so nothing local could show it, and it took a real deployment: `["lhr1"]` on
+the deployment, and `x-vercel-id: lhr1::lhr1::…` on every response. **A `vercel.json` row is worth
+checking on both sides for that reason**: which of the two a setting lands on is not something the
+file's own shape tells you.
+
 ### Where a Provider's failure surfaces
 
 A Provider that fails silently looks to the application like a Source with nothing to say, which is
@@ -922,7 +1037,7 @@ in place today:
 | The failure | Where it surfaces | State |
 | --- | --- | --- |
 | Its gate goes red | GitHub's own Actions notification: *"you'll receive a notification when any workflow runs that you've triggered have completed"* ([Notifications for workflow runs](https://docs.github.com/en/actions/concepts/workflows-and-actions/notifications-for-workflow-runs)) | **Inherited rather than built here**, and it holds only while every push to a Provider repository is a person's: it reaches whoever triggered the run and nobody else, so installing Renovate on a Provider repository would make its failures silent. The alternative was a notifying step in the baseline, which would put a sending credential in six public repositories to buy what GitHub already does today |
-| The deployment is gone | An UptimeRobot monitor of its own, from the fifty [ADR-0018](adr/0018-observability-sentry-and-an-uptime-monitor-outside-it.md) holds in reserve for exactly this | **Not provisioned.** No Provider deployment exists yet |
+| The deployment is gone | An UptimeRobot monitor of its own, from the fifty [ADR-0018](adr/0018-observability-sentry-and-an-uptime-monitor-outside-it.md) holds in reserve for exactly this | **Not provisioned**, and no longer for want of something to watch: `provider-tmdb` has deployed since 21 August 2026. What still blocks it is the decision below, not the deployment |
 | An exception inside it | A Sentry project of its own, as `apps/mobile` and `apps/tv` each get one | **Not provisioned**, and blocked: nothing reports to Sentry at all yet, and **CAN-51 Keep a record of server errors past the hour Vercel keeps them** owns the SDK's shape |
 
 **One thing has to be decided before the second row can be provisioned, and it is not a settings
@@ -1205,9 +1320,12 @@ documents it.
 in a project that served nothing. **CAN-152 Implement the Provider contract in provider-tmdb, and
 close its endpoint** is what reads it: the repository serves version 1 of the contract, closes its
 endpoint against `CANONCORE_ACCESS_TOKEN`, and derives `liveness` from TMDB's daily ID exports.
-**What still does not exist is the deployment** — [CAN-150 provider-tmdb is provisioned on GitHub and
-unwired on Vercel, so nothing deploys](https://linear.app/jacobrees-canoncore/issue/CAN-150) owns
-that, so the code is written and running nowhere.
+**And it now runs somewhere.**
+[CAN-150 provider-tmdb is provisioned on GitHub and unwired on Vercel, so nothing deploys](https://linear.app/jacobrees-canoncore/issue/CAN-150)
+connected the project to Git on 21 August 2026 and observed a push produce a deployment that answers
+on the contract's paths — *How a Provider deploys* above. **What is still missing is the caller**:
+the application holds no `CANONCORE_ACCESS_TOKEN`, so the Provider is deployed, closed, and reached
+by nothing ([CAN-113 Add a Provider by pasting its URL](https://linear.app/jacobrees-canoncore/issue/CAN-113)).
 
 **Held nowhere was a real state, and recording it rather than tidying it away is what made the
 change above legible.** A credential whose home is unrecorded is the failure this roster exists to
@@ -2795,7 +2913,7 @@ on 21 August 2026.*
 | Vercel project | Neon store | Values stored Non-sensitive, and so readable |
 | --- | --- | --- |
 | `canoncore` | `canoncore`, in *Database* above | **Five, none of them a credential** — two hostnames, a database name and two role names, each argued in place in the roster in *Environment variables* above |
-| `provider-tmdb` | — | **None.** It holds one variable, `TMDB_READ_ACCESS_TOKEN`, Sensitive. The TMDB Provider, under [ADR-0014](adr/0014-shell-providers-and-per-source-retention.md) |
+| `provider-tmdb` | — | **None.** It holds two variables, `TMDB_READ_ACCESS_TOKEN` and `CANONCORE_ACCESS_TOKEN`, both Sensitive. The TMDB Provider, under [ADR-0014](adr/0014-shell-providers-and-per-source-retention.md); how it deploys and what was changed on the project is *How a Provider deploys* above |
 | `portfolio` | — | **None**, and no variables at all. Not CanonCore; serves `www.jacobrees.co.uk` |
 | `waveger` | `waveger`, `store_xCNwLtRIQVOBig87` → Neon project `delicate-credit-61083163` | **Twenty-one, including `PGPASSWORD`, `POSTGRES_PASSWORD` and the six connection strings that embed them** — sixteen in all three environments, five more in Development only, the same five being Sensitive in Preview and Production. Not CanonCore — **CAN-149 waveger and waveger-archive store readable credentials, including a live Postgres password** |
 | `waveger-archive` | — | **Nine, including `SENTRY_AUTH_TOKEN`** — five in all three environments, four in Production only. Not CanonCore, and deliberate rather than abandoned — same ticket |

@@ -46,26 +46,45 @@ since two pull requests carrying one identifier both drive it and the first to m
    gh auth switch --user jacobdrees
    ```
 
-3. **Find the Linear issue.** Orca holds the link as worktree metadata, so the branch name is the
-   fallback and not the source:
+3. **Find the Linear issue, from the branch.** The branch carries its `CAN-n` and is checked out in
+   the repository the pull request is for, so it is the one source that cannot disagree with where
+   you are standing:
 
-   - `orca linear issue --current --full --json` — works when the worktree was created with
-     `--linear-issue`.
-   - Otherwise take the identifier from the branch and read it explicitly:
+   **One block, because shell state does not survive between calls.** `$ID` set here is gone by the
+   time step 10 runs, so that step names the identifier literally rather than reusing the variable:
 
-     ```bash
-     ID=$(git branch --show-current | grep -oiE 'can-[0-9]+' | head -1)
-     orca linear issue "$ID" --full --workspace "$WS" --json
-     ```
+   ```bash
+   ID=$(git branch --show-current | grep -oiE 'can-[0-9]+' | head -1)
+   [ -z "$ID" ] && echo "no CAN-n in the branch name; carrying on without an issue" && exit 0
+   LANE=$(orca linear issue --current --json 2>/dev/null | jq -r '.result.issue.identifier // empty')
+   if [ -n "$LANE" ] && [ "$LANE" != "$(echo "$ID" | tr a-z A-Z)" ]; then
+     echo "Wrong session: branch says $ID, the session's lane says $LANE" >&2; exit 1
+   fi
+   orca linear issue "$ID" --full --workspace "$WS" --json
+   ```
 
-     Case does not matter: a lowercase `can-11` resolves CAN-11. The exact-match rule is about
-     *names* (`--team CAN` vs `--team CanonCore`), not identifiers.
+   Case does not matter: a lowercase `can-11` resolves CAN-11. The exact-match rule is about *names*
+   (`--team CAN` vs `--team CanonCore`), not identifiers.
 
-     **`--workspace` is mandatory on every non-`--current` call.** Orca is connected to three
-     workspaces, does not infer one from the directory, and picks between them unpredictably and
-     silently (`docs/incidents.md` → *An omitted `--workspace` resolved to a different workspace each
-     half-day*).
-   - If neither works, carry on without an issue and say so. Do not guess one.
+   **`--workspace` is mandatory on every non-`--current` call.** Orca is connected to three workspaces,
+   does not infer one from the directory, and picks between them unpredictably and silently
+   (`docs/incidents.md` → *An omitted `--workspace` resolved to a different workspace each half-day*).
+
+   **`--current` confirms this; it does not replace it.** It reads `ORCA_WORKTREE_ID`, which is exported
+   once at session launch and pins one worktree for the process's whole life — so in a session
+   working a second repository it returns **the launching lane's ticket**, and returns it confidently
+   rather than declining. That is a neighbouring open ticket about the same feature, and a pull
+   request carrying it closes the wrong issue on merge (`docs/incidents.md` → *`--current` answers for the
+   session's lane, not the directory you are standing in*). Run it as a cross-check and stop if the
+   two disagree:
+
+   **A `--current` that cannot answer is not a disagreement.** A branch made with `git switch -c` has no
+   Orca worktree behind it and returns `selector_not_found`, and a plain clone has no `orca` at all —
+   both of which `/review-pr` already treats as an announced no-op rather than a failure. Stop only
+   when it names a *different* identifier; carry on when it names none.
+
+   If the branch carries no identifier, carry on without an issue and say so. Do not guess one, and
+   do not fall back to `--current`.
 
 4. **Resolve the base branch.** Default to `main` and say nothing — a lone branch is the common case
    and a prompt every time is noise.
@@ -205,15 +224,17 @@ since two pull requests carrying one identifier both drive it and the first to m
    route the classifier does not block. Pass `draft: true`, and the text of the body file rather
    than its path — the tool's schema takes `body` as a string.
 
-10. **Attach the PR to the issue**, if one was found:
+10. **Attach the PR to the issue**, if one was found. **Step 3's identifier, not `--current`** — the
+    attachment is a write to a ticket, so it carries the same wrong-lane risk the PR body does, and
+    an attachment landing on the launching lane's issue is the same defect one door further down.
+    **`CAN-<n>` is step 3's identifier written out**, because `$ID` did not survive that Bash call:
 
     ```bash
-    orca linear attach --current --url <pr-url> --title "PR link" --json
+    orca linear attach CAN-<n> --url <pr-url> --title "PR link" --workspace "$WS" --json
     ```
 
-    Use `orca linear attach <id> --url … --workspace "$WS"` when the worktree is not linked. This is
-    deliberate belt and braces: `Fixes CAN-<n>` in the body relies on Linear's scanner noticing, and
-    an attachment does not.
+    This is deliberate belt and braces: `Fixes CAN-<n>` in the body relies on Linear's scanner
+    noticing, and an attachment does not.
 
     On `linear_write_unconfirmed`, retry **once** with the pinned `--write-id` from the error's own
     `nextSteps`, with the identical body and an explicit issue target — never swap the pinned target

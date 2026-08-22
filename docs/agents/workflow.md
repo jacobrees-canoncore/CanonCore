@@ -214,9 +214,11 @@ so, so the explicit fetch is what makes the base current wherever the recipe is 
 that checked them.
 
 `--linear-issue` is the part that matters: Orca keeps the issue as worktree metadata rather than
-reading it off the branch, and that is what makes the `--current` form work — the only form that
-needs no `--workspace`. Without Orca, `git switch -c CAN-11-welcome-email-queue` is fine; it only
-costs you `--current`.
+reading it off the branch, which is what gives `--current` anything to resolve — the only form that
+needs no `--workspace`. **That is not a reason to read a ticket with it**: it answers for the
+terminal's own lane rather than the directory, so it is right only while the two agree
+(`docs/incidents.md` → *`--current` answers for the session's lane, not the directory you are
+standing in*). Without Orca, `git switch -c CAN-11-welcome-email-queue` is fine.
 
 **If you find yourself on `main` with commits that should have been on a branch**, nothing is lost
 as long as you have not pushed:
@@ -997,7 +999,12 @@ than merely going quiet, and each breaks in the direction that reads as fine:
   be*. The baseline's own provisioning runs in the same direction and refuses to require a context
   no run has been seen reporting, which is **CAN-40 Give main a ruleset that refuses an unchecked
   merge**'s lesson rather than a new one. **The deployment is still per-Provider and the baseline
-  does not provision it** — nor the monitor that would say it had gone.
+  does not provision it** — nor the monitor that would say it had gone. **What a Provider's
+  deployment should be is settled even though provisioning it is not automated**: from Git, on every
+  branch, with its framework preset and function region in its own `vercel.json` rather than in
+  project settings — [`../infrastructure.md`](../infrastructure.md) → *How a Provider deploys*, which
+  also holds the GitHub App grant that has to happen first and the two ways a first deployment builds
+  green and serves nothing.
 - **A preview only reaches a Provider that admits it.** `provider-tmdb` and `provider-tardis-wiki`
   are closed endpoints — one because the key is ours, one because the permission is
   ([ADR-0014](../adr/0014-shell-providers-and-per-source-retention.md#decision-3--reachability-splits-by-credential-in-three-classes))
@@ -1027,8 +1034,11 @@ first Provider was built this way rather than because it was planned that way �
    `--no-parent` because the Provider's lane is not a child of this one, and `--linear-issue` because
    the link is worktree metadata rather than something inferred from the branch name.
 
-3. **Run the session inside the Provider's own checkout**, which used to be the thing that did not
-   work. The chain and the documents it cites arrive there as a Claude Code plugin whose payload is
+3. **Run the session inside the Provider's own checkout. This is a correctness rule, not a
+   convenience**, and it used to be the thing that did not work. From the wrong session the tracker
+   CLI's `--current` answers *this* lane's ticket for work in a Provider, and does not decline
+   (`docs/incidents.md` → *`--current` answers for the session's lane, not the directory you are
+   standing in*). The chain and the documents it cites arrive there as a Claude Code plugin whose payload is
    this repository, so `CLAUDE.md`, `CODING_STANDARDS.md`, `CONTEXT.md` and the ADRs are all present
    and the skills' pointers resolve — against `${CLAUDE_PLUGIN_ROOT}` rather than the working
    directory ([ADR-0029](../adr/0029-a-provider-reaches-this-practice-as-a-plugin.md)).

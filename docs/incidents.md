@@ -44,6 +44,7 @@ is what the rule was built on.
 - [The Linear→GitHub sync reverted a description write](#the-lineargithub-sync-reverted-a-description-write)
 - [Nine forms of a ticket reference, and the two that survive a Linear body](#nine-forms-of-a-ticket-reference-and-the-two-that-survive-a-linear-body)
 - [An omitted `--workspace` resolved to a different workspace each half-day](#an-omitted---workspace-resolved-to-a-different-workspace-each-half-day)
+- [`--current` answers for the session's lane, not the directory you are standing in](#--current-answers-for-the-sessions-lane-not-the-directory-you-are-standing-in)
 - [One GitHub owner binds to one Linear workspace](#one-github-owner-binds-to-one-linear-workspace)
 
 **Hosting and the repository**
@@ -735,6 +736,70 @@ does **not** infer one from the current directory.
 **The failure is silent and direction-dependent.** `list-issues` unscoped returns another
 workspace's issues, which at least looks wrong; `search` unscoped returns an empty list, which reads
 as "no matching issues" rather than "wrong workspace".
+
+## `--current` answers for the session's lane, not the directory you are standing in
+
+**21 August 2026, on CAN-150 provider-tmdb is provisioned on GitHub and unwired on Vercel, so nothing
+deploys.** Run from inside `~/orca/workspaces/provider-tmdb/can-160`, `orca linear issue --current`
+answered **CAN-150** — the ticket of the CanonCore lane the session was launched from, not the
+**CAN-160 Make provider-tmdb's first deployment serve the contract rather than `public/`** that directory belongs to.
+
+**Both worktrees were linked correctly**, which is what makes this worth writing down rather than
+fixing. `orca worktree list --json` gives `linkedLinearIssue: "CAN-150"` for the CanonCore path and
+`"CAN-160"` for the Provider one.
+
+**What decides it is the caller terminal, and the environment variable is only checked for agreement.** Measured 22 August 2026 from the Provider worktree: `env -u ORCA_WORKTREE_ID` changes nothing, `--current` still answers `CAN-150`; and setting ORCA_WORKTREE_ID to the Provider lane is *refused* — `linear_permission_denied`, *"The provided Linear worktree context does not match the caller terminal."* So `cd` moves the shell and nothing else, and the variable cannot be used to point a session at another lane either.
+
+> **The first version of this entry named the variable as the cause, and that was wrong.** It was
+> inferred from the variable being the only session-scoped thing in view rather than measured, a
+> review said so — *"supported by elimination, not directly demonstrated"* — and the causal sentence
+> was left standing through a second round anyway. The two commands above are what settled it, and
+> they were run only when a later round asked the same question twice. **The reading was always
+> right; the explanation attached to it was not**, which is the more dangerous shape: a permanent
+> record whose observation checks out invites nobody to re-test the sentence beside it.
+
+**The failure is a plausible wrong answer rather than an error**, which is the shape of *An omitted
+`--workspace` resolved to a different workspace each half-day* above. A tracker id is never obviously
+wrong: `CAN-150` and `CAN-160` are neighbours, both open, both about the same Provider. It was caught
+by reading the identifier that came back, not by anything refusing.
+
+**What it would have cost, and it does not wait for a merge.** `/draft-pr` step 3 tried `--current`
+*first* and fell back to the branch name, so the Provider's pull request would have carried
+`Fixes CAN-150`. Linear's integration moves an issue as a pull request **opens** as well as when it
+merges ([`agents/workflow.md`](agents/workflow.md) → *Work that spans two repositories*), so the
+damage starts at `gh pr create`: the CanonCore ticket advances on the strength of a pull request in
+another repository. The merge then reports it Done and leaves the Provider's own open, which nothing
+re-opens. **Step 10's attachment is the same defect one door down** — it writes to a ticket too, and
+it took `--current` under a condition, *"when the worktree is not linked"*, that this incident's own
+case never met.
+
+**What follows is a sweep rather than one edit, because `--current` was the recommended form
+everywhere.** `/implement` takes the identifier from the branch — it is the head of the chain, so a
+ticket read wrong there is wrong in everything downstream; `/draft-pr` does the same and then runs
+`--current` as a guard that **exits non-zero** when the two name different tickets, and passes when it
+names none, since a `git switch -c` branch has no lane and answers `selector_not_found`;
+`/draft-pr`'s attachment and every write in `/review-pr`'s close-out use that identifier too.
+[`agents/issue-tracker.md`](agents/issue-tracker.md) said to use `--current` *"when the Orca worktree is
+linked"* in two places, and being linked is precisely what this incident shows is not the condition.
+The workspace hook's own refusal message recommended it, and now says what it resolves against.
+
+**The branch is the source because it cannot be inherited from another process**, which is the
+narrowest true form of it. A branch *can* disagree with its repository — `git switch -c
+jacobdrees/CAN-150-…` inside the Provider is exactly that, and the guard below cannot catch it,
+because the branch and the lane would then agree while both were wrong. Nor does `--workspace` help:
+`CAN-150` and `CAN-160` share one team and one workspace. **What the branch removes is the failure
+that needs no mistake at all**, and that is the whole of the claim.
+
+**And *Work that spans two repositories*' instruction to run the session inside the Provider's own
+checkout is a correctness rule rather than a convenience**, which is now what it says: from the wrong
+session, `--current` does not decline to answer.
+
+**None of that reaches a Provider repository yet, and the delay is structural.** A Provider gets this
+practice as a Claude Code plugin ([`adr/0029-a-provider-reaches-this-practice-as-a-plugin.md`](adr/0029-a-provider-reaches-this-practice-as-a-plugin.md)),
+and the installed copy is materialised rather than a checkout — `~/.claude/plugins/cache/canoncore/canoncore-engineering/0.1.0/`
+still carried the pre-fix `attach --current` while this was being written. **So a fix to these skills
+lands here on merge and there on the next plugin update**, and the window between is one where the
+repository and its own published practice disagree.
 
 ## One GitHub owner binds to one Linear workspace
 

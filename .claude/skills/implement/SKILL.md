@@ -14,7 +14,14 @@ repository you are working in. Read both before writing code there, along with t
 `CLAUDE.md`, which says what is different about it (`docs/agents/workflow.md` → *Work that spans two
 repositories*).
 
-When the work is a ticket, read it and its comments first — `orca linear issue --current --comments --json` — then the ADRs and docs for the area.
+When the work is a ticket, read it and its comments first. **Take the identifier from the branch, not from `--current`** — `--current` resolves against the session's own lane rather than the working directory, so a session working a second repository is handed the launching lane's ticket and is handed it confidently (`docs/incidents.md` → *`--current` answers for the session's lane, not the directory you are standing in*). This is the head of the chain, so a ticket read wrong here is wrong in everything downstream of it:
+
+```bash
+ID=$(git branch --show-current | grep -oiE 'can-[0-9]+' | head -1)
+orca linear issue "$ID" --comments --json --workspace ad2669ec-93a5-4ce1-97fa-c7d9247a1452
+```
+
+Then the ADRs and docs for the area.
 
 Use /tdd where possible, at pre-agreed seams.
 

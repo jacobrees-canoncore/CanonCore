@@ -28,5 +28,5 @@ if [[ "$cmd" =~ --workspace[[:space:]=]+[^[:space:]]+ ]] || [[ "$cmd" =~ (^|[[:s
   exit 0
 fi
 
-echo "Blocked: 'orca linear' must pin a workspace — --workspace ad2669ec-93a5-4ce1-97fa-c7d9247a1452 for this project, --workspace all to search across them, or --current for the issue linked to this worktree. Orca is connected to three workspaces and picks the wrong one silently." >&2
+echo "Blocked: 'orca linear' must pin a workspace — --workspace ad2669ec-93a5-4ce1-97fa-c7d9247a1452 for this project, --workspace all to search across them, or --current, which pins a workspace but resolves the SESSION's lane rather than this directory — take the identifier from the branch instead. Orca is connected to three workspaces and picks the wrong one silently." >&2
 exit 2
