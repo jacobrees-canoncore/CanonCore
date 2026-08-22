@@ -44,6 +44,7 @@ is what the rule was built on.
 - [The Linear→GitHub sync reverted a description write](#the-lineargithub-sync-reverted-a-description-write)
 - [Nine forms of a ticket reference, and the two that survive a Linear body](#nine-forms-of-a-ticket-reference-and-the-two-that-survive-a-linear-body)
 - [An omitted `--workspace` resolved to a different workspace each half-day](#an-omitted---workspace-resolved-to-a-different-workspace-each-half-day)
+- [`--current` answers for the session's lane, not the directory you are standing in](#--current-answers-for-the-sessions-lane-not-the-directory-you-are-standing-in)
 - [One GitHub owner binds to one Linear workspace](#one-github-owner-binds-to-one-linear-workspace)
 
 **Hosting and the repository**
@@ -735,6 +736,36 @@ does **not** infer one from the current directory.
 **The failure is silent and direction-dependent.** `list-issues` unscoped returns another
 workspace's issues, which at least looks wrong; `search` unscoped returns an empty list, which reads
 as "no matching issues" rather than "wrong workspace".
+
+## `--current` answers for the session's lane, not the directory you are standing in
+
+**21 August 2026, on CAN-150 provider-tmdb is provisioned on GitHub and unwired on Vercel, so nothing
+deploys.** Run from inside `~/orca/workspaces/provider-tmdb/can-160`, `orca linear issue --current`
+answered **CAN-150** — the ticket of the CanonCore lane the session was launched from, not the
+CAN-160 that directory belongs to.
+
+**Both worktrees were linked correctly**, which is what makes this worth writing down rather than
+fixing. `orca worktree list --json` gives `linkedLinearIssue: "CAN-150"` for the CanonCore path and
+`"CAN-160"` for the Provider one. What decides `--current` is the session's environment:
+`ORCA_WORKTREE_ID` is exported at launch and pins one worktree for the process's whole life, so `cd`
+moves the shell and nothing else.
+
+**The failure is a plausible wrong answer rather than an error**, which is the shape of *An omitted
+`--workspace` resolved to a different workspace each half-day* above. A tracker id is never obviously
+wrong: `CAN-150` and `CAN-160` are neighbours, both open, both about the same Provider. It was caught
+by reading the identifier that came back, not by anything refusing.
+
+**What it would have cost.** `/draft-pr` step 3 tried `--current` *first* and fell back to the branch
+name, so the Provider's pull request would have carried `Fixes CAN-150`. Two pull requests carrying
+one identifier both drive that issue and the first to merge closes it
+([`agents/workflow.md`](agents/workflow.md) → *Work that spans two repositories*) — so the Provider's
+merge would have reported the CanonCore ticket Done and left its own open, which nothing re-opens.
+
+**Two things follow.** `/draft-pr` and `/review-pr` now derive the identifier from the branch first
+and use `--current` only to confirm it, because the branch is the one thing that cannot disagree with
+the repository it is checked out in. And *Work that spans two repositories*' instruction to run the
+session inside the Provider's own checkout is a correctness rule rather than a convenience: from the
+wrong session, `--current` does not decline to answer.
 
 ## One GitHub owner binds to one Linear workspace
 

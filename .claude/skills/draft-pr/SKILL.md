@@ -46,26 +46,36 @@ since two pull requests carrying one identifier both drive it and the first to m
    gh auth switch --user jacobdrees
    ```
 
-3. **Find the Linear issue.** Orca holds the link as worktree metadata, so the branch name is the
-   fallback and not the source:
+3. **Find the Linear issue, from the branch.** The branch carries its `CAN-n` and is checked out in
+   the repository the pull request is for, so it is the one source that cannot disagree with where
+   you are standing:
 
-   - `orca linear issue --current --full --json` — works when the worktree was created with
-     `--linear-issue`.
-   - Otherwise take the identifier from the branch and read it explicitly:
+   ```bash
+   ID=$(git branch --show-current | grep -oiE 'can-[0-9]+' | head -1)
+   orca linear issue "$ID" --full --workspace "$WS" --json
+   ```
 
-     ```bash
-     ID=$(git branch --show-current | grep -oiE 'can-[0-9]+' | head -1)
-     orca linear issue "$ID" --full --workspace "$WS" --json
-     ```
+   Case does not matter: a lowercase `can-11` resolves CAN-11. The exact-match rule is about *names*
+   (`--team CAN` vs `--team CanonCore`), not identifiers.
 
-     Case does not matter: a lowercase `can-11` resolves CAN-11. The exact-match rule is about
-     *names* (`--team CAN` vs `--team CanonCore`), not identifiers.
+   **`--workspace` is mandatory on every non-`--current` call.** Orca is connected to three workspaces,
+   does not infer one from the directory, and picks between them unpredictably and silently
+   (`docs/incidents.md` → *An omitted `--workspace` resolved to a different workspace each half-day*).
 
-     **`--workspace` is mandatory on every non-`--current` call.** Orca is connected to three
-     workspaces, does not infer one from the directory, and picks between them unpredictably and
-     silently (`docs/incidents.md` → *An omitted `--workspace` resolved to a different workspace each
-     half-day*).
-   - If neither works, carry on without an issue and say so. Do not guess one.
+   **`--current` confirms this; it does not replace it.** It reads `ORCA_WORKTREE_ID`, which is exported
+   once at session launch and pins one worktree for the process's whole life — so in a session
+   working a second repository it returns **the launching lane's ticket**, and returns it confidently
+   rather than declining. That is a neighbouring open ticket about the same feature, and a pull
+   request carrying it closes the wrong issue on merge (`docs/incidents.md` → *`--current` answers for the
+   session's lane, not the directory you are standing in*). Run it as a cross-check and stop if the
+   two disagree:
+
+   ```bash
+   orca linear issue --current --json      # must agree with $ID, or you are in the wrong session
+   ```
+
+   If the branch carries no identifier, carry on without an issue and say so. Do not guess one, and
+   do not fall back to `--current`.
 
 4. **Resolve the base branch.** Default to `main` and say nothing — a lone branch is the common case
    and a prompt every time is noise.

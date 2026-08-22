@@ -353,9 +353,12 @@ repositories*).
    If the settled read comes back reverted, write once more and settle-and-read again — repair, not
    a blind retry. If the second write is reverted too, leave it and say so in the report.
 
-8. **Close out Linear.** Resolve the issue the way `/draft-pr` does — the `--current` form first,
-   the identifier from the branch name as the fallback, and `--workspace "$WS"` on everything that
-   is not `--current`:
+8. **Close out Linear.** Resolve the issue the way `/draft-pr` does — **the identifier from the
+   branch name, with `--current` only as a cross-check** — and `--workspace "$WS"` on everything that is
+   not `--current`. Taking `--current` as the source moves the wrong ticket to Done from a session working a
+   second repository, and it answers confidently rather than declining
+   (`docs/incidents.md` → *`--current` answers for the session's lane, not the directory you are standing
+   in*):
 
    ```bash
    orca linear status set CAN-<n> --to Done --workspace "$WS" --json   # skip if already Done
