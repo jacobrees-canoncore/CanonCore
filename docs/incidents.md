@@ -746,9 +746,17 @@ answered **CAN-150** — the ticket of the CanonCore lane the session was launch
 
 **Both worktrees were linked correctly**, which is what makes this worth writing down rather than
 fixing. `orca worktree list --json` gives `linkedLinearIssue: "CAN-150"` for the CanonCore path and
-`"CAN-160"` for the Provider one. What decides `--current` is the session's environment:
-`ORCA_WORKTREE_ID` is exported at launch and pins one worktree for the process's whole life, so `cd`
-moves the shell and nothing else.
+`"CAN-160"` for the Provider one.
+
+**What decides it is the caller terminal, and the environment variable is only checked for agreement.** Measured 22 August 2026 from the Provider worktree: `env -u ORCA_WORKTREE_ID` changes nothing, `--current` still answers `CAN-150`; and setting ORCA_WORKTREE_ID to the Provider lane is *refused* — `linear_permission_denied`, *"The provided Linear worktree context does not match the caller terminal."* So `cd` moves the shell and nothing else, and the variable cannot be used to point a session at another lane either.
+
+> **The first version of this entry named the variable as the cause, and that was wrong.** It was
+> inferred from the variable being the only session-scoped thing in view rather than measured, a
+> review said so — *"supported by elimination, not directly demonstrated"* — and the causal sentence
+> was left standing through a second round anyway. The two commands above are what settled it, and
+> they were run only when a later round asked the same question twice. **The reading was always
+> right; the explanation attached to it was not**, which is the more dangerous shape: a permanent
+> record whose observation checks out invites nobody to re-test the sentence beside it.
 
 **The failure is a plausible wrong answer rather than an error**, which is the shape of *An omitted
 `--workspace` resolved to a different workspace each half-day* above. A tracker id is never obviously
@@ -775,14 +783,23 @@ names none, since a `git switch -c` branch has no lane and answers `selector_not
 linked"* in two places, and being linked is precisely what this incident shows is not the condition.
 The workspace hook's own refusal message recommended it, and now says what it resolves against.
 
-**The branch is the source because it cannot disagree with the repository it is checked out in.**
-That is a claim about *location* and nothing more: `CAN-150` and `CAN-160` share one team and one
-workspace, so neither the branch nor `--workspace` catches a mistyped identifier. What it removes is
-the failure that needs no mistake at all.
+**The branch is the source because it cannot be inherited from another process**, which is the
+narrowest true form of it. A branch *can* disagree with its repository — `git switch -c
+jacobdrees/CAN-150-…` inside the Provider is exactly that, and the guard below cannot catch it,
+because the branch and the lane would then agree while both were wrong. Nor does `--workspace` help:
+`CAN-150` and `CAN-160` share one team and one workspace. **What the branch removes is the failure
+that needs no mistake at all**, and that is the whole of the claim.
 
 **And *Work that spans two repositories*' instruction to run the session inside the Provider's own
 checkout is a correctness rule rather than a convenience**, which is now what it says: from the wrong
 session, `--current` does not decline to answer.
+
+**None of that reaches a Provider repository yet, and the delay is structural.** A Provider gets this
+practice as a Claude Code plugin ([`adr/0029-a-provider-reaches-this-practice-as-a-plugin.md`](adr/0029-a-provider-reaches-this-practice-as-a-plugin.md)),
+and the installed copy is materialised rather than a checkout — `~/.claude/plugins/cache/canoncore/canoncore-engineering/0.1.0/`
+still carried the pre-fix `attach --current` while this was being written. **So a fix to these skills
+lands here on merge and there on the next plugin update**, and the window between is one where the
+repository and its own published practice disagree.
 
 ## One GitHub owner binds to one Linear workspace
 

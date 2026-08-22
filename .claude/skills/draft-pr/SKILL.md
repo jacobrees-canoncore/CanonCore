@@ -50,8 +50,16 @@ since two pull requests carrying one identifier both drive it and the first to m
    the repository the pull request is for, so it is the one source that cannot disagree with where
    you are standing:
 
+   **One block, because shell state does not survive between calls.** `$ID` set here is gone by the
+   time step 10 runs, so that step names the identifier literally rather than reusing the variable:
+
    ```bash
    ID=$(git branch --show-current | grep -oiE 'can-[0-9]+' | head -1)
+   [ -z "$ID" ] && echo "no CAN-n in the branch name; carrying on without an issue" && exit 0
+   LANE=$(orca linear issue --current --json 2>/dev/null | jq -r '.result.issue.identifier // empty')
+   if [ -n "$LANE" ] && [ "$LANE" != "$(echo "$ID" | tr a-z A-Z)" ]; then
+     echo "Wrong session: branch says $ID, the session's lane says $LANE" >&2; exit 1
+   fi
    orca linear issue "$ID" --full --workspace "$WS" --json
    ```
 
@@ -69,13 +77,6 @@ since two pull requests carrying one identifier both drive it and the first to m
    request carrying it closes the wrong issue on merge (`docs/incidents.md` → *`--current` answers for the
    session's lane, not the directory you are standing in*). Run it as a cross-check and stop if the
    two disagree:
-
-   ```bash
-   LANE=$(orca linear issue --current --json 2>/dev/null | jq -r '.result.issue.identifier // empty')
-   if [ -n "$LANE" ] && [ "$LANE" != "$(echo "$ID" | tr a-z A-Z)" ]; then
-     echo "Wrong session: branch says $ID, the session's lane says $LANE" >&2; exit 1
-   fi
-   ```
 
    **A `--current` that cannot answer is not a disagreement.** A branch made with `git switch -c` has no
    Orca worktree behind it and returns `selector_not_found`, and a plain clone has no `orca` at all —
@@ -223,12 +224,13 @@ since two pull requests carrying one identifier both drive it and the first to m
    route the classifier does not block. Pass `draft: true`, and the text of the body file rather
    than its path — the tool's schema takes `body` as a string.
 
-10. **Attach the PR to the issue**, if one was found. **`$ID` from step 3, not `--current`** — the
+10. **Attach the PR to the issue**, if one was found. **Step 3's identifier, not `--current`** — the
     attachment is a write to a ticket, so it carries the same wrong-lane risk the PR body does, and
-    an attachment landing on the launching lane's issue is the same defect one door further down:
+    an attachment landing on the launching lane's issue is the same defect one door further down.
+    **`CAN-<n>` is step 3's identifier written out**, because `$ID` did not survive that Bash call:
 
     ```bash
-    orca linear attach "$ID" --url <pr-url> --title "PR link" --workspace "$WS" --json
+    orca linear attach CAN-<n> --url <pr-url> --title "PR link" --workspace "$WS" --json
     ```
 
     This is deliberate belt and braces: `Fixes CAN-<n>` in the body relies on Linear's scanner

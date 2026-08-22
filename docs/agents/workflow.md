@@ -214,9 +214,11 @@ so, so the explicit fetch is what makes the base current wherever the recipe is 
 that checked them.
 
 `--linear-issue` is the part that matters: Orca keeps the issue as worktree metadata rather than
-reading it off the branch, and that is what makes the `--current` form work — the only form that
-needs no `--workspace`. Without Orca, `git switch -c CAN-11-welcome-email-queue` is fine; it only
-costs you `--current`.
+reading it off the branch, which is what gives `--current` anything to resolve — the only form that
+needs no `--workspace`. **That is not a reason to read a ticket with it**: it answers for the
+terminal's own lane rather than the directory, so it is right only while the two agree
+(`docs/incidents.md` → *`--current` answers for the session's lane, not the directory you are
+standing in*). Without Orca, `git switch -c CAN-11-welcome-email-queue` is fine.
 
 **If you find yourself on `main` with commits that should have been on a branch**, nothing is lost
 as long as you have not pushed:
@@ -1033,10 +1035,10 @@ first Provider was built this way rather than because it was planned that way �
    the link is worktree metadata rather than something inferred from the branch name.
 
 3. **Run the session inside the Provider's own checkout. This is a correctness rule, not a
-   convenience** — the tracker CLI's `--current` resolves against the session's own lane rather than
-   the working directory, so from a CanonCore session it answers *this* ticket for work in a Provider
-   and does not decline (`docs/incidents.md` → *`--current` answers for the session's lane, not
-   the directory you are standing in*). It used to be the thing that did not work. The chain and the documents it cites arrive there as a Claude Code plugin whose payload is
+   convenience**, and it used to be the thing that did not work. From the wrong session the tracker
+   CLI's `--current` answers *this* lane's ticket for work in a Provider, and does not decline
+   (`docs/incidents.md` → *`--current` answers for the session's lane, not the directory you are
+   standing in*). The chain and the documents it cites arrive there as a Claude Code plugin whose payload is
    this repository, so `CLAUDE.md`, `CODING_STANDARDS.md`, `CONTEXT.md` and the ADRs are all present
    and the skills' pointers resolve — against `${CLAUDE_PLUGIN_ROOT}` rather than the working
    directory ([ADR-0029](../adr/0029-a-provider-reaches-this-practice-as-a-plugin.md)).
