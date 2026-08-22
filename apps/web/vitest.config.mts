@@ -18,6 +18,11 @@ export default defineConfig({
     // The second glob is for tests of this directory's own configuration files, which sit
     // beside what they test rather than under `src`: `eslint.config.test.mts` is about
     // `eslint.config.mjs`.
-    include: ["src/**/*.test.{ts,tsx}", "*.test.mts"],
+    //
+    // The third is for the operator commands in `scripts/`, which `src` cannot hold: they are run
+    // by `node` directly rather than by anything Next compiles, so what has to be checked about
+    // them is that `node` can load them at all. `scripts/read-declaration.test.mts` says why that
+    // is a real failure rather than a formality.
+    include: ["src/**/*.test.{ts,tsx}", "*.test.mts", "scripts/*.test.mts"],
   },
 });

@@ -192,6 +192,36 @@ own defaults has a decorative capability endpoint. The refusals are what make it
 [CAN-104 Read a Provider's capability declaration, and refuse what it does not serve](https://linear.app/jacobrees-canoncore/issue/CAN-104)
 is where they become code.
 
+> **The consumer side landed 21 August 2026** under that ticket, and two things it settled belong
+> here rather than in it.
+>
+> **No judgement derived from a declaration is ever stored.** Every refusal is computed from the
+> declaration in force at the moment it is asked, which is what makes *absence is refusal* survive a
+> Provider narrowing what it declares: a permission written down under the old declaration would
+> outlive the declaration that granted it, and nothing would notice. `apps/web/src/providers/refusals.ts`
+> is where the rules run and `source` is where the declaration is stored, one row per
+> `(Provider, declared identifier)` with a nullable column per optional block — so an absence is a
+> null and a refusal rather than a default.
+>
+> **A Snapshot names the declaration it was stored under, and is withheld when that is no longer the
+> one in force.** `declaredAt` orders the two reads, as this decision says; what it does not settle
+> is what to do with what was already stored, and the answer taken is to withhold until the values
+> have been read again rather than to work out, member by member, which of two declarations is the
+> narrower. That judgement is a legal one per field — a shortened retention binds, a dropped
+> classification binds, a widened one does not — and the application is in no position to make it.
+> Withholding is safe for every field at once, and the refresh that ends it is
+> [CAN-103 Refresh Snapshots before their Source's retention expires, and drop what cannot be refreshed](https://linear.app/jacobrees-canoncore/issue/CAN-103).
+>
+> **A Provider that answers with something that is not a declaration is a third case, and it is not
+> an outage.** This decision governs what a declaration's *members* mean; it says nothing about a
+> Provider that has stopped serving one at all. The line taken is that an unreachable host, a
+> timeout and an error status are indistinguishable from each other and leave everything as it was —
+> a `503` "is never evidence that anything was deleted" is this contract's own sentence — while a
+> reply that is not a declaration is distinguishable, and marks the Source unreadable: what the held
+> declaration **permits** is withdrawn, and what it **obliges** goes on binding, because a Provider
+> with a bad deploy is not a Source whose terms have relaxed. `unreadableSince` in
+> `apps/web/src/db/schema.ts` is where that line is drawn and argued.
+
 **The declaration carries `declaredAt`, so two reads can be ordered.** CAN-104 Read a Provider's
 capability declaration, and refuse what it does not serve requires that what
 the application stored under an old declaration is not silently re-interpreted under a new one.

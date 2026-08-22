@@ -34,7 +34,7 @@ import { sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { migrate } from "drizzle-orm/node-postgres/migrator";
 import { Client } from "pg";
-import { afterAll, beforeAll, describe, expect, test, vi } from "vitest";
+import { afterAll, afterEach, beforeAll, describe, expect, test, vi } from "vitest";
 import { passwordMinimum } from "../auth/password";
 import { sessionUserSetting } from "./schema";
 
@@ -113,9 +113,75 @@ const storyFixtures = [ownedByA.id, ownedByB.id, publicOfB.id];
 /**
  * The two shapes `source.retention` can take, held by no Source anyone has heard of — naming a
  * real one would put that Source's terms in this repository, which `schema.ts` says why not.
+ *
+ * Both are declared by one Provider, so each needs its own `declared_id`: what identifies a Source
+ * here is the pair, and the constraint that says so is exercised further down.
  */
-const expiringSource = { id: "33333333-3333-4333-8333-333333333333", retention: "6 months" };
-const indefiniteSource = { id: "44444444-4444-4444-8444-444444444444", retention: "infinity" };
+const expiringSource = {
+  id: "33333333-3333-4333-8333-333333333333",
+  declaredId: "the-expiring-one",
+  retention: "P6M",
+};
+const indefiniteSource = {
+  id: "44444444-4444-4444-8444-444444444444",
+  declaredId: "the-indefinite-one",
+  retention: "infinity",
+};
+
+/**
+ * The `declared_at` every Source seeded here carries, and every Snapshot of one is stored under.
+ *
+ * One value across the file so that nothing outside the declaration-change suite is withheld by
+ * accident: a Snapshot is read under the declaration in force when it was stored, and a fixture
+ * whose two halves disagreed would be withheld for a reason its own test never mentioned.
+ */
+const declaredAtSeeded = "2026-08-17T08:00:00Z";
+
+/**
+ * Every column one Provider's declaration fills, as a Provider nobody has heard of would fill it.
+ *
+ * **Its shape is the contract's rather than this file's**: `docs/provider-contract/v1/openapi.yaml`
+ * is what a Provider answers with, and [`declaration.ts`](../providers/declaration.ts) is the parse
+ * that gets it here. What a case varies is what that case is about; everything else stays the
+ * smallest conformant answer, with the three optional blocks absent — which is a Provider declaring
+ * that it does none of those things.
+ */
+function declaredSource(overrides: Record<string, unknown> = {}) {
+  return {
+    provider_base_url: "https://provider.invalid",
+    declared_id: "a-source",
+    name: "A Source nobody has heard of",
+    url: "https://source.invalid",
+    declared_at: declaredAtSeeded,
+    retention: "infinity",
+    licence_spdx: "CC0-1.0",
+    licence_name: "CC0 1.0 Universal",
+    licence_url: "https://source.invalid/licence",
+    licence_share_alike: false,
+    attribution: JSON.stringify({ required: false }),
+    restrictions: [] as string[],
+    classification: null,
+    orderings_canonical: null,
+    liveness_confirms_deletion: null,
+    liveness_evidence: null,
+    unreadable_since: null,
+    unreadable_because: null,
+    ...overrides,
+  };
+}
+
+/** `insert into source`, with every column a declaration fills and the column list in one place. */
+function insertSource(client: Client, overrides: Record<string, unknown> = {}) {
+  const row = declaredSource(overrides);
+  const columns = Object.keys(row);
+
+  return client.query(
+    `insert into source (${columns.join(", ")})
+     values (${columns.map((_, index) => `$${index + 1}`).join(", ")})
+     on conflict (id) do nothing`,
+    Object.values(row),
+  );
+}
 
 /**
  * One read time for all three Snapshots below, long enough ago that the six-month Source's have
@@ -439,20 +505,17 @@ describe.skipIf(noDatabase)("the schema, against a real PostgreSQL", () => {
 
     // Two Sources and a Snapshot on each of the three Stories, written here rather than by a
     // migration for the reason `schema.ts` gives on `source`.
-    await migrator.query(
-      `insert into source (id, retention) values ($1, $2), ($3, $4)
-       on conflict (id) do nothing`,
-      [
-        expiringSource.id,
-        expiringSource.retention,
-        indefiniteSource.id,
-        indefiniteSource.retention,
-      ],
-    );
+    for (const seeded of [expiringSource, indefiniteSource]) {
+      await insertSource(migrator, {
+        id: seeded.id,
+        declared_id: seeded.declaredId,
+        retention: seeded.retention,
+      });
+    }
 
     await migrator.query(
-      `insert into snapshot (id, story_id, source_id, fetched_at) values
-         ($1, $2, $3, $4), ($5, $6, $7, $8), ($9, $10, $11, $12)
+      `insert into snapshot (id, story_id, source_id, fetched_at, source_declared_at) values
+         ($1, $2, $3, $4, $13), ($5, $6, $7, $8, $13), ($9, $10, $11, $12, $13)
        on conflict (id) do nothing`,
       [
         snapshotOfA.id,
@@ -467,6 +530,7 @@ describe.skipIf(noDatabase)("the schema, against a real PostgreSQL", () => {
         snapshotOfFounding.story,
         indefiniteSource.id,
         readLongAgo,
+        declaredAtSeeded,
       ],
     );
 
@@ -1265,7 +1329,28 @@ describe.skipIf(noDatabase)("the schema, against a real PostgreSQL", () => {
           order by column_name`,
       );
 
-      expect(rows.map((row) => row.column_name)).toEqual(["id", "retention"]);
+      expect(rows.map((row) => row.column_name)).toEqual([
+        "attribution",
+        "classification",
+        "declared_at",
+        "declared_id",
+        "id",
+        "licence_name",
+        "licence_share_alike",
+        "licence_spdx",
+        "licence_url",
+        "liveness_confirms_deletion",
+        "liveness_evidence",
+        "name",
+        "orderings_canonical",
+        "provider_base_url",
+        "read_at",
+        "restrictions",
+        "retention",
+        "unreadable_because",
+        "unreadable_since",
+        "url",
+      ]);
     });
   });
 
@@ -1289,8 +1374,20 @@ describe.skipIf(noDatabase)("the schema, against a real PostgreSQL", () => {
 
     // "Indefinite" is a value here, never an absence — `retention` in `schema.ts` says why.
     test("a Source cannot exist without saying how long its Snapshots may be kept", async () => {
+      // Every other column a declaration fills is supplied, so the refusal can only be this one.
+      const withoutRetention = Object.fromEntries(
+        Object.entries(declaredSource({ declared_id: "one-that-said-nothing-about-retention" })).filter(
+          ([column]) => column !== "retention",
+        ),
+      );
+      const columns = Object.keys(withoutRetention);
+
       await expect(
-        migrator.query(`insert into source (id) values (gen_random_uuid())`),
+        migrator.query(
+          `insert into source (${columns.join(", ")})
+           values (${columns.map((_, index) => `$${index + 1}`).join(", ")})`,
+          Object.values(withoutRetention),
+        ),
       ).rejects.toThrow(/retention/);
     });
 
@@ -1298,7 +1395,7 @@ describe.skipIf(noDatabase)("the schema, against a real PostgreSQL", () => {
     // every Snapshot the moment it was written.
     test("a retention of no time at all is refused", async () => {
       await expect(
-        migrator.query(`insert into source (id, retention) values (gen_random_uuid(), '0')`),
+        insertSource(migrator, { declared_id: "one-that-keeps-nothing", retention: "0" }),
       ).rejects.toThrow(/source_retention_is_positive/);
     });
 
@@ -1308,11 +1405,25 @@ describe.skipIf(noDatabase)("the schema, against a real PostgreSQL", () => {
     test("a Snapshot cannot be written without saying when the Source was read", async () => {
       await expect(
         migrator.query(
-          `insert into snapshot (id, story_id, source_id)
-           values (gen_random_uuid(), $1, $2)`,
-          [foundingStory.id, indefiniteSource.id],
+          `insert into snapshot (id, story_id, source_id, source_declared_at)
+           values (gen_random_uuid(), $1, $2, $3)`,
+          [foundingStory.id, indefiniteSource.id, declaredAtSeeded],
         ),
       ).rejects.toThrow(/fetched_at/);
+    });
+
+    // The other half of the same rule, on the column CAN-104 Read a Provider's capability
+    // declaration, and refuse what it does not serve added. A Snapshot that did not say which
+    // declaration it was stored under could never be told apart from one stored under the
+    // declaration now in force, which is the silence that whole path exists to remove.
+    test("a Snapshot cannot be written without saying which declaration it was stored under", async () => {
+      await expect(
+        migrator.query(
+          `insert into snapshot (id, story_id, source_id, fetched_at)
+           values (gen_random_uuid(), $1, $2, $3)`,
+          [foundingStory.id, indefiniteSource.id, readLongAgo],
+        ),
+      ).rejects.toThrow(/source_declared_at/);
     });
   });
 
@@ -1335,11 +1446,16 @@ describe.skipIf(noDatabase)("the schema, against a real PostgreSQL", () => {
     beforeAll(async () => {
       ({ purgeSource, howThePurgeTreatsEachTable } = await import("./purge-source"));
 
-      await migrator.query(
-        `insert into source (id, retention) values ($1, '6 months'), ($2, '6 months')
-         on conflict (id) do nothing`,
-        [terminatedSource.id, survivingSource.id],
-      );
+      await insertSource(migrator, {
+        id: terminatedSource.id,
+        declared_id: "the-terminated-one",
+        retention: "P6M",
+      });
+      await insertSource(migrator, {
+        id: survivingSource.id,
+        declared_id: "the-surviving-one",
+        retention: "P6M",
+      });
 
       // An Anchor apiece, carrying the Story's own id for the reason the outer fixtures do.
       await migrator.query(
@@ -1381,8 +1497,8 @@ describe.skipIf(noDatabase)("the schema, against a real PostgreSQL", () => {
       );
 
       await migrator.query(
-        `insert into snapshot (story_id, source_id, fetched_at) values
-           ($1, $2, $3), ($4, $2, $3), ($4, $5, $3), ($6, $5, $3)`,
+        `insert into snapshot (story_id, source_id, fetched_at, source_declared_at) values
+           ($1, $2, $3, $7), ($4, $2, $3, $7), ($4, $5, $3, $7), ($6, $5, $3, $7)`,
         [
           onlyTheTerminatedSource.id,
           terminatedSource.id,
@@ -1390,6 +1506,7 @@ describe.skipIf(noDatabase)("the schema, against a real PostgreSQL", () => {
           bothSources.id,
           survivingSource.id,
           onlyTheSurvivingSource.id,
+          declaredAtSeeded,
         ],
       );
 
@@ -1580,9 +1697,11 @@ describe.skipIf(noDatabase)("the schema, against a real PostgreSQL", () => {
 
       await migrator.query('drop table if exists "audit_payload"');
       await migrator.query('create table "audit_payload" (id uuid primary key)');
-      await migrator.query(`insert into source (id, retention) values ($1, '6 months')`, [
-        unclassifiedTableSource.id,
-      ]);
+      await insertSource(migrator, {
+        id: unclassifiedTableSource.id,
+        declared_id: "the-one-purged-while-the-schema-had-grown",
+        retention: "P6M",
+      });
       await migrator.query(`insert into anchor (id) values ($1) on conflict (id) do nothing`, [
         purgedWhileUnclassified.id,
       ]);
@@ -1592,8 +1711,9 @@ describe.skipIf(noDatabase)("the schema, against a real PostgreSQL", () => {
         [purgedWhileUnclassified.id, purgedWhileUnclassified.owner],
       );
       await migrator.query(
-        `insert into snapshot (story_id, source_id, fetched_at) values ($1, $2, $3)`,
-        [purgedWhileUnclassified.id, unclassifiedTableSource.id, readLongAgo],
+        `insert into snapshot (story_id, source_id, fetched_at, source_declared_at)
+         values ($1, $2, $3, $4)`,
+        [purgedWhileUnclassified.id, unclassifiedTableSource.id, readLongAgo, declaredAtSeeded],
       );
 
       partial = await purgeSource(migrator, unclassifiedTableSource.id);
@@ -2409,6 +2529,371 @@ describe.skipIf(noDatabase)("the schema, against a real PostgreSQL", () => {
           foundingStory.id,
         ]);
       }
+    });
+  });
+
+  /**
+   * Storing what one Provider declares about one Source, and re-reading it — CAN-104 Read a
+   * Provider's capability declaration, and refuse what it does not serve.
+   *
+   * **Here rather than in a file of its own for this file's own reason**: it needs a real
+   * PostgreSQL, and vitest runs test files in parallel, so a second one would migrate this database
+   * while this one was using it.
+   *
+   * **Its own Provider and its own Stories.** The suite writes and supersedes declarations, and a
+   * declaration change withholds every Snapshot of that Source stored under the old one — so
+   * touching the Sources the rest of this file reads would withhold rows other tests depend on.
+   */
+  describe("a Provider's capability declaration, as it is stored and re-read", () => {
+    let recordDeclaration: typeof import("./record-declaration").recordDeclaration;
+    let recordUnreadableDeclaration: typeof import("./record-declaration").recordUnreadableDeclaration;
+    let readDeclaredSources: typeof import("./sources").readDeclaredSources;
+    let refusals: typeof import("../providers/refusals");
+
+    /** The Provider whose declarations this suite writes, and a second one that copies its wording. */
+    const provider = "https://declaring.invalid";
+    const impersonator = "https://also-declaring.invalid";
+    const declaredId = "a-source-two-providers-both-claim";
+
+    /**
+     * One declaration, and the two later ones it is superseded by.
+     *
+     * The first declares all three optional blocks, so that superseding it with one that declares
+     * none of them exercises the case that matters: a Provider narrowing what it says, where every
+     * absence has to become a refusal rather than leaving the old answer standing.
+     */
+    const declaring = {
+      declaredAt: new Date("2026-08-01T00:00:00Z"),
+      source: { id: declaredId, name: "A Source that classifies", url: "https://source.invalid" },
+      retention: "P6M",
+      licence: {
+        spdx: "LicenseRef-something-proprietary",
+        name: "Some terms of use",
+        url: "https://source.invalid/terms",
+        shareAlike: false,
+      },
+      attribution: {
+        required: true as const,
+        notices: [{ text: "Values from a Source.", conditions: "Displayed prominently." }],
+        link: "https://source.invalid",
+        logo: { url: "https://declaring.invalid/logo.svg", alt: "A Source" },
+        perRecord: false,
+      },
+      restrictions: ["non-commercial"],
+      classification: [{ term: "a-source-specific-word", label: "Withheld", suppressesArtwork: true }],
+      orderings: { canonical: true },
+      liveness: { confirmsDeletion: true, evidence: "The Source publishes its live identifiers." },
+    };
+
+    /** The same Provider, later, having stopped declaring every one of the three optional blocks. */
+    const silenced = {
+      ...declaring,
+      declaredAt: new Date("2026-08-20T00:00:00Z"),
+      retention: "indefinite",
+      classification: undefined,
+      orderings: undefined,
+      liveness: undefined,
+    };
+
+    /** A Story of a fifth owner's, so a Snapshot of this Source has somewhere to hang. */
+    const storyOfE = { id: "0e0e0e0e-0e0e-4e0e-8e0e-0e0e0e0e0e0e", owner: "user-e" };
+
+    beforeAll(async () => {
+      ({ recordDeclaration, recordUnreadableDeclaration } = await import("./record-declaration"));
+      ({ readDeclaredSources } = await import("./sources"));
+      refusals = await import("../providers/refusals");
+
+      await migrator.query(`insert into anchor (id) values ($1) on conflict (id) do nothing`, [
+        storyOfE.id,
+      ]);
+      await migrator.query(
+        `insert into story (id, title, owner_id, visibility, anchor_id)
+         values ($1, 'A Story whose Source changed what it declares', $2, 'private', $1)
+         on conflict (id) do nothing`,
+        [storyOfE.id, storyOfE.owner],
+      );
+    });
+
+    afterEach(async () => {
+      // Every case starts from no declaration at all, because what most of them are about is what a
+      // second read does to the first — and a leftover row would make the first read of the next
+      // case a second read of the last one's.
+      await migrator?.query("delete from snapshot where source_id in (select id from source where provider_base_url = any($1))", [
+        [provider, impersonator],
+      ]);
+      await migrator?.query("delete from source where provider_base_url = any($1)", [
+        [provider, impersonator],
+      ]);
+    });
+
+    afterAll(async () => {
+      await migrator?.query("delete from story where id = $1", [storyOfE.id]);
+      await migrator?.query("delete from anchor where id = $1", [storyOfE.id]);
+    });
+
+    /**
+     * What this suite's Providers declared, read as an ordinary reader.
+     *
+     * Filtered to them because `readDeclaredSources` deliberately has no `where` clause — every
+     * reader sees every Source — so the rest of this file's fixtures come back too.
+     */
+    const declared = async () =>
+      (await readDeclaredSources(storyOfE.owner)).filter((row) =>
+        [provider, impersonator].includes(row.providerBaseUrl),
+      );
+
+    /** A Snapshot of this Source, stored under whichever declaration was in force at the time. */
+    const storeSnapshot = (sourceId: string, storedUnder: Date) =>
+      migrator.query(
+        `insert into snapshot (story_id, source_id, fetched_at, source_declared_at)
+         values ($1, $2, now(), $3)`,
+        [storyOfE.id, sourceId, storedUnder],
+      );
+
+    test("a Provider's first declaration is stored, whole", async () => {
+      const written = await recordDeclaration(migrator, provider, declaring);
+
+      expect(written.outcome).toBe("recorded");
+      expect(written.snapshotsWithheld).toBe(0);
+
+      const [stored] = await declared();
+      expect(stored.providerBaseUrl).toBe(provider);
+      expect(stored.declaration).toEqual(declaring);
+    });
+
+    test("a Source that declares no classification stores that fact rather than an empty one", async () => {
+      await recordDeclaration(migrator, provider, silenced);
+
+      const [stored] = await declared();
+
+      // Undefined, never `[]`: the two are opposite answers, and the column is null for the first
+      // exactly so that the second cannot be mistaken for it.
+      expect(stored.declaration.classification).toBeUndefined();
+      expect(stored.declaration.orderings).toBeUndefined();
+      expect(stored.declaration.liveness).toBeUndefined();
+
+      // And the refusal that fact produces, read from what came back out of the database rather
+      // than from the object that went in.
+      const decision = refusals.displayArtwork(stored, []);
+      expect(decision.permitted).toBe(false);
+      expect(decision.because).toContain("no content classification");
+    });
+
+    test("what a Source declares survives the round trip exactly", async () => {
+      await recordDeclaration(migrator, provider, declaring);
+
+      const [stored] = await declared();
+
+      // The retention especially: it is stored as an interval, and the declared duration is the
+      // only copy of what the Source's terms actually say.
+      expect(stored.declaration.retention).toBe("P6M");
+      expect(stored.declaration.restrictions).toEqual(["non-commercial"]);
+      expect(stored.declaration.attribution).toEqual(declaring.attribution);
+      expect(stored.declaration.classification).toEqual(declaring.classification);
+      expect(refusals.displayArtwork(stored, ["a-source-specific-word"]).permitted).toBe(
+        false,
+      );
+    });
+
+    test("indefinite retention survives it too, as the infinite interval", async () => {
+      await recordDeclaration(migrator, provider, silenced);
+
+      const [stored] = await declared();
+      expect(stored.declaration.retention).toBe("indefinite");
+    });
+
+    test("a duration comes back as the same length of time in PostgreSQL's own spelling", async () => {
+      // The column is the only copy of the retention, so what storing it does to the declared
+      // string is a measurement rather than an assumption — `retentionFromInterval` states the
+      // claim and this is what checks it. Eighteen months and two weeks are the two that move:
+      // the same duration, written the one canonical way.
+      await recordDeclaration(migrator, provider, { ...declaring, retention: "P18M" });
+      expect((await declared())[0].declaration.retention).toBe("P1Y6M");
+
+      await recordDeclaration(migrator, provider, {
+        ...declaring,
+        declaredAt: new Date("2026-08-02T00:00:00Z"),
+        retention: "P2W",
+      });
+      expect((await declared())[0].declaration.retention).toBe("P14D");
+    });
+
+    test("reading the same declaration again changes nothing but when it was read", async () => {
+      const first = await recordDeclaration(migrator, provider, declaring);
+      const [before] = await declared();
+
+      const again = await recordDeclaration(migrator, provider, declaring);
+      const [after] = await declared();
+
+      expect(again.outcome).toBe("unchanged");
+      expect(again.sourceId).toBe(first.sourceId);
+      expect(after.declaration).toEqual(before.declaration);
+      expect(after.readAt.getTime()).toBeGreaterThanOrEqual(before.readAt.getTime());
+    });
+
+    test("a later declaration replaces the one held, in every member", async () => {
+      await recordDeclaration(migrator, provider, declaring);
+      const superseding = await recordDeclaration(migrator, provider, silenced);
+
+      const [stored] = await declared();
+
+      expect(superseding.outcome).toBe("superseded");
+      expect(stored.declaration).toEqual(silenced);
+      // The narrowing, which is the whole reason a change is not allowed to be silent: what the old
+      // declaration permitted, the new one refuses.
+      expect(refusals.importOrderingAsCanonical(stored).permitted).toBe(false);
+      expect(refusals.treatAsGone(stored).permitted).toBe(false);
+      expect(refusals.displayArtwork(stored, []).permitted).toBe(false);
+    });
+
+    test("what was stored under the old declaration is withheld rather than re-read under the new one", async () => {
+      const { sourceId } = await recordDeclaration(migrator, provider, declaring);
+      await storeSnapshot(sourceId, declaring.declaredAt);
+
+      const superseding = await recordDeclaration(migrator, provider, silenced);
+      const [stored] = await declared();
+      const { rows } = await migrator.query<{ source_declared_at: Date }>(
+        "select source_declared_at from snapshot where source_id = $1",
+        [sourceId],
+      );
+
+      // Reported rather than deleted: dropping it is the sweep's decision, not this one's.
+      expect(superseding.snapshotsWithheld).toBe(1);
+      // The row still says what it was stored under, which is what makes the refusal possible at
+      // all — and the refusal is asked of the declaration that came back out of the database.
+      expect(refusals.readSnapshot(stored, rows[0].source_declared_at).permitted).toBe(
+        false,
+      );
+    });
+
+    test("a Snapshot stored under the declaration in force is not withheld", async () => {
+      const { sourceId } = await recordDeclaration(migrator, provider, declaring);
+      await storeSnapshot(sourceId, declaring.declaredAt);
+
+      const again = await recordDeclaration(migrator, provider, declaring);
+      const [stored] = await declared();
+
+      expect(again.snapshotsWithheld).toBe(0);
+      expect(refusals.readSnapshot(stored, declaring.declaredAt).permitted).toBe(true);
+    });
+
+    test("a declaration older than the one held is refused, and nothing changes", async () => {
+      await recordDeclaration(migrator, provider, silenced);
+
+      await expect(recordDeclaration(migrator, provider, declaring)).rejects.toThrow(
+        /older than/,
+      );
+
+      const [stored] = await declared();
+      expect(stored.declaration).toEqual(silenced);
+    });
+
+    test("two Providers declaring the same identifier are two Sources", async () => {
+      // Anyone may stand up a service claiming to serve any Source. The identifier says what a
+      // Provider calls its Source and never that two of them are serving the same one.
+      const first = await recordDeclaration(migrator, provider, declaring);
+      const second = await recordDeclaration(migrator, impersonator, declaring);
+
+      expect(second.outcome).toBe("recorded");
+      expect(second.sourceId).not.toBe(first.sourceId);
+      expect((await declared()).map((row) => row.providerBaseUrl).sort()).toEqual(
+        [impersonator, provider].sort(),
+      );
+    });
+
+    test("a Provider address with a trailing slash cannot become a second Source", async () => {
+      // `normaliseProviderUrl` strips it before anything gets here; the constraint is what makes
+      // the strip a fact about the table rather than a habit of one caller.
+      await expect(
+        insertSource(migrator, { provider_base_url: `${provider}/`, declared_id: declaredId }),
+      ).rejects.toThrow(/source_provider_base_url_has_no_trailing_slash/);
+    });
+
+    test("a classification vocabulary with no term in it cannot be stored", async () => {
+      await expect(
+        insertSource(migrator, {
+          provider_base_url: provider,
+          declared_id: "one-with-an-empty-vocabulary",
+          classification: JSON.stringify([]),
+        }),
+      ).rejects.toThrow(/source_classification_vocabulary_is_not_empty/);
+    });
+
+    test("a Provider that answers with something else has its Source marked, and refused", async () => {
+      // The "and says so" half of *a declaration the application cannot parse fails the Source
+      // closed*: a printed line is known only to whoever watched the run, and this is a column, a
+      // sentence and a refusal.
+      await recordDeclaration(migrator, provider, declaring);
+      const marked = await recordUnreadableDeclaration(
+        migrator,
+        provider,
+        "It answered 200 with text/html, which is not a capability declaration.",
+      );
+
+      const [stored] = await declared();
+
+      expect(marked).toBe(1);
+      expect(stored.unreadable?.because).toContain("text/html");
+      // What the declaration permitted is withdrawn — read back out of the database rather than
+      // asserted on the object that went in.
+      expect(refusals.displayArtwork(stored, ["a-source-specific-word"]).permitted).toBe(false);
+      expect(refusals.importOrderingAsCanonical(stored).permitted).toBe(false);
+      expect(refusals.treatAsGone(stored).permitted).toBe(false);
+      // And what it obliges is not.
+      expect(stored.declaration.retention).toBe("P6M");
+      expect(stored.declaration.restrictions).toEqual(["non-commercial"]);
+    });
+
+    test("the moment is the first such answer rather than the latest", async () => {
+      await recordDeclaration(migrator, provider, declaring);
+      await recordUnreadableDeclaration(migrator, provider, "The first one.");
+      const [first] = await declared();
+
+      await recordUnreadableDeclaration(migrator, provider, "The second one.");
+      const [second] = await declared();
+
+      // A Provider answering rubbish every hour for a month has been unreadable for a month.
+      expect(second.unreadable?.since).toEqual(first.unreadable?.since);
+      expect(second.unreadable?.because).toBe("The second one.");
+    });
+
+    test("a read that succeeds clears the mark, whether or not the declaration changed", async () => {
+      await recordDeclaration(migrator, provider, declaring);
+
+      await recordUnreadableDeclaration(migrator, provider, "Something that is not a declaration.");
+      await recordDeclaration(migrator, provider, declaring);
+      expect((await declared())[0].unreadable).toBeUndefined();
+
+      await recordUnreadableDeclaration(migrator, provider, "Something that is not a declaration.");
+      await recordDeclaration(migrator, provider, silenced);
+      expect((await declared())[0].unreadable).toBeUndefined();
+    });
+
+    test("a Provider that has declared nothing here has nothing to mark", async () => {
+      // Which is what failing closed comes to for a first read: no row, so no Source, so nothing
+      // served. The count is what says so rather than a silent zero-row update.
+      expect(await recordUnreadableDeclaration(migrator, provider, "Anything.")).toBe(0);
+    });
+
+    test("a moment without a reason cannot be stored, nor a reason without a moment", async () => {
+      for (const half of [
+        { unreadable_since: "2026-08-20T00:00:00Z" },
+        { unreadable_because: "A reason nobody dated." },
+      ]) {
+        await expect(
+          insertSource(migrator, { declared_id: `half-a-mark-${Object.keys(half)[0]}`, ...half }),
+        ).rejects.toThrow(/source_unreadable_is_a_moment_and_a_reason/);
+      }
+    });
+
+    test("evidence cannot be stored for a liveness claim nobody made", async () => {
+      await expect(
+        insertSource(migrator, {
+          provider_base_url: provider,
+          declared_id: "one-with-evidence-for-nothing",
+          liveness_evidence: "A list nobody declared reading.",
+        }),
+      ).rejects.toThrow(/source_liveness_evidence_belongs_to_a_liveness_declaration/);
     });
   });
 });

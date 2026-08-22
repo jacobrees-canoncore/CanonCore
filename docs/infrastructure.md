@@ -2955,6 +2955,28 @@ of every page** rather than from the front page alone. It is also the only route
 that is prerendered static, because nothing on it depends on the request; the switch it carries reads
 the *device*, which is why that half is a client component.
 
+**And one page that is about what the catalogue rests on**, `/sources`, with
+[CAN-104 Read a Provider's capability declaration, and refuse what it does not serve](https://linear.app/jacobrees-canoncore/issue/CAN-104).
+It lists every Source a Provider has declared, what each obliges — the retention, the licence, the
+credit owed, what the terms forbid — and, first on each entry, **what is withheld because that
+Provider does not say**. Absence is refusal rather than permission, so a Provider declaring no
+content classification has no Artwork displayed from it, and that fact is a stored column and a
+visible sentence rather than a rule running quietly. **A Provider that has stopped answering with a
+declaration at all shows up there too**, with the date its answers stopped being readable and what
+was wrong with the last one — a fact that would otherwise be known only to whoever watched a command
+run. It is linked from the footer of every page,
+where an About or Credits section belongs and where
+[CAN-105 Carry each Source's attribution obligation through to every surface that displays it](https://linear.app/jacobrees-canoncore/issue/CAN-105)
+will look for one.
+
+**Today it is empty, and that is the true state rather than an unfinished one**: no Provider serves
+the contract yet, so nothing has declared anything. What can put a row there is one command an
+operator types — [`runbook.md`](runbook.md) → *A Provider's declaration is read or re-read* — and
+nothing a deployment runs, because the application role holds `SELECT` on that table and no write.
+Every value it draws came from a service nobody here has reviewed and **none of it is followable**,
+the four URLs a declaration carries included; the logo is named rather than fetched, which is a
+different act from rendering a string.
+
 **Every one of those pages is now drawn inside a shell**, with [CAN-89 Give the product a visual identity and a reading surface](https://linear.app/jacobrees-canoncore/issue/CAN-89): a skip link, a masthead
 whose wordmark is the way back to the front page, one `<main>`, and a footer. **The footer carries
 the reporting address on every page**, which is the first clause of ICU D2 and the thing
@@ -2970,7 +2992,8 @@ before anything reaches it. The values the shell is drawn in are that same ADR.
 
 **There is still no way for anyone but the operator to put a row here**, which is the sentence *Gate
 one* rests on: nothing in the product creates a record, so an account holds nothing its holder
-authored.
+authored. The capability declaration does not move that sentence — the command that reads one is the
+operator's, and **CAN-113 Add a Provider by pasting its URL** is the change that would.
 
 **Four routes are served that are not pages at all**, and this is the one the monitor asks —
 `/api/alive`, `/api/auth/*` and `/api/csp-report` are the others, each with its own paragraph

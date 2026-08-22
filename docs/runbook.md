@@ -37,6 +37,7 @@ and the first request below is what reads it.
 - [The database has to be restored from a backup](#the-database-has-to-be-restored-from-a-backup)
 - [Spend Management paused the production deployment](#spend-management-paused-the-production-deployment)
 - [A Source's licence terminates](#a-sources-licence-terminates)
+- [A Provider's declaration is read or re-read](#a-providers-declaration-is-read-or-re-read)
 - [What warns you before a pause](#what-warns-you-before-a-pause)
 
 ## The alert, and what it cannot tell you
@@ -560,13 +561,15 @@ nothing. No credential to fetch: the workflow below already holds one.
 
 Step 1 is a query, run wherever you can reach the database as something other than the application
 role — the `neon` MCP's `run_sql`, the Neon console, or `psql` with `canoncore_migrator`'s string.
-**Nothing in the `source` table names which Source a row is**: it carries an id and a retention and
-deliberately nothing else, so the id has to be matched against the Provider that wrote it. When one
-identifies itself, that is a capability declaration (**CAN-104 Read a Provider's capability
-declaration, and refuse what it does not serve**).
+**A row names which Source it is, and which Provider says so**, since **CAN-104 Read a Provider's
+capability declaration, and refuse what it does not serve** made the row the declaration: `name` is
+what that Provider calls its Source and `provider_base_url` is who declared it. *(Until that landed
+the table carried an id and a retention and nothing else, and the id had to be matched against the
+Provider that wrote it by hand.)* **Take the pair, never the name alone** — an identifier is scoped
+to the Provider that declared it, so two rows may carry one name and be two different services.
 
 ```sql
-select id, retention from source;
+select id, name, provider_base_url, declared_id, retention from source;
 ```
 
 Then dispatch the purge. `--ref main` because a dispatch reads the workflow from the default branch,
@@ -696,8 +699,97 @@ would print:
 **And today there is nothing to purge.** No Provider serves anything yet — `provider-tmdb`'s
 repository has existed since 21 August 2026 but carries only its CI baseline, with no deployment and
 no contract behind it (**CAN-101 Create the provider-tmdb repository, and give it the TMDB
-credential**) — nothing writes a `source` row, and no Snapshot has ever been fetched. This entry is
-here so that the first time it is needed is not the first time it is written.
+credential**) — so no declaration has been read, no `source` row exists, and no Snapshot has ever
+been fetched. **What can write one is a command an operator types**, below, and nothing else: no
+deployment writes this table, because the application role holds `SELECT` on it and no more. This
+entry is here so that the first time it is needed is not the first time it is written.
+
+## A Provider's declaration is read or re-read
+
+**Not an incident. It is the one way a Source comes to exist here**, and it is written beside the
+purge because the two are the same shape: a command an operator types, whose run is the record.
+
+**What it is for.** A **Listed Provider** — [`CONTEXT.md`](../CONTEXT.md)'s glossary defines one — is
+a Provider this project writes and runs, named in the product's own list rather than pasted in by
+anybody, so registering the Source behind it is an operator's act. The ingress a *person* uses to add
+a stranger's Provider is a different thing with different duties, and it is **CAN-113 Add a Provider
+by pasting its URL**.
+
+**When to run it.** When a Listed Provider is first deployed; when its operator changes what it
+declares; and whenever you want to know what the application currently believes a Source obliges.
+Re-reading an unchanged declaration is free and changes nothing but when it was last read.
+
+**Dispatch it rather than typing it**, for the purge's reason: nobody holds `canoncore_migrator`'s
+connection string on a laptop, the secret already exists here, and the run is the dated record of
+what was declared. `--ref main` because a dispatch reads the workflow from the default branch.
+
+```bash
+gh workflow run read-declaration.yml --ref main -f provider_url=https://provider.example
+gh run list --workflow read-declaration.yml --limit 1     # its id, and whether it is still going
+gh run view <run-id> --log                                # what it read, and what it withholds
+```
+
+Locally, for anyone who does hold that string:
+
+```bash
+MIGRATION_DATABASE_URL=… pnpm --filter @canoncore/web db:read-declaration https://provider.example
+```
+
+The credential is the migrator's because the application role holds `SELECT` on `source` and no write
+anywhere but the Anchor mint, so nothing a deployment runs can write this table.
+
+**Five ways it ends, and the run's own output says which. Only the first three are green.**
+
+| The run says | What happened |
+| --- | --- |
+| `recorded` | This Provider had not declared this Source before. A row now exists |
+| `unchanged` | The same declaration, on the Provider's own clock. Only `read_at` moved |
+| `superseded` | A later declaration replaced the one held. Read the `WITHHELD` lines: what the old one permitted, the new one may refuse. Any Snapshot stored under the old declaration is withheld until it has been read again, and the count is on the last line |
+| `Refused.` | **The read failed and no declaration was stored.** The rest of the line says why — unreachable, an error status, a body that is not JSON, or a declaration this contract does not describe. Whatever was held stays in force. **Where the Provider *answered*, a second line says the Source was `Marked … unreadable`** and what that withdraws |
+| An uncaught `Error:` | **The read succeeded and the store refused it.** One case reaches this, `older than`, below. Like the purge, this is one transaction, so a failure part-way through rolls back rather than leaving half a write |
+
+**A refusal is the safe outcome, not a failure to work around**, and what it means depends on whether
+a declaration is already held.
+
+- **For a Source nothing has declared yet** it is literal: no row is written, so there is no Source
+  and nothing is served.
+- **For one already recorded** the declaration in force stays in force — an outage, a bad deploy and
+  a revoked credential are indistinguishable, and dropping to *serves nothing* on any of them would
+  blank a catalogue on a network blip. What ends a Source nobody can read any more is its retention,
+  not a failed read.
+- **And where the Provider answered with something that is not a declaration**, the Source is
+  **marked unreadable**: that is distinguishable — it replied, and what it replied is not terms this
+  contract describes — so it has stopped standing behind what is held. **What the mark withdraws is
+  what that declaration permits and nothing it obliges**: no Artwork, no Ordering taken as the
+  Source's own sequence, nothing treated as deleted, while the retention, the credit and the
+  restrictions go on binding. `/sources` says since when and why, and the next read that succeeds
+  clears it.
+
+The two refusals worth naming apart:
+
+- **`requires a credential`.** The Provider answered `401`. This application holds no *Source*
+  credential and passes none ([ADR-0014](adr/0014-shell-providers-and-per-source-retention.md) →
+  *Decision 1*), so an authenticated Provider cannot be read from here at all — which is a thing to
+  fix in the Provider's own configuration, never by putting a token in `apps/web`.
+- **`older than`.** The Provider served a declaration older than the one already held. `declaredAt`
+  is the Provider's own clock and the only thing that orders two reads, so this means it is serving
+  something superseded or something else entirely. Nothing was changed. Find out which before
+  running it again.
+
+**`could not be reached` carries the real error in brackets**, because every network failure comes
+out of `fetch` as the same three words: a refused connection, an unresolvable name, an expired
+certificate and a timeout are indistinguishable without it. `ECONNREFUSED` and the deployment being
+down are [The database does not answer](#the-database-does-not-answer)'s shape but for somebody
+else's service, so the Provider's own status is where to look rather than anything here.
+
+**The run's log is the only history there is.** The row keeps the declaration currently in force and
+nothing before it, on purpose: nothing may be done under a superseded declaration, so keeping one
+would be storing terms nobody may act on. What the old declaration said is in the run that stored it.
+
+**Read the `WITHHELD` lines every time.** They are what the declaration's *silences* cost — no
+Artwork, no Ordering taken as the Source's own sequence, nothing treated as deleted — and they are
+the half a page listing what a Provider serves would never show you. The same list is on `/sources`,
+for whoever is not reading a terminal.
 
 ## What warns you before a pause
 

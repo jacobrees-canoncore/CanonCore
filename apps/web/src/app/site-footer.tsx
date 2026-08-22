@@ -17,6 +17,13 @@ import { reportingAddress } from "@canoncore/config";
  * those. [`no-linkification.test.tsx`](no-linkification.test.tsx) pins the composed result in the
  * closed set anyway, which is the assertion that record rests on rather than this argument.
  *
+ * **`/sources` is here rather than in the masthead**, which is a placement decision rather than a
+ * spare slot. What that page carries is what each Source obliges and what its silence withholds —
+ * the shape of an About or Credits section, which is where an attribution licence expects to be
+ * discharged and where CAN-105 Carry each Source's attribution obligation through to every surface
+ * that displays it will look for one. The masthead names where you can go in the product; this names
+ * what the product rests on.
+ *
  * **The terms of service are not linked here yet**, and that is deliberate:
  * CAN-32 Roles, takedown, and the Online Safety Act surfaces owns rendering the two documents in
  * `content/legal/`, and a footer link to a route that answers 404 would be worse than its absence.
@@ -25,6 +32,7 @@ export function SiteFooter() {
   return (
     <footer className="site-footer">
       <a href={`mailto:${reportingAddress}`}>Report content</a>
+      <a href="/sources">Sources</a>
       <a href="/privacy/analytics">How visits are counted</a>
     </footer>
   );

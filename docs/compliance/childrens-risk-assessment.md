@@ -16,6 +16,7 @@ children's safety duties and Ofcom's *Protection of Children Codes of Practice*.
 | Revised | 17 August 2026 — **redone under `s.11(4)`**, alongside the illegal content assessment and before the ingress it assesses can ship. Carried by [CAN-108 Re-assess the illegal-content risk before a user can paste an arbitrary Provider URL](https://linear.app/jacobrees-canoncore/issue/CAN-108). **No level moved and no risk factor was added.** What did: text imported through a *pasted* Provider is user-generated content, so every kind below was re-read against that route; the artwork constraint is re-derived for a Source whose classification arrives from a party this project cannot check; and [`childrens-access-assessment.md`](childrens-access-assessment.md) was re-read against the result |
 | Revised | 17 August 2026 — **accounts ship, and the non-linkification control is narrowed in wording only.** Carried by [CAN-24 A signed-in and a signed-out path](https://linear.app/jacobrees-canoncore/issue/CAN-24). **No level, finding or risk factor changed, and no `s.11(4)` redo is owed**: the reasoning is the illegal content assessment's Step 4 note *Why shipping accounts triggers no redo*, which was written against both lists, and the linkification note below records what the narrowing does and does not reach |
 | Revised | 21 August 2026 — **visit counting is adopted, and the terms of service gain a third data disclosure.** Carried by [CAN-60 Gate the front end on bytes, budgets and React lint](https://linear.app/jacobrees-canoncore/issue/CAN-60), under [ADR-0020](../adr/0020-no-cookie-consent-banner.md). **No level, finding or risk factor changed, and no `s.11(4)` redo is owed.** Nothing about it is a functionality this assessment turns on: no cookie is set, the address is reduced before it is sent, the counts are never joined to an account, and an objection route ships with them. It is recorded here rather than only in the illegal content assessment because the terms amendment is one this record has tracked before, on 14 August 2026 |
+| Revised | 21 August 2026 — **the artwork refusal this record relies on becomes code.** Carried by [CAN-104 Read a Provider's capability declaration, and refuse what it does not serve](https://linear.app/jacobrees-canoncore/issue/CAN-104). **No level, finding or risk factor changed, and no `s.11(4)` redo is owed**: the reasoning across both lists is recorded once, in [`illegal-content-risk-assessment.md`](illegal-content-risk-assessment.md) → *Step 4 — Review*, under *Why reading a capability declaration triggers no redo*. What moved is that *A pasted Provider's classification is a stranger's assertion* below now describes something built and tested rather than something owed |
 | Next review date | 13 August 2027 — at least annually |
 | Completed by | Jacob Rees |
 | Named person responsible | Jacob Rees |
@@ -269,6 +270,25 @@ already carries it as an acceptance criterion citing
 [ADR-0012](../adr/0012-adult-works-catalogued-artwork-never-displayed.md). **It is restated here
 because this is the record that would be wrong if it were dropped**, and a rule living only in the
 ticket that implements it is one nobody re-reads at the moment it is broken.
+
+> **Built on 21 August 2026, and what exactly is built.** The rule above is now code:
+> [`refusals.ts`](../../apps/web/src/providers/refusals.ts) computes every answer from the
+> declaration in force at the moment it is asked and **stores no judgement derived from one**, so a
+> Provider narrowing what it declares cannot leave a permission standing that it has withdrawn. A
+> Provider declaring no content classification has that stored as a null column, refused by the
+> rule, and shown on `/sources` as a sentence saying its Artwork is withheld. Two further absences
+> are refused the same way: a record nothing in its containment chain classified, and a term outside
+> the vocabulary the Provider declared.
+>
+> **The rule reads the flag beside a term and never the word**, which is what ADR-0014 asks for and
+> what lets it run without the application knowing any Source's vocabulary. It is asserted against a
+> vocabulary whose words point the opposite way to its flags, so a rule that had learnt a Source's
+> own word would fail in both directions rather than passing by luck.
+>
+> **What is not built is the display half, because there is nothing to display.** v1 imports no
+> Artwork — [CAN-13 Artwork: uploads, rights and takedown](https://linear.app/jacobrees-canoncore/issue/CAN-13)
+> is what brings it — so the refusal is exercised by test rather than by production, which the
+> ticket's own criterion says in terms. The renderer that must not override it is still CAN-13's.
 
 **A false declaration is a real residual risk, and it is stated rather than argued away.** A
 stranger's Provider may assert that a work is not adult when it is, and nothing here can tell.
