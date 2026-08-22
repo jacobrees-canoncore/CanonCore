@@ -638,6 +638,13 @@ thinks it is belt-and-braces will relax it" no longer applies, because it now *i
 `linkedLinearIssueOrganizationUrlKey` are both `null` on this lane while `linkedLinearIssue` is
 `"CAN-131"`, and `orca linear issue --current` resolves correctly anyway. Not a defect; do not file it.
 
+> **Corrected 22 August 2026.** The last sentence held only because that reading was taken from the
+> session belonging to that lane. `--current` resolves against `ORCA_WORKTREE_ID`, exported once at
+> session launch, so it is right whenever the session and the directory agree and silently wrong
+> whenever they do not — which is every cross-repository lane. It *was* a defect, and it was filed as
+> an incident rather than a ticket: `docs/incidents.md` → *`--current` answers for the session's lane,
+> not the directory you are standing in*.
+
 ## Candidate tickets, named and not filed
 
 Filing is a separate call, per the commissioning ticket.

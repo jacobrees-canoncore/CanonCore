@@ -71,8 +71,16 @@ since two pull requests carrying one identifier both drive it and the first to m
    two disagree:
 
    ```bash
-   orca linear issue --current --json      # must agree with $ID, or you are in the wrong session
+   LANE=$(orca linear issue --current --json 2>/dev/null | jq -r '.result.issue.identifier // empty')
+   if [ -n "$LANE" ] && [ "$LANE" != "$(echo "$ID" | tr a-z A-Z)" ]; then
+     echo "Wrong session: branch says $ID, the session's lane says $LANE" >&2; exit 1
+   fi
    ```
+
+   **A `--current` that cannot answer is not a disagreement.** A branch made with `git switch -c` has no
+   Orca worktree behind it and returns `selector_not_found`, and a plain clone has no `orca` at all —
+   both of which `/review-pr` already treats as an announced no-op rather than a failure. Stop only
+   when it names a *different* identifier; carry on when it names none.
 
    If the branch carries no identifier, carry on without an issue and say so. Do not guess one, and
    do not fall back to `--current`.
@@ -215,15 +223,16 @@ since two pull requests carrying one identifier both drive it and the first to m
    route the classifier does not block. Pass `draft: true`, and the text of the body file rather
    than its path — the tool's schema takes `body` as a string.
 
-10. **Attach the PR to the issue**, if one was found:
+10. **Attach the PR to the issue**, if one was found. **`$ID` from step 3, not `--current`** — the
+    attachment is a write to a ticket, so it carries the same wrong-lane risk the PR body does, and
+    an attachment landing on the launching lane's issue is the same defect one door further down:
 
     ```bash
-    orca linear attach --current --url <pr-url> --title "PR link" --json
+    orca linear attach "$ID" --url <pr-url> --title "PR link" --workspace "$WS" --json
     ```
 
-    Use `orca linear attach <id> --url … --workspace "$WS"` when the worktree is not linked. This is
-    deliberate belt and braces: `Fixes CAN-<n>` in the body relies on Linear's scanner noticing, and
-    an attachment does not.
+    This is deliberate belt and braces: `Fixes CAN-<n>` in the body relies on Linear's scanner
+    noticing, and an attachment does not.
 
     On `linear_write_unconfirmed`, retry **once** with the pinned `--write-id` from the error's own
     `nextSteps`, with the identical body and an explicit issue target — never swap the pinned target

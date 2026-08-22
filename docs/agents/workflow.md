@@ -1032,8 +1032,11 @@ first Provider was built this way rather than because it was planned that way �
    `--no-parent` because the Provider's lane is not a child of this one, and `--linear-issue` because
    the link is worktree metadata rather than something inferred from the branch name.
 
-3. **Run the session inside the Provider's own checkout**, which used to be the thing that did not
-   work. The chain and the documents it cites arrive there as a Claude Code plugin whose payload is
+3. **Run the session inside the Provider's own checkout. This is a correctness rule, not a
+   convenience** — the tracker CLI's `--current` resolves against the session's own lane rather than
+   the working directory, so from a CanonCore session it answers *this* ticket for work in a Provider
+   and does not decline (`docs/incidents.md` → *`--current` answers for the session's lane, not
+   the directory you are standing in*). It used to be the thing that did not work. The chain and the documents it cites arrive there as a Claude Code plugin whose payload is
    this repository, so `CLAUDE.md`, `CODING_STANDARDS.md`, `CONTEXT.md` and the ADRs are all present
    and the skills' pointers resolve — against `${CLAUDE_PLUGIN_ROOT}` rather than the working
    directory ([ADR-0029](../adr/0029-a-provider-reaches-this-practice-as-a-plugin.md)).

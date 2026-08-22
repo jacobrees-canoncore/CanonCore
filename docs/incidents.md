@@ -742,7 +742,7 @@ as "no matching issues" rather than "wrong workspace".
 **21 August 2026, on CAN-150 provider-tmdb is provisioned on GitHub and unwired on Vercel, so nothing
 deploys.** Run from inside `~/orca/workspaces/provider-tmdb/can-160`, `orca linear issue --current`
 answered **CAN-150** — the ticket of the CanonCore lane the session was launched from, not the
-CAN-160 that directory belongs to.
+**CAN-160 Make provider-tmdb's first deployment serve the contract rather than `public/`** that directory belongs to.
 
 **Both worktrees were linked correctly**, which is what makes this worth writing down rather than
 fixing. `orca worktree list --json` gives `linkedLinearIssue: "CAN-150"` for the CanonCore path and
@@ -755,17 +755,34 @@ moves the shell and nothing else.
 wrong: `CAN-150` and `CAN-160` are neighbours, both open, both about the same Provider. It was caught
 by reading the identifier that came back, not by anything refusing.
 
-**What it would have cost.** `/draft-pr` step 3 tried `--current` *first* and fell back to the branch
-name, so the Provider's pull request would have carried `Fixes CAN-150`. Two pull requests carrying
-one identifier both drive that issue and the first to merge closes it
-([`agents/workflow.md`](agents/workflow.md) → *Work that spans two repositories*) — so the Provider's
-merge would have reported the CanonCore ticket Done and left its own open, which nothing re-opens.
+**What it would have cost, and it does not wait for a merge.** `/draft-pr` step 3 tried `--current`
+*first* and fell back to the branch name, so the Provider's pull request would have carried
+`Fixes CAN-150`. Linear's integration moves an issue as a pull request **opens** as well as when it
+merges ([`agents/workflow.md`](agents/workflow.md) → *Work that spans two repositories*), so the
+damage starts at `gh pr create`: the CanonCore ticket advances on the strength of a pull request in
+another repository. The merge then reports it Done and leaves the Provider's own open, which nothing
+re-opens. **Step 10's attachment is the same defect one door down** — it writes to a ticket too, and
+it took `--current` under a condition, *"when the worktree is not linked"*, that this incident's own
+case never met.
 
-**Two things follow.** `/draft-pr` and `/review-pr` now derive the identifier from the branch first
-and use `--current` only to confirm it, because the branch is the one thing that cannot disagree with
-the repository it is checked out in. And *Work that spans two repositories*' instruction to run the
-session inside the Provider's own checkout is a correctness rule rather than a convenience: from the
-wrong session, `--current` does not decline to answer.
+**What follows is a sweep rather than one edit, because `--current` was the recommended form
+everywhere.** `/implement` takes the identifier from the branch — it is the head of the chain, so a
+ticket read wrong there is wrong in everything downstream; `/draft-pr` does the same and then runs
+`--current` as a guard that **exits non-zero** when the two name different tickets, and passes when it
+names none, since a `git switch -c` branch has no lane and answers `selector_not_found`;
+`/draft-pr`'s attachment and every write in `/review-pr`'s close-out use that identifier too.
+[`agents/issue-tracker.md`](agents/issue-tracker.md) said to use `--current` *"when the Orca worktree is
+linked"* in two places, and being linked is precisely what this incident shows is not the condition.
+The workspace hook's own refusal message recommended it, and now says what it resolves against.
+
+**The branch is the source because it cannot disagree with the repository it is checked out in.**
+That is a claim about *location* and nothing more: `CAN-150` and `CAN-160` share one team and one
+workspace, so neither the branch nor `--workspace` catches a mistyped identifier. What it removes is
+the failure that needs no mistake at all.
+
+**And *Work that spans two repositories*' instruction to run the session inside the Provider's own
+checkout is a correctness rule rather than a convenience**, which is now what it says: from the wrong
+session, `--current` does not decline to answer.
 
 ## One GitHub owner binds to one Linear workspace
 
